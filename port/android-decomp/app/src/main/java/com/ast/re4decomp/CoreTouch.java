@@ -33,6 +33,15 @@ import java.util.Set;
  * owner, 26.10.2026; until then four buttons C-up .. C-right): the editor's
  * ADD, then ACTION to "C" (RetroTouch's stick action, 1.0.0-beta.7), in the
  * GameCube's yellow. It does what the look zone does; the further tilt wins.
+ *
+ * Two more sticks the editor adds (1.0, a player's wish that the project owner took, 16.11.2026): the aim stick
+ * holds R and the knife stick holds L while a finger is on them, also resting in their centre, and their tilt is the
+ * control stick, which aims (the weapon, the knife, the scope) while R or L is held. The other thumb fires with A.
+ * RetroTouch reports a finger in a stick's centre as (0, 0), the same as its release, so the finger that went down on
+ * such a stick (fingerDown, the event in which its first onStick came) holds it until that finger lifts (fingerUp).
+ * Reports outside a touch event (RetroTouch centres its sticks when its layout loads or resets) hold nothing.
+ * L and R of the buttons and of these sticks add up: either keeps it held. The control stick is the move stick or
+ * the aim stick, whichever tilts further.
  */
 final class CoreTouch {
   // the actions registered with RetroTouch (the layout's contract: lower case, never renamed)
@@ -40,6 +49,8 @@ final class CoreTouch {
       START = "start", MENU = "menu", R3 = "r3",
       // the C stick as an analog stick the editor adds (RetroTouch's stick action, registerStickAction)
       C_STICK = "cstick",
+      // the aim stick (R held, its tilt aims) and the knife stick (L held), sticks the editor adds (1.0)
+      AIM_STICK = "aimstick", KNIFE_STICK = "knifestick",
       // zoom in and out (0.99.15, GitHub #247: on touch the scope could only zoom by the look zone or a C stick):
       // buttons the editor adds, as the mouse wheel's notches while held (CoreBridge.zoom), the scope and the
       // binoculars only; not in the default layout
@@ -55,8 +66,10 @@ final class CoreTouch {
    * graphics capture for error reports, as on a controller; not in the default layout, the editor
    * adds it.
    */
-  static final String[] ACTIONS = {A, B, X, Y, Z, L, R, START, MENU, R3, C_STICK, ZOOM_IN, ZOOM_OUT};
-  static final String[] LABELS = {"A", "B", "X", "Y", "Z", "L", "R", "START", "MENU", "R3", "C", "+", "\u2212"};
+  static final String[] ACTIONS = {A, B, X, Y, Z, L, R, START, MENU, R3, C_STICK, ZOOM_IN, ZOOM_OUT, AIM_STICK,
+      KNIFE_STICK};
+  static final String[] LABELS = {"A", "B", "X", "Y", "Z", "L", "R", "START", "MENU", "R3", "C", "+", "\u2212", "AIM",
+      "KNIFE"};
   // the GameCube's official colours (the project owner's palette, 19.10.2026): A green, B red,
   // Z purple, the C stick yellow, the others grey (RetroTouch writes dark labels on the light grey
   // and the yellow)
@@ -65,7 +78,7 @@ final class CoreTouch {
   /** The border of every button (wish of the project owner, 03.11.2026). */
   static final int BORDER = 0xFF3E3C29;
   static final int[] COLOURS = {GC_GREEN, GC_RED, GC_GREY, GC_GREY, GC_PURPLE, GC_GREY, GC_GREY, GC_GREY, GC_GREY, GC_GREY,
-      GC_YELLOW, GC_GREY, GC_GREY};
+      GC_YELLOW, GC_GREY, GC_GREY, GC_GREY, GC_GREY};
 
   /** Whether an action zooms (the editor's + and -), not a GameCube button. */
   static boolean isZoom(String action) {
@@ -74,7 +87,7 @@ final class CoreTouch {
 
   /** Whether an action is an analog stick (RetroTouch's stick action), not a button. */
   static boolean isStick(String action) {
-    return C_STICK.equals(action);
+    return C_STICK.equals(action) || AIM_STICK.equals(action) || KNIFE_STICK.equals(action);
   }
 
   // the kinds of RetroTouchControl
@@ -146,6 +159,29 @@ final class CoreTouch {
   private final Set<Integer> lookFingers = new HashSet<>();
   // a control answered the finger of the touch event being dispatched (beginEvent .. fingerDown)
   private boolean answered;
+  // L and R held by their buttons (not latched) and by the knife and aim sticks; the move stick's tilt (the control
+  // stick: the move stick or an aim stick, the further tilt)
+  private boolean lButton, rButton;
+  private final StickHold aim = new StickHold(), knife = new StickHold();
+  private float moveX, moveY;
+  // the aim or knife stick whose first onStick came in the event being dispatched (its finger: fingerDown)
+  private StickHold pending;
+  // a touch event is being dispatched (beginEvent .. endEvent); a finger went down in it
+  private boolean inEvent, downEvent;
+
+  /** The aim or knife stick: held while its finger is on it, its tilt. */
+  private static final class StickHold {
+    boolean held;
+    int finger = -1;  // -1: not known (the hold then ends with a (0, 0) report)
+    float x, y;
+
+    void release() {
+      held = false;
+      finger = -1;
+      x = 0;
+      y = 0;
+    }
+  }
 
   CoreTouch(CoreInput input, Host host) {
     this.input = input;
@@ -193,8 +229,11 @@ final class CoreTouch {
     } else if (latch && (L.equals(action) || R.equals(action))) {
       if (!down) return;
       boolean on = L.equals(action) ? (l = !l) : (r = !r);
-      input.touchButton(gcButton(action), on);
+      applyLR();  // (an aim or knife stick under a finger keeps R or L held)
       host.latched(action, on);
+    } else if (L.equals(action) || R.equals(action)) {
+      if (L.equals(action)) lButton = down; else rButton = down;
+      applyLR();
     } else if (latchB && B.equals(action)) {
       if (!down) return;
       b = !b;
@@ -209,7 +248,27 @@ final class CoreTouch {
   /** RetroTouch's onMove: the move stick, -1..1 with y down. */
   void move(float x, float y) {
     answered = true;
+    moveX = x;
+    moveY = y;
+    applyMain();
+  }
+
+  /** The control stick: the move stick or the aim or knife stick, whichever tilts further. */
+  private void applyMain() {
+    float x = moveX, y = moveY;
+    for (StickHold s : new StickHold[] {aim, knife}) {
+      if (s.x * s.x + s.y * s.y > x * x + y * y) {
+        x = s.x;
+        y = s.y;
+      }
+    }
     input.touchStick(false, x, y);
+  }
+
+  /** L and R: their buttons, the knife and aim sticks, a latched tap; any of them holds it. */
+  private void applyLR() {
+    input.touchButton(CoreInput.GC_L, lButton || knife.held || l);
+    input.touchButton(CoreInput.GC_R, rButton || aim.held || r);
   }
 
   /** RetroTouch's onLook: a looking finger moved by dx/dy (shares of the shorter side). */
@@ -219,6 +278,13 @@ final class CoreTouch {
     if (input.touchSwipe(dx, dy)) {
       if (lookX != 0 || lookY != 0) centreLook();
       return;
+    }
+    if (input.bodyTurn()) {
+      // "Turn Leon with mouse / look area" (1.0): sideways turns Leon himself (CoreInput.touchTurn), up and down stays
+      // the camera's C stick
+      input.touchTurn(dx);
+      dx = 0;
+      lookX = 0;
     }
     lookX += dx;
     lookY += dy;
@@ -235,6 +301,32 @@ final class CoreTouch {
 
   /** RetroTouch's onStick: the C stick the editor added, -1..1 with y down (0, 0: let go). */
   void stick(String action, float x, float y) {
+    if (AIM_STICK.equals(action) || KNIFE_STICK.equals(action)) {
+      answered = true;
+      StickHold s = AIM_STICK.equals(action) ? aim : knife;
+      if (!s.held) {
+        // RetroTouch reports a stick when a finger goes down on it (in its centre as (0, 0)), but also outside any
+        // touch (loading or resetting its layout centres the sticks, even ones not placed): only a report in the
+        // event in which a finger went down holds it, from then until that finger lifts (emulator, 16.11.2026)
+        if (!downEvent) return;
+        s.held = true;
+        s.finger = -1;
+        pending = s;
+      } else if (!inEvent) {
+        // outside any touch: RetroTouch let its sticks go (its layout changed)
+        s.release();
+      } else if (s.finger < 0 && x == 0 && y == 0 && pending != s) {
+        // its finger is not known: the (0, 0) of the release ends it
+        s.release();
+      }
+      if (s.held) {
+        s.x = x;
+        s.y = y;
+      }
+      applyLR();
+      applyMain();
+      return;
+    }
     if (!C_STICK.equals(action)) return;
     answered = true;  // a finger on the C stick does not look (fingerDown), even in its centre
     cx = x;
@@ -251,26 +343,60 @@ final class CoreTouch {
     input.touchLook(lx, ly, cx, cy);
   }
 
-  /** Before RetroTouch gets a touch event. */
-  void beginEvent() { answered = false; }
+  /** Before RetroTouch gets a touch event; `down`: a finger went down in it (ACTION_DOWN, ACTION_POINTER_DOWN). */
+  void beginEvent(boolean down) {
+    answered = false;
+    pending = null;
+    inEvent = true;
+    downEvent = down;
+  }
+
+  /** After RetroTouch had it (and fingerDown or fingerUp were told): reports from now on come outside any touch. */
+  void endEvent() {
+    inEvent = false;
+    downEvent = false;
+  }
 
   /**
    * After RetroTouch had the event in which `finger` went down: a finger
    * inside the look zone that no control answered looks.
    */
   void fingerDown(int finger, boolean inLookZone) {
+    if (pending != null) {
+      // the aim or knife stick's finger: it holds R or L until it lifts
+      pending.finger = finger;
+      pending = null;
+      return;
+    }
     if (inLookZone && !answered) lookFingers.add(finger);
   }
 
-  /** A finger lifted: the C stick goes back when it was the last looking one. */
-  void fingerUp(int finger) {
+  /** A finger lifted: the C stick goes back when it was the last looking one; an aim or knife stick it held lets R or
+   *  L go and centres.
+   *  @return an aim or knife stick let go: the pad changed after RetroTouch's last report, so it has to be sent */
+  boolean fingerUp(int finger) {
+    boolean released = false;
+    for (StickHold s : new StickHold[] {aim, knife}) {
+      if (s.held && s.finger == finger) {
+        s.release();
+        applyLR();
+        applyMain();
+        released = true;
+      }
+    }
     if (lookFingers.remove(finger) && lookFingers.isEmpty()) centreLook();
+    return released;
   }
 
-  /** Android took the fingers away (another window): nobody looks any more. */
+  /** Android took the fingers away (another window): nobody looks any more, the aim and knife sticks let go. */
   void cancel() {
     lookFingers.clear();
     centreLook();
+    aim.release();
+    knife.release();
+    pending = null;
+    applyLR();
+    applyMain();
   }
 
   boolean looking() { return !lookFingers.isEmpty(); }
@@ -309,8 +435,9 @@ final class CoreTouch {
     if (r) host.latched(R, false);
     l = false;
     r = false;
-    input.touchButton(CoreInput.GC_L, false);
-    input.touchButton(CoreInput.GC_R, false);
+    lButton = false;
+    rButton = false;
+    applyLR();  // (the aim and knife sticks keep theirs while a finger is on them)
   }
 
   private void centreLook() {
@@ -332,6 +459,11 @@ final class CoreTouch {
     l = false;
     r = false;
     b = false;
+    lButton = rButton = false;
+    aim.release();
+    knife.release();
+    pending = null;
+    moveX = moveY = 0;
     input.touchClear();
   }
 }

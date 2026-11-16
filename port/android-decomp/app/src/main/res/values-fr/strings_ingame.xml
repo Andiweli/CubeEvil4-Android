@@ -31,15 +31,15 @@
     <string name="ingame_flares">Halos lumineux</string>
     <string name="ingame_flares_lens">Reflets d\'objectif</string>
     <string name="ingame_flares_both">Halos + reflets</string>
-    <string name="ingame_flares_help">Reflets d\'objectif\u00A0: de légers anneaux colorés qui traversent l\'image depuis les lumières les plus vives, comme avec un objectif d\'appareil photo. Halos + reflets\u00A0: en plus, une lueur douce avec une fine étoile autour des bougies, torches et lampes.</string>
+    <string name="ingame_flares_help">Reflets d’objectif\u00A0: de légers anneaux colorés venant des lumières les plus vives, comme avec un objectif d’appareil photo. Halos + reflets\u00A0: en plus, une lueur douce autour des bougies, torches et lampes.</string>
     <string name="ingame_bloom">Bloom</string>
-    <string name="ingame_bloom_help">Bloom\u00A0: les parties les plus claires de la scène (lampes, feu, soleil) rayonnent doucement autour d\'elles\u00A0; les pièces sombres restent sombres, l\'affichage et les menus restent nets. Désactivé tant qu\'un réglage du Mode Potato est actif.</string>
+    <string name="ingame_bloom_help">Bloom\u00A0: les parties les plus claires (lampes, feu, soleil) rayonnent doucement\u00A0; l’affichage et les menus restent nets. Désactivé tant qu’un réglage du Mode Potato est actif.</string>
     <string name="ingame_dof">Profondeur de champ</string>
     <string name="ingame_info_hud">HUD d\'informations</string>
     <string name="ingame_hud_fps">FPS jeu/affichage</string>
     <string name="ingame_hud_hz">Hz de l\'écran</string>
     <string name="ingame_hud_time">H:M:S depuis le début</string>
-    <string name="ingame_hud_help">H:M:S est le temps de jeu du jeu lui-même : chaque sauvegarde le garde (machine à écrire et sauvegarde instantanée), comme sur GameCube. Le temps passé dans ce menu ou avec l\'app en arrière-plan ne compte pas.</string>
+    <string name="ingame_hud_help">H:M:S est le temps de jeu du jeu lui-même, gardé dans chaque sauvegarde comme sur GameCube. Le temps passé dans ce menu ou en arrière-plan ne compte pas.</string>
     <string name="ingame_fps_bottom_left">En bas à gauche</string>
     <string name="ingame_fps_bottom_centre">En bas au centre</string>
     <string name="ingame_fps_top_left">En haut à gauche</string>
@@ -49,7 +49,7 @@
     <string name="ingame_vertex_ring">Tampon circulaire de sommets</string>
     <string name="ingame_perf_default">Par défaut</string>
     <string name="ingame_perf_cores">Utiliser les cœurs performants</string>
-    <string name="ingame_perf_help">Cœurs performants : le jeu et les graphismes tournent sur les cœurs les plus rapides de l\'appareil et demandent à Android des fréquences plus élevées. Plus fluide sur de nombreux appareils, mais cela demande plus de puissance processeur et l\'appareil chauffe davantage. Par défaut : Android décide.</string>
+    <string name="ingame_perf_help">Cœurs performants\u00A0: le jeu tourne sur les cœurs les plus rapides de l’appareil, à des fréquences plus élevées. Plus fluide sur de nombreux téléphones, mais l’appareil chauffe davantage. Par défaut\u00A0: Android décide.</string>
     <string name="ingame_potato">Mode Potato</string>
     <string name="ingame_potato_weather">Effets météo</string>
     <string name="ingame_potato_special">Effets spéciaux</string>
@@ -64,12 +64,12 @@
     <string name="ingame_view_short">Courte</string>
     <string name="ingame_view_very_short">Aucune</string>
     <string name="ingame_view_far">Longue</string>
-    <string name="ingame_potato_help">Effets météo : nappes de brouillard, pluie, éclaboussures. Effets spéciaux : vapeur, ondulations de chaleur, eau. Effets de particules : sang, poussière, fumée, éclaboussures, étincelles et feu ; Réduits en dessine la moitié, Aucun les retire tous sauf le feu et les explosions, qui restent à moitié comme avertissement. Ombres et lumière : désactivé retire les ombres (aussi dans les cinématiques), les halos et les rayons de lumière ; les pièces gardent leur éclairage. Chaque réglage allège le travail graphique sur les appareils modestes ; le point d\'impact, les indications, le laser et tous les effets des cinématiques restent.</string>
-    <string name="ingame_view_help">Distance de vue\u00A0: Moyenne, Courte et Aucune rapprochent le brouillard lointain, et ce qui se trouve derrière n\'est pas dessiné. Cela aide là où le processeur ou le nombre d\'objets freine le jeu, sur les téléphones plus lents en basse résolution\u00A0: au village, environ la moitié des objets disparaît. En haute résolution, la puce graphique est occupée par les pixels et gagne peu. Aucune est la plus courte\u00A0: un brouillard épais tout près, pour les téléphones lents\u00A0; ce qui est près de vous est dessiné comme toujours. Longue éloigne le brouillard lui-même, vous voyez nettement plus loin\u00A0: elle dessine davantage et coûte le plus. Les pièces sans brouillard lointain restent inchangées.</string>
+    <string name="ingame_potato_help">Chaque interrupteur allège le travail graphique sur les appareils modestes. Particules\u00A0: Réduits en dessine la moitié, Aucun garde seulement le feu et les explosions. Ombres et lumière sur Désactivé retire les ombres, les halos et les rayons de lumière\u00A0; les pièces gardent leur éclairage. Le point d’impact, les indications et le laser restent toujours.</string>
+    <string name="ingame_view_help">Distance de vue\u00A0: Moyenne, Courte et Aucune rapprochent le brouillard et omettent ce qui se trouve derrière\u00A0; cela aide les téléphones plus lents en basse résolution. Aucune est la plus courte, pour les téléphones lents. Longue éloigne le brouillard\u00A0: vous voyez plus loin, mais c’est la plus coûteuse. Les pièces sans brouillard lointain restent inchangées.</string>
     <string name="ingame_rt_shadows">Ombres en temps réel</string>
     <string name="ingame_rt_shadows_figures">Personnages</string>
     <string name="ingame_rt_shadows_objects">Personnages et objets</string>
-    <string name="ingame_rt_shadows_help">Ombres en temps réel (versions de test uniquement) : Leon, ses compagnons et les ennemis projettent de vraies ombres sur le sol et les murs, depuis la lumière que les concepteurs ont prévue dans chaque salle pour les ombres, au lieu des taches rondes sous eux. Personnages et objets ajoute ce qui bouge : portes, caisses, tonneaux, les ailes tournantes du moulin, drapeaux et machines ; le décor fixe garde les ombres peintes dans les salles. Les cinématiques gardent les ombres du jeu ; les salles sans une telle lumière restent telles quelles. Activées d’office seulement sur les appareils puissants après le benchmark, ailleurs désactivées jusqu’à ce que vous les activiez ; cela coûte un peu de travail graphique, la résolution dynamique peut donc se fixer un peu plus bas.</string>
+    <string name="ingame_rt_shadows_help">Ombres en temps réel (versions de test uniquement)\u00A0: Leon, ses compagnons et les ennemis projettent de vraies ombres au lieu de taches rondes\u00A0; Personnages et objets ajoute portes, caisses, tonneaux et autres objets mobiles. Les cinématiques gardent les ombres du jeu. Activées d’office seulement sur les appareils puissants après le benchmark\u00A0; cela coûte un peu de travail graphique.</string>
     <string name="ingame_rt_shadows_not_recommended">Déconseillé sur cet appareil (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">puce graphique encore inconnue</string>
     <string name="ingame_rt_shadows_why_gpu">puce graphique trop faible</string>
@@ -88,7 +88,7 @@
     <string name="ingame_button_style">Style des boutons</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE : un symbole de ce que fait chaque bouton (par défaut) ; GC : les lettres aux couleurs de la GameCube, comme avant. L\'éditeur (la roue dentée en haut à droite) a le même choix.</string>
+    <string name="ingame_button_style_help">RE\u00A0: des symboles de ce que fait chaque bouton (par défaut)\u00A0; GC\u00A0: les lettres colorées de la GameCube. L’éditeur (la roue dentée en haut à droite) a le même choix.</string>
     <string name="ingame_comfort">Commandes de confort</string>
     <string name="ingame_gyro">Visée gyroscopique</string>
     <string name="ingame_gyro_none">Visée gyroscopique (pas de gyroscope)</string>
@@ -101,19 +101,21 @@
     <string name="ingame_far_camera">Caméra éloignée</string>
     <string name="ingame_auto_aim_help">Visée auto : quand tu lèves ton arme, la visée saute sur l’ennemi le plus proche devant toi et le suit un instant (l’aide à la visée du jeu).</string>
     <string name="ingame_always_run_help">Toujours courir : Leon court dès que tu te déplaces ; maintiens le bouton de course (par ex. B) pour marcher.</string>
+    <string name="ingame_body_turn">Tourner Leon à la souris / zone de vue</string>
+    <string name="ingame_body_turn_help">Tourner Leon à la souris / zone de vue\u00A0: bouger la souris ou glisser de côté sur la zone de vue tactile fait tourner Leon\u00A0; haut et bas déplace la caméra comme avant. La visée ne change pas.</string>
     <string name="ingame_gentle_qte">QTE plus doux (Professional)</string>
-    <string name="ingame_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons (esquiver, le combat au couteau, appuyer vite) laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional. Un doigt sur l’image appuie sur les boutons d’une invite dès qu’il touche l’écran, dans toutes les difficultés.</string>
-    <string name="ingame_far_camera_help">Garde la caméra d\'épaule un peu plus loin derrière Leon en marchant et à l\'arrêt. En visant et dans les endroits étroits, elle se rapproche comme avant ; entre les deux, elle glisse en douceur.</string>
+    <string name="ingame_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional. Un doigt sur l’image appuie aussitôt sur les boutons d’une invite, dans toutes les difficultés.</string>
+    <string name="ingame_far_camera_help">Garde la caméra d’épaule un peu plus loin derrière Leon\u00A0; en visant et dans les endroits étroits, elle se rapproche comme avant.</string>
     <string name="ingame_touch_aim">Visée tactile</string>
     <string name="ingame_aim_move_stick">Stick de déplacement</string>
     <string name="ingame_aim_touch_area">Zone tactile</string>
     <string name="ingame_aim_c_stick">Stick C</string>
-    <string name="ingame_touch_aim_help">Visée tactile : tant que L ou R tient une arme prête, la zone tactile vise en glissant sur la moitié droite (la visée suit votre doigt et s’arrête quand il s’arrête) ou le stick C tactile vise comme un stick (ajoutez-le avec l’engrenage en haut à droite). Stick de déplacement : comme sur GameCube.</string>
-    <string name="ingame_touch_zoom_help">Zoomer dans la lunette ou les jumelles au tactile\u00A0: glissez vers le haut ou le bas sur la moitié droite (en visant avec le stick de déplacement ou le stick C) ou sur le stick C tactile, ou ajoutez les boutons de zoom + et − avec l’engrenage en haut à droite (ils zooment tant qu’on les maintient).</string>
+    <string name="ingame_touch_aim_help">Visée tactile\u00A0: tant que L ou R tient une arme, glissez sur la moitié droite pour viser, ou utilisez le stick C tactile (ajoutez-le avec l’engrenage en haut à droite). Stick de déplacement\u00A0: comme sur GameCube. Sticks AIM et KNIFE (engrenage)\u00A0: un doigt dessus maintient R ou L, leur inclinaison vise.</string>
+    <string name="ingame_touch_zoom_help">Zoomer dans la lunette ou les jumelles au tactile\u00A0: glissez vers le haut ou le bas sur la moitié droite ou sur le stick C tactile, ou ajoutez les boutons de zoom + et − avec l’engrenage en haut à droite.</string>
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
     <string name="ingame_gyro_invert_v">Inverser la verticale</string>
     <string name="ingame_gyro_invert_h">Inverser l’horizontale</string>
-    <string name="ingame_alternate_help">Commandes alternatives\u00A0: L1 = Couteau, L2 = Viser (avec le stick droit), R1 = Inventaire (Armes/Soins), R2 = Tirer / utiliser le couteau, Y = Carte. A, B, X (Ashley) et START comme avant.</string>
+    <string name="ingame_alternate_help">Commandes alternatives\u00A0: L1 = Couteau, L2 = Viser (avec le stick droit), R1 = Inventaire (Armes/Soins), R2 = Tirer / utiliser le couteau, Y = Carte. A, B, X (Ashley) et START comme avant. Lunette du fusil\u00A0: stick gauche haut/bas pour zoomer.</string>
     <string name="ingame_knife_swipe">Couteau par balayage</string>
     <string name="ingame_knife_swipe_help">Couteau par balayage\u00A0: un balayage rapide sur l’image sort le couteau et frappe, balayez vers le haut ou vers le bas pour frapper en haut ou en bas.</string>
     <string name="ingame_latch_help">Verrouiller\u00A0: un appui (bouton ou écran) maintient L, R ou B jusqu’à l’appui suivant (B verrouillé\u00A0: Leon court en permanence).</string>
@@ -121,13 +123,13 @@
     <string name="ingame_aim_speed">Vitesse de visée</string>
     <string name="ingame_motion">Commandes de mouvement</string>
     <string name="ingame_controller_section">Manette, clavier et souris</string>
-    <string name="ingame_aim_help">Inverser la verticale et Vitesse de visée\u00A0: pour viser avec le couteau et les armes au toucher ou à la manette, pas au gyroscope. Inverser la verticale vaut aussi pour la souris (visée et jumelles)\u00A0; sa vitesse est la sensibilité de la souris. Inverser la verticale change l’option du jeu lui-même.</string>
+    <string name="ingame_aim_help">Inverser la verticale et Vitesse de visée\u00A0: pour viser au toucher ou à la manette, pas au gyroscope. Inverser la verticale vaut aussi pour la souris et change l’option du jeu lui-même.</string>
     <string name="ingame_update">Mettre à jour</string>
     <string name="ingame_up_to_date">À jour</string>
     <string name="ingame_update_page">La dernière version s\'ouvre sur GitHub\u00A0: téléchargez-y l\'APK et installez-le.</string>
 
     <string name="ingame_card">Carte mémoire (emplacement A)</string>
-    <string name="ingame_card_help">Exporter les données de jeu\u00A0: les sauvegardes au format .gci (pour Dolphin ou GameCube) avec votre disposition tactile personnalisée dans CubeEvil4-touch-layout.json, ou tout dans un .zip (sauvegardes, sauvegarde instantanée, RetroTouch et réglages de l’application). L’importation restaure le tout. Supprimer toutes les données vide la carte mémoire.</string>
+    <string name="ingame_card_help">Exporter les données de jeu\u00A0: vos sauvegardes au format .gci (pour Dolphin ou GameCube), ou tout dans un .zip (sauvegardes, sauvegarde instantanée, RetroTouch et réglages). L’importation restaure le tout. Supprimer toutes les données vide la carte mémoire.</string>
     <string name="ingame_card_busy">La carte est utilisée (le jeu sauvegarde ou charge) ou le jeu charge encore – fermez le menu et rouvrez-le dans un instant.</string>
     <string name="ingame_card_none">Aucune carte mémoire.</string>
     <string name="ingame_export">Exporter les données de jeu (.gci)</string>
@@ -248,7 +250,7 @@
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Musique</string>
     <string name="ingame_effects_volume">Effets sonores</string>
-    <string name="ingame_volume_help">La musique est la musique de fond ; les effets sonores sont tout le reste du jeu (tirs, voix, pas). Les films gardent leur son. Les deux boutons coupent entièrement la musique ou les effets sonores ; réactivés, ils reprennent au volume réglé au-dessus.</string>
+    <string name="ingame_volume_help">La musique est la musique de fond\u00A0; les effets sonores sont tout le reste (tirs, voix, pas). Les films gardent leur son. Les deux boutons coupent entièrement la musique ou les effets sonores.</string>
     <string name="ingame_smooth_help">Images intermédiaires supplémentaires. La logique du jeu reste à 30 images/s.</string>
     <string name="ingame_smooth60_uneven">Cet écran tourne à %1$d Hz : 60 FPS ne peuvent pas y être affichés de façon régulière et peuvent saccader. 30 FPS (60 FPS désactivé) sont plus fluides ici.</string>
     <string name="ingame_instant_save">Sauvegarder</string>
@@ -279,7 +281,7 @@
     <string name="ingame_filter">Filtres</string>
     <string name="ingame_filter_help">Les filtres changent l\'aspect de toute l\'image et peuvent être combinés.</string>
     <string name="ingame_sharpen">Netteté</string>
-    <string name="ingame_sharpen_help">Netteté redonne aux textures le détail que l’agrandissement de l’image à l’écran adoucit (surtout dans les formats d’image larges). Les vidéos restent telles quelles.</string>
+    <string name="ingame_sharpen_help">Netteté redonne aux textures le détail que l’agrandissement de l’image adoucit (surtout dans les formats larges). Les vidéos restent telles quelles.</string>
     <string name="ingame_crt">CRT</string>
     <string name="ingame_crt_help">CRT : l\'image comme sur un vieux téléviseur à tube, avec des lignes, un écran bombé et une lueur douce. Les commandes tactiles et la mini-carte restent nettes.</string>
     <string name="ingame_colour">Couleur</string>
@@ -288,12 +290,12 @@
     <string name="ingame_colour_strength">Intensité</string>
     <string name="ingame_colour_help">Film chaud fait ressortir les bruns et les dorés ; Survival horror pâlit les couleurs et durcit le contraste. Intensité règle la force.</string>
     <string name="ingame_skip_normal_help">Saut d’images Normal : si la puce graphique prend du retard, une image déjà prête est sautée pour que le jeu garde sa vitesse normale.</string>
-    <string name="ingame_skip_aggressive_help">Saut d’images Agressif : le jeu saute lui-même au plus une image sur deux quand il prend du retard ; cela économise aussi du temps processeur et va bien plus vite sur les téléphones au processeur lent.</string>
-    <string name="ingame_vk_bandwidth_help">Vulkan uniquement : après l’effacement de l’image, la puce graphique ne la recharge plus, ce qui économise de la bande passante mémoire sur les puces Mali et Adreno. L’image reste identique.</string>
+    <string name="ingame_skip_aggressive_help">Saut d’images Agressif\u00A0: le jeu saute lui-même au plus une image sur deux quand il prend du retard\u00A0; bien plus rapide sur les téléphones au processeur lent.</string>
+    <string name="ingame_vk_bandwidth_help">Vulkan uniquement\u00A0: économise de la bande passante mémoire sur les puces Mali et Adreno\u00A0; l’image reste identique.</string>
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
-    <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote graphique lent (p. ex. GPU Mali) et coûter un peu sur les autres. Sans effet tant que les 60 FPS sont activés.</string>
-    <string name="ingame_vertex_ring_help">Envoie les sommets de chaque image à la puce graphique par un tampon qui reste mappé, au lieu d\'un nouveau tampon par image. Peut faire gagner du temps sur les GPU Mali et utilise un peu plus de mémoire graphique. Prend effet immédiatement.</string>
-    <string name="ingame_vulkan_perf_help">Avec Vulkan, Regrouper les appels de dessin et Tampon circulaire de sommets sont grisés et inutilisés\u00A0: Vulkan envoie toujours les sommets par un tampon qui reste mappé, et ses appels de dessin coûtent peu, regrouper ne ferait qu\'ajouter des pipelines à créer. Votre choix revient avec OpenGL ES.</string>
+    <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote lent (p. ex. GPU Mali)\u00A0; sans effet avec les 60 FPS.</string>
+    <string name="ingame_vertex_ring_help">Envoie les données de sommets par un tampon qui reste mappé, au lieu d’un nouveau par image. Peut faire gagner du temps sur les GPU Mali\u00A0; utilise un peu plus de mémoire graphique.</string>
+    <string name="ingame_vulkan_perf_help">Avec Vulkan, Regrouper les appels de dessin et Tampon circulaire de sommets sont grisés\u00A0: Vulkan n’en a pas besoin. Votre choix revient avec OpenGL ES.</string>
     <string name="ingame_game_language">Langue du jeu</string>
     <string name="ingame_language_device">Langue de l\'appareil</string>
     <string name="ingame_language_help">La langue des textes et des sous-titres du jeu. Langue de l\'appareil : celle de l\'appareil si le jeu la propose, sinon l\'anglais. Un changement redémarre le jeu.</string>
@@ -319,7 +321,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Mallette L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
-    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez ; la sauvegarde ne les garde pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Les boutons modifient votre partie : l’arme, la mallette et l’argent restent dans votre prochaine sauvegarde. QTE automatiques appuie pour vous sur les boutons de chaque séquence d’action. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre, comme après avoir fini le jeu ; votre prochaine sauvegarde les garde. Invisibilité : les ennemis ne vous remarquent pas et n\'attaquent pas ; les boss et les scènes scriptées le peuvent encore.</string>
+    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez\u00A0; les sauvegardes ne les gardent pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Invisibilité\u00A0: les ennemis vous ignorent, pas les boss ni les scènes scriptées. Visée stable\u00A0: le laser et la lunette n’oscillent pas. Costumes spéciaux\u00A0: Leon et Ashley portent leurs tenues spéciales. Les boutons modifient votre partie\u00A0: les armes, la mallette et l’argent restent dans votre prochaine sauvegarde. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre.</string>
     <string name="ingame_cheat_done">Fait : %1$s.</string>
     <string name="ingame_cheat_already">Déjà là : %1$s.</string>
     <string name="ingame_cheat_raised">%1$s déjà possédé : maintenant à ses niveaux maximaux.</string>
@@ -329,9 +331,9 @@
     <string name="ingame_cheat_unsupported">Ce cœur de jeu n’a pas de triches.</string>
     <string name="ingame_cheat_qte">QTE automatiques</string>
     <string name="ingame_cheat_random_items">Objets aléatoires</string>
-    <string name="ingame_cheat_random_items_help">Objets aléatoires : les objets posés dans les salles de l’histoire (munitions, herbes et autres soins, grenades, pesetas, trésors) sont redistribués dans chaque salle où vous entrez à partir de là, et une salle donne toujours les mêmes objets jusqu’à ce que vous désactiviez puis réactiviez l’option. Les clés, les armes, les documents et les autres objets de l’histoire restent tels quels : le jeu peut toujours être terminé. Ce que vous avez déjà ramassé reste ramassé ; les ennemis, tonneaux et caisses gardent leur propre butin. Pas dans Assignment Ada ni dans The Mercenaries.</string>
+    <string name="ingame_cheat_random_items_help">Objets aléatoires\u00A0: les munitions, herbes, grenades, pesetas et trésors posés dans les salles de l’histoire sont redistribués\u00A0; une salle garde ses objets jusqu’à ce que vous désactiviez puis réactiviez l’option. Les clés, les armes et les autres objets de l’histoire restent\u00A0: le jeu peut toujours être terminé. Pas dans Assignment Ada ni dans The Mercenaries.</string>
     <string name="ingame_cheat_random_enemies">Ennemis aléatoires</string>
-    <string name="ingame_cheat_random_enemies_help">Ennemis aléatoires : dans beaucoup de salles, les Ganados ordinaires se tiennent à d’autres endroits, à quelques mètres du leur, et les salles qui en comptent 10 ou plus en ont un de moins ou un de plus (20 ou plus : jusqu’à deux ; là où le jeu compte ses ennemis, seuls les endroits changent). Le village du début du chapitre 1 et les salles dont les événements ont besoin de certains ennemis restent tels quels, comme les boss, le marchand, Ashley, Luis, les ennemis spéciaux et les vagues : le jeu peut toujours être terminé. Une salle reste la même à chaque fois jusqu’à ce que vous désactiviez puis réactiviez l’option ; les sauvegardes restent celles du jeu. À partir de la salle suivante ; pas dans Assignment Ada, The Mercenaries ni la partie d’Ashley.</string>
+    <string name="ingame_cheat_random_enemies_help">Ennemis aléatoires\u00A0: dans beaucoup de salles, les Ganados ordinaires se tiennent ailleurs, et les grands groupes en ont un ou deux de plus ou de moins. Le village du début, les salles dont les événements ont besoin de certains ennemis, les boss, les ennemis spéciaux et les vagues restent tels quels\u00A0: le jeu peut toujours être terminé. À partir de la salle suivante\u00A0; pas dans Assignment Ada, The Mercenaries ni la partie d’Ashley.</string>
     <string name="ingame_cheat_extras">Débloquer les jeux bonus</string>
     <string name="ingame_cheat_extras_text">Assignment Ada et The Mercenaries sont débloqués (Professional aussi, comme après avoir fini le jeu). Le menu titre les affiche après un redémarrage. La progression depuis votre dernière sauvegarde est perdue.</string>
     <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
@@ -339,7 +341,7 @@
     <string name="ingame_cheat_character">Personnage joué</string>
     <string name="ingame_cheat_costume">Costumes spéciaux</string>
     <string name="ingame_cheat_costume_note">(Leon/Ashley seulement)</string>
-    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon dans l\'histoire : la pièce se recharge là où tu te trouves (pendant une cinématique, à partir de la pièce suivante). La mallette, la vie et l\'argent de Leon restent ; les armes sans modèle propre au personnage montrent celles de Leon. Krauser apporte son arc : chaque début de pièce le lui rend et remplit ses flèches jusqu\'à 40 ; avec tout autre personnage, il quitte la mallette, et les sauvegardes ne le gardent jamais. Wesker apporte de même son silencieux et le met sur le pistolet ; lui aussi quitte la mallette avec tout autre personnage et n\'est jamais sauvegardé. Les deux n\'arrivent que là où la mallette a de la place, sinon au début de la pièce suivante. La partie d\'Ashley reste à Ashley, les cinématiques et les appels radio montrent toujours Leon. Tes sauvegardes gardent toujours Leon : elles se chargent avec le personnage choisi ici. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, donc en choisir un affiche d\'abord un avertissement\u00A0: «\u00A0J\'ai compris\u00A0» change de personnage, Retour garde ton personnage actuel. Costumes spéciaux : Leon et Ashley (et Ada en remplaçante) portent leurs costumes spéciaux, aussitôt aussi.</string>
+    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon (la pièce se recharge là où vous vous trouvez). La mallette, la vie et l’argent de Leon restent\u00A0; les cinématiques et les appels radio montrent toujours Leon, et la partie d’Ashley reste à Ashley. Krauser apporte son arc et Wesker son silencieux tant qu’ils sont choisis. Vos sauvegardes gardent toujours Leon. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, un avertissement s’affiche donc d’abord.</string>
     <string name="ingame_cheat_character_warning">Attention\u00A0: ce personnage n\'est pas prévu pour le jeu principal. Des bugs peuvent survenir et surviendront, ils sont inévitables\u00A0!</string>
     <string name="ingame_understood">J\'ai compris</string>
     <string name="ingame_later">Plus tard</string>
@@ -347,13 +349,13 @@
     <string name="ingame_controller_config_help">Configuration des touches : placez chaque action du jeu sur des touches de votre manette ou de votre clavier.</string>
     <string name="ingame_stick_dead_zone">Zone morte du stick</string>
     <string name="ingame_stick_range">Portée du stick</string>
-    <string name="ingame_stick_help">Zone morte du stick : les petits mouvements d’un stick de la manette autour de son centre sont ignorés (pour un stick qui dérive ou tremble). Portée du stick : un stick poussé jusque-là compte déjà comme poussé à fond, pour que Leon marche, coure et tourne sans à-coups même si votre stick n’atteint pas son bord. Les valeurs par défaut laissent les sticks tels quels. Les commandes tactiles ne sont pas concernées.</string>
+    <string name="ingame_stick_help">Zone morte du stick\u00A0: les petits mouvements autour du centre sont ignorés (pour un stick qui dérive). Portée du stick\u00A0: un stick poussé jusque-là compte comme poussé à fond, pour que Leon marche et coure sans à-coups. Les valeurs par défaut laissent les sticks tels quels\u00A0; les commandes tactiles ne sont pas concernées.</string>
     <string name="ingame_vibration">Vibration</string>
     <string name="ingame_vibration_device">Appareil</string>
     <string name="ingame_vibration_controller">Manette</string>
-    <string name="ingame_vibration_help">Où vous sentez la vibration du jeu. Auto : dans une manette connectée qui a ses propres moteurs (Android 12 et ultérieur), sinon dans ce téléphone ou cette console portable. Appareil : toujours dans ce téléphone ou cette console portable. Manette : seulement dans la manette (rien si elle n’a pas de moteurs ; avant Android 12, dans cet appareil). Désactivé : pas de vibration. L’option Vibration du jeu peut toujours la désactiver.</string>
+    <string name="ingame_vibration_help">Où vous sentez la vibration. Auto\u00A0: dans une manette qui a ses propres moteurs (Android 12 et ultérieur), sinon dans cet appareil. Appareil\u00A0: toujours dans cet appareil. Manette\u00A0: seulement dans la manette. L’option Vibration du jeu peut toujours la désactiver.</string>
     <string name="ingame_controller_default">Disposition par défaut</string>
-    <string name="ingame_controller_help">Choisissez une action, puis appuyez sur sa touche. Une action à deux touches (tirer, recharger, coup de couteau) demande d’abord la touche à maintenir, puis la seconde. Si une autre action avait la touche, elle reçoit l’ancienne. Les menus du jeu gardent la configuration par défaut ; ses indications montrent toujours les boutons GameCube.</string>
+    <string name="ingame_controller_help">Choisissez une action, puis appuyez sur sa touche. Une action à deux touches (tirer, recharger, coup de couteau) demande d’abord la touche à maintenir. Une touche prise à une autre action donne à celle-ci votre ancienne touche. Les menus et indications du jeu gardent les boutons GameCube.</string>
     <string name="ingame_controller_alternate_note">Les commandes alternatives sont activées\u00A0: elles gardent leur propre disposition\u00A0; celle-ci s\'applique dès qu\'elles sont désactivées.</string>
     <string name="ingame_act_menu">Menu de l’app (maintenu : menu debug)</string>
     <string name="ingame_act_menu_app">Menu de l’app</string>
@@ -387,21 +389,22 @@
     <string name="ingame_map_hold">Maintenez la première touche …</string>
     <string name="ingame_map_press">Appuyez sur une touche …</string>
     <string name="ingame_map_keyboard">Clavier et souris</string>
-    <string name="ingame_mouse_help">La souris (Android 8 et plus) appartient au jeu pendant la partie : la déplacer tourne la caméra, en visant elle déplace la visée, aux jumelles le regard. Sa molette zoome avec la lunette et les jumelles (vers le haut : plus près). Le menu de l’app (F1) libère le pointeur.</string>
-    <string name="ingame_keyboard_c_help">Le couteau\u00A0: maintenez sa touche et bougez la souris pour viser, comme avec les armes. Les touches du stick C (I, K, J, L sauf si vous les changez) tournent la caméra et zooment la lunette et les jumelles (haut\u00A0: zoom avant, bas\u00A0: zoom arrière), comme la molette.</string>
+    <string name="ingame_mouse_help">La souris (Android 8 et plus) contrôle le jeu pendant la partie\u00A0: elle tourne la caméra et déplace la visée\u00A0; la molette zoome avec la lunette et les jumelles. Le menu de l’app (F1) libère le pointeur.</string>
+    <string name="ingame_keyboard_c_help">Le couteau\u00A0: maintenez sa touche et visez avec la souris. Les touches du stick C (I, K, J, L par défaut) tournent la caméra et zooment la lunette et les jumelles.</string>
     <string name="ingame_mouse_sensitivity">Sensibilité de la souris</string>
     <string name="ingame_map_controller">Manette</string>
     <string name="ingame_map_device">Appareil</string>
     <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
     <string name="ingame_cheat_invisible">Invisibilité</string>
-    <string name="ingame_cheat_section_player">Joueur et inventaire</string>
+    <string name="ingame_cheat_steady">Visée stable</string>
+    <string name="ingame_cheat_section_player">Joueur</string>
     <string name="ingame_cheat_section_weapons">Armes</string>
-    <string name="ingame_cheat_section_game">Jeu</string>
+    <string name="ingame_cheat_section_game">Général et inventaire</string>
     <string name="ingame_dof_light">Léger</string>
     <string name="ingame_dof_strong">Fort</string>
     <string name="ingame_player_view">Vue du joueur</string>
     <string name="ingame_fov">Champ de vision (FoV)</string>
-    <string name="ingame_fov_help">Champ de vision : élargit (+) ou resserre (−) la vue de la caméra d\'épaule jusqu\'à 15 degrés, en marchant et en visant ; 0° est celle du jeu. Les cinématiques, la lunette et les jumelles ne changent pas.</string>
+    <string name="ingame_fov_help">Champ de vision\u00A0: élargit (+) ou resserre (−) la vue de la caméra d’épaule jusqu’à 15 degrés\u00A0; 0° est celle du jeu. Les cinématiques, la lunette et les jumelles ne changent pas.</string>
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Démarrer</string>
@@ -423,7 +426,7 @@
     <string name="ingame_profile_recommended">★ recommandé</string>
     <string name="ingame_profile_measured">Mesuré : 30 FPS jusqu\'à %1$s, 60 FPS jusqu\'à %2$s · limite : %3$s.</string>
     <string name="ingame_profile_not_measured">Pas encore mesuré : les profils suivent les données de cet appareil. Le benchmark les ajuste.</string>
-    <string name="ingame_profile_help">Un profil règle la résolution, les 60 FPS, le saut d’images, l’anticrénelage, le FXAA, le filtrage des textures, les cœurs performants et le mode Potato pour cet appareil. Modifier l\'un d\'eux à la main passe en Perso ; Perso reste enregistré pendant que tu essaies un profil.</string>
+    <string name="ingame_profile_help">Un profil règle la résolution, les 60 FPS, le saut d’images, l’anticrénelage, le FXAA, le filtrage des textures, les cœurs performants et le mode Potato pour cet appareil. Modifier l’un d’eux à la main passe en Perso, qui reste enregistré.</string>
     <string name="ingame_limit_gpu">la puce graphique</string>
     <string name="ingame_limit_cpu">le processeur</string>
     <string name="ingame_limit_both">la puce graphique, le processeur proche de sa limite</string>
@@ -465,7 +468,7 @@
     <string name="ingame_vulkan_failed">Vulkan n\'a pas pu démarrer sur cet appareil. Le jeu dessine avec OpenGL ES.</string>
     <string name="ingame_vulkan_crashed">Le jeu s\'est arrêté au démarrage avec Vulkan. Il démarre maintenant avec OpenGL ES ; Vulkan peut être choisi à nouveau dans le menu (Affichage).</string>
     <string name="ingame_shader_cache">Cache des shaders</string>
-    <string name="ingame_shader_cache_help">Le jeu conserve les shaders qu\'il a créés, pour qu\'une scène ne saccade pas une seconde fois. Videz-le seulement si des erreurs graphiques apparaissent après une mise à jour : le jeu les recrée alors, et les premières scènes peuvent saccader.</string>
+    <string name="ingame_shader_cache_help">Le jeu conserve les shaders qu’il a créés, pour que les scènes ne saccadent plus. Videz le cache seulement si des erreurs graphiques apparaissent après une mise à jour\u00A0; les premières scènes peuvent alors saccader une fois.</string>
     <string name="ingame_shader_clear">Vider le cache des shaders</string>
     <string name="ingame_shader_clear_text">Le jeu redémarre et supprime les shaders créés. Il les recrée pendant la partie, les premières scènes peuvent donc saccader. La progression depuis la dernière sauvegarde est perdue.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
@@ -494,7 +497,7 @@
     <string name="ingame_hd_damaged">Le fichier est endommagé. Copiez-le à nouveau sur l’appareil ou convertissez-le à nouveau.</string>
     <string name="ingame_hd_cancelled">Import annulé. Le pack de textures précédent reste en place.</string>
     <string name="ingame_hd_read_failed">Impossible de lire le fichier : %1$s</string>
-    <string name="ingame_hd_help">Les textures HD remplacent les images du jeu par des images plus nettes issues d’un pack de textures au format Dolphin. CubeEvil4 ne contient aucune texture et ne renvoie vers aucune : utilisez uniquement des packs que vous avez obtenus vous-même et que vous avez le droit d’utiliser. Convertissez le pack avec CubeEvil4 Texture Packer (sur un PC ou avec son app Android) et importez ici le fichier .c4tex ; vous pouvez ensuite supprimer ce fichier. Le pack est rangé dans un dossier à part et ne modifie jamais vos disques, sauvegardes ou cartes mémoire ; vous pouvez le désactiver ou le supprimer à tout moment. La netteté Moitié demande moins de mémoire graphique sur les appareils modestes. Le filtre pixels rétro garde les textures d’origine du jeu.</string>
+    <string name="ingame_hd_help">Les textures HD remplacent les images du jeu par des images plus nettes issues d’un pack de textures Dolphin. CubeEvil4 ne contient aucune texture et ne renvoie vers aucune\u00A0: utilisez uniquement des packs que vous avez obtenus vous-même et que vous avez le droit d’utiliser. Convertissez le pack avec CubeEvil4 Texture Packer (PC ou Android) et importez ici le fichier .c4tex\u00A0; il ne modifie jamais vos disques ni vos sauvegardes. La netteté Moitié demande moins de mémoire graphique.</string>
     <string name="ingame_hd_import_from">Importer le pack de textures « %1$s » (%2$s) ?</string>
     <string name="ingame_hd_import_busy">Un pack de textures est déjà en cours d’importation. Réessayez quand il sera terminé.</string>
     <string name="ingame_hd_import_on">Les textures HD sont activées. Vous pouvez les désactiver ou supprimer le pack dans le menu de l’app (SELECT), sous Triches et mods.</string>

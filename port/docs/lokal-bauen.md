@@ -40,6 +40,11 @@ In Android Studio wie gewohnt bauen (Variante „core“) und auf den Retroid in
 verbundenen Retroid). Laufen gerade Gerätetests eines Chats über ADB, erst danach installieren
 (`port/docs/adb-coordination.md`).
 
+Die Sideload-APK (Datenordner nach Wahl, ab 1.0) ist die Variante „sideload“: Build → Generate Signed App Bundle or
+APK → APK → dieselbe Signatur wie bei „core“ → Build Variant `sideloadRelease`. Für das GitHub-Release als
+`CubeEvil4-<Version>-Android-sideload.apk` hochladen, neben der normalen APK. Sie braucht denselben Spielkern aus
+Schritt 2 und installiert sich über die normale App (und umgekehrt).
+
 ### Texture Packer (eigene App, Branch `textures`)
 
 In Android Studio oben in der Auswahl der Run-Konfiguration „packer“ statt „app“ wählen, dann wie gewohnt

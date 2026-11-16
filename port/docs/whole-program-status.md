@@ -22,6 +22,12 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   Known issues bleiben, weil sie weiter stimmen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
+- **Ausnahme für 1.0 (Projektinhaber, 16.11.2026):** Ziel- und Messer-Stick für die Touch-Steuerung („Die Funktion 8
+  baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19. Die nächste Veröffentlichung ist 1.0
+  („Yes, next is 1.0“, 16.11.2026, kein weiteres 0.99.x): die Sticks bleiben sichtbar, Zeile unter New im Releasetext;
+  die Version heißt bis zur Umbenennung weiter 0.99.19-rc (versionCode 121). Ebenso für 1.0 (Projektinhaber,
+  16.11.2026: „Nimm das auch noch als Feature für 1.0 mit auf“): die Option „Leon mit Maus / Blickfeld drehen“,
+  Abschnitt 7 von 0.99.19; und der Flavor „sideload“ mit Datenordner nach Wahl, Abschnitt 8.
 
 ## Branch `random-enemies`: „Zufällige Gegner“ wirklich zufällig, Prüfung und Prototyp Stufe 2 (16.11.2026, Basis 3087fd5a)
 
@@ -296,7 +302,7 @@ Figuren haben in beiden Fällen ihren Blob-Schatten.“ Bericht: `E:\Development
 Version 0.99.19-rc (versionCode 121), Releasetext `port/android-decomp/docs/releases/v0.99.19-rc.md`
 („Changes since v0.99.18.“, Known issues aus 0.99.18 übernommen). Release-APK `CubeEvil4-0.99.19-Android.apk`.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
-nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0233.
+nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0235.
 
 Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
 der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer bei jedem Kaltstart (einmal pro Prozess) ein
@@ -377,6 +383,189 @@ Freigabe des Inhabers für den Vorschlag aus Abschnitt 1: „Ja die Sichtweite-V
   `check_translations.py` ohne Befund. Vorher/Nachher-Bilder in
   `E:\Development\Android\builds\release-candidate\view-distance-0.99.19\`.
 - **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, Vulkan, US- und JP-Discs, Stellen weit weg vom Startplatz.
+
+### 4. Cheat-Seite neu geordnet, „Atemstopp beim Zielen“, kürzere Hilfetexte (Projektinhaber, 16.11.2026)
+
+- **Cheat-Seite** (`CoreMenu.cheats`): der Abschnitt „Spieler“ / „Player“ (vorher Leon) hat zwei Reihen zu drei
+  Schaltern: Leben, Munition, Unsichtbar / One-Hit-Kill, **Atemstopp beim Zielen**, Spezialkostüme. „Allgemein und
+  Inventar“ / „General & inventory“ (vorher Spiel) bekommt als dritte Reihe „Koffer L“ und „+1.000.000 PTAS“. Die
+  Figurenwahl steht als Raster Leon, Ada, HUNK / leer, Krauser, Wesker (`MenuLayout.Buttons.addGap`: eine leere,
+  nicht wählbare Zelle, die beim Umbrechen auf weniger Spalten wegfällt).
+- **Atemstopp beim Zielen** (`ingame_cheat_steady`, 11 Sprachen): Bit 31 der Cheat-Schalter
+  (`CoreMenu.STEADY_AIM_BIT`, `runtime/cheats.cpp` `re4_steady_aim`, `kAllBits`), Patch 0233: das Ziel des Lasers
+  wandert nicht mehr, das Zielfernrohr (Gewehre, Minenwerfer) atmet nicht. Das Fernglas bleibt.
+  **Geprüft am PC** (i686, Debug-Discs, r100, `RE4_TEST_WEAPON`, R gehalten): Handfeuerwaffe aus: Neigung wandert
+  −0,04…0, an: bleibt 0,00 (Laserbereich 13 statt 3279 geänderte Pixel zwischen drei Bildern); Gewehr-Zielfernrohr
+  300–1200 statt 10 000–24 000 geänderte Pixel. Bilder in `E:\Development\Android\builds\release-candidate\steady-aim\`.
+- **Hilfetexte:** 34 lange Hilfetexte im App-Menü in allen 11 Sprachen auf das Wesentliche gekürzt (Deutsch 12 173 →
+  7 792 Zeichen); Liste vorher/nachher in `E:\Development\Android\reports\0.99.19-help-texts.md`.
+- **Geprüft am PC:** Kern i686 gebaut (0 Fehler), `runtime-test` 0 Fehler, Rundgang der Prüfstrecke ohne Befund;
+  App-Tests 202 je Variante grün (Core und Classic; `CoreMenuLayoutTest.cheatsPageSwitchesSendTheirBits` prüft neu
+  die Reihen, Bit 31, die leere Zelle und das Umbrechen); `check_translations.py` ohne Befund (467 Texte). Bilder der
+  Cheat-Seite (Deutsch und Englisch, 360 px hochkant, 960 px quer) in
+  `E:\Development\Android\builds\release-candidate\cheats-layout\`.
+- **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, mit EU-Discs im Spiel.
+
+### 5. Ziel-Stick und Messer-Stick für die Touch-Steuerung (für 1.0, Projektinhaber, 16.11.2026)
+
+Wunsch eines Spielers, vom Inhaber für 1.0 angenommen. Zwei Sticks, die der Editor (Zahnrad) hinzufügt; das
+Standard-Layout bleibt unverändert.
+
+- **AIM** (Ziel-Stick): solange ein Finger darauf liegt (auch ruhig in der Mitte), ist R gedrückt; seine Neigung ist
+  der Hauptstick, der bei gehaltenem R zielt (Waffe, Zielfernrohr). **KNIFE** (Messer-Stick): dasselbe mit L. Der
+  andere Daumen schießt mit A. Beschriftung „AIM“ und „KNIFE“, grau wie die übrigen Tasten.
+- `CoreTouch`: `AIM_STICK`/`KNIFE_STICK` in `ACTIONS` (Anmeldung über `registerStickAction` wie der C-Stick).
+  RetroTouch meldet einen Finger in der Mitte eines Sticks als (0, 0), genau wie das Loslassen; deshalb hält der
+  Finger, in dessen Ereignis der erste `onStick` kam (`fingerDown`), den Stick, bis er sich hebt (`fingerUp`); ist der
+  Finger unbekannt, beendet das (0, 0) des Loslassens. L und R der Tasten und der Sticks addieren sich (keiner lässt
+  den anderen los, auch nicht mit „Halten“ / Latch); Hauptstick = Bewegungs-, Ziel- oder Messer-Stick, der weiter
+  geneigte. `cancel`/`reset` lassen alles los. Hebt sich der Finger, schickt `TouchControls` den Zustand sofort
+  (`fingerUp` meldet das; das letzte (0, 0) von RetroTouch kam vorher, sonst bliebe R bis zur nächsten Berührung
+  gedrückt). RetroTouch meldet (0, 0) auch außerhalb jeder Berührung (Belegung geladen oder zurückgesetzt, auch für
+  nicht gelegte Sticks; im Emulator gefunden): gehalten wird nur, wenn die erste Meldung im Ereignis kommt, in dem
+  ein Finger aufsetzt (`beginEvent(down)` … `endEvent` aus `TouchControls.before/after`); eine Meldung außerhalb
+  lässt einen gehaltenen Stick los. Keine Änderung an RetroTouch.
+- **Grenze von RetroTouch:** höchstens zwei Sticks je Layout (`RetroTouchLayout.validate`; der Editor überspringt
+  beim Durchschalten Stick-Aktionen, wenn schon zwei liegen). Mit dem Bewegungsstick passt also nur einer von C-Stick,
+  Ziel-Stick und Messer-Stick dazu. Für Ziel- und Messer-Stick zusammen (oder mit dem C-Stick) braucht RetroTouch
+  mindestens vier Sticks je Layout. **Zweite Lücke:** im Symbol-Stil (RE, Standard) zeichnet RetroTouch hinzugefügte
+  Sticks ohne Beschriftung und ohne Symbol (`drawIconStick`): C-, Ziel- und Messer-Stick sehen gleich aus; nur der
+  GC-Stil zeigt „C“, „AIM“, „KNIFE“. Dafür bräuchte `registerStickAction` ein Symbol (wie `registerAction`).
+- Hilfetext `ingame_touch_aim_help` um einen Satz ergänzt (11 Sprachen); `check_translations.py` prüft „AIM“ und
+  „KNIFE“ (KEEP).
+- **Geprüft am PC:** `CoreTouchTests` 364 Prüfungen (Halten in der Mitte, Neigung, weiter geneigter Stick gewinnt,
+  Taste und Stick zusammen, Latch, unbekannter Finger, Meldungen außerhalb einer Berührung, `cancel`); App-Tests je
+  Variante grün; `check_translations.py` ohne Befund. **Emulator** (x86_64-Telefon, Debug-Hülle ohne Kern,
+  Platzhalter-Discs): im Editor C, AIM, KNIFE wählbar und gespeichert; mit zwei Sticks keine weiteren; mit einer
+  Wegwerf-APK, die den gesendeten Pad-Zustand ins Log schreibt: Finger ruhig in der Mitte R gedrückt, Neigung zielt
+  (97 rechts, 81/60 schräg), zurück zur Mitte R bleibt, Abheben lässt los; Messer-Stick ebenso mit L. Bilder und
+  Protokoll in `E:\Development\Android\builds\release-candidate\aim-stick\`.
+- **Nicht geprüft:** im Spiel (Zielen und Zielfernrohr mit dem Kern), zwei Finger gleichzeitig im Emulator (nur in
+  `CoreTouchTests`), auf einem Gerät.
+
+### 6. Alternative Steuerung: Zoom im Zielfernrohr (Spielerbericht über den Projektinhaber, 16.11.2026)
+
+„One issue I noticed when using the alternative controls with the sniper rifle is that there is no way to zoom in.
+Perhaps it's possible to map the zoom function to the left stick. I am using a D3 controller.“
+
+- **Ursache:** Mit der alternativen Steuerung legt `CoreInput.pad` beim Zielen (L1/L2 über die Hälfte) den rechten
+  Stick auf den Hauptstick und setzte den C-Stick auf 0. Das Zielfernrohr zoomt aber nur mit dem C-Stick hoch/runter
+  (`cam_extra.cpp CameraScope::move`, ebenso `CameraBinocular::move`).
+- **Was der C-Stick beim Zielen sonst tut:** nichts. Die Schulterkamera (`cam_qfps.cpp calcDepressionRatio`) schaut
+  mit ihm nur herum, solange keine Waffe bereit ist (`isKamae`); beim Zielen mit Pistole, Messer & Co. nimmt sie die
+  Neigung der Waffe. Sonst lesen ihn nur Debug-Kameras (`cam_ctrl.cpp r0_Debug/r0_Free/r0_RailBehind`). Zielfernrohr
+  und Fernglas lesen nur sein Y.
+- **Gebaut:** Beim Zielen mit der alternativen Steuerung ist **linker Stick hoch/runter der C-Stick** (Y), sein X
+  bleibt 0. Nur das Y, weil nur das zoomt und so auch sonst nichts im Spiel davon merkt. Nicht beim Zielen,
+  GameCube-Belegung, eigene Tastenbelegung, Touch, Tastatur/Maus (Mausrad, I/K) unverändert. Hilfetext
+  `ingame_alternate_help` um „Zielfernrohr: linker Stick hoch/runter zoomt.“ ergänzt (11 Sprachen).
+- **Geprüft am PC:** `CoreInputTests` 1852 Prüfungen (alternativ + Zielen: rechter Stick zielt, linker hoch = C-Stick
+  +92, halb runter = −46, seitlich nichts; Messer ebenso; ohne Zielen unverändert); `CoreTouchTests` 364;
+  App-Tests 202 je Variante grün; `check_translations.py` ohne Befund. **Kern (i686, Debug-Discs, r100, Gewehr, R
+  gehalten):** C-Stick Y über `RE4_TEST_WHEEL` (derselbe Eingang wie `CoreBridge.pad`) zoomt das Zielfernrohr hinein
+  auf 1,0 (Sichtwinkel 9°) und wieder heraus auf 0,5 (27°); Skript `rc-measure/alt_zoom.sh` im Notizordner, Bilder
+  und Log in `E:\Development\Android\builds\release-candidate\alt-scope-zoom\`.
+- **Nicht geprüft:** auf einem Gerät mit echtem Controller (D3), das Fernglas mit der alternativen Steuerung.
+
+### 7. „Leon mit Maus / Blickfeld drehen“ (für 1.0, Spielerwunsch über den Projektinhaber, 16.11.2026)
+
+„will there be better camera physics in the future? in the pc version (hd) modders have made it that you can turn leon
+using your mouse only. will it be a thing in CubeEvil? being able to change directions immediately through the look
+area?“ Gemeint ist das Maus-Drehen der PC-Mods: Leon selbst dreht sich mit der Maus, die Panzersteuerung bleibt. Nicht
+die „moderne Bewegung“ aus 0.99.7 (kamerabezogenes Gehen mit Einrasten, in b4fb8572 wieder entfernt).
+
+- **Schalter** im App-Menü, Abschnitt Komfort unter „Vertikal umkehren / Zielgeschwindigkeit“, ganze Reihe, aus ab
+  Werk (`CoreActivity.BODY_TURN`, Texte `ingame_body_turn`, `ingame_body_turn_help`, 11 Sprachen).
+- **Maus** (`CoreInput.mouseMoved`): seitwärts dreht Leon (dieselbe Drehung wie beim Zielen, `MOUSE_AIM_RADIANS` ×
+  Maus-Empfindlichkeit), die Kamera schaut dann nur noch hoch und runter. **Touch-Blickfeld** (`CoreTouch.look`,
+  `CoreInput.touchTurn/takeBodyTurn`): der Weg des Fingers seitwärts dreht Leon (`SWIPE_RADIANS` × „Zielgeschwindigkeit“),
+  hoch/runter bleibt der C-Stick. **Hoch/runter bleibt wie bisher** (die Kamera schaut hoch und runter): Leon selbst hat
+  keine Neigung, und so geht der Blick nach oben nicht verloren. Zielen unverändert (Maus und „Touch-Fläche“ zielen wie
+  vorher; beim Zielen kommt keine Drehung bei Leon an). Controller und ihre Sticks unverändert; ohne Schalter nichts.
+- **Kern:** `CoreBridge.bodyTurn` → `re4_core_body_turn` (`runtime/gyro.cpp`, über den Kernprozess `kBodyTurn` = 47),
+  zum nächsten Spielbild aufsummiert und dort auf `pPL->ang.y` gelegt, gleichmäßig wie die Bewegung kommt. Nur im
+  Spiel (`Rno0` 3), ohne Untermenü, Ereignis, gesperrte Tasten (`SPF_KEY`), Zielfernrohr oder Fernglas, und nur in
+  Leons eigenen Bewegungsroutinen 0/0..4 (Stehen, Gehen, Rückwärts, Laufen, Drehen auf der Stelle). Nicht beim
+  Zielen (0/6), Messer (0/0xB), schneller Wende (0/5), Leiter (0/0x10), Springen, Fallen, Boot, Ducken, Schieben,
+  nicht bei Treffern, Griffen, Tod, Szenen (Routine 0 ≠ 0). Ashleys Teil geht mit (gleiche Routinen). **Patch 0234**
+  (`player.cpp`): Steht Leon still, gab das Spiel der Schulterkamera seine Richtung nicht weiter; ein gedrehtes Bild
+  zählt jetzt als bewegt, die Kamera folgt.
+- **Geprüft am PC:**
+  - `CoreInputTests` 1861 (Maus aus: niemand dreht sich, Kamera wie bisher; an: Leon dreht, Kamera nur hoch/runter,
+    Zielen gleich), `CoreTouchTests` 369 (Blickfeld seitwärts dreht, hoch/runter schaut; „Touch-Fläche“ mit R zielt
+    und dreht niemanden; aus: wie bisher), App-Tests 202 je Variante grün, `check_translations.py` ohne Befund (469).
+  - Kern i686 gebaut (0 Fehler, runtime-test 0 Fehler). **Rundgang** (`rc-measure/mouse_turn.sh`, Testschalter
+    `RE4_TEST_TURN`, `RE4_TEST_LADDER`, `RE4_TRACE_TURN`) in r100 (Wald), r101 (Dorf), r205 (Burghof): im Stand 60
+    Bilder je 0,03 rad gedreht (+1,8 rad), beim Gehen 100 Bilder je −0,02 rad (−2,0 rad), gleichmäßig Bild für Bild;
+    die Kamera folgt im Stand (Bilder: gleiche Lage, Blick dreht mit). Keine Drehung im Ereignis (r100 899 Bilder,
+    r101 76), im Untermenü (r101 Funkspruch und Anleitung, 360), bei gesperrten Tasten (r101 10), in der schnellen
+    Wende (je 23) und auf der Leiter (je 69); die schnelle Wende läuft wie gewohnt. Keine Abstürze. Bilder, Protokolle
+    und Zusammenfassung in `E:\Development\Android\builds\release-candidate\mouse-turn\`.
+- **Nicht geprüft:** auf einem Gerät, mit echter Maus, mit echtem Finger im Blickfeld; Gefühl und Empfindlichkeit;
+  ARM32/ARM64; Ashleys Teil; das Boot und andere Sonderlagen nur über die Routinenregel.
+
+### 8. Flavor „sideload“: Datenordner nach Wahl (für 1.0, Projektinhaber, 16.11.2026)
+
+„Hier auch noch ein Punkt für die Installation: Daten sollen auf Userwunsch auch außerhalb des /android/data/* Ordners
+eingelesen werden können beim DVD Import“, mit einer Anleitung des Inhabers (Flavor `sideload`, Berechtigungen nur dort).
+Branch `sideload-data-folder` (von `release-candidate` 603e0cd9), danach in `release-candidate` gemischt.
+
+- **Flavors:** Haupt-Flavor ist `core` (`com.ast.cubeevil4`, `-core`, die GitHub-Releases); `car` ist der Google-Play-Build
+  (Android Automotive, `com.ast.re4decomp`); `classic` die alte arm64-App. Neu `sideload`: alles wie `core` (App-ID,
+  SDKs, ABIs, CMake, Emulator-Schalter, Ressourcen/Bibliotheken/Assets aus `src/core` wie bei `car`), `versionNameSuffix
+  '-sideload'`, `BuildConfig.CUSTOM_DATA_FOLDER` true (sonst überall false; `buildFeatures.buildConfig`). `src/sideload`
+  hat nur das Manifest: `MANAGE_EXTERNAL_STORAGE`, `READ/WRITE_EXTERNAL_STORAGE` mit `maxSdkVersion 29`,
+  `requestLegacyExternalStorage`. Gleiche App-ID und Signatur (der Inhaber signiert in Android Studio): `core` und
+  `sideload` installieren übereinander. Keine GitHub-Workflows im Repository: Release-APK von Hand, Generate Signed APK
+  → `sideloadRelease`, Name `CubeEvil4-<Version>-Android-sideload.apk`.
+- **Datenpfad:** `AppStorage.base` war schon die einzige Stelle (Datenordner; darunter `game` = Discs, Speicherkarte,
+  Sofortspeicher und der Pfad an den Kern über `ImportManager.root`/`CoreBridge.start`, `textures`, `logs`,
+  `gx-dumps`); sie nimmt jetzt `DataFolder.usable`, sonst wie bisher `AppStorage.standard`. Bleiben intern:
+  Shader-Cache (`noBackupFilesDir`), Bericht-Dateien zum Teilen und Filme/Räume im Cache, die App-Einstellungen
+  (SharedPreferences), die classic-Spielstände. Im nativen Code kein eigener Pfad.
+- **Startbildschirm** (nur `sideload`, englisch wie der übrige Startbildschirm): Abschnitt „Data folder“ vor dem
+  Disc-Import mit Pfad, „Choose folder“, „Restore default“. Erst die Berechtigung (Android 11+: Erklärung, dann
+  Einstellungen „Zugriff auf alle Dateien“ für die App, sonst für alle Apps, geprüft in `onResume`; Android 7–10:
+  Laufzeit-Recht), dann `ACTION_OPEN_DOCUMENT_TREE`; `DataFolder.pathOfTree` macht daraus einen Pfad
+  (`primary:` → `/storage/emulated/0/…`, `XXXX-XXXX:` → `/storage/XXXX-XXXX/…`, Downloads `raw:`), `check` lehnt
+  Android, Android/data, Android/obb (jeder App) und alles außerhalb `/storage` ab, ein Speicher-Stamm wird
+  `…/CubeEvil4`; `prepare` legt an und schreibt/löscht eine Probedatei. Dann Daten verschieben (Ja/Nein/Abbrechen),
+  Neustart über `LauncherRestartActivity`.
+- **Verschieben** (`DataFolder.move`): nur die Einträge der App (`game`, `textures`, `logs`, `gx-dumps`); gleicher
+  Speicher: umbenennen, sonst kopieren mit Fortschritt (Platz vorher geprüft, 64 MB Reserve), Originale erst nach
+  vollständigem Kopieren gelöscht; bei einem Fehler alles zurück (Kopien gelöscht, Umbenanntes zurück), der alte Ordner
+  bleibt in Gebrauch. Hat der neue Ordner schon CubeEvil4-Daten, wird nichts verschoben, er wird so genommen.
+- **Rückfall beim Start:** Ordner fehlt, nicht beschreibbar oder Berechtigung entzogen → eigener Ordner für diesen Lauf,
+  Hinweis auf dem Startbildschirm, die Wahl bleibt gespeichert, nichts gelöscht; der Fehlerbericht nennt es.
+- **Update-Prüfung:** `AppUpdate.plain` lässt `-core` und `-sideload` weg (auch Menü-Version und Touch-Layout-Datei):
+  „1.0-sideload“ ist Release „1.0“, kein falsches Update.
+- **Geprüft am PC:** App-Tests je Variante 213 grün (core, classic, sideload; neu `DataFolderTest` 10: Pfade der
+  Ordnerwahl, abgelehnte Ordner, Schreibprobe, Verschieben mit Umbenennen und Kopieren samt Fortschritt, Rücknahme bei
+  einem Fehler, nichts über vorhandene Daten, leere Ordner keine Daten, AppStorage mit Wahl, ohne Berechtigung, ohne Ordner, ohne Flavor;
+  `AppUpdateTest` „-sideload“); Lint der Release-Builds (`lintVital` sideload, core, car) ohne Befund. Zusammengeführte Manifeste von coreDebug/Release, carDebug/Release,
+  classicDebug/Release byte-gleich wie vor dem Branch; nur sideload hat `MANAGE_EXTERNAL_STORAGE` (auch `aapt dump
+  permissions` der APKs: core ohne, sideload mit, die Speicher-Rechte dort nur bis `maxSdkVersion 29`). Befund nebenbei:
+  core (wie vor dem Branch) hat über die RetroTouch-Bibliothek `READ/WRITE_EXTERNAL_STORAGE` und `READ_PHONE_STATE`
+  ohne Grenze, car entfernt sie; nichts geändert.
+- **Emulatoren** (Debug-Hülle x86_64 ohne Kern, Platzhalter-Discs; Bilder in
+  `E:\Development\Android\builds\release-candidate\sideload-data-folder\android10|12|14|16\`):
+  - Android 16: Erklärung → App-Seite „Zugriff auf alle Dateien“ → zurück → Ordnerwahl (Stamm von Android gesperrt) →
+    `CubeData` → Daten verschieben (aus `Android/data` heraus kein Umbenennen, also kopiert, 8 MB) → Neustart, Discs
+    gefunden; Spielbildschirm schreibt `logs` in den neuen Ordner, Fehlerbericht „the player's folder“; Zugriff
+    entzogen → eigener Ordner mit Hinweis, Daten unberührt; „Restore default“ verschiebt zurück; die core-APK
+    installiert sich darüber, ohne Abschnitt, mit dem eigenen Ordner.
+  - Android 14: dasselbe mit „Start empty“ (neuer Ordner leer, alter unverändert), dann **echter Import von Disc 1**
+    (Debug-Disc, nur auf dem Emulator) in den gewählten Ordner: „verified and imported successfully“, 1,3 GB.
+  - Android 12: Ablehnung (zurück ohne Einschalten → Hinweis, nichts geändert), dann Einschalten → `Documents` →
+    verschoben. Eigenheit des Abbilds: steht der Zugriff auf „default“, schaltet schon das Öffnen der Seite ihn ein.
+  - Android 10: Laufzeit-Recht „photos, media and files“; `Android/data` wählbar, von der App abgelehnt; der
+    Speicher-Stamm wird `/storage/emulated/0/CubeEvil4`; verschoben per Umbenennen; Recht entzogen → Rückfall mit Hinweis.
+  - Gefunden und behoben: Androids „Ja/Nein“ heißen auf neuen Versionen „OK/Cancel“ (Knöpfe jetzt „Move data“ /
+    „Start empty“); ein leerer `game`-Ordner galt als Daten (zählt jetzt nur mit einer Datei darin); Überschrift auf
+    Android 7–10 „Access to the storage“.
+- **Nicht geprüft:** das Spiel selbst aus einem gewählten Ordner (Emulator ohne Kern; der Kern bekommt denselben
+  Pfad wie die Importe), SD-Karte oder USB-Stick (dort wird kopiert statt umbenannt), ein echtes Gerät, ARM32/ARM64,
+  Android TV und Autos, der signierte Release-Build.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
@@ -17365,6 +17554,8 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0230 `pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp` | Adas Nachladen mit ihren eigenen Waffen auf jeder Stufe mit ihrer Bewegung der Stufe 0 (0.99.11, Abschnitt 1) |
 | 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. 0.99.13 (Stufe 1.5): am Ende fragt eine Schleife bis -1 (bis zu zwei Kopien). Port-Merkmal |
 | 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
+| 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
+| 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

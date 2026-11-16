@@ -118,6 +118,7 @@ struct CoreApi {
   void (*setHudLayout)(int, int, int){};  // optional (cores since 07.11.2026, patch 0215): the life gauge's corner
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
+  void (*bodyTurn)(float){};  // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
@@ -471,6 +472,7 @@ void loadCore(JNIEnv *env) {
   api.setHudLayout = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_set_hud_layout"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
+  api.bodyTurn = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_body_turn"));
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
@@ -3121,6 +3123,7 @@ void useCoreProcess(const std::string &why) {
   api.setHudLayout = re4ipc_set_hud_layout;
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
+  api.bodyTurn = re4ipc_body_turn;
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setGentleQte = re4ipc_set_gentle_qte;
@@ -3869,6 +3872,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setVertexRin
 // Swipe aiming (CoreInput.takeAimSwipe): the touch area's finger as angles (cores since 29.10.2026).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_aimTurn(JNIEnv *, jclass, jfloat yaw, jfloat pitch) {
   if (api.aimTurn) api.aimTurn(yaw, pitch);
+}
+
+// "Turn Leon with mouse / look area" (CoreActivity, 1.0): the movement sideways as Leon's turn in radians, positive
+// left (cores since 16.11.2026; older ones: nothing).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_bodyTurn(JNIEnv *, jclass, jfloat yaw) {
+  if (api.bodyTurn) api.bodyTurn(yaw);
 }
 
 // The mouse wheel (CoreActivity): notches, up positive; the core zooms the scope and the binoculars by them (cores

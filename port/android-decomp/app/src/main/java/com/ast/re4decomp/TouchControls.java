@@ -395,11 +395,20 @@ final class TouchControls implements CoreTouch.Host {
 
   /** Before the window's touch event goes to the views (CoreActivity.dispatchTouchEvent). */
   void before(MotionEvent e) {
-    if (shown) touch.beginEvent();
+    int action = e.getActionMasked();
+    if (shown) touch.beginEvent(action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN);
   }
 
   /** After it went through them: which finger looks, which stopped. */
   void after(MotionEvent e) {
+    try {
+      afterEvent(e);
+    } finally {
+      touch.endEvent();  // RetroTouch's reports from now on come outside any touch
+    }
+  }
+
+  private void afterEvent(MotionEvent e) {
     if (!shown) {
       // hidden by a controller: the end of a touch shows them (the next one plays)
       if (e.getActionMasked() == MotionEvent.ACTION_UP && rule.touch()) update();
@@ -414,8 +423,8 @@ final class TouchControls implements CoreTouch.Host {
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_POINTER_UP:
         boolean looked = touch.looking();
-        touch.fingerUp(e.getPointerId(i));
-        if (looked) host.send();
+        // (an aim or knife stick let go: R or L up after RetroTouch's last report, sent here)
+        if (touch.fingerUp(e.getPointerId(i)) | looked) host.send();
         break;
       case MotionEvent.ACTION_CANCEL:
         touch.cancel();

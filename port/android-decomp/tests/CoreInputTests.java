@@ -126,28 +126,31 @@ public final class CoreInputTests {
     in.key(1, L1, false);
     in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     // aiming with the right stick: while L2 (or L1) holds a weapon ready the right stick is the
-    // control stick, the left one rests, the C stick stays at rest; a light L2 the game does not
-    // take as pressed (30 of 255) changes nothing
+    // control stick, the left one's up and down the C stick's (it zooms the scope), its sideways
+    // nothing; a light L2 the game does not take as pressed (30 of 255) changes nothing
     in.motion(1, 0, -1, 0.5f, 0, 0, 0, 0, 0);  // running forward, looking right
     a = in.pad();
     check(a[2] == 101 && a[1] == 0 && a[3] == Math.round(0.5f * 92) && a[4] == 0);
     in.motion(1, 0, -1, 0.5f, 0, 0.1f, 0, 0, 0);  // L2 light: 26 of 255
     a = in.pad();
     check(a[6] == 26 && a[2] == 101 && a[3] == Math.round(0.5f * 92));
-    in.motion(1, 0, -1, 0.5f, 0, 0.4f, 0, 0, 0);  // L2 held: the right stick aims
+    in.motion(1, 0, -1, 0.5f, 0, 0.4f, 0, 0, 0);  // L2 held: the right stick aims, the left one up zooms in
     a = in.pad();
-    check(a[1] == Math.round(0.5f * 101) && a[2] == 0 && a[3] == 0 && a[4] == 0);
-    in.motion(1, 0.3f, -1, 0, 0.8f, 1f, 0, 0, 0);  // aiming down, the left stick ignored
+    check(a[1] == Math.round(0.5f * 101) && a[2] == 0 && a[3] == 0 && a[4] == 92);
+    in.motion(1, 0.3f, -1, 0, 0.8f, 1f, 0, 0, 0);  // aiming down; the left stick sideways ignored, up zooms in
     a = in.pad();
-    check(a[1] == 0 && a[2] == Math.round(-0.8f * 101) && a[3] == 0 && a[0] == CoreInput.GC_R);
+    check(a[1] == 0 && a[2] == Math.round(-0.8f * 101) && a[3] == 0 && a[4] == 92 && a[0] == CoreInput.GC_R);
+    in.motion(1, 0.9f, 0.5f, 0, 0.8f, 1f, 0, 0, 0);  // the left stick down half way: zooms out, sideways nothing
+    a = in.pad();
+    check(a[1] == 0 && a[2] == Math.round(-0.8f * 101) && a[3] == 0 && a[4] == Math.round(-0.5f * 92));
     in.motion(1, 0.3f, -1, 0, 0.8f, 0, 0, 0, 0);
     in.key(2, L2, true);  // L2 as a key of another device (the built-in controller)
     a = in.pad();
-    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[3] == 0);
+    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[3] == 0 && a[4] == 92);
     in.key(2, L2, false);
-    in.key(2, L1, true);  // the knife: the right stick aims as well
+    in.key(2, L1, true);  // the knife: the right stick aims as well (the C stick does nothing there)
     a = in.pad();
-    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[0] == CoreInput.GC_L);
+    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[0] == CoreInput.GC_L && a[3] == 0);
     in.key(2, L1, false);
     a = in.pad();  // nothing held: the sticks as they are
     check(a[1] == Math.round(0.3f * 101) && a[2] == 101 && a[4] == Math.round(-0.8f * 92));
@@ -544,6 +547,28 @@ public final class CoreInputTests {
       check(Math.abs(inverted[0] - aim[0]) < 1e-6f && Math.abs(inverted[1] - 0.05f) < 1e-6f);
       float[] fast = CoreInput.mouseAim(10f, -20f, 0.0025f * 3f, true);
       check(Math.abs(fast[0] + 0.075f) < 1e-6f && Math.abs(fast[1] + 0.15f) < 1e-6f);
+      // 1.0, "Turn Leon with mouse / look area": off (the default) the mouse turns no one and looks around with the C
+      // stick as before; on, its movement sideways turns Leon (the aim's yaw, also handed over for the aim, which the
+      // core turns where he aims) and the camera only looks up and down; off again: as before
+      check(!kb.bodyTurn());
+      float[] moved = kb.mouseMoved(10f, 20f, 0.0025f, 0.05f, false);
+      check(moved[2] == 0 && Math.abs(moved[0] - aim[0]) < 1e-6f && Math.abs(moved[1] - aim[1]) < 1e-6f);
+      check(kb.pad()[3] > 30 && kb.pad()[4] < -60);
+      kb.setBodyTurn(true);
+      moved = kb.mouseMoved(10f, 20f, 0.0025f, 0.05f, false);
+      check(kb.bodyTurn() && Math.abs(moved[2] + 0.025f) < 1e-6f && Math.abs(moved[0] - aim[0]) < 1e-6f
+          && Math.abs(moved[1] - aim[1]) < 1e-6f);
+      check(kb.pad()[3] == 0 && kb.pad()[4] < -60);
+      moved = kb.mouseMoved(-4f, 0, 0.0025f * 2f, 0.05f, true);  // left, the sensitivity twice: 0.02 to the left
+      check(Math.abs(moved[2] - 0.02f) < 1e-6f && kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      kb.touchTurn(0.1f);  // (the look zone's turn: below in CoreTouchTests)
+      check(Math.abs(kb.takeBodyTurn() + 0.1f * 1.6f) < 1e-6f && kb.takeBodyTurn() == 0);  // (SWIPE_RADIANS 1.6)
+      kb.setBodyTurn(false);
+      kb.touchTurn(0.1f);
+      check(kb.takeBodyTurn() == 0);
+      moved = kb.mouseMoved(10f, 0, 0.0025f, 0.05f, false);
+      check(moved[2] == 0 && kb.pad()[3] > 30);
+      kb.mouseLook(0, 0);
       // the wheel: whole notches, a fine wheel's parts add up, the other way drops the part left
       check(kb.wheel(1f) == 1 && kb.wheel(-1f) == -1 && kb.wheel(3f) == 3 && kb.wheel(0) == 0);
       check(kb.wheel(Float.NaN) == 0 && kb.wheel(Float.POSITIVE_INFINITY) == 0);

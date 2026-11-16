@@ -254,6 +254,35 @@ public final class CoreInput {
     return true;
   }
 
+  /**
+   * "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026; off by default): the
+   * mouse's and the look zone's movement sideways turns Leon himself (CoreBridge.bodyTurn; the core turns him while he
+   * stands, walks or runs and drops it while he aims, climbs, in an event ...), as the PC version's mouse turning mods;
+   * his tank controls stay. Up and down stays the camera's C stick; aiming stays as it is (the aim turns by the same
+   * movement there, CoreBridge.aimTurn and the touch aiming above). Controllers and their sticks do not change.
+   */
+  private boolean bodyTurn;
+  private float turnX;  // the look zone's movement sideways since takeBodyTurn (shares, right positive)
+
+  public void setBodyTurn(boolean on) {
+    bodyTurn = on;
+    turnX = 0;
+  }
+
+  public boolean bodyTurn() { return bodyTurn; }
+
+  /** The look zone's finger moved sideways by dx (shares of the shorter side): Leon's turn, with the option. */
+  public void touchTurn(float dx) {
+    if (bodyTurn) turnX += dx;
+  }
+
+  /** The look zone's movement sideways since the last call as Leon's turn (radians, left positive); 0: none. */
+  public float takeBodyTurn() {
+    float yaw = -turnX * SWIPE_RADIANS;
+    turnX = 0;
+    return yaw;
+  }
+
   /** The swipe since the last call as the core's yaw and pitch (radians, left and up positive); null: none. */
   public float[] takeAimSwipe() {
     if (swipeX == 0 && swipeY == 0) return null;
@@ -420,6 +449,17 @@ public final class CoreInput {
    */
   public static float[] mouseAim(float dx, float dy, float k, boolean invertVertical) {
     return new float[] {-dx * k, (invertVertical ? dy : -dy) * k};
+  }
+
+  /**
+   * The captured mouse moved by dx, dy counts: the aim's turn (mouseAim, `aimK` radians a count), the camera's C stick
+   * (mouseLook, `lookK` a count) and, with "Turn Leon with mouse / look area", Leon's turn: the movement sideways as
+   * the aim's yaw, the camera then only up and down. {aim's yaw, aim's pitch, Leon's yaw (0 without the option)}.
+   */
+  public float[] mouseMoved(float dx, float dy, float aimK, float lookK, boolean invertVertical) {
+    float[] aim = mouseAim(dx, dy, aimK, invertVertical);
+    mouseLook(bodyTurn ? 0 : dx * lookK, dy * lookK);
+    return new float[] {aim[0], aim[1], bodyTurn ? aim[0] : 0};
   }
 
   /**
@@ -689,7 +729,12 @@ public final class CoreInput {
       if (aiming && !touch) {
         mainX = d.rx;
         mainY = d.ry;
-        cX = cY = 0;
+        // the left stick, free while Leon stands to aim, up and down is the C stick: it zooms the rifles' scope and
+        // the binoculars (cam_extra.cpp reads only the C stick's y). While a weapon is ready nothing else in the game
+        // reads the C stick (the camera looks around with it only while none is, cam_qfps.cpp), so the other
+        // weapons and the knife do not notice; its x stays at rest (a player's report, 16.11.2026: no zoom before)
+        cX = 0;
+        cY = d.ly;
       }
       if (touchAiming && touch && touchAim == AIM_LOOK) {
         // the look zone aims by swipes (takeAimSwipe), not as a stick; the C stick stays the C stick

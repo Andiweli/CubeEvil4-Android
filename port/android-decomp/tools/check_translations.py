@@ -53,7 +53,9 @@ SAME = [("ingame_cancel", "ingame_wipe_cancel")]
 # names that stay as they are in every language (KEEP): the note under "Source and updates" (the project owner,
 # 15.11.2026)
 KEEP = {"ingame_source_only": ("CubeEvil4", "Android", "OUYA/Potato"),
-        "ingame_unofficial_text": ("CubeEvil4", "github.com/Andiweli/CubeEvil4-Android")}
+        "ingame_unofficial_text": ("CubeEvil4", "github.com/Andiweli/CubeEvil4-Android"),
+        # the labels on the aim and knife sticks (1.0)
+        "ingame_touch_aim_help": ("AIM", "KNIFE")}
 
 
 def texts(path):

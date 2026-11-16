@@ -1,0 +1,53 @@
+# Port patch, a new cheat (wish of the project owner, 16.11.2026; the app menu's CHEATS page, PLAYER, "Steady aim",
+# off by default): "Ist dieser Button aktiviert, soll bei allen Waffen, egal ob Zielfernrohr oder Laserpointer das
+# zielen starr sein und sich nicht durch die Atembewegung auf und ab bewegen." While runtime/cheats.cpp
+# re4_steady_aim says so (bit 31 of the app's cheat switches), the aim moves only when the player moves it:
+# PlWepLockRand (pl_wep.cpp, the laser sight of every weapon held up) keeps the aim where the player left it instead
+# of its random drift around it, and CameraScope::move (cam_extra.cpp, the scope of the rifles and the Mine Thrower;
+# the binoculars have a camera of their own, CameraBinocular) adds no breathing sway to the view (its counters run on,
+# so it goes on as the game when the switch goes off). Off: as the game.
+--- a/src/game/pl_wep.cpp
++++ b/src/game/pl_wep.cpp
+@@ -1021,6 +1021,8 @@
+     pl->Waist->set(pl->m_Fwork0, 0.4f);
+ }
+ 
++extern "C" int re4_steady_aim(void); /* port (patch 0233): runtime/cheats.cpp, the cheat "Steady aim" */
++
+ // Resets the sway amplitude factor (lockRandCtr 0.2).
+ void PlWepLockRandInit()
+ {
+@@ -1044,6 +1046,10 @@
+     if (mflag & 1) {
+         wep->pitch = *ang_x;
+         wep->m_CenterY = *ang_y;
++    } else if (re4_steady_aim()) {
++        /* port (patch 0233): "Steady aim": the aim stays where the player left it, no drift around it */
++        *ang_x = wep->pitch;
++        *ang_y = wep->m_CenterY;
+     } else if (mflag & 2) {
+         *ang_x = fRand1_1() * rP * lockRandCtr + wep->pitch;
+         *ang_y = fRand1_1() * rY * lockRandCtr + wep->m_CenterY;
+--- a/src/game/cam_extra.cpp
++++ b/src/game/cam_extra.cpp
+@@ -303,6 +303,8 @@
+     }
+     return v;
+ }
++
++extern "C" int re4_steady_aim(void); /* port (patch 0233): runtime/cheats.cpp, the cheat "Steady aim" */
+ 
+ // Per-frame scope view: the C-stick zooms, aiming turns the player, and a breathing sway is added
+ // while aiming.
+@@ -402,6 +404,11 @@
+     rdir = rdir * 0.95f + rdir0 * 0.05f;
+     m_rnd.x = COSF(xtime) * rdir;
+     m_rnd.y = COSF(ytime) * (rnd_gain2 - rdir);
++    if (re4_steady_aim()) {
++        /* port (patch 0233): "Steady aim": no breathing sway in the scope */
++        m_rnd.x = 0.0f;
++        m_rnd.y = 0.0f;
++    }
+     xtime = LIMIT_ANGLE(xtime + x_yure_spd);
+     ytime = LIMIT_ANGLE(ytime + y_yure_spd);
+     if (pastkey != 1 || Joy[0].stickX || Joy[0].stickY) {

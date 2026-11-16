@@ -92,7 +92,11 @@ android {
         // by hand too)
         if (project.hasProperty('re4.versionCode')) versionCode Integer.parseInt(project.property('re4.versionCode').toString())
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
+        // a data folder of the player's choice (DataFolder): only the flavour "sideload" (1.0, the project owner's
+        // wish of 16.11.2026); every other flavour keeps the app's own folder, with no menu entry and no permission
+        buildConfigField 'boolean', 'CUSTOM_DATA_FOLDER', 'false'
     }
+    buildFeatures { buildConfig true }
     // classic: the app's own game modules (arm64-v8a), as before; since
     //   17.10.2026 app id "com.ast.re4decomp.classic" (installable next to the core app).
     // core: the original game core (port/whole) runs the whole game
@@ -140,10 +144,35 @@ android {
             ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
             externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
         }
+        // sideload: "core" with a data folder of the player's choice (1.0, the project owner's wish of 16.11.2026: "Daten
+        //   sollen auf Userwunsch auch außerhalb des /android/data/* Ordners eingelesen werden können"). Everything as
+        //   "core" (app id, so it installs over it and back, the signing in Android Studio, SDKs, ABIs, CMake, its
+        //   resources, libraries and assets from src/core), versionName with "-sideload" (AppUpdate leaves it out as
+        //   "-core"); src/sideload holds only the manifest with the storage permissions (all files access, the legacy
+        //   storage of Android 6..10), so no other flavour carries them. Built as sideloadRelease.
+        sideload {
+            dimension 'engine'
+            applicationId 'com.ast.cubeevil4'
+            versionNameSuffix '-sideload'
+            minSdk 24
+            ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
+            externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
+            buildConfigField 'boolean', 'CUSTOM_DATA_FOLDER', 'true'
+            // (the x86_64 emulator's test build of the shell, as core's)
+            if (project.hasProperty('re4.emulatorAbi')) {
+                ndk { abiFilters project.property('re4.emulatorAbi') }
+                externalNativeBuild { cmake { arguments '-DRE4_EMULATOR_SHELL=ON' } }
+            }
+        }
     }
     sourceSets {
         car {
             res.srcDirs = ['src/core/res', 'src/car/res']
+            jniLibs.srcDirs = ['src/core/jniLibs']
+            assets.srcDirs = ['src/core/assets']
+        }
+        sideload {
+            res.srcDirs = ['src/core/res']
             jniLibs.srcDirs = ['src/core/jniLibs']
             assets.srcDirs = ['src/core/assets']
         }

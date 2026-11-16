@@ -1,0 +1,28 @@
+# Port patch, a new option (1.0, a player's wish the project owner took, 16.11.2026: "being able to change directions
+# immediately through the look area"; the app menu's "Turn Leon with mouse / look area", off by default): the mouse's
+# and the touch look zone's movement sideways turns Leon himself (runtime/gyro.cpp re4_core_body_turn adds it to his
+# yaw before he moves, only in his own movement routines). Walking, cPlayer::move hands his matrix to the shoulder
+# camera every frame (CamCtrl.m_QuasiFPS.setPlayerLocation), but standing still on the spot (routine 0/0/1, the same
+# position) it does not (`moved` 0), so the camera would stay where he faced before. A frame in which the turn turned
+# him (re4_body_turned) counts as moved, so the camera follows him as when he walks. Without the option: as the game.
+--- a/src/game/player.cpp
++++ b/src/game/player.cpp
+@@ -290,6 +290,8 @@
+     matUpdate();
+ }
+ 
++extern "C" int re4_body_turned(void); /* port (patch 0234): runtime/gyro.cpp, the mouse or the look area turned Leon this frame */
++
+ // Per-frame update.
+ void cPlayer::move()
+ {
+@@ -323,7 +325,8 @@
+         ShapeMove(Body->m_pFace);
+     }
+     if ((int) pos.x == (int) pos_old.x && (int) pos.y == (int) pos_old.y && (int) pos.z == (int) pos_old.z
+-        && (r_no_0 == 0 && r_no_1 == 0 && r_no_2 == 1) && !StaFlagChk(pG, STA_RIDE_GONDOLA)) {
++        && (r_no_0 == 0 && r_no_1 == 0 && r_no_2 == 1) && !StaFlagChk(pG, STA_RIDE_GONDOLA)
++        && !re4_body_turned()) { /* port (patch 0234): turned on the spot, the camera follows */
+         moved = 0;
+         if (!DbgFlagChk(pG, DBG_TEST_MODE)) {
+             goto moveChecked;

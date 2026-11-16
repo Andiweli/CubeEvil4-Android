@@ -86,6 +86,7 @@ enum MsgType : uint32_t {
     kSetGentleQte = 45,    // a = on: Professional's quick-time events as Normal's (no reply; re4_core_set_gentle_qte, 0.99.15)
     kRtShadows = 46,       // -> a = the real-time shadows the core knows (re4_core_rt_shadows; an older core process
                            // replies -1 "unknown command")
+    kBodyTurn = 47,        // a = Leon's turn in radians as float bits (no reply; re4_core_body_turn, 1.0)
 };
 
 struct MsgHeader {

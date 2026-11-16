@@ -41,6 +41,18 @@
 // stops, no stick that keeps turning): the app hands each finger movement over as angles, summed up
 // to the next game frame and turned there all at once, on the same ways as the gyro (the scope's
 // zoom too), with no gain; the knife stance too (0.99.9; the gyro leaves the knife alone, as before).
+//
+// Turning Leon (re4_core_body_turn; 1.0, a player's wish the project owner took, 16.11.2026: "being able to change
+// directions immediately through the look area", as the PC version's mouse turning mods): with the app's option the
+// mouse's and the touch look zone's movement sideways, as angles, turns Leon himself, summed up to the next game frame
+// and added to his yaw there (pPL->ang.y, positive left), smoothly, his tank controls as they are. Only while the game
+// runs its main loop, no sub screen, no event, the keys not stopped (SPF_KEY), neither the scope nor the binoculars
+// up, and the player in his own movement
+// routines 0/0..4 (standing, walking, walking back, running, turning on the spot: Pl_func_move_tbl): not while he
+// aims or holds the knife (the aim turns there, above), not in the quick turn, on a ladder, jumping, falling, in the
+// boat, crouching, pushing, nor in damage, grabs, death or scripted routines (r_no_0 not 0). Ashley's part too (the
+// same routines). A turn there is gone. Standing still the game does not tell its camera where the player faces
+// (cPlayer::move: `moved` 0); patch 0234 asks re4_body_turned, so the camera follows the turn as it does a walk.
 #include "types.h"
 #include "global.h"
 #include "em.h"
@@ -54,6 +66,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 extern GLOBAL_WK* pG;
@@ -62,6 +75,7 @@ extern cPlayer* pPL;
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));
 extern "C" int re4_binocular_look(float yaw, float pitch);  // runtime/wheel_zoom.cpp
+extern "C" long re4_trace_free_at(void);                     // runtime/state_trace.cpp
 
 namespace {
 
@@ -81,6 +95,11 @@ volatile u32 gSwipeLock;
 float gSwipeYaw, gSwipePitch;
 unsigned gSwiped;  // frames a swipe turned the aim (the log)
 unsigned gSwipedKnife;  // ... the knife's (the log)
+// Leon's turn since the last game frame (re4_core_body_turn; under the swipe's lock), whether this frame turned him
+// (re4_body_turned, patch 0234), the frames it did (the log)
+float gBodyYaw;
+bool gBodyTurned;
+unsigned gBodyFrames;
 
 u32 nowMs()
 {
@@ -178,6 +197,32 @@ bool turnAim(float yaw, float pitch, bool knifeToo)
     return true;
 }
 
+// Turns Leon by yaw (radians, positive left) where his own movement allows it; else a reason why not (the log)
+const char* turnBody(float yaw)
+{
+    cPlayer* pl = pPL;
+    if (!pG || !pl || pG->Rno0 != 3) {
+        return "not in play";
+    }
+    if (StaFlagChk(pG, STA_SUB_SCRN)) {
+        return "sub screen";
+    }
+    if (StaFlagChk(pG, STA_EVENT)) {
+        return "event";
+    }
+    if (SpfFlagChk(pG, SPF_KEY)) {
+        return "keys stopped";
+    }
+    if (StaFlagChk(pG, STA_SCOPE_CAMERA) || StaFlagChk(pG, STA_BINOCULAR)) {
+        return "scope or binoculars";  // (the movement looks around there: re4_binocular_look, turnAim)
+    }
+    if (pl->r_no_0 != 0 || pl->r_no_1 > 4) {
+        return "routine";
+    }
+    pl->ang.y += yaw;
+    return 0;
+}
+
 // For tests on the PC: RE4_TEST_GYRO="yaw,pitch", the device's turn rates (rad/s) as the app would send them,
 // all the time (a hand's unrest while aiming: the auto aim, patch 0174)
 bool gTest;
@@ -188,6 +233,23 @@ float gTestSwipe[2];
 unsigned gTestSwipeFrom = 1, gTestSwipeTo;
 bool gTraceAim;
 unsigned gAimLines;
+// RE4_TEST_TURN="yaw,from,to[;yaw,from,to...]" (1.0): Leon turned by yaw radians at each game frame from .. to frames
+// after the player is free (runtime/state_trace.cpp; "a" before yaw: from .. to are the PADRead count, before he is
+// free too, the room's start and its events), as the app's re4_core_body_turn; RE4_TEST_LADDER="N,level": N
+// frames after the player is free he is put on a ladder where he stands (PlSetLadder, level 3 one rung up), to see
+// that it does not turn him there; RE4_TRACE_TURN=1: one "turn:" line a frame a turn came (his routine, his yaw, done or
+// why not)
+struct TestTurn {
+    float yaw;
+    long from, to;
+    bool absolute;
+};
+TestTurn gTestTurn[8];
+int gTestTurns;
+long gTestLadder = -1;
+int gTestLadderLevel = 3;
+bool gTraceTurn;
+unsigned gTurnLines;
 
 void gyroHook(unsigned frame)
 {
@@ -208,11 +270,43 @@ void gyroHook(unsigned frame)
                 (unsigned) pPL->r_no_1, (unsigned) pPL->r_no_2, (unsigned) pPL->r_no_3, (double) pPL->ang.y,
                 (double) pPL->m_Fwork0, (double) (f32) m3r);
     }
-    // the swipe since the last frame: taken whether it turns or not (a swipe while not aiming is gone)
+    const long freeAt = re4_trace_free_at();
+    for (int i = 0; i < gTestTurns; i++) {
+        const long base = gTestTurn[i].absolute ? 0 : freeAt;
+        if (base >= 0 && (long) frame >= base + gTestTurn[i].from && (long) frame <= base + gTestTurn[i].to) {
+            lockSwipe();
+            gBodyYaw += gTestTurn[i].yaw;
+            unlockSwipe();
+        }
+    }
+    if (freeAt >= 0) {
+        if (gTestLadder >= 0 && (long) frame == freeAt + gTestLadder && pPL && pG && pG->Rno0 == 3) {
+            Vec at = pPL->pos;
+            re4_log("turn: test ladder at frame %u (RE4_TEST_LADDER, level %d, routine %u/%u)", frame,
+                    gTestLadderLevel, (unsigned) pPL->r_no_0, (unsigned) pPL->r_no_1);
+            PlSetLadder(&at, pPL->ang.y, gTestLadderLevel);
+        }
+    }
+    // the swipe since the last frame: taken whether it turns or not (a swipe while not aiming is gone); Leon's turn too
     lockSwipe();
-    const float swipeYaw = gSwipeYaw, swipePitch = gSwipePitch;
-    gSwipeYaw = gSwipePitch = 0.0f;
+    const float swipeYaw = gSwipeYaw, swipePitch = gSwipePitch, bodyYaw = gBodyYaw;
+    gSwipeYaw = gSwipePitch = gBodyYaw = 0.0f;
     unlockSwipe();
+    gBodyTurned = false;
+    if (bodyYaw != 0.0f) {
+        const float before = pPL ? (float) pPL->ang.y : 0.0f;
+        const char* why = turnBody(bodyYaw);
+        gBodyTurned = !why;
+        if (gTraceTurn && gTurnLines < 4000) {
+            gTurnLines++;
+            re4_log("turn: frame %u pl %u/%u/%u ang %.4f -> %.4f %s", frame, pPL ? (unsigned) pPL->r_no_0 : 0u,
+                    pPL ? (unsigned) pPL->r_no_1 : 0u, pPL ? (unsigned) pPL->r_no_2 : 0u, (double) before,
+                    pPL ? (double) pPL->ang.y : 0.0, why ? why : "turned");
+        }
+        if (!why && gBodyFrames++ % 900 == 0) {
+            re4_log("turn: Leon turned by the mouse or the look area (%u frames so far)", gBodyFrames);
+        }
+    }
     // in the binoculars the swipe (the mouse) looks around (0.99.12, runtime/wheel_zoom.cpp)
     if ((swipeYaw != 0.0f || swipePitch != 0.0f) && !re4_binocular_look(swipeYaw, swipePitch)) {
         const bool harpoon = pPL && pPL->r_no_1 == 0xF;
@@ -267,6 +361,31 @@ struct TestGyro {
             gHooked = true;
             re4_add_frame_hook(gyroHook);
         }
+        const char* turn = getenv("RE4_TEST_TURN");
+        for (const char* s = turn; s && *s && gTestTurns < 8;) {
+            TestTurn& tt = gTestTurn[gTestTurns];
+            tt.absolute = *s == 'a';
+            if (sscanf(tt.absolute ? s + 1 : s, "%f,%ld,%ld", &tt.yaw, &tt.from, &tt.to) != 3) {
+                break;
+            }
+            re4_log("turn: test %.4f radians a frame, frames %ld .. %ld %s (RE4_TEST_TURN)", (double) tt.yaw, tt.from,
+                    tt.to, tt.absolute ? "of the PADRead count" : "after the player is free");
+            gTestTurns++;
+            s = strchr(s, ';');
+            if (s) {
+                s++;
+            }
+        }
+        const char* ladder = getenv("RE4_TEST_LADDER");
+        if (ladder) {
+            sscanf(ladder, "%ld,%d", &gTestLadder, &gTestLadderLevel);
+        }
+        const char* tt = getenv("RE4_TRACE_TURN");
+        gTraceTurn = tt && *tt && *tt != '0';
+        if (gTestTurns || gTestLadder >= 0 || gTraceTurn) {
+            gHooked = true;
+            re4_add_frame_hook(gyroHook);
+        }
     }
 } gTestGyro;
 
@@ -286,6 +405,28 @@ extern "C" void re4_core_aim_turn(float yaw, float pitch)
     gSwipeYaw += yaw;
     gSwipePitch += pitch;
     unlockSwipe();
+}
+
+// The app (CoreBridge.bodyTurn, 1.0): the mouse's or the look zone's movement sideways with the option "Turn Leon with
+// mouse / look area", in radians (positive left), added up to the next game frame, where it turns Leon if his own
+// movement allows it (turnBody). Any thread.
+extern "C" void re4_core_body_turn(float yaw)
+{
+    if (!(yaw == yaw)) {
+        return;
+    }
+    if (!__atomic_exchange_n(&gHooked, true, __ATOMIC_ACQ_REL)) {
+        re4_add_frame_hook(gyroHook);
+    }
+    lockSwipe();
+    gBodyYaw += yaw;
+    unlockSwipe();
+}
+
+// Patch 0234 (cPlayer::move): this game frame's turn turned Leon, so his camera follows him as when he walks.
+extern "C" int re4_body_turned(void)
+{
+    return gBodyTurned ? 1 : 0;
 }
 
 // The app (CoreBridge.gyro): the device's turn rates, any thread; 0, 0: still.

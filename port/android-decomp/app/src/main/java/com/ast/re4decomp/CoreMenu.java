@@ -115,6 +115,8 @@ final class CoreMenu extends Dialog {
     void autoAimChanged(boolean on);
     /** "Always run": Leon runs without the run key, which walks instead (CoreBridge.setAim). */
     void alwaysRunChanged(boolean on);
+    /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn). */
+    void bodyTurnChanged(boolean on);
     /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's (CoreBridge.setGentleQte). */
     void gentleQteChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
@@ -177,6 +179,9 @@ final class CoreMenu extends Dialog {
   /** "Random items" in the cheat switches (wish of the project owner, 07.11.2026, GitHub issue #161; runtime/cheats.cpp)
    *  and its seed in bits 11..30, a new one each time the switch goes on (the rooms dealt alike until then). */
   static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
+  /** "Steady aim" in the cheat switches (wish of the project owner, 16.11.2026: "Atemstopp beim Zielen"; bit 31,
+   *  runtime/cheats.cpp, patch 0233): the laser sight and the scope do not sway. */
+  static final int STEADY_AIM_BIT = 1 << 31;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
   static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
@@ -1152,12 +1157,17 @@ final class CoreMenu extends Dialog {
         on -> host.aimInvertChanged(on), R.string.ingame_aim_speed, CoreActivity.AIM_SPEED_MIN,
         CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
+    // "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026): off by default, the
+    // whole row, under aiming
+    toggle(buttonsRow(body), R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
+        on -> host.bodyTurnChanged(on));
     // "Gentler QTEs" (wish of the project owner, 14.11.2026: Professional's quick-time events "not to be done by touch,
     // just about with a controller"): on by default, the whole row, at the comfort controls' end
     toggle(buttonsRow(body), R.string.ingame_gentle_qte,
         input.getBoolean(CoreActivity.GENTLE_QTE, CoreActivity.GENTLE_QTE_DEFAULT), on -> host.gentleQteChanged(on));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
     help(R.string.ingame_always_run_help); help(R.string.ingame_gentle_qte_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_body_turn_help);
     help(R.string.ingame_knife_swipe_help);
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section
     // of its own, a third of the row each
@@ -1888,8 +1898,10 @@ final class CoreMenu extends Dialog {
     return row;
   }
   /** The CHEATS page (out of MANAGEMENT since 30.10.2026, wish of the project owner). Since 05.11.2026 in three
-   *  sections (wish of the project owner): PLAYER & INVENTORY (the switches health, ammo, invisibility; one-hit
-   *  kill, the case, the money), WEAPONS (each at its highest levels), GAME (automatic QTEs, the extra games). */
+   *  sections (wish of the project owner), since 16.11.2026 in this order (the project owner): PLAYER (health, ammo,
+   *  invisibility; one-hit kill, steady aim, the special costumes), WEAPONS (each at its highest levels), GENERAL &
+   *  INVENTORY (automatic QTEs, the extra games; random items and enemies; the case, the money), then the player
+   *  character and the mods. */
   private void cheats() {
     cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
     heading(R.string.ingame_cheat_section_player);
@@ -1897,10 +1909,11 @@ final class CoreMenu extends Dialog {
     cheatSwitch(player, R.string.ingame_cheat_health, 1);
     cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
     cheatSwitch(player, R.string.ingame_cheat_invisible, INVISIBLE_BIT);
-    MenuLayout.Buttons inventory = cheatRow(3);
-    cheatSwitch(inventory, R.string.ingame_cheat_onehit, 4);
-    cheatButton(inventory, 2, R.string.ingame_cheat_case);
-    cheatButton(inventory, 3, R.string.ingame_cheat_money);
+    MenuLayout.Buttons player2 = cheatRow(3);
+    cheatSwitch(player2, R.string.ingame_cheat_onehit, 4);
+    cheatSwitch(player2, R.string.ingame_cheat_steady, STEADY_AIM_BIT);
+    // the special costumes, out of the player character's section (the project owner, 16.11.2026)
+    costumeSwitch(player2);
     heading(R.string.ingame_cheat_section_weapons);
     MenuLayout.Buttons weapons = cheatRow(3);
     cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
@@ -1933,6 +1946,10 @@ final class CoreMenu extends Dialog {
       game.edit().putInt(CoreActivity.ENEMY_SEED, seed).apply();
       host.enemyRandomChanged(seed);
     });
+    // the case and the money under them (the project owner, 16.11.2026)
+    MenuLayout.Buttons inventory = cheatRow(2);
+    cheatButton(inventory, 2, R.string.ingame_cheat_case);
+    cheatButton(inventory, 3, R.string.ingame_cheat_money);
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
@@ -2086,6 +2103,9 @@ final class CoreMenu extends Dialog {
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
+      // Leon, Ada, HUNK; under them Krauser and Wesker, under Ada and HUNK (the project owner, 16.11.2026: "Unter dem
+      // Button von Leon bleibt der Platz also frei")
+      if (i == 3) row.addGap();
       Button b = cellAction(row, labels[i], v -> {
         Runnable choose = () -> {
           select(buttons, labels, index);
@@ -2100,7 +2120,6 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       buttons[i] = b;
     }
-    costumeSwitch(row);
     help(R.string.ingame_cheat_character_help);
   }
   /** Before Ada, HUNK, Krauser or Wesker take Leon's place (wish of the project owner, 08.11.2026): a reddish
@@ -2303,8 +2322,7 @@ final class CoreMenu extends Dialog {
   }
   private String version() {
     try {
-      String v = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName;
-      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+      return AppUpdate.plain(getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName);
     } catch (android.content.pm.PackageManager.NameNotFoundException e) { return null; }
   }
   /** "+5°", "0°", "−5°": the field of view's change in degrees, digits 0..9 in every language. */

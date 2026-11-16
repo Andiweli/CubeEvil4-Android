@@ -358,6 +358,11 @@ void re4_core_touch(float u, float v);
  * aims, as angles in radians (yaw positive left, pitch positive up), added up to the next game frame and
  * turned there as the gyro turns the aim (the scope's zoom too). Any thread. */
 void re4_core_aim_turn(float yaw, float pitch);
+/* Turning Leon (cores since 16.11.2026, 1.0; runtime/gyro.cpp): the app's option "Turn Leon with mouse / look
+ * area", the mouse's or the look zone's movement sideways in radians (positive left), added up to the next game
+ * frame and added to Leon's yaw there while he stands, walks or runs (not while he aims, nor on a ladder, in an
+ * event ...). Any thread. */
+void re4_core_body_turn(float yaw);
 /* The mouse wheel (cores since 12.11.2026, 0.99.12; runtime/wheel_zoom.cpp): `notches` up (positive, zooms in) or
  * down, an eighth of the zoom each, handed to the game as a short push of the C stick while the scope or the
  * binoculars are up; dropped anywhere else. Any thread. */

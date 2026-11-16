@@ -578,8 +578,9 @@ public class CoreMenuLayoutTest {
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       show.invoke(menu, 5, false);  // CHEATS, a page of its own since 30.10.2026
       ViewGroup body = (ViewGroup) field(menu, "body");
-      // 05.11.2026: PLAYER & INVENTORY (health, ammo, invisibility; one-hit kill, case, money), WEAPONS (Handcannon,
-      // Killer7, Matilda; Chicago Typewriter, Mine Thrower, rocket launcher), GAME (QTEs, extra games)
+      // 16.11.2026: PLAYER (health, ammo, invisibility; one-hit kill, steady aim, special costumes), WEAPONS
+      // (Handcannon, Killer7, Matilda; Chicago Typewriter, Mine Thrower, rocket launcher), GENERAL & INVENTORY (QTEs,
+      // extra games; random items and enemies; case, money)
       assertEquals(0, heading(body, activity, R.string.ingame_cheat_section_player));
       ViewGroup switches = (ViewGroup) body.getChildAt(1), inventory = (ViewGroup) body.getChildAt(2);
       assertEquals(3, heading(body, activity, R.string.ingame_cheat_section_weapons));
@@ -588,7 +589,7 @@ public class CoreMenuLayoutTest {
       assertEquals(3, switches.getChildCount()); assertEquals(3, inventory.getChildCount());
       assertEquals(3, weapons.getChildCount()); assertEquals(3, launchers.getChildCount());
       String[][] labels = {{"ingame_cheat_health", "ingame_cheat_ammo", "ingame_cheat_invisible"},
-          {"ingame_cheat_onehit", "ingame_cheat_case", "ingame_cheat_money"},
+          {"ingame_cheat_onehit", "ingame_cheat_steady", "ingame_cheat_costume"},
           {"ingame_cheat_handcannon", "ingame_cheat_killer7", "ingame_cheat_matilda"},
           {"ingame_cheat_chicago", "ingame_cheat_mine", "ingame_cheat_rocket"}};
       ViewGroup[] rows = {switches, inventory, weapons, launchers};
@@ -603,6 +604,10 @@ public class CoreMenuLayoutTest {
       oneHit.performClick(); assertEquals(5, sent[0]);
       invisible.performClick(); assertEquals(5 | CoreMenu.INVISIBLE_BIT, sent[0]);
       invisible.performClick(); assertEquals(5, sent[0]);
+      // "Steady aim" (16.11.2026): bit 31
+      Button steady = (Button) inventory.getChildAt(1);
+      steady.performClick(); assertEquals(5 | CoreMenu.STEADY_AIM_BIT, sent[0]); assertTrue(steady.isSelected());
+      steady.performClick(); assertEquals(5, sent[0]); assertFalse(steady.isSelected());
       health.performClick(); assertEquals(4, sent[0]);
       // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
       ViewGroup more = (ViewGroup) body.getChildAt(7);
@@ -634,6 +639,11 @@ public class CoreMenuLayoutTest {
       assertEquals(0, game.getInt(CoreActivity.ENEMY_SEED, -1));
       assertEquals(0, enemySeed[0]);
       assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_random_enemies_help)));
+      // the case and the money under them (16.11.2026)
+      ViewGroup goods = (ViewGroup) body.getChildAt(9);
+      assertEquals(2, goods.getChildCount());
+      assertTrue(((Button) goods.getChildAt(0)).getText().toString().contains(activity.getString(R.string.ingame_cheat_case)));
+      assertTrue(((Button) goods.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_money)));
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
@@ -647,6 +657,34 @@ public class CoreMenuLayoutTest {
       assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      // 16.11.2026: Leon, Ada, HUNK; an empty cell under Leon, Krauser, Wesker (the focus never stops there)
+      ViewGroup characters = (ViewGroup) leon.getParent();
+      assertEquals(6, characters.getChildCount());
+      String[] order = {"Leon", "Ada", "HUNK", null, "Krauser", "Wesker"};
+      for (int i = 0; i < order.length; i++) {
+        View cell = characters.getChildAt(i);
+        if (order[i] == null) {
+          assertFalse("the empty cell is no button", cell instanceof Button);
+          assertFalse("the focus never stops on it", cell.isFocusable());
+        } else {
+          assertEquals(order[i], ((Button) cell).getText().toString());
+        }
+      }
+      // wide: Krauser under Ada, Wesker under HUNK; narrow (the row folds): the empty cell goes, no hole
+      View root = (View) field(menu, "root");
+      float density = activity.getResources().getDisplayMetrics().density;
+      measure(root, Math.round(960 * density), Math.round(540 * density));
+      Button ada = findButton(body, "Ada"), krauser = findButton(body, "Krauser");
+      assertEquals(View.INVISIBLE, characters.getChildAt(3).getVisibility());
+      assertEquals("Krauser under Ada", ada.getLeft(), krauser.getLeft());
+      assertEquals("Wesker under HUNK", hunk.getLeft(), wesker.getLeft());
+      assertTrue(krauser.getTop() > ada.getTop());
+      measure(root, Math.round(300 * density), Math.round(540 * density));
+      if (((android.widget.GridLayout) characters).getColumnCount() < 3) {
+        assertEquals("folded: no empty cell", View.GONE, characters.getChildAt(3).getVisibility());
+      }
+      measure(root, Math.round(960 * density), Math.round(540 * density));
+      assertEquals("wide again: the empty cell back", View.INVISIBLE, characters.getChildAt(3).getVisibility());
       // another character than Leon warns first (08.11.2026): its name centred on top, the warning, one button
       // "I understand" centred below; only that button switches, the choice stays until then
       hunk.performClick();
@@ -681,9 +719,10 @@ public class CoreMenuLayoutTest {
       leon.performClick(); assertEquals(5, sent[0]);
       assertSame("Leon and the chosen one ask nothing", ask, org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog());
       assertTrue(leon.isSelected()); assertFalse(wesker.isSelected());
-      // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
+      // the special costumes, the player section's sixth button (16.11.2026): bit 256, the character kept
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
-      assertSame(leon.getParent(), costume.getParent());
+      assertSame(inventory, costume.getParent());
+      assertEquals(2, inventory.indexOfChild(costume));
       assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
       costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
       hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
