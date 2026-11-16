@@ -13,6 +13,28 @@
          screen and as one line in the error log -->
     <string name="core_unofficial">Unofficial build – the official CubeEvil4 is only available at github.com/Andiweli/CubeEvil4-Android</string>
     <string name="core_start">Start game</string>
+    <!-- the flavour "sideload" (1.0, DataFolder): a data folder of the player's choice on the start screen -->
+    <string name="data_folder_heading">Data folder</string>
+    <string name="data_folder_own">%1$s (the app\'s own folder)</string>
+    <string name="data_folder_choose">Choose folder</string>
+    <string name="data_folder_reset">Restore default</string>
+    <string name="data_folder_permission_title">Access to all files</string>
+    <string name="data_folder_permission_all_files">To keep CubeEvil4\'s data in a folder of your choice, Android must allow CubeEvil4 \"All files access\". Its settings open now: switch it on, then come back.</string>
+    <string name="data_folder_permission_storage">To keep CubeEvil4\'s data in a folder of your choice, allow the access to the storage in the next question.</string>
+    <string name="data_folder_permission_denied">Without that access the data stay in the app\'s own folder.</string>
+    <string name="data_folder_no_picker">This device has no folder picker.</string>
+    <string name="data_folder_not_local">This folder cannot be used. Choose a folder on the device\'s storage, an SD card or a USB drive.</string>
+    <string name="data_folder_android">Android/data and Android/obb cannot be used. Choose another folder.</string>
+    <string name="data_folder_not_usable">%1$s cannot be used: %2$s.</string>
+    <string name="data_folder_same">%1$s is already the data folder.</string>
+    <string name="data_folder_unavailable">The data folder %1$s cannot be used now: %2$s. CubeEvil4 uses its own folder until it is back; nothing was deleted.</string>
+    <string name="data_folder_existing">%1$s already holds CubeEvil4 data: it is used as it is. The data in the old folder stay there.</string>
+    <string name="data_folder_move_title">Move the data?</string>
+    <string name="data_folder_move_text">Move the existing data (discs, memory card, instant save, texture packs, error logs) from %1$s to %2$s?\n\nNo: the new folder starts empty and the discs must be imported again; the old folder stays as it is.</string>
+    <string name="data_folder_moving">Moving the data…</string>
+    <string name="data_folder_moved_of">%1$s of %2$s</string>
+    <string name="data_folder_move_failed">Moving failed: %1$s. Nothing was changed; the data folder stays %2$s.</string>
+    <string name="data_folder_restart">CubeEvil4 starts again with the new data folder.</string>
     <string name="core_import_heading">Select ISO/GCM/RVZ files of the debug build, the European, the US or the Japanese release. RVZ files are unpacked first and need extra free storage (about 3 GB per disc).</string>
     <string name="core_disc_state">Disc %1$d Data is %2$s</string>
     <string name="core_disc_ready">ready (%1$s)</string>

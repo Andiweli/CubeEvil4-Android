@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The sideload flavor (1.0, wish of the project owner, 16.11.2026): a data folder of the player's choice outside
+         Android/data (DataFolder). Only this flavor asks for the access to the shared storage: all files access on
+         Android 11 and later, the storage permissions with the legacy storage on Android 6 to 10. The other flavors
+         (core, car, classic) keep the app's own folder and none of this. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <application android:requestLegacyExternalStorage="true" />
+</manifest>
