@@ -28,7 +28,10 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 > sind: Flaggen wie in Map 1-2 usw. Es sollte nicht inkonsistent wirken. Von daher wäre ein Schalter für
 > Aus > Figuren > Figuren und Objekte evtl. sinnvoll.“
 >
-> - Die Zeile heißt jetzt „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“, ab Werk „Figuren und Objekte“.
+> - Die Zeile heißt jetzt „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“, ab Werk „Figuren und Objekte“,
+>   und steht unter Anzeige → Effekte statt unter Leistung (Wunsch des Inhabers).
+> - Der erste Gerätetest zeigte keine Wirkung: Die App schnitt das Schatten-Bit ab, bevor es den Kern erreichte
+>   (Stufe 3b in `port/docs/whole-program-status.md`; behoben, der Kern meldet jetzt, was ankommt).
 > - Bei „Figuren und Objekte“ wirft alles Bewegliche Schatten, und zwar immer ganze Arten: Türen, Kisten, Fässer,
 >   Regale, Hebel, Gittertore, fallende Bäume und rollende Felsen, die drehenden und schwingenden Teile der Räume
 >   (Windradflügel, Räder, Lampen), was ein Raum-Skript oder eine Szene in den Raum stellt (das Auto in r100), Stoff

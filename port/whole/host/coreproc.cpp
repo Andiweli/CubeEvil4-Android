@@ -126,6 +126,7 @@ struct Core {
     void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
     void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
     void (*setGentleQte)(int);    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+    int (*rtShadows)(void);       // optional (cores since 16.11.2026): the real-time shadows it knows
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
@@ -802,6 +803,7 @@ bool loadCore(std::string& problem)
     bind(core.zoom, "re4_core_zoom", false);
     bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
     bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
+    bind(core.rtShadows, "re4_core_rt_shadows", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
@@ -980,6 +982,9 @@ void serve()
             break;
         case kSetGentleQte:
             if (core.setGentleQte) core.setGentleQte(h.a);
+            break;
+        case kRtShadows:
+            reply(h.id, core.rtShadows ? core.rtShadows() : 0, "");
             break;
         case kTouch: {
             float u, v;

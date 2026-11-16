@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config;
  * objects) exists only where they are offered.
  */
 @RunWith(org.robolectric.RobolectricTestRunner.class)
-@Config(sdk = 28, application = Application.class)
+@Config(sdk = 28, application = Application.class, shadows = CoreMenuLayoutTest.Bridge.class)
 public class RealtimeShadowsTest {
   private SharedPreferences g;
   // the project owner's Retroid Pocket Flip 2: Adreno 650, 8 cores (4 fast, 2.84 GHz), 8 GB; the benchmark 3x at 30
@@ -107,8 +107,9 @@ public class RealtimeShadowsTest {
     assertEquals(RealtimeShadows.VULKAN_READY, RealtimeShadows.refusal(true, RETROID, MEASURED, true) == null);
   }
 
-  /** The Performance page: the row "Real-time shadows · Characters and objects" with its help only where they are
-   *  offered; each press the next level, Off, Characters, Characters and objects. */
+  /** The Display page's effects (the project owner, 16.11.2026: "unter ANZEIGE rein unter 'Effekte'"): the row
+   *  "Real-time shadows · Characters and objects" with its help only where they are offered, no longer on the
+   *  Performance page; each press the next level, Off, Characters, Characters and objects. */
   @Test public void theMenuRowOnlyWhereOffered() throws Exception {
     for (boolean capable : new boolean[] {false, true}) {
       final PerfProfile.Device device = capable ? RETROID : MALI_G52;
@@ -131,16 +132,19 @@ public class RealtimeShadowsTest {
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class);
         show.setAccessible(true);
-        show.invoke(menu, 4, false);  // PERFORMANCE
         java.lang.reflect.Field rootField = CoreMenu.class.getDeclaredField("root");
         rootField.setAccessible(true);
-        View root = (View) rootField.get(menu);
         String label = activity.getString(R.string.ingame_rt_shadows);
+        show.invoke(menu, 4, false);  // PERFORMANCE: not there any more
+        assertNull(find((View) rootField.get(menu), label));
+        show.invoke(menu, 1, false);  // DISPLAY
+        View root = (View) rootField.get(menu);
         TextView row = find(root, label);
         assertEquals("the row " + (capable ? "on a capable device" : "on a weak device"), capable, row != null);
         if (capable) {
           int[] values = {R.string.ingame_rt_shadows_objects, R.string.ingame_off, R.string.ingame_rt_shadows_figures,
               R.string.ingame_rt_shadows_objects};
+          assertTrue("its help under the effects", find(root, activity.getString(R.string.ingame_rt_shadows_help)) != null);
           int[] choices = {2, 0, 1, 2};
           for (int i = 0; i < values.length; i++) {
             if (i > 0) row.performClick();

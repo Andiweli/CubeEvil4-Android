@@ -17,6 +17,7 @@
 #include "gx_bench_steps.h"
 #include "gx_auto_level.h"
 #include "picture_cadence.h"
+#include "potato_bits.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
@@ -2027,6 +2028,20 @@ re4gx::BenchSteps RunBench(const char *name, Game game, Shown shown, double tick
                b.Held(0) ? "stable" : "not stable", re4gx::BenchSteps::Name(b.Result(1)).c_str(),
                b.Held(1) ? "stable" : "not stable", t);
   return b;
+}
+
+// The Potato mask the app hands the core (core_mode.cpp CoreBridge_setPotato, re4::PotatoForCore): the Potato
+// switches (bits 0..4) and the real-time shadows (bit 5 on, bit 6 also the objects) both reach the core; until
+// 16.11.2026 the app kept only bits 0..4 ("& 31") and the shadows never reached a device's core. The GPU bench and the
+// log's names take the switches alone (re4::PotatoSwitches).
+void TestPotatoBits() {
+  Check(re4::PotatoForCore(32) == 32, "potato: the real-time shadows' bit 5 reaches the core");
+  Check(re4::PotatoForCore(96) == 96, "potato: bit 6 (also the objects) reaches the core");
+  Check(re4::PotatoForCore(16 | 32) == (16 | 32), "potato: a Potato switch and the shadows together");
+  Check(re4::PotatoForCore(31) == 31, "potato: the Potato switches as before");
+  Check(re4::PotatoForCore(128 | 256) == 0, "potato: nothing above bit 6");
+  Check(re4::PotatoSwitches(96 | 5) == 5 && re4::PotatoSwitches(32) == 0,
+        "potato: the switches alone (bench, log) without the shadows");
 }
 
 void TestBenchSteps() {
@@ -5141,6 +5156,7 @@ int main() {
       TestAutoLevel();
       TestAutoLevelGpu();
       TestBenchSteps();
+      TestPotatoBits();
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }
@@ -5172,6 +5188,7 @@ int main() {
   TestAutoLevel();
   TestAutoLevelGpu();
   TestBenchSteps();
+  TestPotatoBits();
   TestHandOverCopies();
   TestHdBackground(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN

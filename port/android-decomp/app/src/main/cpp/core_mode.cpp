@@ -21,6 +21,7 @@
 #include "gx_selfcheck.h"
 #include "minimap_view.h"
 #include "picture_cadence.h"
+#include "potato_bits.h"
 #include "re4_card_files.h"
 #include "re4_core_client.h"
 #include "re4_cpu_info.h"
@@ -120,6 +121,7 @@ struct CoreApi {
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+  int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
   int (*instant)(int, Re4InstantInfo *){};
@@ -472,6 +474,7 @@ void loadCore(JNIEnv *env) {
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
+  api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
   api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
@@ -1150,7 +1153,8 @@ void benchApply(const BenchStep &step) {
   optHalfDof = step.halfDof;
   optSerial++;
   if (api.setDof) api.setDof(step.dof);
-  if (api.setPotato) api.setPotato(step.potato >= 0 ? step.potato : optPotato.load());
+  // (the benchmark measures without the real-time shadows, as before 16.11.2026: the menu's switches only)
+  if (api.setPotato) api.setPotato(step.potato >= 0 ? step.potato : re4::PotatoSwitches(optPotato.load()));
 }
 
 // Once per displayed frame (GL thread), after the chunk.
@@ -2356,7 +2360,22 @@ bool drawGx() {
   gx->SetBloom(bloomEnv > 0 ? bloomEnv : optBloom.load());
   // real-time shadows (debug builds only until after 1.0; never sent by a release build: 0, nothing of them runs)
   static const int shadowsEnv = getenv("RE4_GX_SHADOWS") ? atoi(getenv("RE4_GX_SHADOWS")) : -1;
-  gx->SetShadows(shadowsEnv >= 0 ? shadowsEnv : optShadows.load());
+  const int shadowsWanted = shadowsEnv >= 0 ? shadowsEnv : optShadows.load();
+  gx->SetShadows(shadowsWanted);
+  // the core's part of them, asked once while they are wanted and the core runs (16.11.2026: on the device the menu
+  // said "on" and nothing changed, and nothing in the log said why): a core built before them, or one that knows
+  // only the figures, is named in the log
+  static int coreShadows = -1;  // -1: not asked yet
+  if (shadowsWanted > 0 && coreShadows < 0 && api.state && api.state() == RE4_CORE_RUNNING) {
+    coreShadows = api.rtShadows ? std::max(0, api.rtShadows()) : 0;
+    if (coreShadows == 0)
+      LOG("real-time shadows: a core without real-time shadows (rebuild the core: port/docs/lokal-bauen.md); the "
+          "renderer waits for the core's marks in vain");
+    else if (coreShadows < shadowsWanted)
+      LOG("real-time shadows: the core knows only the figures' (rebuild the core for the objects')");
+    else
+      LOG("real-time shadows: the core knows them (%s)", coreShadows >= 2 ? "characters and objects" : "characters");
+  }
   static int colourEnvMode = -1, colourEnvLevel = 1;
   if (colourEnvMode < 0) {
     colourEnvMode = 0;
@@ -3105,6 +3124,7 @@ void useCoreProcess(const std::string &why) {
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setGentleQte = re4ipc_set_gentle_qte;
+  api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
   api.instant = re4ipc_instant;
@@ -3543,10 +3563,16 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores
 // The menu's Potato mode (drawGx tells the core): bit 0 weather effects off, bit 1 special effects off, bits 2..3 particle
 // effects (1 less, 2 none), bit 4 shadows and light effects off. (Until 0.99.6 this kept only bits 0 and 1: the menu's
 // "Particle effects" and "Shadows & light" of 0.99.3 never reached the core; found 09.11.2026.)
+// Bits 5 and 6 are no Potato switches: the real-time shadows (debug builds; RealtimeShadows.java, CoreBridge.potatoSent),
+// kept for the core (re4::PotatoForCore; until 16.11.2026 this cut them off and the core never got them).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JNIEnv *, jclass, jint mask) {
-  const int want = static_cast<int>(mask) & 31;
-  if (optPotato.exchange(want) != want)
-    LOG("Potato mode: %s", want ? PotatoName(want).c_str() + 2 : "everything drawn");
+  const int want = re4::PotatoForCore(static_cast<int>(mask));
+  if (optPotato.exchange(want) != want) {
+    const int switches = re4::PotatoSwitches(want), shadows = want & re4::kPotatoShadows;
+    LOG("Potato mode: %s%s", switches ? PotatoName(switches).c_str() + 2 : "everything drawn",
+        !shadows ? "" : (shadows & 0x40) ? " (real-time shadows for the core: characters and objects)"
+                                       : " (real-time shadows for the core: characters)");
+  }
 }
 
 // The menu's "View distance" (PERFORMANCE, Potato mode; drawGx tells the core): 100 Normal, 75 Medium, 50 Short, 35 Very

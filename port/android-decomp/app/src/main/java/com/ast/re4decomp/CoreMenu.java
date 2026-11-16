@@ -880,7 +880,8 @@ final class CoreMenu extends Dialog {
   }
 
   // DISPLAY (order of the project owner, 04.11.2026): GRAPHICS with the picture format first, then POST-PROCESSING
-  // (effects: depth of field, lens flares; the two picture filters), then OPTIONAL FEATURES (minimap, FPS display)
+  // (effects: depth of field, lens flares, bloom, in debug builds the real-time shadows; the picture filters), then
+  // OPTIONAL FEATURES (minimap, FPS display)
   private void display() {
     heading(R.string.ingame_graphics);
     renderer();
@@ -932,8 +933,25 @@ final class CoreMenu extends Dialog {
       CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     valueLabel(bloom, R.string.ingame_bloom, bloomLabels[bloomLevel(graphics)], bloomLevel(graphics) != 0);
+    // Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows):
+    // "Off > Characters > Characters and objects" (the project owner, 15.11.2026), since 16.11.2026 under the effects
+    // (the project owner: "Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'"); only in a debug
+    // build on a capable device (weak devices never see it); a release build has no row
+    final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()), host.perfDevice(),
+        PerfProfile.Bench.of(graphics), host.vulkanRunning());
+    if (shadowsRow) {
+      Button shadows = cellAction(buttonsRow(effects), "", v -> {
+        int next = RealtimeShadows.next(RealtimeShadows.choice(graphics));
+        graphics.edit().putInt(RealtimeShadows.KEY, next).apply();
+        valueLabel((Button) v, R.string.ingame_rt_shadows, shadowsName(next), next > 0);
+        host.shadowsChanged();
+      });
+      final int shadowsChoice = RealtimeShadows.choice(graphics);
+      valueLabel(shadows, R.string.ingame_rt_shadows, shadowsName(shadowsChoice), shadowsChoice > 0);
+    }
     indentedHelp(s(R.string.ingame_flares_help));
     indentedHelp(s(R.string.ingame_bloom_help));
+    if (shadowsRow) indentedHelp(s(R.string.ingame_rt_shadows_help));
     // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
     LinearLayout filters = labelledOptions(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
@@ -1634,29 +1652,8 @@ final class CoreMenu extends Dialog {
     wide.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
     body.addView(view, wide);
     viewLabel(view, CoreBridge.viewDistance(graphics));
-    // Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows):
-    // "Off > Characters > Characters and objects" (the project owner, 15.11.2026), a row of its own over the whole
-    // width as the view distance, only in a debug build on a capable device (weak devices never see it); a release
-    // build has no row
-    final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()), host.perfDevice(),
-        PerfProfile.Bench.of(graphics), host.vulkanRunning());
-    if (shadowsRow) {
-      Button shadows = button("", v -> {
-        int next = RealtimeShadows.next(RealtimeShadows.choice(graphics));
-        graphics.edit().putInt(RealtimeShadows.KEY, next).apply();
-        valueLabel((Button) v, R.string.ingame_rt_shadows, shadowsName(next), next > 0);
-        host.shadowsChanged();
-      });
-      LinearLayout.LayoutParams wideShadows = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-          ViewGroup.LayoutParams.WRAP_CONTENT);
-      wideShadows.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
-      body.addView(shadows, wideShadows);
-      final int shadowsChoice = RealtimeShadows.choice(graphics);
-      valueLabel(shadows, R.string.ingame_rt_shadows, shadowsName(shadowsChoice), shadowsChoice > 0);
-    }
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
-    if (shadowsRow) help(R.string.ingame_rt_shadows_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
     // without a row label in two columns, the explanations over the whole width. Since 10.11.2026 (wish of the
     // project owner): Frame skip | 60 FPS, under them merged draws | vertex ring as before, then "Save bandwidth"

@@ -98,10 +98,15 @@ public class CoreMenuLayoutTest {
 
   @Test public void allPagesFitAcrossLanguagesWidthsAndFontScales() throws Exception {
     String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"};
+    // a debug build on a capable device (the project owner's Retroid, its benchmark): the Display page with the
+    // real-time shadows' row under the effects (16.11.2026), the longest of its values
+    final PerfProfile.Device retroid =
+        new PerfProfile.Device("Qualcomm Adreno (TM) 650, OpenGL ES 3.2", 8, 4, 2841, 7600, 60.0, 4, 16, 1080);
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
-        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
+        (proxy, method, args) -> method.getName().equals("perfDevice") ? retroid
+            : method.getReturnType() == boolean.class ? Boolean.TRUE
             : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
@@ -111,6 +116,10 @@ public class CoreMenuLayoutTest {
         Configuration config = new Configuration(activity.getResources().getConfiguration());
         config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+        activity.getApplicationInfo().flags |= android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
+        activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).edit().putInt(CoreMenu.DYN_CAP_30, 6)
+            .putInt(CoreMenu.DYN_CAP_60, 5).putInt(PerfProfile.BENCH_CPU_LOAD, 27).putInt(RealtimeShadows.KEY, 2)
+            .apply();
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         // the update button beside "Back to the game": both of its labels
         menu.showUpdate(scale == 1.5f ? AppUpdate.CURRENT : AppUpdate.OLDER);
@@ -122,6 +131,9 @@ public class CoreMenuLayoutTest {
             kind.setInt(menu, page == 7 ? ActionMap.KIND_CONTROLLER : ActionMap.KIND_KEYBOARD);
           }
           show.invoke(menu, Math.min(page, 7), false);
+          if (page == 1)
+            assertNotNull("the real-time shadows under the effects (" + language + ")",
+                findButtonWith((View) field(menu, "root"), activity.getString(R.string.ingame_rt_shadows)));
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
           if (page == 5) {
             // the cheat buttons' longest answer shown under them
@@ -227,6 +239,19 @@ public class CoreMenuLayoutTest {
     int y = 0;
     for (View at = v; at != root && at != null; at = (View) at.getParent()) y += at.getTop();
     return y;
+  }
+
+  /** The first button whose text holds `part` (Arabic's "name · value" starts with a right-to-left mark). */
+  static Button findButtonWith(View view, String part) {
+    if (view instanceof Button && ((Button) view).getText().toString().contains(part)) return (Button) view;
+    if (view instanceof ViewGroup) {
+      ViewGroup g = (ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        Button b = findButtonWith(g.getChildAt(i), part);
+        if (b != null) return b;
+      }
+    }
+    return null;
   }
 
   static Button findButton(View view, String start) {

@@ -78,7 +78,7 @@ auf `realtime-shadows` und kommt später auf dieselbe Weise.
     Es schickt `CoreBridge.setShadows` und das Bit mit `CoreBridge.potatoSent` (an allen sechs Stellen statt
     `potatoMask`; `bloomSent` liest weiter `potatoMask`).
   - Ins Fehlerprotokoll schreibt es „real-time shadows (debug build): on/off (Grund)“.
-  - Menü Leistung, unter der Sichtweite: „Echtzeitschatten · Aus / Figuren“ (seit Stufe 4 drei Stufen, unten) mit Hilfetext, nur wo freigegeben, 11
+  - Menü Leistung, unter der Sichtweite (seit Stufe 3b unter Anzeige → Effekte; seit Stufe 4 drei Stufen, unten): „Echtzeitschatten · Aus / Figuren“ mit Hilfetext, nur wo freigegeben, 11
     Sprachen (`ingame_rt_shadows`, `_figures`, `_help`; `check_translations.py` 455 Texte ok).
   - Release-Build: keine Zeile, kein Lesen der Einstellung, kein Aufruf zu Kern oder Renderer, kein Log.
 - **Geprüft (PC):**
@@ -161,7 +161,8 @@ ein Schalter für Aus > Figuren > Figuren und Objekte evtl. sinnvoll.“ Weiter 
   Wert beider Karten, auf einem Objekt nur den der Figuren (kein Eigenschatten, keine Streifen), auf einer Figur nichts.
   GLES und Vulkan gleich (Vulkan: zweites Tiefenbild, Mischart MAX in der Markierungs-Pipeline). Die Owner-Schlüssel
   des 60-FPS-Zwischenbilds lassen die neuen Bits weg.
-- **App:** „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“ (`RealtimeShadows`: 0, 1, 2; jeder Druck die
+- **App:** „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“ (seit Stufe 3b unter Anzeige → Effekte;
+  `RealtimeShadows`: 0, 1, 2; jeder Druck die
   nächste Stufe), neuer Text `ingame_rt_shadows_objects` und ein Satz mehr im Hilfetext, 11 Sprachen
   (`check_translations.py` 456 Texte ok). Ab Werk **„Figuren und Objekte“** (`DEFAULT_LEVEL`, Begründung bei den
   Kosten). Fehlerprotokoll: „real-time shadows (debug build): on (characters and objects) (Grund)“.
@@ -197,6 +198,45 @@ ein Schalter für Aus > Figuren > Figuren und Objekte evtl. sinnvoll.“ Weiter 
   Fässchen r209, das Auto r100, die Stoffbahnen der Schlosshalle r211 und zum Vergleich r211 mit den verworfenen 8 m.
 - **Nicht geprüft:** Gerät (Kosten auf dem Adreno, Bild in Bewegung), EU-Disc, im Bild: Schwingendes, Hebel,
   Gittertore, Maschinen, Bäume und Felsen.
+
+**Stufe 3b (16.11.2026): Gerätetest ohne Wirkung, Ursache behoben; Zeile unter Anzeige → Effekte.** Der Inhaber auf
+dem Retroid (Vulkan, Debug-Build, r104, EU-Discs): „Es ist kein Unterschied mit oder ohne Echtzeitschatten. Die
+Figuren haben in beiden Fällen ihren Blob-Schatten.“ Bericht: `E:\Development\Android\reports\shadows-owner-test-2026-11-16.md`.
+
+- **Ursache:** `Java_com_ast_re4decomp_CoreBridge_setPotato` (`core_mode.cpp`) behielt nur die Bits 0..4 (`& 31`).
+  Bit 5 (und seit Stufe 4 Bit 6) aus `CoreBridge.potatoSent` kam nie beim Kern an: kein Bild mit Marke, die Flecken
+  blieben. Die PC-Prüfungen setzten die Bits mit `RE4_POTATO` direkt im Kern und gingen nie durch diesen Weg.
+- **Behoben:** `potato_bits.h` (`re4::PotatoForCore`: Bits 0..6; `re4::PotatoSwitches`: 0..4). Die JNI-Funktion
+  reicht beide Schatten-Bits weiter, der Benchmark bekommt weiter nur die Potato-Schalter (misst ohne Schatten wie
+  vorher), das Log nennt die Potato-Schalter und dahinter die Schatten-Bits. Der 32-bit-Kernprozess
+  (`coreproc.cpp kSetPotato`) und `re4_potato_set` reichen den Wert unverändert durch; sonst nimmt kein Teil der App
+  den Potato-Wert als „ein Potato-Schalter ist an“ (Bloom liest in Java `potatoMask` ohne die Bits).
+- **Kern-Log:** „real-time shadows: the app's setting arrived: characters and objects“ bei jeder Änderung, danach
+  je Raum eine Zeile mit dem Stand und Grund („on (…; the foot shadow light reaches the player, no round blobs), r104“
+  oder „paused (no foot shadow light …)“). Ein Release-Build setzt die Bits nie: keine Zeile.
+- **Alter Kern wird erkannt:** neue Kernfunktion `re4_core_rt_shadows` (2: Figuren und Objekte), im 64-bit-Weg über
+  `dlsym`, im 32-bit-Kernprozess über den neuen IPC-Befehl `kRtShadows` (ein älterer Kernprozess antwortet „unknown
+  command“). Sobald Schatten gewünscht sind und der Kern läuft, fragt die App einmal und schreibt „a core without
+  real-time shadows (rebuild the core …)“, „the core knows only the figures'“ oder „the core knows them (…)“.
+- **Menü:** Die Zeile steht jetzt unter Anzeige → Nachbearbeitung → Effekte, nach Bloom, mit ihrem Hilfetext nach dem
+  von Bloom (Wunsch des Inhabers: „Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'“). Unter
+  Leistung ist sie weg. Gleiche Freigabe, nur Debug-Builds, drei Stufen, 11 Sprachen.
+- **r104 mit EU-Discs:** 13 von 15 Kameraschnitten haben ein Fußschatten-Licht (Typ 1, 3° neben senkrecht, Stärke 135),
+  wie auf der Debug-Disc; r104 gehört nicht zu den 19 Räumen ohne. Am PC (EU-Discs mit Raum-Info, Leon an der Stelle
+  des Spielstands, Sichtweite Weit, Vulkan, 2,5×, 60 FPS mit Zwischenbildern, FXAA, CRT stark, Bloom leicht): der Kern
+  meldet „on (characters and objects; … no round blobs), r104“, der Vulkan-Renderer zeichnet die Schatten in alle 10
+  echten und 9 Zwischenbilder (19 Durchgänge). Die Sichtweite ändert nichts daran (die Karte richtet sich nach den
+  Werfern im Umkreis von 15 m, nicht nach der Sichtweite). **An dieser Stelle sieht man trotzdem keinen Unterschied:**
+  Das Licht kommt fast senkrecht, Leons Füße liegen unter dem Bildrand, keine andere Figur im Bild. Deutlich wird der
+  Unterschied bei Gegnern und Begleitern im Bild, bei Gegenständen und in Räumen mit schrägem Licht (r100 21°, r101
+  33°, r103 28°, r11f 35°, r203 24°, r209 25°, r211 35°). Bilder und Logs:
+  `E:\Development\Android\builds\realtime-shadows\stage3b\`.
+- **Geprüft (PC):** Kern i686 -O2 (0 Fehler, Tests bestanden), `gx_gl_check` GLES und Vulkan je 0 Fehler, neu
+  `TestPotatoBits` (auch im Schnelllauf `RE4_CHECK_RULES=1`; mit dem alten `& 31` schlägt er dreimal fehl, gegengeprüft),
+  App-Tests 186 je Variante grün (`theMenuRowOnlyWhereOffered`: Zeile unter Anzeige, nicht mehr unter Leistung;
+  `allPagesFitAcrossLanguagesWidthsAndFontScales` jetzt mit der Zeile auf der Anzeige-Seite in allen 11 Sprachen, 5
+  Breiten und 3 Schriftgrößen), Android-Kern ARM32 und ARM64 ohne Fehler.
+- **Nicht geprüft:** auf dem Retroid (der Inhaber testet nach dem Zusammenführen erneut).
 
 ## Version 0.99.19-rc (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc)
 
