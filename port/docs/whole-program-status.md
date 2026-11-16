@@ -399,6 +399,30 @@ Standard-Layout bleibt unverändert.
 - **Nicht geprüft:** im Spiel (Zielen und Zielfernrohr mit dem Kern), zwei Finger gleichzeitig im Emulator (nur in
   `CoreTouchTests`), auf einem Gerät.
 
+### 6. Alternative Steuerung: Zoom im Zielfernrohr (Spielerbericht über den Projektinhaber, 16.11.2026)
+
+„One issue I noticed when using the alternative controls with the sniper rifle is that there is no way to zoom in.
+Perhaps it's possible to map the zoom function to the left stick. I am using a D3 controller.“
+
+- **Ursache:** Mit der alternativen Steuerung legt `CoreInput.pad` beim Zielen (L1/L2 über die Hälfte) den rechten
+  Stick auf den Hauptstick und setzte den C-Stick auf 0. Das Zielfernrohr zoomt aber nur mit dem C-Stick hoch/runter
+  (`cam_extra.cpp CameraScope::move`, ebenso `CameraBinocular::move`).
+- **Was der C-Stick beim Zielen sonst tut:** nichts. Die Schulterkamera (`cam_qfps.cpp calcDepressionRatio`) schaut
+  mit ihm nur herum, solange keine Waffe bereit ist (`isKamae`); beim Zielen mit Pistole, Messer & Co. nimmt sie die
+  Neigung der Waffe. Sonst lesen ihn nur Debug-Kameras (`cam_ctrl.cpp r0_Debug/r0_Free/r0_RailBehind`). Zielfernrohr
+  und Fernglas lesen nur sein Y.
+- **Gebaut:** Beim Zielen mit der alternativen Steuerung ist **linker Stick hoch/runter der C-Stick** (Y), sein X
+  bleibt 0. Nur das Y, weil nur das zoomt und so auch sonst nichts im Spiel davon merkt. Nicht beim Zielen,
+  GameCube-Belegung, eigene Tastenbelegung, Touch, Tastatur/Maus (Mausrad, I/K) unverändert. Hilfetext
+  `ingame_alternate_help` um „Zielfernrohr: linker Stick hoch/runter zoomt.“ ergänzt (11 Sprachen).
+- **Geprüft am PC:** `CoreInputTests` 1852 Prüfungen (alternativ + Zielen: rechter Stick zielt, linker hoch = C-Stick
+  +92, halb runter = −46, seitlich nichts; Messer ebenso; ohne Zielen unverändert); `CoreTouchTests` 364;
+  App-Tests 202 je Variante grün; `check_translations.py` ohne Befund. **Kern (i686, Debug-Discs, r100, Gewehr, R
+  gehalten):** C-Stick Y über `RE4_TEST_WHEEL` (derselbe Eingang wie `CoreBridge.pad`) zoomt das Zielfernrohr hinein
+  auf 1,0 (Sichtwinkel 9°) und wieder heraus auf 0,5 (27°); Skript `rc-measure/alt_zoom.sh` im Notizordner, Bilder
+  und Log in `E:\Development\Android\builds\release-candidate\alt-scope-zoom\`.
+- **Nicht geprüft:** auf einem Gerät mit echtem Controller (D3), das Fernglas mit der alternativen Steuerung.
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom

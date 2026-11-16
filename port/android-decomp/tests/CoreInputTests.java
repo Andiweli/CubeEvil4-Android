@@ -126,28 +126,31 @@ public final class CoreInputTests {
     in.key(1, L1, false);
     in.motion(1, 0, 0, 0, 0, 0, 0, 0, 0);
     // aiming with the right stick: while L2 (or L1) holds a weapon ready the right stick is the
-    // control stick, the left one rests, the C stick stays at rest; a light L2 the game does not
-    // take as pressed (30 of 255) changes nothing
+    // control stick, the left one's up and down the C stick's (it zooms the scope), its sideways
+    // nothing; a light L2 the game does not take as pressed (30 of 255) changes nothing
     in.motion(1, 0, -1, 0.5f, 0, 0, 0, 0, 0);  // running forward, looking right
     a = in.pad();
     check(a[2] == 101 && a[1] == 0 && a[3] == Math.round(0.5f * 92) && a[4] == 0);
     in.motion(1, 0, -1, 0.5f, 0, 0.1f, 0, 0, 0);  // L2 light: 26 of 255
     a = in.pad();
     check(a[6] == 26 && a[2] == 101 && a[3] == Math.round(0.5f * 92));
-    in.motion(1, 0, -1, 0.5f, 0, 0.4f, 0, 0, 0);  // L2 held: the right stick aims
+    in.motion(1, 0, -1, 0.5f, 0, 0.4f, 0, 0, 0);  // L2 held: the right stick aims, the left one up zooms in
     a = in.pad();
-    check(a[1] == Math.round(0.5f * 101) && a[2] == 0 && a[3] == 0 && a[4] == 0);
-    in.motion(1, 0.3f, -1, 0, 0.8f, 1f, 0, 0, 0);  // aiming down, the left stick ignored
+    check(a[1] == Math.round(0.5f * 101) && a[2] == 0 && a[3] == 0 && a[4] == 92);
+    in.motion(1, 0.3f, -1, 0, 0.8f, 1f, 0, 0, 0);  // aiming down; the left stick sideways ignored, up zooms in
     a = in.pad();
-    check(a[1] == 0 && a[2] == Math.round(-0.8f * 101) && a[3] == 0 && a[0] == CoreInput.GC_R);
+    check(a[1] == 0 && a[2] == Math.round(-0.8f * 101) && a[3] == 0 && a[4] == 92 && a[0] == CoreInput.GC_R);
+    in.motion(1, 0.9f, 0.5f, 0, 0.8f, 1f, 0, 0, 0);  // the left stick down half way: zooms out, sideways nothing
+    a = in.pad();
+    check(a[1] == 0 && a[2] == Math.round(-0.8f * 101) && a[3] == 0 && a[4] == Math.round(-0.5f * 92));
     in.motion(1, 0.3f, -1, 0, 0.8f, 0, 0, 0, 0);
     in.key(2, L2, true);  // L2 as a key of another device (the built-in controller)
     a = in.pad();
-    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[3] == 0);
+    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[3] == 0 && a[4] == 92);
     in.key(2, L2, false);
-    in.key(2, L1, true);  // the knife: the right stick aims as well
+    in.key(2, L1, true);  // the knife: the right stick aims as well (the C stick does nothing there)
     a = in.pad();
-    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[0] == CoreInput.GC_L);
+    check(a[2] == Math.round(-0.8f * 101) && a[1] == 0 && a[0] == CoreInput.GC_L && a[3] == 0);
     in.key(2, L1, false);
     a = in.pad();  // nothing held: the sticks as they are
     check(a[1] == Math.round(0.3f * 101) && a[2] == 101 && a[4] == Math.round(-0.8f * 92));

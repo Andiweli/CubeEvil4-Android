@@ -689,7 +689,12 @@ public final class CoreInput {
       if (aiming && !touch) {
         mainX = d.rx;
         mainY = d.ry;
-        cX = cY = 0;
+        // the left stick, free while Leon stands to aim, up and down is the C stick: it zooms the rifles' scope and
+        // the binoculars (cam_extra.cpp reads only the C stick's y). While a weapon is ready nothing else in the game
+        // reads the C stick (the camera looks around with it only while none is, cam_qfps.cpp), so the other
+        // weapons and the knife do not notice; its x stays at rest (a player's report, 16.11.2026: no zoom before)
+        cX = 0;
+        cY = d.ly;
       }
       if (touchAiming && touch && touchAim == AIM_LOOK) {
         // the look zone aims by swipes (takeAimSwipe), not as a stick; the C stick stays the C stick

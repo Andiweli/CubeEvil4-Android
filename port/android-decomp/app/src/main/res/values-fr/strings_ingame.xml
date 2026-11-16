@@ -113,7 +113,7 @@
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
     <string name="ingame_gyro_invert_v">Inverser la verticale</string>
     <string name="ingame_gyro_invert_h">Inverser l’horizontale</string>
-    <string name="ingame_alternate_help">Commandes alternatives\u00A0: L1 = Couteau, L2 = Viser (avec le stick droit), R1 = Inventaire (Armes/Soins), R2 = Tirer / utiliser le couteau, Y = Carte. A, B, X (Ashley) et START comme avant.</string>
+    <string name="ingame_alternate_help">Commandes alternatives\u00A0: L1 = Couteau, L2 = Viser (avec le stick droit), R1 = Inventaire (Armes/Soins), R2 = Tirer / utiliser le couteau, Y = Carte. A, B, X (Ashley) et START comme avant. Lunette du fusil\u00A0: stick gauche haut/bas pour zoomer.</string>
     <string name="ingame_knife_swipe">Couteau par balayage</string>
     <string name="ingame_knife_swipe_help">Couteau par balayage\u00A0: un balayage rapide sur l’image sort le couteau et frappe, balayez vers le haut ou vers le bas pour frapper en haut ou en bas.</string>
     <string name="ingame_latch_help">Verrouiller\u00A0: un appui (bouton ou écran) maintient L, R ou B jusqu’à l’appui suivant (B verrouillé\u00A0: Leon court en permanence).</string>
