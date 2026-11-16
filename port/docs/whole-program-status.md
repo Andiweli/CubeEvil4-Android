@@ -23,7 +23,9 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
 - **Ausnahme für 1.0 (Projektinhaber, 16.11.2026):** Ziel- und Messer-Stick für die Touch-Steuerung („Die Funktion 8
-  baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19.
+  baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19. Die nächste Veröffentlichung ist 1.0
+  („Yes, next is 1.0“, 16.11.2026, kein weiteres 0.99.x): die Sticks bleiben sichtbar, Zeile unter New im Releasetext;
+  die Version heißt bis zur Umbenennung weiter 0.99.19-rc (versionCode 121).
 
 ## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
 
