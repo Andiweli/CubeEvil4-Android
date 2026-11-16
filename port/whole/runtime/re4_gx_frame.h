@@ -87,7 +87,12 @@ enum Re4GxOp {
      * payload 1 + 5 k words: [0] k (1..3), then for each light that lights the player its direction in view
      * space (x, y, z), its weight (how much of the light there a shadow takes away) and its softness (the
      * filter's radius in map texels), floats as their bits (gx_fifo.cpp re4_gx_put_shadow_lights, port command
-     * 0x04). Until then 4 words (port command 0x03, still read): [0..2] the foot shadow light's direction in
+     * 0x04). Since stage 6 (16.11.2026) payload 2 + 15 k words: [0] 0x10 | k, [1] the ambient (luminance), then for
+     * each light kind (0 parallel, 1 point, 2 spot), its direction (parallel) or place in view space, its colour's
+     * luminance, strength, full and gone distances, GX attenuation k1, k2, a spot's cut-off cosine (-2 none) and
+     * axis, the softness (gx_fifo.cpp re4_gx_put_shadow_lights2, port command 0x05): the renderer draws a point
+     * light's shadows from its place and works out the darkening at each place from the fall-off. Until stage 5
+     * 4 words (port command 0x03, still read): [0..2] the foot shadow light's direction in
      * view space, [3] bits 0-7 its strength (0..255). Sent only while the app switched the shadows on, in play
      * (no event, no sub screen, no death or continue screen) and with a light that casts; the core then draws
      * no foot shadow blobs. A renderer that does not know the op skips it by its length. */

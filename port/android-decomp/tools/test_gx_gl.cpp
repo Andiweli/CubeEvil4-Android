@@ -36,6 +36,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -3036,6 +3037,115 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
   r.SetBloom(0);
 }
 
+// Stage 6 (16.11.2026; the project owner: a standing figure's shadow "wandered" when Leon walked): a lamp 1.2 m before
+// the camera, a grey wall 3 m away, two figures 2 m away, one left of the lamp (x 200 .. 260), one right of it; the
+// core's mark of stage 6 (a point light from its place). Each figure's shadow falls away from the lamp from where that
+// figure stands: the left one's further left on the wall, the right one's further right. The right figure walks (x 380
+// .. 440, then 460 .. 520): the left figure's shadow and everything left of the middle stay byte for byte the same, the
+// right one's shadow moves with it.
+void TestShadowsStill(re4gx::GxRenderer &r, const char *tag) {
+  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255};
+  auto scene = [&](int right, bool stage5) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    b.Owner(0x80001000u, 0x80002000u, 0x0B);  // the room
+    QuadAt(b, 0, 0, 640, 528, 3000.0f, kWall);
+    b.Owner(0x80001100u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // the one who stands
+    QuadAt(b, 200, 200, 260, 330, 2000.0f, kFigure);
+    b.Owner(0x80001200u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // the one who walks
+    QuadAt(b, right, 200, right + 60, 330, 2000.0f, kFigure);
+    b.Owner(0, 0, 0xFF);
+    // 0x10 | 1 light, the ambient 0.2, then the lamp: point, at (0, 0, -1200), luminance 1, strength 1, no fall-off,
+    // no spot, softness 2
+    const float v[16] = {0.2f, 1.0f, 0.0f, 0.0f, -1200.0f, 1.0f, 1.0f, 1e9f, 1e9f, 0.0f, 0.0f, -2.0f,
+                         0.0f, 0.0f, 0.0f, 2.0f};
+    std::uint32_t p[17];
+    p[0] = 0x11;
+    std::memcpy(&p[1], v, sizeof(v));
+    if (stage5) {
+      // stage 5's mark for the pictures: one direction for every figure, from the lamp to the one who walks (as
+      // stage 5 took it from the lamp to the player), weight 0.75, softness 2
+      float d[3] = {(static_cast<float>(right) + 30.0f - 320.0f) / 320.0f * 2000.0f, 0.0f, -2000.0f + 1200.0f};
+      const float len = std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+      const float m[5] = {d[0] / len, d[1] / len, d[2] / len, 0.75f, 2.0f};
+      p[0] = 1;
+      std::memcpy(&p[1], m, sizeof(m));
+      b.Op(RE4_GX_OP_SHADOW, p, 6);
+    } else {
+      b.Op(RE4_GX_OP_SHADOW, p, 17);
+    }
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&rgba, &w, &h), "shadows (lamp): the display copy read back");
+    return rgba;
+  };
+  const int s = r.Scale();
+  auto px = [&](const std::vector<std::uint8_t> &p, int x, int y) {
+    const std::size_t at = (static_cast<std::size_t>(y * s) * static_cast<std::size_t>(640 * s) +
+                            static_cast<std::size_t>(x * s)) * 4;
+    return at + 2 < p.size() ? std::array<int, 3>{p[at], p[at + 1], p[at + 2]} : std::array<int, 3>{-1, -1, -1};
+  };
+  // the left half of the picture (x 0 .. 319), every row
+  auto leftHalf = [&](const std::vector<std::uint8_t> &p) {
+    std::vector<std::uint8_t> out;
+    const std::size_t row = static_cast<std::size_t>(640 * s) * 4, half = static_cast<std::size_t>(320 * s) * 4;
+    for (std::size_t y = 0; y + row <= p.size(); y += row)
+      out.insert(out.end(), p.begin() + static_cast<std::ptrdiff_t>(y),
+                 p.begin() + static_cast<std::ptrdiff_t>(y + half));
+    return out;
+  };
+  char what[200];
+  r.SetShadows(0);
+  const auto plain = scene(380, false);
+  r.SetShadows(1);
+  const unsigned before = r.Stats().shadowPasses;
+  const auto a = scene(380, false), b = scene(460, false);
+  // the left figure's shadow on the wall: x about 140 .. 230 (behind the figure from 200 on), the right one's about
+  // 410 .. 500 when it stands at 380, about 500 .. 590 at 460
+  const auto leftShadow = px(a, 170, 264), leftOff = px(plain, 170, 264);
+  const auto rightA = px(a, 470, 264), rightB = px(b, 470, 264), farRightB = px(b, 560, 264);
+  std::fprintf(stderr, "  shadows (%s, lamp): left shadow %d (off %d), right one at 470: %d, then %d; at 560 then %d\n",
+               tag, leftShadow[0], leftOff[0], rightA[0], rightB[0], farRightB[0]);
+  std::snprintf(what, sizeof(what), "shadows (%s, lamp): each figure's shadow away from the lamp", tag);
+  Check(r.Stats().shadowPasses == before + 2 && leftShadow[0] < leftOff[0] - 20 && rightA[0] < leftOff[0] - 20 &&
+            px(a, 320, 264) == px(plain, 320, 264),
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s, lamp): the standing figure's half byte for byte the same while the "
+                "other walks", tag);
+  Check(leftHalf(a) == leftHalf(b), what);
+  std::snprintf(what, sizeof(what), "shadows (%s, lamp): the walking figure's shadow goes with it", tag);
+  Check(rightB[0] > rightA[0] + 20 && farRightB[0] < leftOff[0] - 20, what);
+  // RE4_GX_CHECK_PICTURES=DIR (for a report, no check): these two pictures as PPM, and the same two with stage 5's
+  // mark, where the standing figure's shadow turns when the other walks
+  if (const char *dir = std::getenv("RE4_GX_CHECK_PICTURES")) {
+    auto save = [&](const std::vector<std::uint8_t> &pic, const char *name) {
+      std::string file = std::string(dir) + "/lamp-";
+      for (const char *t = tag; *t; t++)
+        file += std::isalnum(static_cast<unsigned char>(*t)) ? *t : '_';
+      file += std::string("-") + name + ".ppm";
+      FILE *f = std::fopen(file.c_str(), "wb");
+      if (!f)
+        return;
+      const std::size_t pw = static_cast<std::size_t>(640 * s), ph = pic.size() / 4 / pw;
+      std::fprintf(f, "P6\n%zu %zu\n255\n", pw, ph);
+      for (std::size_t i = 0; i + 3 < pic.size(); i += 4)
+        std::fwrite(&pic[i], 1, 3, f);
+      std::fclose(f);
+    };
+    save(a, "stage6-380");
+    save(b, "stage6-460");
+    save(scene(380, true), "stage5-380");
+    save(scene(460, true), "stage5-460");
+  }
+  r.SetShadows(0);
+}
+
 // Real-time shadows (GxCore::ShadowMark): a grey wall 3 m away, a figure (owner
 // tag with RE4_GX_OWNER_FIGURE) and an object (RE4_GX_OWNER_OBJECT: a crate, a barrel) 2 m away in front of it, the
 // core's mark after them with a light shining into the picture and a little to the right. Level 1 (Characters): the
@@ -3176,6 +3286,7 @@ void TestShadows(re4gx::GxRenderer &r, const char *tag) {
   const auto offAgain = scene(true, false);
   std::snprintf(what, sizeof(what), "shadows (%s): off again, as drawn", tag);
   Check(offAgain == plain, what);
+  TestShadowsStill(r, tag);
 }
 
 void TestAutofocus(re4gx::GxRenderer &r, bool multisampled = false) {

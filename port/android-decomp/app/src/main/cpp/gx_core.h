@@ -671,27 +671,46 @@ struct GxCore {
   // windmill's blades shade their platform (r103), 16.11.2026.
   static constexpr float kShadowReach = 4000.0f;
   // Stage 5 (16.11.2026, the project owner: the shadows follow the game's light): up to three lights a picture, the
-  // ones that really light the figures (runtime/rt_shadow.cpp), each with its direction, weight and softness. Their
-  // maps share one depth atlas of 2 x 2 tiles of kShadowTile texels: 0 light 0's figures, 1 light 0's objects, 2
-  // light 1's figures, 3 light 2's figures (the weaker lights' objects cast nothing: the cost).
-  // (768 texels a tile: a figure gets about 3 mm a texel, its map fitted around it; with 1024 the PC's pass took twice
-  // as long as with the two maps of stage 4, 16.11.2026)
+  // ones that really light the figures (runtime/rt_shadow.cpp). Their maps share one depth atlas of 2 x 2 tiles of
+  // kShadowTile texels: 0 light 0's figures, 1 light 0's objects, 2 light 1's figures, 3 light 2's figures (the weaker
+  // lights' objects cast nothing: the cost). (768 texels a tile: with 1024 the PC's pass took twice as long as with
+  // the two maps of stage 4, 16.11.2026.)
+  // Stage 6 (16.11.2026, the project owner: a standing figure's shadow "wandered" when Leon walked): a point light's
+  // map is drawn from its place (a perspective map, ShadowFitPoint), so that every figure's shadow points away from
+  // the lamp from where that figure stands; its frustum looks where the camera sees the lamp's light, not at the
+  // casters; a parallel light's map lies on a fixed grid (ShadowFitParallel), so that a caster that moves a little
+  // shifts no other shadow; the darkening at each place comes from the light's own fall-off there against all the
+  // light there (kShadowMaskFs LightAt; the ambient includes the lights that are the same everywhere). A figure that
+  // stands still keeps its shadow, whoever else moves.
   static constexpr int kShadowLights = 3, kShadowTiles = 4, kShadowTile = 768;
-  // one tile's map: fitted around its casters along its light
+  // a point light's frustum: from its place towards the middle of what the camera sees within its reach (a spot of a
+  // cone up to that wide along its own axis), 140 degrees wide, 0.1 .. 30 m (no caster moves it)
+  static constexpr float kShadowPointHalfAngle = 70.0f, kShadowPointNear = 100.0f, kShadowPointFar = 30000.0f;
+  // one tile's map
   struct ShadowMapParams {
-    float row[3][4];                 // view space to the map's clip space (x, y, z within -1..1; the shaders' lx, ly, lz)
-    float bias[4];                   // depth bias (map depth), slope bias, normal offset (view units), PCF radius (texels)
-    float reach;                     // how far its shadow reaches behind the caster (map depth)
-    float extent;                    // its square's side (view units)
+    float row[4][4];                 // view space to the map's clip space (x, y, z, w; GL's depth -w..w): lx, ly, lz, lw
+    float tp[4];                     // near, far (view units along its axis), 1 perspective / 0 parallel, a texel's size
+                                     // (parallel: view units; perspective: per view unit of distance)
+    float bias[4];                   // depth bias, slope bias, normal offset (texels), PCF radius (texels)
+    float extent;                    // a parallel map's side (view units)
     int size;                        // its texels each way
     std::size_t triangles;
-    bool casts;                      // it has casters (ShadowFit); only such a tile is drawn
+    bool casts;                      // it has casters; only such a tile is drawn
     bool objects;                    // the objects' triangles (tile 1), else the figures'
+  };
+  // one light as kShadowMaskFs takes it (LightAt): lp place (point, spot) or direction it travels (parallel) in view
+  // space, w the kind (0 parallel, 1 point, 2 spot); la the colour's luminance (negative: a fixed weight, the marks of
+  // stages 1 to 5), strength, full up to, gone from (view units); lb GX attenuation k1, k2, a spot's cut-off cosine;
+  // lc a spot's axis
+  struct ShadowLightParams {
+    float lp[4], la[4], lb[4], lc[4];
   };
   struct ShadowParams {
     ShadowMapParams tile[kShadowTiles];
-    float tileInfo[kShadowTiles][4];  // corner in the atlas (x, y: 0 or 0.5), reach (map depth), 1 when it casts
-    float light[kShadowLights][4];    // direction in view space (unit), weight (0: it casts nothing here)
+    float tileInfo[kShadowTiles][4];  // corner in the atlas (x, y: 0 or 0.5), reach (view units), 1 when it casts
+    ShadowLightParams light[kShadowLights];
+    float amb[4];                    // the light the same everywhere (luminance: the ambient and the lights that turn
+                                     // with the camera), 0, 0, 0
     int lights;                      // lights that cast
     int atlas;                       // the atlas' texels each way (2 tiles)
     std::size_t figTriangles, objTriangles;
@@ -715,8 +734,11 @@ struct GxCore {
   // the chunk has a shadow mark (only asked with the level on)
   static bool HasShadowMark(const Re4GxChunk &chunk);
   void ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk);
-  // one map around `tris` along the light D (unit, view space); false without triangles
-  static bool ShadowFit(const std::vector<float> &tris, const float D[3], float reach, int size, ShadowMapParams *m);
+  // a parallel light's map along D (unit, view space), a point light's or a spot's from its place (L.lp), aimed with
+  // the scene's projection `proj` (XF 0x1020..0x1023); false without triangles
+  static bool ShadowFitParallel(const std::vector<float> &tris, const float D[3], int size, ShadowMapParams *m);
+  static bool ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, const float proj[4], int size,
+                             ShadowMapParams *m);
   // the mark's op (stage 5: the lights; stages 1 to 4: one direction and strength): the parameters, then ShadowPass
   void ShadowMark(const std::uint32_t *p, std::uint32_t n);
   virtual void ShadowPass(const ShadowParams &) {}

@@ -10,22 +10,25 @@
 //    angezeigt, mit der gleichen Intensität egal ob hell, dunkel oder in Räumen") the lights are the ones that really
 //    light the player this frame: the game's own list of them (cLightInfo::pLight, cLightMgr::setModel2 in Trans), each
 //    worked out as trans_lit.cpp's LightSetModel does (DispCol and its alpha, Intensity, the type's fall-off with the
-//    distance, a spot's cone), and the ambient the figure gets (cLightEnv::AmbientEm, the local ambient lights). Up to
-//    three of the brightest lights that sit in the world cast (parallel ones by their direction, the others from their
-//    place: away from a torch, a lamp, a candle); a light that turns with the camera, or sits at the player, only
-//    lights. Each light's weight is its share of all the light at the player (ambient included), and less in the dark:
-//    a shadow takes away the light it blocks. The lightning of the storm rooms follows: its flash is a light of an
+//    distance, a spot's cone). Since stage 6 (16.11.2026: a standing figure's shadow turned when the player walked)
+//    the lights of every figure in view count, each by the most it gives one of them; up to three of the brightest
+//    that sit in the world cast (parallel ones by their direction, the others from their place: away from a torch, a
+//    lamp, a candle, for each figure from where it stands); a light that turns with the camera, or one a figure
+//    carries, only lights. The renderer works out at each place how much of the light there a shadow takes away
+//    (the light's fall-off against the ambient cLightEnv::AmbientEm, the lights that turn with the camera and the
+//    casting ones), and less in the dark: nothing of it depends on where the player stands. The choice is kept
+//    steady (a light that cast keeps its place unless another is much brighter). The lightning of the storm rooms follows: its flash is a light of an
 //    effect (ESP11, r118) or a light whose Intensity the flash raises (r119), often one that turns with the camera;
 //    while the game's flash state is on (EffGetToolState bits 0..1, the rooms' ThunderFlagOn) such a light casts too.
 //    During a flash it is the brightest light, between the flashes it is gone and the night's lamps cast faintly.
 //  - re4_rt_shadow_blobs_off (patch 0240, DrawFootShadow): the game's foot shadow blobs are left out while the shadows
 //    are on in play, also where no light casts (the project owner: shadows only where there is light).
 //  - re4_rt_shadow_mark (patch 0240, in Render after the ordering table 14: the room and the figures (table 11) and
-//    the game's own shadow receivers are drawn, the effects not yet): the port command re4_gx_put_shadow_lights with
-//    the lights' directions in view space, their weights and softness. The renderer draws the figures it saw so far
-//    from each light and darkens the scene behind them.
+//    the game's own shadow receivers are drawn, the effects not yet): the port command re4_gx_put_shadow_lights2
+//    with each light's kind, place or direction in view space, fall-off and softness, and the ambient. The renderer
+//    draws the figures it saw so far from each light (a point light from its place) and darkens the scene behind them.
 // The game reads nothing of this: the blobs are only drawn, never read. Off (every release build), nothing changes:
-// no command, the blobs as before. RE4_SHADOW_LIGHTS=N (PC checks): every N frames a line with the player's lights.
+// no command, the blobs as before. RE4_SHADOW_LIGHTS=N (PC checks): every N frames the player's lights and the choice.
 #include "types.h"
 #include "global.h"
 #include "light.h"
@@ -57,14 +60,15 @@ unsigned gMarks;           // frames marked since the last log line
 // the lights of this frame (re4_rt_shadow_frame -> re4_rt_shadow_mark)
 const int kMaxCast = 3;
 struct Cast {
-    Vec dir;    // the way its light travels at the player (world, unit)
-    f32 weight; // how much of the light there a shadow takes away
-    f32 soft;   // the shadow's softness (the renderer's filter radius in texels)
-    f32 light;  // its brightness at the player (for the order and the log)
+    cLight* light;  // the game's light
+    Vec dir;        // a parallel light: the way it travels (world, unit)
+    f32 best;       // the most it gives one figure (the order, the log)
+    f32 soft;       // the shadow's softness (the renderer's filter radius in texels)
+    bool castable;  // it may cast
 };
 Cast gCast[kMaxCast];
 int gCasts;
-f32 gTotal;                // all the light at the player (luminance, 1 a white light at full strength)
+f32 gAmbient;              // the figures' ambient (cLightEnv::AmbientEm), luminance
 
 enum Why { kOff, kPotato, kNotPlaying, kNoLight, kOn };
 
@@ -235,126 +239,282 @@ f32 lightAt(cLight* l, const Vec& obj, f32 size, bool flash, Vec* dir, bool* cas
     return lightLuma(l) * att;
 }
 
-// the ambient the figure gets (LightSetModel: the local ambient lights, at least cLightEnv::AmbientEm, the model's
-// added ambient), as luminance
-f32 ambientAt(cModel* m, const Vec& obj, f32 size)
+// a figure: the player, the partner or a work of the character manager whose id is below 0x40 (as gx_owner.cpp)
+bool isFigureModel(const cModel* p)
 {
-    f32 r = 0.0f, g = 0.0f, b = 0.0f;
-    for (int i = 0; i < 8; i++) {
-        cLight* l = m->LightInfo.pLight[i];
-        if (!l || l->Type != 7) {
-            continue;
-        }
-        Vec pos;
-        l->getPos(&pos);
-        const f32 d = GetDistance3((Vec*) &obj, &pos);
-        const f32 range = l->Radius + size;
-        f32 f = 0.0f;
-        if (l->Radius == 0.0f || d < range - l->normal.x) {
-            f = 1.0f;
-        } else if (d < range && l->normal.x > 0.0f) {
-            f = (range - d) / l->normal.x;
-        }
-        r = r > f * l->DispCol.r ? r : f * l->DispCol.r;
-        g = g > f * l->DispCol.g ? g : f * l->DispCol.g;
-        b = b > f * l->DispCol.b ? b : f * l->DispCol.b;
+    if (!p) {
+        return false;
     }
-    const GXColor env = LightMgr.getEnvPtr()->AmbientEm;
-    r = r > env.r ? r : env.r;
-    g = g > env.g ? g : env.g;
-    b = b > env.b ? b : env.b;
-    if (m->be_flag & 8) {
-        r += m->AddAmb_r;
-        g += m->AddAmb_g;
-        b += m->AddAmb_b;
+    if (p == (const cModel*) pPL || p == (const cModel*) pSUB) {
+        return true;
     }
-    return luma(r, g, b);
+    const u8* a = (const u8*) EmMgr.pArray;
+    const size_t size = EmMgr.size;
+    if (a && size && (const u8*) p >= a && (const u8*) p < a + (size_t) EmMgr.nArray * size) {
+        return ((const cEm*) (a + ((const u8*) p - a) / size * size))->id < 0x40;
+    }
+    return false;
 }
 
-// This frame's lights for the shadows: the player's (as his model is lit), the brightest three that sit in the world
-int chooseLights(cModel* m)
+// This frame's lights for the shadows (stage 6, 16.11.2026: until then the player's lights alone, worked out at his
+// place, so that a standing figure's shadow turned and changed when he walked; the project owner: "die Schatten der
+// anderen Personen 'wandern' bzw. 'bewegen' sich um die Person mit, wenn sich Leon bewegt"): the lights of every
+// figure in view (the player, the partner, the character manager's figures drawn this frame within 20 m of the
+// camera), each light by the most it gives one of them; the three brightest that sit in the world cast. Where a shadow
+// falls and how dark it is the renderer works out from the light's place and fall-off (re4_rt_shadow_mark), never from
+// where the player stands.
+int chooseLights()
 {
     static const int logEvery = getenv("RE4_SHADOW_LIGHTS") ? atoi(getenv("RE4_SHADOW_LIGHTS")) : 0;
     const bool log = logEvery > 0 && gFrameNo % (unsigned) logEvery == 0;
-    const Vec obj = m->pList ? m->pList->world : m->pos;
-    const f32 size = m->LightInfo.Size.x > m->LightInfo.Size.y ? m->LightInfo.Size.x : m->LightInfo.Size.y;
-    const f32 ambient = ambientAt(m, obj, size);
     // a lightning flash this frame (the storm rooms' tool state, eff_sys.cpp EffCallToolStateCallBack)
     const bool flash = g_pEspSys && (EffGetToolState() & 3) != 0;
-    f32 total = ambient;
-    Cast found[8];
-    int n = 0;
-    for (int i = 0; i < 8; i++) {
-        cLight* l = m->LightInfo.pLight[i];
-        if (!l) {
+    cModel* figs[48];
+    int nf = 0;
+    if (pPL) {
+        figs[nf++] = pPL;
+    }
+    const u8* a = (const u8*) EmMgr.pArray;
+    for (int i = 0; a && EmMgr.size && i < EmMgr.nArray && nf < 48; i++) {
+        cEm* em = (cEm*) (a + (size_t) i * EmMgr.size);
+        if ((cModel*) em == pPL || (em->be_flag & 3) != 3 || em->id >= 0x40) {
             continue;
         }
-        Vec dir = {0.0f, -1.0f, 0.0f};
-        bool casts = false;
-        const f32 light = lightAt(l, obj, size, flash, &dir, &casts);
-        total += light;
-        if (log) {
-            Vec pos;
-            l->getPos(&pos);
-            re4_log("real-time shadows: light %d: id %u type %u be 0x%x %s, %.0f mm away, colour %u %u %u a %u, "
-                    "intensity %.2f, radius %.0f -> %.3f%s",
-                    i, (unsigned) l->Id, (unsigned) l->Type, (unsigned) l->be_flag,
-                    (l->be_flag & 0x40) ? "(an effect's)" : "", (double) GetDistance3((Vec*) &obj, &pos),
-                    (unsigned) l->DispCol.r, (unsigned) l->DispCol.g, (unsigned) l->DispCol.b, (unsigned) l->DispCol.a,
-                    (double) l->Intensity, (double) l->Radius, (double) light, casts ? ", casts" : "");
+        const Vec obj = em->pList ? em->pList->world : em->pos;
+        Vec v;
+        PSMTXMultVec(pG->Camera.v_mat, (Vec*) &obj, &v);
+        if (PSVECMag(&v) > 20000.0f) {
+            continue;
         }
-        if (casts && light > 0.0f) {
-            found[n].dir = dir;
-            found[n].light = light;
-            // softer from a light close by (a torch beside the figure), sharp from the sky and a flash
-            Vec pos;
-            l->getPos(&pos);
-            const f32 d = GetDistance3((Vec*) &obj, &pos);
-            f32 soft = l->Type == 5 || (l->be_flag & 0x40) || flash ? 1.5f : 1.5f + 3000.0f / (d > 1.0f ? d : 1.0f);
-            found[n].soft = soft > 4.0f ? 4.0f : soft;
-            n++;
+        figs[nf++] = em;
+    }
+    Cast found[24];
+    int n = 0;
+    for (int f = 0; f < nf; f++) {
+        cModel* m = figs[f];
+        const Vec obj = m->pList ? m->pList->world : m->pos;
+        const f32 size = m->LightInfo.Size.x > m->LightInfo.Size.y ? m->LightInfo.Size.x : m->LightInfo.Size.y;
+        for (int i = 0; i < 8; i++) {
+            cLight* l = m->LightInfo.pLight[i];
+            if (!l || l->Type > 6) {
+                continue;
+            }
+            Vec dir = {0.0f, -1.0f, 0.0f};
+            bool casts = false;
+            const f32 light = lightAt(l, obj, size, flash, &dir, &casts);
+            // a parallel light casts when it sits in the world (or a flash lights it); any other from its place,
+            // unless a figure carries it (a Ganado's torch, the muzzle flash): it would throw its bearer's shadow
+            const bool castable = l->Type == 5 ? casts : !isFigureModel(l->pParent);
+            int k = 0;
+            while (k < n && found[k].light != l) {
+                k++;
+            }
+            if (k == n) {
+                if (n == 24) {
+                    continue;
+                }
+                found[n].light = l;
+                found[n].dir = dir;
+                found[n].best = 0.0f;
+                found[n].castable = castable;
+                n++;
+            }
+            if (light > found[k].best) {
+                found[k].best = light;
+            }
+            if (log && f == 0) {
+                Vec pos;
+                l->getPos(&pos);
+                re4_log("real-time shadows: light %d: id %u type %u be 0x%x %s, %.0f mm away, colour %u %u %u a %u, "
+                        "intensity %.2f, radius %.0f -> %.3f%s",
+                        i, (unsigned) l->Id, (unsigned) l->Type, (unsigned) l->be_flag,
+                        (l->be_flag & 0x40) ? "(an effect's)" : "", (double) GetDistance3((Vec*) &obj, &pos),
+                        (unsigned) l->DispCol.r, (unsigned) l->DispCol.g, (unsigned) l->DispCol.b,
+                        (unsigned) l->DispCol.a, (double) l->Intensity, (double) l->Radius, (double) light,
+                        castable ? ", casts" : "");
+            }
         }
     }
-    gTotal = total;
-    // the strongest first
+    // the brightest first
     for (int i = 1; i < n; i++) {
-        for (int j = i; j > 0 && found[j].light > found[j - 1].light; j--) {
+        for (int j = i; j > 0 && found[j].best > found[j - 1].best; j--) {
             const Cast t = found[j];
             found[j] = found[j - 1];
             found[j - 1] = t;
         }
     }
-    // each one's share of the light at the player, less in the dark: full from 0.9 of a white light at full strength
-    // on (daylight r100 1.5, the church r117 1.35), about a third at night between the flashes (r118 0.44), none
-    // below 0.15
-    f32 dark = (total - 0.15f) / 0.75f;
-    dark = dark < 0.0f ? 0.0f : dark > 1.0f ? 1.0f : dark;
-    int casts = 0;
-    for (int i = 0; i < n && casts < kMaxCast; i++) {
-        f32 w = total > 0.0f ? found[i].light / total : 0.0f;
-        w = (w > 0.75f ? 0.75f : w) * dark;
-        if (w < 0.03f) {
-            continue;
+    // Keep the choice steady: the values above follow the player too, and the first light is also the one the objects
+    // cast from (the renderer's tiles 0 and 1). A light that cast last frame counts half again as bright when the three
+    // are chosen, and it stays first until another gives a figure twice as much (a lightning flash does). So a light
+    // that comes into the player's reach turns no object's shadow and, while no more than three reach the figures,
+    // takes no other light's place.
+    static cLight* last[kMaxCast];
+    static int lastN;
+    auto wasCasting = [&](const cLight* l) {
+        for (int s = 0; s < lastN; s++) {
+            if (last[s] == l) {
+                return s;
+            }
         }
-        gCast[casts] = found[i];
-        gCast[casts].weight = w;
-        casts++;
+        return -1;
+    };
+    int pick[kMaxCast];
+    int casts = 0;
+    for (; casts < kMaxCast; casts++) {
+        int top = -1;
+        f32 topValue = 0.0f;
+        for (int i = 0; i < n; i++) {
+            bool taken = false;
+            for (int c = 0; c < casts; c++) {
+                taken = taken || pick[c] == i;
+            }
+            if (taken || !found[i].castable || found[i].best < 0.02f) {
+                continue;
+            }
+            const f32 value = found[i].best * (wasCasting(found[i].light) >= 0 ? 1.5f : 1.0f);
+            if (top < 0 || value > topValue) {
+                top = i;
+                topValue = value;
+            }
+        }
+        if (top < 0) {
+            break;
+        }
+        pick[casts] = top;
+    }
+    // the order: the light first last frame stays first unless another is twice as bright, the rest the brightest
+    // first (pick holds indices into found, which is sorted by best)
+    for (int i = 1; i < casts; i++) {
+        for (int j = i; j > 0 && pick[j] < pick[j - 1]; j--) {
+            const int t = pick[j];
+            pick[j] = pick[j - 1];
+            pick[j - 1] = t;
+        }
+    }
+    for (int i = 1; i < casts && lastN > 0; i++) {
+        if (found[pick[i]].light == last[0] && found[pick[0]].best <= 2.0f * found[pick[i]].best) {
+            const int t = pick[i];
+            for (int j = i; j > 0; j--) {
+                pick[j] = pick[j - 1];
+            }
+            pick[0] = t;
+            break;
+        }
+    }
+    for (int i = 0; i < casts; i++) {
+        gCast[i] = found[pick[i]];
+        // sharp from the sky and a flash, a little softer from a lamp
+        gCast[i].soft = gCast[i].light->Type == 5 || (gCast[i].light->be_flag & 0x40) || flash ? 1.5f : 2.0f;
+        last[i] = gCast[i].light;
+    }
+    lastN = casts;
+    // the light that is the same everywhere: the ambient and the parallel lights that turn with the camera (they never
+    // cast between the flashes, but light every figure alike). The renderer weighs each casting light against all the
+    // light at a place, as stage 5 did at the player; without these the night's lamps were lost against too small a
+    // total (r118 between the flashes: 0.13 instead of the player's 0.44, no shadow at all)
+    gAmbient = luma(LightMgr.getEnvPtr()->AmbientEm.r, LightMgr.getEnvPtr()->AmbientEm.g,
+                    LightMgr.getEnvPtr()->AmbientEm.b);
+    for (int i = 0; i < n; i++) {
+        bool cast = false;
+        for (int c = 0; c < casts; c++) {
+            cast = cast || gCast[c].light == found[i].light;
+        }
+        if (!cast && found[i].light->Type == 5 && found[i].light->Radius == 0.0f) {
+            gAmbient += found[i].best;
+        }
     }
     if (log) {
-        for (int i = 0; i < casts; i++) {
-            Vec v;
-            PSMTXMultVecSR(pG->Camera.v_mat, &gCast[i].dir, &v);
-            re4_log("real-time shadows: cast %d: weight %.2f, soft %.1f, world (%.2f %.2f %.2f), view (%.2f %.2f %.2f)",
-                    i, (double) gCast[i].weight, (double) gCast[i].soft, (double) gCast[i].dir.x,
-                    (double) gCast[i].dir.y, (double) gCast[i].dir.z, (double) v.x, (double) v.y, (double) v.z);
-        }
-        re4_log("real-time shadows: r%03x frame %u: ambient %.3f, all the light %.3f%s, %d cast: %.2f %.2f %.2f",
-                pG ? (unsigned) pG->room_id : 0u, gFrameNo, (double) ambient, (double) total, flash ? " (flash)" : "",
-                casts,
-                (double) (casts > 0 ? gCast[0].weight : 0.0f), (double) (casts > 1 ? gCast[1].weight : 0.0f),
-                (double) (casts > 2 ? gCast[2].weight : 0.0f));
+        re4_log("real-time shadows: r%03x frame %u: %d figures, %d lights, ambient %.3f%s, %d cast: %.3f %.3f %.3f",
+                pG ? (unsigned) pG->room_id : 0u, gFrameNo, nf, n, (double) gAmbient, flash ? " (flash)" : "", casts,
+                (double) (casts > 0 ? gCast[0].best : 0.0f), (double) (casts > 1 ? gCast[1].best : 0.0f),
+                (double) (casts > 2 ? gCast[2].best : 0.0f));
     }
     return casts;
+}
+
+// One light for the renderer (15 floats, view space): kind (0 parallel, 1 point, 2 spot), the way a parallel light
+// travels or the place of any other, its colour's luminance (lightLuma), its strength, the distance up to which it is
+// full and where it is gone (the edge fade of trans_lit.cpp, with a figure's size 1 m), the GX distance attenuation k1,
+// k2, a spot's cut-off cosine (-2 none) and axis, the shadow's softness. The renderer works out the light at each place
+// from these as LightSetModel does at a figure.
+void lightParams(const Cast& c, const Mtx v, f32* out)
+{
+    cLight* l = c.light;
+    const f32 size = 1000.0f, far = 1.0e9f;
+    f32 kind = 1.0f, I = l->Intensity, dFull = far, dZero = far, k1 = 0.0f, k2 = 0.0f, cosCut = -2.0f;
+    Vec pos, axis = {0.0f, 0.0f, 0.0f};
+    l->getPos(&pos);
+    const f32 range = l->Radius + size;
+    switch (l->Type) {
+    case 0:  // constant, faded over normal.x at the edge
+    case 2:  // quadratic: 0.1 at the radius
+        if (l->Radius != 0.0f) {
+            dFull = range - l->normal.x;
+            dZero = range;
+        }
+        if (l->Type == 2 && l->Radius != 0.0f) {
+            k2 = (l->Intensity - 0.1f) / 0.1f / (l->Radius * l->Radius);
+        }
+        break;
+    case 1:  // linear to 0 at the radius
+        if (l->Radius != 0.0f) {
+            dFull = 0.0f;
+            dZero = l->Radius;
+        }
+        break;
+    case 3:    // spot: the cone, GXInitLightDistAttn(5000, Intensity, medium); the colour not scaled
+    case 6: {  // spot with a quadratic fall-off scaled by the brightness
+        kind = 2.0f;
+        if (l->Radius != 0.0f) {
+            dFull = range - l->cone.Edge;
+            dZero = range;
+        }
+        if (l->Type == 3) {
+            if (I > 0.0f && I < 1.0f) {
+                k1 = 0.5f * (1.0f - I) / (I * 5000.0f);
+                k2 = 0.5f * (1.0f - I) / (I * 5000.0f * 5000.0f);
+            }
+            I = 1.0f;
+        } else if (l->Radius != 0.0f) {
+            k2 = (l->Intensity - 0.1f) / 0.1f / (l->Radius * l->Radius);
+        }
+        cosCut = cosf(l->cone.CutOff * (3.14159265f / 180.0f));
+        Vec w;
+        l->getNormal(&l->cone.Normal, &w);
+        PSMTXMultVecSR((MtxPtr) v, &w, &axis);
+        const f32 len = PSVECMag(&axis);
+        if (len > 0.0f) {
+            PSVECScale(&axis, &axis, 1.0f / len);
+        } else {
+            cosCut = -2.0f;
+        }
+        break;
+    }
+    case 4:  // custom: (A0 + A1 + A2) / (K0 + K1 d + K2 d^2), the angle left out
+        I = l->spot.K0 > 0.0f ? (l->spot.A0 + l->spot.A1 + l->spot.A2) / l->spot.K0 : 0.0f;
+        k1 = l->spot.K0 > 0.0f ? l->spot.K1 / l->spot.K0 : 0.0f;
+        k2 = l->spot.K0 > 0.0f ? l->spot.K2 / l->spot.K0 : 0.0f;
+        break;
+    case 5:  // parallel
+        kind = 0.0f;
+        break;
+    }
+    // a soft end: many of the game's lamps stop at their reach at once (normal.x 0), which would cut a shadow off in a
+    // line; the shadow fades out over another 30 % of the reach instead
+    if (dZero < far && dZero - dFull < 0.3f * dZero) {
+        dZero = dFull + 0.3f * dZero;
+    }
+    Vec p;
+    if (kind == 0.0f) {
+        PSMTXMultVecSR((MtxPtr) v, (Vec*) &c.dir, &p);
+    } else {
+        PSMTXMultVec((MtxPtr) v, &pos, &p);
+    }
+    const f32 values[15] = {kind, p.x, p.y, p.z, lightLuma(l), I, dFull, dZero, k1 > 0.0f ? k1 : 0.0f,
+                            k2 > 0.0f ? k2 : 0.0f, cosCut, axis.x, axis.y, axis.z, c.soft};
+    for (int i = 0; i < 15; i++) {
+        out[i] = values[i];
+    }
 }
 
 }  // namespace
@@ -417,7 +577,7 @@ void re4_rt_shadow_frame(void)
         return;
     }
     gBlobsOff = true;
-    gCasts = chooseLights(pPL);
+    gCasts = chooseLights();
     if (gCasts == 0) {
         note(kNoLight);
         return;
@@ -438,17 +598,12 @@ void re4_rt_shadow_mark(void)
     if (!gActive || gCasts <= 0) {
         return;
     }
-    f32 lights[kMaxCast * 5];
+    f32 lights[1 + kMaxCast * 15];
+    lights[0] = gAmbient;
     for (int i = 0; i < gCasts; i++) {
-        Vec v;
-        PSMTXMultVecSR(pG->Camera.v_mat, &gCast[i].dir, &v);
-        lights[5 * i + 0] = v.x;
-        lights[5 * i + 1] = v.y;
-        lights[5 * i + 2] = v.z;
-        lights[5 * i + 3] = gCast[i].weight;
-        lights[5 * i + 4] = gCast[i].soft;
+        lightParams(gCast[i], pG->Camera.v_mat, &lights[1 + 15 * i]);
     }
-    re4_gx_put_shadow_lights(gCasts, lights);
+    re4_gx_put_shadow_lights2(gCasts, lights);
     gMarks++;
 }
 

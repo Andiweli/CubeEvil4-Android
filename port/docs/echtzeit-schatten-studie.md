@@ -59,6 +59,20 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 > - Der Renderer zeichnet bis zu drei Lichter; wo zwei verdeckt sind, ist es dunkler (Kernschatten).
 > - Stand, Lichter je Raum, Kosten und Prüfungen: `port/docs/whole-program-status.md`, Stufe 5. Bilder:
 >   `E:\Development\Android\builds\realtime-shadows\stage5\`.
+>
+> **Nachtrag 17.11.2026, Stufe 6: Jede Figur bekommt ihren Schatten von dort, wo sie steht.** Fehler für 1.0, vom
+> Inhaber nach dem Gerätetest gemeldet: Ging Leon, wanderten die Schatten des Händlers oder Ashleys mit.
+>
+> - Ursache: Stufe 5 rechnete für eine Lampe eine einzige Richtung aus (von der Lampe zu Leon) und eine Stärke an
+>   Leons Platz und nahm beides für alle Figuren.
+> - Jetzt zählen die Lichter aller Figuren im Bild. Eine Lampe oder Fackel bekommt eine perspektivische Karte von ihrem
+>   Ort aus (die „Lampen-Schatten“ aus T9, früher als geplant); ihr Kegel schaut dorthin, wo die Kamera im Licht der
+>   Lampe etwas sieht. Ein Himmelslicht bekommt eine Karte auf festem Raster. Die Stärke rechnet die Maske an jeder
+>   Stelle aus dem Licht dort aus. Die Wahl der Lichter bleibt ruhig, solange sich kein Licht deutlich ändert.
+> - Folge: Steht eine Figur still, bleibt ihr Schatten Pixel für Pixel gleich, während eine andere geht (Test in
+>   `gx_gl_check`).
+> - Stand und Prüfungen: `port/docs/whole-program-status.md`, Stufe 6. Bilder:
+>   `E:\Development\Android\builds\realtime-shadows\stage6\`.
 
 ---
 

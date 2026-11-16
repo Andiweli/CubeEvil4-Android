@@ -1432,10 +1432,11 @@ void GxCore::ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk) {
   shadowXfValid = true;
 }
 
-// One map along the light `D` around `tris` (view space): the light's frame (right R, up U, along D), the square around
-// them, from just before them to beyond `reach` behind them; its rows, its biases (a texel's worth), the reach in the
-// map's depth. False without triangles.
-bool GxCore::ShadowFit(const std::vector<float> &tris, const float D[3], float reach, int size, ShadowMapParams *m) {
+// A parallel light's map along D (unit, view space) around `tris`: the light's frame (right R, up U, along D), the
+// square around them on a fixed grid (its side in steps of a fourth of an octave, its middle on whole texels, its depth
+// range in half metres), so that a caster that moves does not shift another's shadow by a texel. False without
+// triangles.
+bool GxCore::ShadowFitParallel(const std::vector<float> &tris, const float D[3], int size, ShadowMapParams *m) {
   if (tris.size() < 9)
     return false;
   float up[3] = {0.0f, 1.0f, 0.0f};
@@ -1458,26 +1459,130 @@ bool GxCore::ShadowFit(const std::vector<float> &tris, const float D[3], float r
       hi[k] = std::max(hi[k], l[k]);
     }
   }
-  const float extent = std::max(hi[0] - lo[0], hi[1] - lo[1]);
-  const float half = 0.5f * extent + 0.02f * extent + 20.0f;
-  const float mx = 0.5f * (lo[0] + hi[0]), my = 0.5f * (lo[1] + hi[1]);
-  const float zn = lo[2] - 100.0f, zf = hi[2] + 1.5f * reach;
+  const float need = 0.5f * std::max(hi[0] - lo[0], hi[1] - lo[1]) * 1.02f + 20.0f;
+  const float half = std::pow(2.0f, std::ceil(std::log2(std::max(need, 100.0f)) * 4.0f) / 4.0f);
+  const float texel = 2.0f * half / static_cast<float>(size);
+  const float mx = std::floor(0.5f * (lo[0] + hi[0]) / texel + 0.5f) * texel;
+  const float my = std::floor(0.5f * (lo[1] + hi[1]) / texel + 0.5f) * texel;
+  const float zn = std::floor((lo[2] - 100.0f) / 500.0f) * 500.0f;
+  const float zf = std::ceil((hi[2] + 1.5f * kShadowReach) / 500.0f) * 500.0f;
   const float sx = 1.0f / half, sz = 2.0f / (zf - zn), tz = -(zf + zn) / (zf - zn);
-  const float rows[3][4] = {{sx * R[0], sx * R[1], sx * R[2], -sx * mx},
+  const float rows[4][4] = {{sx * R[0], sx * R[1], sx * R[2], -sx * mx},
                             {sx * U[0], sx * U[1], sx * U[2], -sx * my},
-                            {sz * D[0], sz * D[1], sz * D[2], tz}};
+                            {sz * D[0], sz * D[1], sz * D[2], tz},
+                            {0.0f, 0.0f, 0.0f, 1.0f}};
   std::memcpy(m->row, rows, sizeof(rows));
+  m->tp[0] = zn;
+  m->tp[1] = zf;
+  m->tp[2] = 0.0f;
+  m->tp[3] = texel;
   m->size = size;
   m->triangles = tris.size() / 9;
-  m->casts = true;
   m->extent = 2.0f * half;
-  const float texel = 2.0f * half / static_cast<float>(size);
-  const float depthUnit = texel / (zf - zn);  // a texel's width in the map's depth
-  m->bias[0] = 1.5f * depthUnit;
-  m->bias[1] = 1.0f * depthUnit;
-  m->bias[2] = 1.5f * texel;
+  m->bias[0] = 1.5f;
+  m->bias[1] = 1.0f;
+  m->bias[2] = 1.5f;
   m->bias[3] = 2.0f;
-  m->reach = reach / (zf - zn);
+  m->casts = true;
+  return true;
+}
+
+// A point light's map from its place (L.lp, view space): a perspective frustum, kShadowPointHalfAngle wide,
+// kShadowPointNear .. kShadowPointFar deep. A spot whose cone is no wider looks along its own axis; any other light
+// towards the middle of what the camera sees within its reach: points of the view 1 to 20 m deep, each by the light
+// it gets there (LightAt of kShadowMaskFs: the fall-off and a spot's cone), else towards a point 3 m before the camera.
+// Nothing of it follows the casters: a figure's shadow points away from the lamp from where it stands, whoever else
+// moves. (Until the second try of stage 6, 17.11.2026, always towards the point 3 m before the camera: from a lamp in
+// front of the camera the frustum looked back at it and left out all that stood beyond the lamp, the merchant's cave
+// r10E.) Casters outside the frustum cast nothing from this light. False without triangles.
+bool GxCore::ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, const float proj[4], int size,
+                            ShadowMapParams *m) {
+  if (tris.size() < 9)
+    return false;
+  const float *P = L.lp;
+  float A[3] = {0.0f, 0.0f, 0.0f};
+  const float wide = std::cos(kShadowPointHalfAngle * 3.14159265f / 180.0f);
+  const float axisLen = std::sqrt(L.lc[0] * L.lc[0] + L.lc[1] * L.lc[1] + L.lc[2] * L.lc[2]);
+  if (L.lp[3] > 1.5f && L.lb[2] >= wide && axisLen > 0.5f) {
+    for (int c = 0; c < 3; c++)
+      A[c] = L.lc[c];
+  } else if (proj[0] != 0.0f && proj[2] != 0.0f) {
+    static const float kDepth[9] = {1000.0f, 2000.0f, 3000.0f, 4500.0f, 6000.0f, 8000.0f, 11000.0f, 15000.0f, 20000.0f};
+    double sum[3] = {0.0, 0.0, 0.0}, total = 0.0;
+    for (int iy = 0; iy < 5; iy++) {
+      for (int ix = 0; ix < 5; ix++) {
+        for (const float dist : kDepth) {
+          const float nx = -0.8f + 0.4f * static_cast<float>(ix), ny = -0.8f + 0.4f * static_cast<float>(iy);
+          const float q[3] = {(nx + proj[1]) * dist / proj[0], (ny + proj[3]) * dist / proj[2], -dist};
+          const float v[3] = {q[0] - P[0], q[1] - P[1], q[2] - P[2]};
+          const float d = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+          if (!(d > 1.0f) || d >= L.la[3])
+            continue;
+          float w = d <= L.la[2] ? 1.0f : (L.la[3] - d) / std::max(L.la[3] - L.la[2], 1.0f);
+          w /= 1.0f + L.lb[0] * d + L.lb[1] * d * d;
+          if (L.lp[3] > 1.5f && L.lb[2] > -1.5f) {
+            const float c = (v[0] * L.lc[0] + v[1] * L.lc[1] + v[2] * L.lc[2]) / d;
+            w *= std::min(1.0f, std::max(0.0f, (c - L.lb[2]) / std::max(1.0f - L.lb[2], 1e-4f)));
+          }
+          if (!(w > 0.0f))
+            continue;
+          for (int c = 0; c < 3; c++)
+            sum[c] += static_cast<double>(w) * static_cast<double>(q[c]);
+          total += static_cast<double>(w);
+        }
+      }
+    }
+    if (total > 1e-9) {
+      for (int c = 0; c < 3; c++)
+        A[c] = static_cast<float>(sum[c] / total) - P[c];
+    }
+  }
+  float al = std::sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
+  if (!(al > 1.0f) && !(L.lp[3] > 1.5f && al > 0.5f)) {
+    A[0] = 0.0f - P[0];
+    A[1] = 0.0f - P[1];
+    A[2] = -3000.0f - P[2];
+    al = std::sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
+  }
+  if (!(al > 0.5f)) {
+    A[0] = 0.0f;
+    A[1] = -1.0f;
+    A[2] = 0.0f;
+    al = 1.0f;
+  }
+  for (float &x : A)
+    x /= al;
+  float up[3] = {0.0f, 1.0f, 0.0f};
+  if (std::fabs(A[1]) > 0.9f) {
+    up[0] = 1.0f;
+    up[1] = 0.0f;
+  }
+  float R[3] = {up[1] * A[2] - up[2] * A[1], up[2] * A[0] - up[0] * A[2], up[0] * A[1] - up[1] * A[0]};
+  const float rl = std::sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2]);
+  for (float &x : R)
+    x /= rl;
+  const float U[3] = {A[1] * R[2] - A[2] * R[1], A[2] * R[0] - A[0] * R[2], A[0] * R[1] - A[1] * R[0]};
+  const float t = std::tan(kShadowPointHalfAngle * 3.14159265f / 180.0f);
+  const float n = kShadowPointNear, f = kShadowPointFar;
+  const float a = (f + n) / (f - n), b = -2.0f * f * n / (f - n);
+  auto dot = [&](const float *x) { return x[0] * P[0] + x[1] * P[1] + x[2] * P[2]; };
+  const float rows[4][4] = {{R[0] / t, R[1] / t, R[2] / t, -dot(R) / t},
+                            {U[0] / t, U[1] / t, U[2] / t, -dot(U) / t},
+                            {a * A[0], a * A[1], a * A[2], -a * dot(A) + b},
+                            {A[0], A[1], A[2], -dot(A)}};
+  std::memcpy(m->row, rows, sizeof(rows));
+  m->tp[0] = n;
+  m->tp[1] = f;
+  m->tp[2] = 1.0f;
+  m->tp[3] = 2.0f * t / static_cast<float>(size);
+  m->size = size;
+  m->triangles = tris.size() / 9;
+  m->extent = 0.0f;
+  m->bias[0] = 1.5f;
+  m->bias[1] = 1.0f;
+  m->bias[2] = 1.5f;
+  m->bias[3] = 2.0f;
+  m->casts = true;
   return true;
 }
 
@@ -1485,39 +1590,78 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
   if (!shadowWanted || shadowFailed)
     return;
   ShadowParams s{};
-  // the lights: stage 5's mark (1 + 5 k words: k, then for each light its direction x, y, z in view space, its weight
-  // and its softness in tile texels; runtime/rt_shadow.cpp) or the single light of stages 1 to 4 (4 words: the
-  // direction, the strength 0..255; the PC dumps of then)
-  float D[kShadowLights][3] = {}, weight[kShadowLights] = {}, soft[kShadowLights] = {};
+  // the lights: stage 6's mark (2 + 15 k words: 0x10 | k, the ambient, then for each light its kind, place or
+  // direction in view space, luminance, strength, full and gone distances, k1, k2, a spot's cut-off cosine and axis,
+  // softness; runtime/rt_shadow.cpp lightParams), or the parallel lights of a fixed weight of stage 5 (1 + 5 k words:
+  // k, then direction, weight, softness) and of stages 1 to 4 (4 words: direction, strength 0..255): the PC dumps of
+  // then
+  float soft[kShadowLights] = {};
   int k = 0;
-  if (n == 4) {
+  auto parallel = [&](int i, const std::uint32_t *d, float weight, float sf) {
+    float D[3] = {AsFloat(d[0]), AsFloat(d[1]), AsFloat(d[2])};
+    const float len = std::sqrt(D[0] * D[0] + D[1] * D[1] + D[2] * D[2]);
+    if (!(len > 1e-3f) || !std::isfinite(len) || !(weight > 0.005f) || !std::isfinite(weight))
+      return;
+    ShadowLightParams &L = s.light[i];
     for (int c = 0; c < 3; c++)
-      D[0][c] = AsFloat(p[c]);
+      L.lp[c] = D[c] / len;
+    L.lp[3] = 0.0f;
+    L.la[0] = -std::min(weight, 0.85f);  // a fixed weight
+    L.la[1] = 1.0f;
+    soft[i] = sf;
+  };
+  if (n == 4) {
     const unsigned strength = p[3] & 0xFF;
-    weight[0] = strength ? std::min(0.6f, std::max(0.25f, static_cast<float>(strength) / 255.0f * 0.75f)) : 0.0f;
-    soft[0] = 2.0f;
+    parallel(0, p, strength ? std::min(0.6f, std::max(0.25f, static_cast<float>(strength) / 255.0f * 0.75f)) : 0.0f,
+             2.0f);
     k = 1;
+  } else if (n >= 17 && (p[0] & 0xF0) == 0x10 && n == 2 + 15 * (p[0] & 0x0F)) {
+    k = static_cast<int>(std::min<std::uint32_t>(p[0] & 0x0F, kShadowLights));
+    s.amb[0] = AsFloat(p[1]);
+    if (!std::isfinite(s.amb[0]) || s.amb[0] < 0.0f)
+      s.amb[0] = 0.0f;
+    for (int i = 0; i < k; i++) {
+      const std::uint32_t *q = p + 2 + 15 * i;
+      float v[15];
+      for (int c = 0; c < 15; c++) {
+        v[c] = AsFloat(q[c]);
+        if (!std::isfinite(v[c]))
+          v[c] = 0.0f;
+      }
+      ShadowLightParams &L = s.light[i];
+      const float kind = v[0] < 0.5f ? 0.0f : v[0] < 1.5f ? 1.0f : 2.0f;
+      if (kind == 0.0f) {
+        const float len = std::sqrt(v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+        if (!(len > 1e-3f))
+          continue;
+        for (int c = 0; c < 3; c++)
+          L.lp[c] = v[1 + c] / len;
+      } else {
+        for (int c = 0; c < 3; c++)
+          L.lp[c] = v[1 + c];
+      }
+      L.lp[3] = kind;
+      L.la[0] = std::max(0.0f, v[4]);
+      L.la[1] = std::max(0.0f, v[5]);
+      L.la[2] = v[6];
+      L.la[3] = v[7];
+      L.lb[0] = std::max(0.0f, v[8]);
+      L.lb[1] = std::max(0.0f, v[9]);
+      L.lb[2] = kind == 2.0f ? v[10] : -2.0f;
+      for (int c = 0; c < 3; c++)
+        L.lc[c] = v[11 + c];
+      soft[i] = v[14];
+    }
   } else if (n >= 6 && (n - 1) % 5 == 0) {
     k = static_cast<int>(std::min<std::uint32_t>({p[0], static_cast<std::uint32_t>(kShadowLights), (n - 1) / 5}));
-    for (int i = 0; i < k; i++) {
-      for (int c = 0; c < 3; c++)
-        D[i][c] = AsFloat(p[1 + 5 * i + c]);
-      weight[i] = AsFloat(p[4 + 5 * i]);
-      soft[i] = AsFloat(p[5 + 5 * i]);
-    }
+    for (int i = 0; i < k; i++)
+      parallel(i, p + 1 + 5 * i, AsFloat(p[4 + 5 * i]), AsFloat(p[5 + 5 * i]));
   }
   bool any = false;
   for (int i = 0; i < k; i++) {
-    const float len = std::sqrt(D[i][0] * D[i][0] + D[i][1] * D[i][1] + D[i][2] * D[i][2]);
-    if (!(len > 1e-3f) || !std::isfinite(len) || !(weight[i] > 0.005f) || !std::isfinite(weight[i])) {
-      weight[i] = 0.0f;
-      continue;
-    }
-    for (float &x : D[i])
-      x /= len;
-    weight[i] = std::min(weight[i], 0.85f);
+    const ShadowLightParams &L = s.light[i];
+    any = any || (L.la[0] != 0.0f && L.la[1] > 0.0f);
     soft[i] = std::isfinite(soft[i]) ? std::min(6.0f, std::max(1.0f, soft[i])) : 2.0f;
-    any = true;
   }
   if ((shadowTris.empty() && objectTris.empty()) || !shadowXfValid || !any) {
     shadowTris.clear();
@@ -1555,29 +1699,35 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
   }();
   const int tile = sizeEnv >= 256 && sizeEnv <= 2048 ? sizeEnv : kShadowTile;
   s.atlas = 2 * tile;
-  // each light's figures in a tile of their own (0, 2, 3), with "Characters and objects" light 0's objects in tile 1
-  // (their own fit: a windmill does not make the figures' map coarse); a tile is drawn only with casters
+  // the scene's projection (XF 0x1020..0x1023), where a point light's map looks (ShadowFitPoint)
+  const float proj[4] = {AsFloat(shadowXf[6]), AsFloat(shadowXf[7]), AsFloat(shadowXf[8]), AsFloat(shadowXf[9])};
+  // each light's figures in a tile of their own (0, 2, 3), with "Characters and objects" light 0's objects in tile 1;
+  // a tile is drawn only with casters
   for (int i = 0; i < k; i++) {
-    if (weight[i] <= 0.0f)
+    ShadowLightParams &L = s.light[i];
+    if (L.la[0] == 0.0f || !(L.la[1] > 0.0f))
       continue;
     const int fig = i == 0 ? 0 : i + 1;
-    bool casts = ShadowFit(shadowTris, D[i], kShadowReach, tile, &s.tile[fig]);
+    auto fit = [&](const std::vector<float> &tris, ShadowMapParams *m) {
+      return L.lp[3] == 0.0f ? ShadowFitParallel(tris, L.lp, tile, m) : ShadowFitPoint(tris, L, proj, tile, m);
+    };
+    bool casts = fit(shadowTris, &s.tile[fig]);
     s.tile[fig].bias[3] = soft[i];
-    if (i == 0 && shadowLevel >= 2 && ShadowFit(objectTris, D[0], kShadowReach, tile, &s.tile[1])) {
+    if (i == 0 && shadowLevel >= 2 && fit(objectTris, &s.tile[1])) {
       s.tile[1].bias[3] = soft[0];
       s.tile[1].objects = true;
       casts = true;
     }
-    if (!casts)
+    if (!casts) {
+      L = ShadowLightParams{};
       continue;
-    std::memcpy(s.light[i], D[i], sizeof(D[i]));
-    s.light[i][3] = weight[i];
+    }
     s.lights++;
   }
   for (int t = 0; t < kShadowTiles; t++) {
     s.tileInfo[t][0] = (t & 1) ? 0.5f : 0.0f;
     s.tileInfo[t][1] = (t & 2) ? 0.5f : 0.0f;
-    s.tileInfo[t][2] = s.tile[t].casts ? s.tile[t].reach : 0.0f;
+    s.tileInfo[t][2] = kShadowReach;
     s.tileInfo[t][3] = s.tile[t].casts ? 1.0f : 0.0f;
   }
   if (s.lights == 0) {
@@ -1614,10 +1764,10 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
   s.objTriangles = s.tile[1].casts ? objectTris.size() / 9 : 0;
   if (!shadowLogged) {
     shadowLogged = true;
-    GXLOG("real-time shadows: first picture with them: %d light(s) (weights %.2f %.2f %.2f), %zu triangles of the "
+    GXLOG("real-time shadows: first picture with them: %d light(s) (kinds %.0f %.0f %.0f), %zu triangles of the "
           "figures, %zu of the objects, atlas %d, mask %d x %d",
-          s.lights, s.light[0][3], s.light[1][3], s.light[2][3], s.figTriangles, s.objTriangles, s.atlas, s.maskW,
-          s.maskH);
+          s.lights, s.light[0].lp[3], s.light[1].lp[3], s.light[2].lp[3], s.figTriangles, s.objTriangles, s.atlas,
+          s.maskW, s.maskH);
   }
   ShadowPass(s);
   stats.shadowTriangles = static_cast<unsigned>(s.figTriangles + s.objTriangles);

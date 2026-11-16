@@ -2480,10 +2480,10 @@ struct GlRenderer final : GxCore {
     return true;
   }
 
-  // a tile's rows into the program in use: lx, ly, lz (the depth pass) or lxN, lyN, lzN (the mask)
+  // a tile's rows into the program in use: lx, ly, lz, lw (the depth pass) or lxN .. lwN (the mask)
   static void ShadowRows(GLuint prog, const ShadowMapParams &m, const char *suffix) {
-    static const char *const names[3] = {"lx", "ly", "lz"};
-    for (int r = 0; r < 3; r++)
+    static const char *const names[4] = {"lx", "ly", "lz", "lw"};
+    for (int r = 0; r < 4; r++)
       glUniform4fv(glGetUniformLocation(prog, (std::string(names[r]) + suffix).c_str()), 1, m.row[r]);
   }
 
@@ -2599,9 +2599,16 @@ struct GlRenderer final : GxCore {
       ShadowRows(p, s.tile[t], n.c_str());
       glUniform4fv(glGetUniformLocation(p, ("b" + n).c_str()), 1, s.tile[t].bias);
       glUniform4fv(glGetUniformLocation(p, ("t" + n).c_str()), 1, s.tileInfo[t]);
+      glUniform4fv(glGetUniformLocation(p, ("tp" + n).c_str()), 1, s.tile[t].tp);
     }
-    for (int i = 0; i < kShadowLights; i++)
-      glUniform4fv(glGetUniformLocation(p, ("ld" + std::to_string(i)).c_str()), 1, s.light[i]);
+    for (int i = 0; i < kShadowLights; i++) {
+      const std::string n = std::to_string(i);
+      glUniform4fv(glGetUniformLocation(p, ("lp" + n).c_str()), 1, s.light[i].lp);
+      glUniform4fv(glGetUniformLocation(p, ("la" + n).c_str()), 1, s.light[i].la);
+      glUniform4fv(glGetUniformLocation(p, ("lb" + n).c_str()), 1, s.light[i].lb);
+      glUniform4fv(glGetUniformLocation(p, ("lc" + n).c_str()), 1, s.light[i].lc);
+    }
+    glUniform4fv(glGetUniformLocation(p, "amb"), 1, s.amb);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shadowAtlasTex);
     glBindSampler(1, 0);

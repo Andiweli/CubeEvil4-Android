@@ -2738,6 +2738,7 @@ struct VkRenderer final : GxCore {
         Put(pc, shadowDepthFx, "lx", m.row[0]);
         Put(pc, shadowDepthFx, "ly", m.row[1]);
         Put(pc, shadowDepthFx, "lz", m.row[2]);
+        Put(pc, shadowDepthFx, "lw", m.row[3]);
         Put(pc, shadowDepthFx, "glz", glz);
         BindFixed(shadowDepthFx, nullptr, nullptr, 0, pc);
         const VkDeviceSize offset = at + (m.objects ? figBytes : 0);
@@ -2813,9 +2814,17 @@ struct VkRenderer final : GxCore {
         Put(pc, shadowMaskFx, ("lz" + n).c_str(), s.tile[t].row[2]);
         Put(pc, shadowMaskFx, ("b" + n).c_str(), s.tile[t].bias);
         Put(pc, shadowMaskFx, ("t" + n).c_str(), s.tileInfo[t]);
+        Put(pc, shadowMaskFx, ("lw" + n).c_str(), s.tile[t].row[3]);
+        Put(pc, shadowMaskFx, ("tp" + n).c_str(), s.tile[t].tp);
       }
-      for (int i = 0; i < kShadowLights; i++)
-        Put(pc, shadowMaskFx, ("ld" + std::to_string(i)).c_str(), s.light[i]);
+      for (int i = 0; i < kShadowLights; i++) {
+        const std::string n = std::to_string(i);
+        Put(pc, shadowMaskFx, ("lp" + n).c_str(), s.light[i].lp);
+        Put(pc, shadowMaskFx, ("la" + n).c_str(), s.light[i].la);
+        Put(pc, shadowMaskFx, ("lb" + n).c_str(), s.light[i].lb);
+        Put(pc, shadowMaskFx, ("lc" + n).c_str(), s.light[i].lc);
+      }
+      Put(pc, shadowMaskFx, "amb", s.amb);
       BindFixedNamed(shadowMaskFx,
                      {{"src", efbDepth.view, nearestClamp},
                       {"shd", shadowAtlas.view, shadowCompare},

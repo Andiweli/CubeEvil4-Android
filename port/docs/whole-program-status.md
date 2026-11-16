@@ -71,7 +71,7 @@ Einzelheiten: `port/docs/gegner-randomizer-plan.md` Abschnitt 10; Bericht für d
     für Eintrag 21 (auch ohne Cheat, gleiche Werte; `re-door.sh`): das Prüfprotokoll liest ein Objekt mitten im Laden.
   - **Nicht geprüft:** auf einem Gerät; ganze Kapitel durchgespielt.
 
-## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
 dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
@@ -396,6 +396,92 @@ Beachtung der Lichtquelle(n).“
 - **Grenzen (so gewollt):** Die Lichter sind die von Leon und gelten für alle Figuren im Bild (keine Lichter je Figur).
   Die Objekte werfen nur vom stärksten Licht. Punktlichter werfen mit einer Richtung (von der Lampe zu Leon), nicht
   strahlenförmig. Die Baumschatten beim Blitz zeichnet das Spiel selbst.
+
+**Stufe 6 (16./17.11.2026, auf f43d61c8): Schatten anderer Figuren wandern nicht mehr mit Leon.** Fehler für 1.0, gemeldet
+vom Inhaber nach dem Gerätetest, Wortlaut: „Echtzeitschatten klappen schon sehr gut, aber die Schatten der anderen
+Personen 'wandern' bzw. 'bewegen' sich um die Person mit, wenn sich Leon bewegt. Bewegt sich also Leon und seine
+Schatten bewegen sich wegen irgendeiner statischen Lichtquelle, bewegen sich plötzlich auch die Schatten vom Händler,
+der daneben steht, oder von Ashley, die danebensteht.“ Vorgabe der Hauptsitzung: kein Schatten, keine Stärke und kein
+Gegenstandsschatten darf sich ändern, nur weil Leon geht.
+
+- **Ursache:** Stufe 5 rechnete für eine Lampe oder Fackel eine einzige Richtung aus, von der Lampe zu Leon, und
+  benutzte sie für alle Figuren; auch die Stärke galt an Leons Platz. Ging Leon, drehten sich die Schatten von Händler
+  und Ashley mit, und ihre Stärke änderte sich. Dazu warf ein Fass vor einer Lampe seinen Schatten zur Lampe hin
+  (Händlerhöhle r10E: der Fassschatten änderte in jedem Bild seine Form).
+- **Kern** (`runtime/rt_shadow.cpp`):
+  - Die Lichter aller Figuren im Bild zählen: Leon, die Begleiterin und die Figuren des Charakter-Managers
+    (`cEm::id` unter 0x40), die gezeichnet werden und höchstens 20 m von der Kamera entfernt sind.
+  - Jedes Licht zählt mit dem Höchsten, was es einer dieser Figuren gibt; die drei hellsten, die in der Welt sitzen,
+    werfen. Ein Licht, das eine Figur trägt (Fackel eines Ganados, Mündungsfeuer), wirft nicht.
+  - Die Wahl bleibt ruhig: Ein Licht, das im letzten Bild geworfen hat, zählt bei der Wahl anderthalbmal so hell, und
+    das erste Licht (von ihm werfen auch die Gegenstände) bleibt das erste, bis ein anderes einer Figur doppelt so viel
+    gibt (ein Blitz tut das). Kommt Leon in die Reichweite einer weiteren Lampe, springt kein Gegenstandsschatten um.
+  - Das Umgebungslicht, das mitgeschickt wird, enthält auch die Lichter, die überall gleich hell sind (die parallelen
+    Lichter, die sich mit der Kamera drehen und nur beim Blitz werfen). Ohne sie war die Summe bei Nacht zu klein und die
+    Lampenschatten verschwanden ganz (r118 zwischen den Blitzen: 0,13 statt Leons 0,44 in Stufe 5).
+  - Hört eine Lampe des Spiels an ihrer Reichweite schlagartig auf (`normal.x` 0), läuft der Schatten über weitere
+    30 % der Reichweite aus, statt in einer Linie abzubrechen.
+  - Neuer Port-Befehl 0x05 (`re4_gx_put_shadow_lights2`): je Licht Art (parallel, Punkt, Spot), Ort bzw. Richtung in
+    Kamera-Koordinaten, Helligkeit, Stärke, Abfall (wie `trans_lit.cpp`), Kegel eines Spots, Weichheit; dazu das
+    Umgebungslicht.
+- **Renderer:**
+  - Ein Punkt- oder Spotlicht bekommt eine perspektivische Karte von seinem Ort aus (`ShadowFitPoint`). So zeigt der
+    Schatten jeder Figur von der Lampe weg, von dort aus, wo diese Figur steht.
+  - Der Kegel dieser Karte (140°, 0,1 bis 30 m) schaut dorthin, wo die Kamera im Licht der Lampe etwas sieht (Punkte
+    1 bis 20 m vor der Kamera, je nach dem Licht, das dort ankommt); ein Spot mit engerem Kegel schaut entlang seiner
+    Achse. Er hängt nicht an den Figuren. Werfer außerhalb des Kegels werfen von dieser Lampe nichts. (Der erste Versuch
+    vom 16.11. schaute immer auf einen Punkt 3 m vor der Kamera; stand die Lampe vor der Kamera, schaute er zurück und
+    ließ alles hinter der Lampe aus.)
+  - Ein paralleles Licht bekommt seine Karte auf einem festen Raster (`ShadowFitParallel`): Seitenlänge in Vierteloktaven,
+    Mitte auf ganzen Texeln, Tiefe in halben Metern. Bewegt sich ein Werfer ein wenig, verschiebt sich kein anderer
+    Schatten um einen Texel.
+  - Die Stärke rechnet die Maske an jeder Stelle aus dem Abfall des Lichts dort (`LightAt`), gegen alles Licht dort
+    (Umgebungslicht samt Kameralichtern und die drei Lichter), im Dunkeln schwächer. Nichts davon hängt daran, wo Leon
+    steht.
+  - Die Marken der Stufen 1 bis 5 bleiben lesbar (parallele Lichter mit fester Stärke): alte PC-Aufnahmen und Tests
+    geben dieselben Werte wie vorher.
+- **Test (`gx_gl_check`, GLES und Vulkan, `TestShadowsStill`):** eine Lampe 1,2 m vor der Kamera, eine graue Wand 3 m
+  entfernt, zwei Figuren 2 m entfernt. Die rechte geht (von 380 nach 460), die linke steht: Die linke Bildhälfte bleibt
+  Byte für Byte gleich, jeder Schatten zeigt von der Lampe weg, der Schatten der rechten geht mit ihr.
+  `RE4_GX_CHECK_PICTURES=DIR` speichert die Bilder, dazu dieselben mit der Marke von Stufe 5 (dort springt der Schatten
+  der stehenden Figur mit).
+- **Geprüft am PC (i686, Debug-Disc; r11c mit EU-Discs):**
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet; `whole_build_android.sh --abi all`
+    0 Fehler (ARM32 und ARM64, Stubs wie erwartet).
+  - `gx_gl_check` GLES und Vulkan 0 Fehler (Lampentest in beiden: linker Schatten 40 bei 160 ohne Schatten).
+  - Raum-Rundgang mit eingeschalteten Schatten (`RE4_POTATO=96`, 126 Räume, je 6000 Bilder): **126 von 126 ohne Fehler**.
+  - Schatten aus (jede Stufe) wie vor den Schatten: 21 Aufnahmen ohne Marke in den Stufen 0, 1, 2 und 25 mit Marke in
+    Stufe 0, gezeichnet vom Renderer vor den Schatten (c2f5dcda) und vom neuen: 88 von 88 Bildern Byte für Byte gleich.
+  - App: `externalNativeBuildCoreDebug` (beide ABIs) gebaut, `testCoreDebugUnitTest` 216 Tests ohne Fehler (einer
+    übersprungen).
+  - Im Spiel vorher/nachher (Leon geht, 8 Bilder im Abstand von 15; Pixel, die mit Schatten mindestens 0,8 % dunkler
+    sind als ohne):
+
+    | Raum | Stufe 5 | Stufe 6 |
+    |---|---|---|
+    | r11c vor der Hütte (EU-Discs: Händler, Ashley, Fackel, blaues Feuer) | 0 (Stufe 5 fand bei Leon kein Licht der Welt) | bis 9960: die Fackel wirft Leons und Ashleys Schatten auf den Boden |
+    | r10E Händlerhöhle (Lampe 2,8 m vor der Kamera) | 8400–12300: der Fassschatten fiel zur Lampe hin und änderte in jedem Bild seine Form | 0: er fällt hinter das Fass, von der Kamera aus verdeckt |
+    | r117 Kirche (drei Lichter) | 900–12200 | 1300–37400 |
+    | r118 Friedhof zwischen den Blitzen | 6400 und 7300 in den ersten zwei Bildern, sonst 0 | 0–43: die Lampe ist schwach, Leons Schatten fällt dorthin, wo sie kaum noch hinreicht |
+    | r11f Ashley folgt (Tag, kein Licht der Welt) | 0 | 0–46 |
+
+  - Kosten nicht sauber gemessen (am PC liefen dabei andere Prüfungen): mit drei Lichtern 15–29 ms je Durchgang auf
+    llvmpipe, wie Stufe 5 (18–21 ms).
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage6\`: `test-lamp-standing-figure.png` (der Test,
+  Stufe 5 gegen Stufe 6, rechts weiß, was sich geändert hat), je Raum vier Bilder des Gangs (Stufe 5, ihre Maske,
+  Stufe 6, ihre Maske; dunkel = Schatten): r11c, r10E, r117, r118, r11f.
+- **Nicht geprüft:** Gerät (Retroid: Bild in Bewegung, Kosten der perspektivischen Karten auf dem Adreno); im Spiel
+  pixelgenau (die Kamera folgt Leon, das ganze Bild bewegt sich mit; der pixelgenaue Nachweis ist der Test); Ashley,
+  die wartet; der Händler mit einem Lampenschatten, der im Bild zu sehen ist.
+- **Grenzen (so gewollt):**
+  - Die Karte eines Punktlichts deckt 140° ab; was außerhalb steht, wirft von diesem Licht nichts.
+  - Die Karten hängen an der Kamera (Ausrichtung, Raster). Bewegt sich die Kamera, können Schattenränder um einen Texel
+    flimmern; ein Schatten wandert nicht.
+  - Bei einem parallelen Licht richtet sich die Größe der Karte nach allen Werfern (in Vierteloktaven); geht Leon weit
+    von den anderen weg, wird sie eine Stufe gröber.
+  - Erreichen mehr als drei Lichter die Figuren, kann ein Licht, das nur Leon erreicht, ein anderes verdrängen (mit dem
+    Vorsprung von anderthalbfach selten). Gegenstände werfen nur vom ersten Licht.
+  - Ein schwaches Licht bei Nacht gibt einen schwachen Schatten: so dunkel wie das Licht auf der Figur, die ihn wirft.
 
 ## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
 

@@ -33,6 +33,9 @@ void re4_gx_put_shadow(float x, float y, float z, unsigned int strength);
 /* Stage 5 (16.11.2026): the lights that light the figures, `count` (1..3) of five floats each: direction x, y, z in
  * view space, weight (how much of the light there a shadow takes away), softness (the filter's radius in texels). */
 void re4_gx_put_shadow_lights(int count, const float* lights);
+/* Stage 6 (16.11.2026): the ambient, then `count` (1..3) lights of 15 floats each (runtime/rt_shadow.cpp lightParams:
+ * kind, place or direction in view space, luminance, strength, fall-off, spot cone, softness). */
+void re4_gx_put_shadow_lights2(int count, const float* data);
 
 /* The register block at physical address `paddr` (0x0C000000 CP, 0x0C001000
  * PE, 0x0C003000 PI, 0x0C004000 MEM). */
