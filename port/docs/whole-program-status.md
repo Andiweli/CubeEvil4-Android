@@ -427,7 +427,13 @@ soll nur beim ersten App Start kommen und nicht bei jedem.“
 - Die offizielle Signatur warnt nie, Debug-Builds unverändert. Die Zeile in `device.txt` bleibt bei jedem
   Fehlerbericht.
 - Kein Wort dazu in README und Releasetext (Vorgabe).
-- `OfficialBuildTest.onceForEachSignature` und ein Kaltstart in `theGameWaitsForTheWarning`. Emulator: CHECKS_ONCE
+- Geprüft: `OfficialBuildTest.onceForEachSignature` und ein Kaltstart in `theGameWaitsForTheWarning`; App-Tests 216 je
+  Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund. Emulator (x86_64-Telefon, Release-Hülle mit
+  Wegwerf-Schlüssel, Skript `rc-measure/emu_warning_once.sh`):
+  - der erste Start mit Popup;
+  - nach A zwei Kaltstarts und ein Update mit demselben Schlüssel ohne;
+  - nach gelöschten App-Daten wieder mit.
+  - Bilder: `E:\Development\Android\builds\release-candidate\unofficial-once\`.
 
 ### 1. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
 
