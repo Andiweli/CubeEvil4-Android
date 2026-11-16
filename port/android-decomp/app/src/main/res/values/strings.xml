@@ -9,6 +9,9 @@
     <!-- only the project owner's handle, never the full name (the project owner's wish, 15.11.2026) -->
     <string name="core_author">By Andiweli</string>
     <string name="core_notice">Requires your own game discs. Not affiliated with Capcom.</string>
+    <!-- a release build signed with another key than the project owner's (OfficialBuild, 0.99.19): on the start
+         screen and as one line in the error log -->
+    <string name="core_unofficial">Unofficial build – the official CubeEvil4 is only available at github.com/Andiweli/CubeEvil4-Android</string>
     <string name="core_start">Start game</string>
     <string name="core_import_heading">Select ISO/GCM/RVZ files of the debug build, the European, the US or the Japanese release. RVZ files are unpacked first and need extra free storage (about 3 GB per disc).</string>
     <string name="core_disc_state">Disc %1$d Data is %2$s</string>

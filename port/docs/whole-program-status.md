@@ -124,6 +124,11 @@ Version 0.99.19-rc (versionCode 121), Releasetext `port/android-decomp/docs/rele
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
 nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0233.
 
+Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
+der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer eine Zeile auf dem Startbildschirm
+(`core_unofficial`) und in `device.txt`. Debug-Builds lesen nichts, nicht lesbar = keine Zeile. Test
+`OfficialBuildTest`.
+
 ### 1. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
 
 Frage des Inhabers: Weit, Normal, Mittel und Kurz zeigen kaum Unterschied, Weit und Normal gar keinen. Nur Analyse

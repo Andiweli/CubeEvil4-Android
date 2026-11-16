@@ -45,6 +45,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       centered(body, getString(R.string.core_author), 15, false, dp(4));
       // under the name (CubeEvil4 since 18.10.2026): own discs needed, not the original's maker
       centered(body, getString(R.string.core_notice), 12, false, dp(2));
+      unofficialNote(body);
       line(body, dp(10));
       start = button(body, getString(R.string.core_start), this::startOriginalTitle);
       heading(body, getString(R.string.core_import_heading));
@@ -54,6 +55,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       TextView title = new TextView(this); title.setText(getString(R.string.app_title) + " · " + versionName()); title.setTextSize(25); body.addView(title);
       TextView note = new TextView(this); note.setText(R.string.browser_notice);
       note.setPadding(0, dp(8), 0, dp(12)); body.addView(note);
+      unofficialNote(body);
       button(body,"Start game",this::startOriginalTitle);
     }
     // The room browser opens the app's own game modules; the core mode has none.
@@ -106,6 +108,13 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     TextView t = new TextView(this); t.setText(text); t.setTextSize(sp); t.setGravity(Gravity.CENTER_HORIZONTAL);
     if (bold) t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
     t.setPadding(0, top, 0, 0); body.addView(t); return t;
+  }
+  /** A release build signed with another key than the project owner's (OfficialBuild, 0.99.19): a calm note under the
+   *  name where the official CubeEvil4 is; nothing else changes. */
+  private void unofficialNote(LinearLayout body) {
+    if (!OfficialBuild.unofficial(this)) return;
+    TextView t = centered(body, getString(R.string.core_unofficial), 13, false, dp(10));
+    t.setTextColor(0xFFE8B860);
   }
   /** A thin line in the text colour (the core launcher's separators). */
   private View rule(int color) {
