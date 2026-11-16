@@ -34,7 +34,8 @@ struct TexKey {
 TexKey DolphinKey(unsigned format, unsigned width, unsigned height, bool mip, const std::uint8_t *level0,
                   std::size_t level0Bytes, const std::uint8_t *palette, std::size_t paletteBytes);
 
-// a game texture no pack replaces: the title menu's words keep the game's own font (tex_pack.cpp says why)
+// a game texture no pack replaces: the menus' words keep the game's own picture (tex_pack_words.h, tex_pack.cpp says
+// why)
 bool KeepsGameTexture(const TexKey &key);
 
 class TexPack {

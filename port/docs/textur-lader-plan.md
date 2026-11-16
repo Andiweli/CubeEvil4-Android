@@ -265,6 +265,21 @@ Ein Ersatzbild muss erst aus der Paketdatei gelesen werden. Je nach Stufe sind d
   Auslesen jeder `title.dat`. Erkannt an Größe, Format und der Kennung der Bilddaten (dem ersten Teil von Dolphins
   Namen), egal mit welcher Farbtabelle; andere Bilder gleicher Größe werden weiter ersetzt. Die Sprachauswahl der
   EU-Discs fehlt in der Liste, weil CubeEvil4 sie aus dem Menü genommen hat (R7). Bestehende Pakete bleiben gültig.
+  **Erweitert auf alle Menüs** (Entscheidung des Projektinhabers, 16.11.2026: „Es sollen alle Menüwörter die
+  Originalschrift behalten.“): `tex_pack_words.h` listet 677 Wort-Bilder. Gesucht in allen Menü-Dateien von Debug-,
+  US-, EU- (alle Sprachordner) und JP-Discs: `ss/<Sprache>/*.dat` und `*.tpl`, `ss/Cmn/` (Speichern/Laden,
+  Gegenstands- und Waffenbilder, Karten-Teile), `etc/core.das` (Spiel-Anzeige), `etc/<Sprache>/`, `memcard.das`;
+  jedes der 1.946 Bilder angesehen. Behalten wird, was aus Buchstaben besteht (auch mit Tasten-Symbol oder auf einem
+  Schild): Titel- und Schwierigkeitsmenü samt Sprachauswahl, Copyright und Warnhinweisen, Optionen und Pause-Menü,
+  Koffer (Befehle, Reiter, Hilfezeilen, Waffenwerte), Karte (Überschriften, Legenden, Hilfezeilen), Händler,
+  Gegenstandsliste, Kapitelende, Ergebnisse, Schießstand-Preise, Mercenaries und Assignment Ada (Anzeige, Start,
+  Ergebnisse), Speichern/Laden, Namen und „EMPTY“ in der Spiel-Anzeige, die Hinweisseite beim Start. Weiter ersetzt
+  werden Symbole, Gegenstands-, Karten- und Waffenbilder, Rahmen, Balken, Hintergründe, Logos (resident evil,
+  biohazard, CAPCOM, Dolby), Ziffern und Zeichen (Punkte, Zeit, Munition), die Buchstaben-Schrift (`font/*.fnt`) und
+  die ganzseitigen Bilder der Dokumente (Spielanleitung, Briefe) und der Titel-Kunst (Assignment Ada).
+  Buchstaben-Schrift: das HD Project ersetzt nur `font/common_p.fnt` der US- und Debug-Disc (1024×192, englische
+  Schrift für Meldungen, Untertitel und Beschreibungen) durch dieselben Buchstaben in 4096×768, schärfer gezeichnet,
+  keine andere Schrift; Bild `builds\textures\pics\letter-font-hd-pack.png`. Der Inhaber entscheidet, ob sie bleibt.
 - **Im PSone-Modus** bleiben die Originalbilder (der Modus will ja den groben Look). Meine Entscheidung; sag Bescheid,
   wenn du es anders willst.
 

@@ -2051,6 +2051,22 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Dorf (Debug-Dump) dieselben 116 Ersetzungen wie vorher. `gx_gl_check`-Gruppe `TestHdKeptWords` (START bleibt,
   gleiche Kennung in anderer Größe oder anderem Format und andere 66×14-Bilder werden ersetzt; Gegenprobe ohne die
   Liste: 2 Fehler). Bild `builds\textures\pics\title-menu-own-font.png`. Nicht auf dem Gerät geprüft.
+- **Alle Menüs in den Wörtern des Spiels (Entscheidung des Projektinhabers 16.11.2026: „Es sollen alle Menüwörter
+  die Originalschrift behalten.“; Basis `release-candidate` 1c829194):** `tex_pack_words.h` (677 Wort-Bilder,
+  sortiert, Suche halbiert) ersetzt die 33er-Liste. Gefunden durch Auslesen aller Menü-Dateien der Debug-, US-, EU-
+  und JP-Discs (`ss/<Sprache>`, `ss/Cmn`, `etc/core.das`, `etc/<Sprache>`, `memcard.das`: 1.946 Bilder, jedes
+  angesehen). Behalten: Bilder aus Buchstaben (auch mit Tasten-Symbol oder auf einem Schild) in Titel, Optionen/Pause,
+  Koffer, Karte, Händler, Gegenständen, Kapitelende, Ergebnissen, Schießstand, Mercenaries/Ada, Speichern/Laden,
+  Spiel-Anzeige (Namen, „EMPTY“), Hinweisseite. Weiter ersetzt: Symbole, Bilder, Rahmen, Logos, Ziffern, die
+  Buchstaben-Schrift, ganzseitige Dokument- und Titelbilder. Je Disc: Debug 148 Wörter (110 davon im HD Project),
+  US 148 (114), JP 187 (65), EU englisch 148 (114), deutsch 146 (15), französisch 146 (15), spanisch 148 (14),
+  italienisch 146 (13). Buchstaben-Schrift: das HD Project ersetzt nur `font/common_p.fnt` (US/Debug) mit denselben
+  Buchstaben, schärfer (`builds\textures\pics\letter-font-hd-pack.png`); unverändert, der Inhaber entscheidet.
+  Geprüft am PC: Titel- und Optionsmenü aller acht Fassungen, Koffer, Karte und Pause (Debug) sowie Koffer und Karte
+  (EU deutsch) vorher/nachher (`menus-own-words-title-options.png`, `menus-own-words-ingame.png`); im Dorf dieselben
+  71 Ersetzungen wie vorher, nur die Namensschilder der Anzeige bleiben original; `TestHdKeptWords` mit Wörtern aus
+  Optionen, Koffer, Kapitelende und Anzeige sowie Zeichen und Balken, die ersetzt bleiben (Gegenprobe: 6 Fehler).
+  Nicht auf dem Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 

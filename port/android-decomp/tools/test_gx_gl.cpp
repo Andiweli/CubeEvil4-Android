@@ -27,6 +27,7 @@
 #include "c4tex.h"
 #include "etc2.h"
 #include "tex_pack.h"
+#include "tex_pack_words.h"
 #include "texture.h"
 
 #include <EGL/egl.h>
@@ -43,7 +44,9 @@
 #include <random>
 #include <string>
 #include <array>
+#include <iterator>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -5090,9 +5093,10 @@ std::string MakeHdPack(const std::vector<std::uint8_t> &game, unsigned format, u
   return path;
 }
 
-// The title menu's words keep the game's font (re4gx::KeepsGameTexture, 16.11.2026): a pack with START (US, as the HD
-// Project names it) does not replace it; the same texels at another size, another 14-pixel 4-bit texture and a
-// START in another format still get replaced. Every word of the list is kept, whatever its palette.
+// The menus' words keep the game's picture (re4gx::KeepsGameTexture, tex_pack_words.h, 16.11.2026): a pack with START
+// (US, as the HD Project names it) or another menu word does not replace it; the same texels at another size or in
+// another format, another 66x14 4-bit texture and the menus' signs, bars and icons still get replaced. Every word of
+// the list is kept, whatever its palette; the list is sorted (the lookup needs it) and has no word twice.
 void TestHdKeptWords() {
   struct Case {
     unsigned format, w, h;
@@ -5106,7 +5110,19 @@ void TestHdKeptWords() {
       {8, 66, 14, 0x0123456789abcdefull, false, "another 66x14 4-bit texture is replaced"},
       {9, 66, 14, 0xe45b61626fb865f4ull, false, "the same hash in another format is replaced"},
       {8, 61, 20, 0x03fd2573f41831b9ull, true, "the Spanish FACIL (61x20) is kept"},
+      {2, 92, 25, 0xd45601f463f2cb85ull, true, "RUMBLE of the options menu is kept"},
+      {2, 21, 20, 0xfa3a3d795c91ba85ull, false, "the options menu's plus sign is replaced"},
+      {8, 187, 30, 0x9d55c627235f5640ull, true, "Move selection with its X button (attache case) is kept"},
+      {8, 399, 24, 0xc99dc329ca3c457aull, false, "the attache case's bar is replaced"},
+      {8, 152, 20, 0x2252bc20c2d67696ull, true, "Enemise Killed (chapter end) is kept"},
+      {8, 64, 64, 0x8a87a69f00898f87ull, true, "EMPTY on the HUD is kept"},
   };
+  bool sorted = true;
+  for (std::size_t i = 1; i < std::size(re4gx::kMenuWords); i++) {
+    const re4gx::KeptTexture &a = re4gx::kMenuWords[i - 1], &b = re4gx::kMenuWords[i];
+    sorted &= std::tie(a.tex, a.width, a.height, a.format) < std::tie(b.tex, b.width, b.height, b.format);
+  }
+  Check(sorted, "HD kept words: the list is sorted, no word twice");
   for (const Case &c : cases) {
     re4gx::TexKey key;
     key.format = c.format;
@@ -5114,13 +5130,14 @@ void TestHdKeptWords() {
     key.height = c.h;
     key.tex = c.tex;
     key.tlut = 0xa2f12b9001ef7ea9ull;
-    key.hasTlut = true;
+    key.hasTlut = c.format == 8 || c.format == 9 || c.format == 10;
     const std::string path = MakeHdPack({}, c.format, c.w, c.h, 255, 0, 0, &key, true);
     re4gx::TexPack pack;
     std::string error;
     Require(pack.Open(path, &error), ("HD kept words: the test pack opens: " + error).c_str());
     Check((pack.Find(key) == nullptr) == c.kept, (std::string("HD kept words: ") + c.what).c_str());
     key.tlut ^= 1;
+    key.hasTlut = !key.hasTlut;
     Check(re4gx::KeepsGameTexture(key) == c.kept, (std::string("HD kept words, any palette: ") + c.what).c_str());
     pack.Close();
     std::remove(path.c_str());
