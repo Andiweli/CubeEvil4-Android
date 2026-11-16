@@ -17,6 +17,7 @@
 #include "gx_bench_steps.h"
 #include "gx_auto_level.h"
 #include "picture_cadence.h"
+#include "potato_bits.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
@@ -2029,6 +2030,20 @@ re4gx::BenchSteps RunBench(const char *name, Game game, Shown shown, double tick
   return b;
 }
 
+// The Potato mask the app hands the core (core_mode.cpp CoreBridge_setPotato, re4::PotatoForCore): the Potato
+// switches (bits 0..4) and the real-time shadows (bit 5 on, bit 6 also the objects) both reach the core; until
+// 16.11.2026 the app kept only bits 0..4 ("& 31") and the shadows never reached a device's core. The GPU bench and the
+// log's names take the switches alone (re4::PotatoSwitches).
+void TestPotatoBits() {
+  Check(re4::PotatoForCore(32) == 32, "potato: the real-time shadows' bit 5 reaches the core");
+  Check(re4::PotatoForCore(96) == 96, "potato: bit 6 (also the objects) reaches the core");
+  Check(re4::PotatoForCore(16 | 32) == (16 | 32), "potato: a Potato switch and the shadows together");
+  Check(re4::PotatoForCore(31) == 31, "potato: the Potato switches as before");
+  Check(re4::PotatoForCore(128 | 256) == 0, "potato: nothing above bit 6");
+  Check(re4::PotatoSwitches(96 | 5) == 5 && re4::PotatoSwitches(32) == 0,
+        "potato: the switches alone (bench, log) without the shadows");
+}
+
 void TestBenchSteps() {
   // a fast device: 4x holds both
   re4gx::BenchSteps fast = RunBench("fast", [](int, bool) { return 30; }, [](int, bool sixty) { return sixty ? 60 : 30; });
@@ -3018,13 +3033,15 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
   r.SetBloom(0);
 }
 
-// Real-time shadows of the figures (debug builds only until after 1.0; GxCore::ShadowMark): a grey wall 3 m away, a
-// figure (owner tag with RE4_GX_OWNER_FIGURE) 2 m away in front of it, the core's mark after them with a light shining
-// into the picture and a little to the right. On: the figure's shadow on the wall to its right, the figure itself and
-// the wall away from it as drawn. Off (every release build) or without the core's mark: the picture byte for byte as
-// without the mark, no pass. None on a menu screen of the game (RE4_GX_CHUNK_STILL).
+// Real-time shadows (debug builds only until after 1.0; GxCore::ShadowMark): a grey wall 3 m away, a figure (owner
+// tag with RE4_GX_OWNER_FIGURE) and an object (RE4_GX_OWNER_OBJECT: a crate, a barrel) 2 m away in front of it, the
+// core's mark after them with a light shining into the picture and a little to the right. Level 1 (Characters): the
+// figure's shadow on the wall to its right, the object casts none; the figure, the object and the wall away from them
+// as drawn. Level 2 (Characters and objects): the object's shadow too, the figure's as before, the object itself as
+// drawn (no self-shadow). Off (every release build) or without the core's mark: the picture byte for byte as without
+// the mark, no pass. None on a menu screen of the game (RE4_GX_CHUNK_STILL).
 void TestShadows(re4gx::GxRenderer &r, const char *tag) {
-  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255};
+  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255}, kObject[4] = {60, 160, 60, 255};
   auto scene = [&](bool mark, bool still) {
     Builder b;
     Baseline(b);
@@ -3036,6 +3053,8 @@ void TestShadows(re4gx::GxRenderer &r, const char *tag) {
     QuadAt(b, 0, 0, 640, 528, 3000.0f, kWall);
     b.Owner(0x80001100u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // a figure
     QuadAt(b, 280, 200, 360, 330, 2000.0f, kFigure);
+    b.Owner(0x80001200u, 0x80002100u, 0x0B | RE4_GX_OWNER_OBJECT);  // an object (its shadow at x 205 .. 245)
+    QuadAt(b, 100, 200, 160, 330, 2000.0f, kObject);
     b.Owner(0, 0, 0xFF);
     if (mark) {
       // the light along (0.3, 0, -1) in view space, the strength of a bright foot shadow light (200 of 255)
@@ -3096,6 +3115,29 @@ void TestShadows(re4gx::GxRenderer &r, const char *tag) {
   Check(wallFar == px(plain, 100, 100) && figure == px(plain, 320, 264) && hud == px(plain, 580, 60) &&
             px(on, 250, 264) == px(plain, 250, 264),
         what);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters, the object casts none and takes none", tag);
+  Check(px(on, 225, 264) == px(plain, 225, 264) && px(on, 130, 264) == px(plain, 130, 264), what);
+  // Characters and objects
+  r.SetShadows(2);
+  const unsigned beforeObjects = r.Stats().shadowPasses;
+  const auto objects = scene(true, false);
+  const auto objShadow = px(objects, 225, 264), objShadowOff = px(plain, 225, 264);
+  std::fprintf(stderr, "  shadows (%s): Characters and objects: wall beside the object %d (off %d), beside the figure "
+               "%d, object %d (off %d)\n", tag, objShadow[0], objShadowOff[0], px(objects, 375, 264)[0],
+               px(objects, 130, 264)[1], px(plain, 130, 264)[1]);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters and objects, one pass, the object's shadow on the wall", tag);
+  Check(r.Stats().shadowPasses == beforeObjects + 1 && objShadow[0] < objShadowOff[0] - 30 &&
+            objShadow[0] > objShadowOff[0] / 4,
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters and objects, the figure's shadow as with Characters", tag);
+  Check(std::abs(px(objects, 375, 264)[0] - wallBeside[0]) <= 3, what);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters and objects, the object and the figure themselves, the "
+                "wall between them and away from them as drawn", tag);
+  Check(px(objects, 130, 264) == px(plain, 130, 264) && px(objects, 320, 264) == px(plain, 320, 264) &&
+            px(objects, 270, 264) == px(plain, 270, 264) && px(objects, 100, 100) == px(plain, 100, 100) &&
+            px(objects, 580, 60) == px(plain, 580, 60),
+        what);
+  r.SetShadows(1);
   const unsigned beforeStill = r.Stats().shadowPasses;
   const auto still = scene(true, true);
   std::snprintf(what, sizeof(what), "shadows (%s): none on a menu screen of the game", tag);
@@ -5114,6 +5156,7 @@ int main() {
       TestAutoLevel();
       TestAutoLevelGpu();
       TestBenchSteps();
+      TestPotatoBits();
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }
@@ -5145,6 +5188,7 @@ int main() {
   TestAutoLevel();
   TestAutoLevelGpu();
   TestBenchSteps();
+  TestPotatoBits();
   TestHandOverCopies();
   TestHdBackground(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN

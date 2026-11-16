@@ -653,9 +653,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     boolean changed = level != shadowLevel;
     shadowLevel = level;
     shadowWhy = why[0];
-    Log.i(TAG, "real-time shadows (debug build): " + (level > 0 ? "on" : "off") + " (" + why[0] + ")");
+    Log.i(TAG, "real-time shadows (debug build): " + RealtimeShadows.logName(level) + " (" + why[0] + ")");
     if (!changed) return;
-    CoreBridge.shadowBit = level > 0 ? RealtimeShadows.CORE_BIT : 0;
+    CoreBridge.shadowBit = RealtimeShadows.coreBits(level);
     CoreBridge.setShadows(level);
     CoreBridge.setPotato(CoreBridge.potatoSent(g));
   }

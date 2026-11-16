@@ -35,7 +35,10 @@
 namespace {
 
 volatile int gOn;          // the app's switch (bit 5 of the Potato mask)
+volatile int gObjects;     // "Characters and objects" (bit 6 of the Potato mask)
 bool gActive;              // this frame casts real-time shadows (re4_rt_shadow_frame)
+unsigned gFrameNo;         // Render's frames (re4_rt_shadow_frame; gx_owner.cpp tells its frames apart)
+unsigned gRoom = ~0u;      // the room told last
 Vec gDir;                  // the light's direction (world)
 unsigned gStrength;        // 0..255
 int gWhy = -1;             // the reason logged last (Why)
@@ -50,7 +53,9 @@ const char* whyText(int why)
     case kPotato: return "off (Potato: shadows and light effects off)";
     case kNotPlaying: return "paused (event, sub screen, death or continue screen, movie)";
     case kNoLight: return "paused (no foot shadow light reaches the player in this room part; the game's own shadows)";
-    case kOn: return "on";
+    case kOn:
+        return gObjects ? "on (characters and objects; the foot shadow light reaches the player, no round blobs)"
+                        : "on (characters; the foot shadow light reaches the player, no round blobs)";
     }
     return "?";
 }
@@ -139,13 +144,32 @@ bool footLight(cModel* m, Vec* dir, unsigned* strength)
 
 extern "C" {
 
-// bit 5 of the Potato mask (potato.cpp re4_potato_set)
-void re4_rt_shadow_set(int on)
+// bits 5 (on) and 6 (also the objects) of the Potato mask (potato.cpp re4_potato_set). Each change is logged as it
+// arrives (16.11.2026: a device test showed nothing, and nothing in the log told whether the core had the setting;
+// the app had cut the bit off); never in a release build, which never sets the bits.
+void re4_rt_shadow_set(int bits)
 {
-    if ((gOn != 0) != (on != 0)) {
-        gOn = on != 0;
-        note(on ? kNoLight : kOff);  // "on" is told once a frame casts
+    const int on = (bits & 0x20) != 0, objects = on && (bits & 0x40) != 0;
+    if (gOn != on || gObjects != objects) {
+        gOn = on;
+        gObjects = objects;
+        re4_log("real-time shadows: the app's setting arrived: %s",
+                on ? (objects ? "characters and objects" : "characters") : "off");
+        gWhy = on ? -1 : kOff;  // on: the next frame tells where they stand
     }
+}
+
+// gx_owner.cpp: the classes the owner tags carry in this picture: 0 none (off, or this frame casts none: the tags as
+// before), 1 the figures' parts, 2 also the objects
+int re4_rt_shadow_classes(void)
+{
+    return gActive ? (gObjects ? 2 : 1) : 0;
+}
+
+// gx_owner.cpp: the number of this frame (Render's)
+unsigned re4_rt_shadow_frame_no(void)
+{
+    return gFrameNo;
 }
 
 int re4_potato_no_shadows(void);
@@ -154,8 +178,14 @@ int re4_potato_no_shadows(void);
 void re4_rt_shadow_frame(void)
 {
     gActive = false;
+    gFrameNo++;
     if (!gOn) {
         return;
+    }
+    // each room tells anew where they stand (on, or paused and why)
+    if (pG && pG->room_id != gRoom) {
+        gRoom = pG->room_id;
+        gWhy = -1;
     }
     if (re4_potato_no_shadows()) {
         note(kPotato);

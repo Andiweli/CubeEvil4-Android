@@ -21,11 +21,12 @@ import org.robolectric.annotation.Config;
 /**
  * Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows): a
  * release build never gets them and sends the core the Potato mask as before; a debug build on a capable device gets
- * them by default, unless Potato's "Shadows &amp; light" or the menu's choice is off; weak devices, no benchmark, a
- * processor at its limit or the Vulkan renderer (not yet) do not; the menu row exists only where they are offered.
+ * them by default ("Characters and objects"), unless Potato's "Shadows &amp; light" or the menu's choice is off;
+ * weak devices, no benchmark or a processor at its limit do not; the menu row (Off &gt; Characters &gt; Characters and
+ * objects) exists only where they are offered.
  */
 @RunWith(org.robolectric.RobolectricTestRunner.class)
-@Config(sdk = 28, application = Application.class)
+@Config(sdk = 28, application = Application.class, shadows = CoreMenuLayoutTest.Bridge.class)
 public class RealtimeShadowsTest {
   private SharedPreferences g;
   // the project owner's Retroid Pocket Flip 2: Adreno 650, 8 cores (4 fast, 2.84 GHz), 8 GB; the benchmark 3x at 30
@@ -57,10 +58,30 @@ public class RealtimeShadowsTest {
   @Test public void aDebugBuildOnACapableDeviceGetsThemByDefault() {
     String[] why = new String[1];
     assertTrue(RealtimeShadows.offered(true, RETROID, MEASURED, false));
-    assertEquals(1, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
+    assertEquals(RealtimeShadows.DEFAULT_LEVEL, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
+    assertEquals(2, RealtimeShadows.DEFAULT_LEVEL);
     assertTrue(why[0], why[0].startsWith("debug build, Qualcomm Adreno (TM) 650"));
-    CoreBridge.shadowBit = RealtimeShadows.CORE_BIT;
-    assertEquals(CoreBridge.potatoMask(g) | 32, CoreBridge.potatoSent(g));
+    CoreBridge.shadowBit = RealtimeShadows.coreBits(RealtimeShadows.DEFAULT_LEVEL);
+    assertEquals(CoreBridge.potatoMask(g) | 32 | 64, CoreBridge.potatoSent(g));
+  }
+
+  /** Off, Characters, Characters and objects: the level, the core's bits (5 on, 6 the objects) and the log's words. */
+  @Test public void theThreeLevels() {
+    String[] why = new String[1];
+    int[] bits = {0, 32, 96};
+    String[] names = {"off", "on (characters)", "on (characters and objects)"};
+    for (int level = 0; level < 3; level++) {
+      g.edit().putInt(RealtimeShadows.KEY, level).commit();
+      assertEquals(level, RealtimeShadows.choice(g));
+      assertEquals(level, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
+      assertEquals(bits[level], RealtimeShadows.coreBits(level));
+      assertEquals(names[level], RealtimeShadows.logName(level));
+      assertEquals((level + 1) % 3, RealtimeShadows.next(level));
+      // a release build: nothing at any stored level
+      assertEquals(0, RealtimeShadows.level(false, g, RETROID, MEASURED, false, why));
+    }
+    g.edit().putInt(RealtimeShadows.KEY, 7).commit();  // (a value of a later version: the highest level)
+    assertEquals(2, RealtimeShadows.choice(g));
   }
 
   @Test public void potatoShadowsOffOrTheMenusChoiceOffTurnThemOff() {
@@ -86,7 +107,9 @@ public class RealtimeShadowsTest {
     assertEquals(RealtimeShadows.VULKAN_READY, RealtimeShadows.refusal(true, RETROID, MEASURED, true) == null);
   }
 
-  /** The Performance page: the row "Real-time shadows · Characters" with its help only where they are offered. */
+  /** The Display page's effects (the project owner, 16.11.2026: "unter ANZEIGE rein unter 'Effekte'"): the row
+   *  "Real-time shadows · Characters and objects" with its help only where they are offered, no longer on the
+   *  Performance page; each press the next level, Off, Characters, Characters and objects. */
   @Test public void theMenuRowOnlyWhereOffered() throws Exception {
     for (boolean capable : new boolean[] {false, true}) {
       final PerfProfile.Device device = capable ? RETROID : MALI_G52;
@@ -109,19 +132,27 @@ public class RealtimeShadowsTest {
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class);
         show.setAccessible(true);
-        show.invoke(menu, 4, false);  // PERFORMANCE
         java.lang.reflect.Field rootField = CoreMenu.class.getDeclaredField("root");
         rootField.setAccessible(true);
-        View root = (View) rootField.get(menu);
         String label = activity.getString(R.string.ingame_rt_shadows);
+        show.invoke(menu, 4, false);  // PERFORMANCE: not there any more
+        assertNull(find((View) rootField.get(menu), label));
+        show.invoke(menu, 1, false);  // DISPLAY
+        View root = (View) rootField.get(menu);
         TextView row = find(root, label);
         assertEquals("the row " + (capable ? "on a capable device" : "on a weak device"), capable, row != null);
         if (capable) {
-          assertTrue(row.getText().toString(), row.getText().toString().contains(activity.getString(R.string.ingame_rt_shadows_figures)));
-          row.performClick();
-          assertEquals(0, RealtimeShadows.choice(graphics));
-          assertEquals(1, changed[0]);
-          assertTrue(row.getText().toString().contains(activity.getString(R.string.ingame_off)));
+          int[] values = {R.string.ingame_rt_shadows_objects, R.string.ingame_off, R.string.ingame_rt_shadows_figures,
+              R.string.ingame_rt_shadows_objects};
+          assertTrue("its help under the effects", find(root, activity.getString(R.string.ingame_rt_shadows_help)) != null);
+          int[] choices = {2, 0, 1, 2};
+          for (int i = 0; i < values.length; i++) {
+            if (i > 0) row.performClick();
+            assertEquals(activity.getString(R.string.ingame_toggle_value, label, activity.getString(values[i])),
+                row.getText().toString());
+            assertEquals(choices[i], RealtimeShadows.choice(graphics));
+            assertEquals(i, changed[0]);
+          }
         }
       }
     }

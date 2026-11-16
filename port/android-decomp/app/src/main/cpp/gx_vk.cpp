@@ -2471,11 +2471,12 @@ struct VkRenderer final : GxCore {
     vkCmdDraw(cb, 4, 1, 0, 0);
     stats.bloomPasses++;
   }
-  // ---- real-time shadows of the figures (GxCore::ShadowMark; debug builds only until after 1.0; as
+  // ---- real-time shadows of the figures and objects (GxCore::ShadowMark; debug builds only until after 1.0; as
   // GlRenderer::ShadowPass, the same shaders) ----
   Fixed shadowDepthFx, shadowMarkFx, shadowMaskFx, shadowApplyFx;
-  // the depth map, the figures' marks (the EFB's size), the mask (a texel per GameCube pixel of the scene's part)
-  Image shadowMap, shadowMarks, shadowMask;
+  // the depth maps (the figures', the objects'), the casters' marks (the EFB's size; red the figures, green the
+  // objects), the mask (a texel per GameCube pixel of the scene's part)
+  Image shadowMap[2], shadowMarks, shadowMask;
   // the depth map's pass (its depth only), the marks' pass (their colour, the EFB's depth loaded and kept)
   VkRenderPass shadowMapPass = VK_NULL_HANDLE, shadowMarkPass = VK_NULL_HANDLE;
   VkFramebuffer shadowMarkFb = VK_NULL_HANDLE;
@@ -2483,8 +2484,9 @@ struct VkRenderer final : GxCore {
   VkSampler shadowCompare = VK_NULL_HANDLE;        // the map compared (sampler2DShadow), linear where it can
   VkFormat shadowFormat = VK_FORMAT_UNDEFINED;
 
-  // a pipeline of the figures' triangles (three floats a corner at location 0): the depth map's (test LESS, written,
-  // pushed back) or the marks' (test LEQUAL against the EFB's depth, not written, pulled forward)
+  // a pipeline of the casters' triangles (three floats a corner at location 0): the depth maps' (test LESS, written,
+  // pushed back) or the marks' (test LEQUAL against the EFB's depth, not written, pulled forward; blended by the
+  // larger, so that a figure's red and an object's green both stay)
   bool MakeShadowPipe(Fixed &f, const char *vsEs, const char *fsEs, VkRenderPass renderPass, bool map,
                       std::string *error) {
     std::string vs, fs;
@@ -2539,6 +2541,12 @@ struct VkRenderer final : GxCore {
     VkPipelineColorBlendAttachmentState cba{};
     cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
                          VK_COLOR_COMPONENT_A_BIT;
+    if (!map) {
+      cba.blendEnable = VK_TRUE;
+      cba.srcColorBlendFactor = cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_MAX;
+    }
     f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false);
     vkDestroyShaderModule(dev, v, nullptr);
     vkDestroyShaderModule(dev, m, nullptr);
@@ -2613,16 +2621,25 @@ struct VkRenderer final : GxCore {
     return true;
   }
 
-  // the map, the marks (the EFB's size) and the mask at their sizes
-  bool ShadowImages(int size, int maskW, int maskH) {
-    if (shadowMap.image && shadowMap.width != static_cast<unsigned>(size))
-      Trash(shadowMap);
-    if (!shadowMap.image) {
-      if (!MakeImage(shadowMap, static_cast<unsigned>(size), static_cast<unsigned>(size), 1, shadowFormat,
+  // a depth map (0 the figures', 1 the objects') at its size
+  bool ShadowMapImage(int i, int size) {
+    Image &m = shadowMap[i];
+    if (m.image && m.width != static_cast<unsigned>(size))
+      Trash(m);
+    if (!m.image) {
+      if (!MakeImage(m, static_cast<unsigned>(size), static_cast<unsigned>(size), 1, shadowFormat,
                      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT))
         return false;
-      shadowMap.fb = MakeFb(shadowMapPass, {shadowMap.view}, shadowMap.width, shadowMap.height);
+      m.fb = MakeFb(shadowMapPass, {m.view}, m.width, m.height);
     }
+    return m.fb != VK_NULL_HANDLE;
+  }
+
+  // the maps that cast (the objects' only once they do: not at all with "Characters"), the marks (the EFB's size)
+  // and the mask at their sizes
+  bool ShadowImages(const ShadowParams &s) {
+    if ((s.hasFig && !ShadowMapImage(0, s.fig.size)) || (s.hasObj && !ShadowMapImage(1, s.obj.size)))
+      return false;
     if (shadowMarks.image && (shadowMarks.width != efbColor.width || shadowMarks.height != efbColor.height)) {
       Trash(shadowMarks);
       if (shadowMarkFb) {
@@ -2646,7 +2663,7 @@ struct VkRenderer final : GxCore {
       shadowMarkFb = MakeFb(shadowMarkPass, {shadowMarks.view, depthView}, efbColor.width, efbColor.height);
       shadowMarkFbDepth = depthView;
     }
-    return shadowMap.fb && shadowMarkFb && FilterImage(shadowMask, maskW, maskH);
+    return shadowMarkFb && FilterImage(shadowMask, s.maskW, s.maskH);
   }
 
   void ShadowPass(const ShadowParams &s) override {
@@ -2655,7 +2672,7 @@ struct VkRenderer final : GxCore {
       return;
     static const bool timed = std::getenv("RE4_GX_SHADOW_TIME") && *std::getenv("RE4_GX_SHADOW_TIME") == '1';
     const auto from = std::chrono::steady_clock::now();
-    if ((!shadowApplyFx.pipeline && !MakeShadow()) || !ShadowImages(s.size, s.maskW, s.maskH)) {
+    if ((!shadowApplyFx.pipeline && !MakeShadow()) || !ShadowImages(s)) {
       shadowFailed = true;  // off for good on this driver (the menu's choice stays)
       GXLOG("real-time shadows (Vulkan): could not be set up; left out from now on");
       return;
@@ -2664,46 +2681,55 @@ struct VkRenderer final : GxCore {
     Begin();
     EndPass();
     VkCommandBuffer cb = F().draw;
-    // the figures' corners in the frame's vertex stream
+    // the casters' corners in the frame's vertex stream: the figures', then the objects'
     Frame &fr = F();
     std::size_t blk = 0;
     VkDeviceSize at = 0;
-    const std::size_t bytes = s.triangles * 9 * sizeof(float);
+    const std::size_t figTris = s.hasFig ? s.fig.triangles : 0, objTris = s.hasObj ? s.obj.triangles : 0;
+    const std::size_t figBytes = figTris * 9 * sizeof(float), bytes = figBytes + objTris * 9 * sizeof(float);
     if (!Alloc(fr.vertex, bytes, 64, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &blk, &at))
       return;
-    std::memcpy(fr.vertex[blk].map + at, shadowTris.data(), bytes);
+    if (figTris)
+      std::memcpy(fr.vertex[blk].map + at, shadowTris.data(), figBytes);
+    if (objTris)
+      std::memcpy(fr.vertex[blk].map + at + figBytes, objectTris.data(), bytes - figBytes);
     const VkBuffer vb = fr.vertex[blk].buffer;
-    const std::uint32_t corners = static_cast<std::uint32_t>(s.triangles * 3);
+    const std::uint32_t figCorners = static_cast<std::uint32_t>(figTris * 3);
+    const std::uint32_t objCorners = static_cast<std::uint32_t>(objTris * 3);
     const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs, kShadowMarkVs)
-    // 1. the depth map: the figures from the light
-    {
+    // 1. the depth maps: the casters from the light
+    for (int i = 0; i < 2; i++) {
+      if (!(i ? s.hasObj : s.hasFig))
+        continue;
+      const ShadowMapParams &m = i ? s.obj : s.fig;
+      Image &map = shadowMap[i];
       auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
       rbi.renderPass = shadowMapPass;
-      rbi.framebuffer = shadowMap.fb;
-      rbi.renderArea = {{0, 0}, {shadowMap.width, shadowMap.height}};
+      rbi.framebuffer = map.fb;
+      rbi.renderArea = {{0, 0}, {map.width, map.height}};
       VkClearValue clear{};
       clear.depthStencil = {1.0f, 0};
       rbi.clearValueCount = 1;
       rbi.pClearValues = &clear;
       vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
       pass = kOtherPass;
-      const VkViewport vp{0.0f, 0.0f, float(shadowMap.width), float(shadowMap.height), 0.0f, 1.0f};
-      const VkRect2D sc{{0, 0}, {shadowMap.width, shadowMap.height}};
+      const VkViewport vp{0.0f, 0.0f, float(map.width), float(map.height), 0.0f, 1.0f};
+      const VkRect2D sc{{0, 0}, {map.width, map.height}};
       vkCmdSetViewport(cb, 0, 1, &vp);
       vkCmdSetScissor(cb, 0, 1, &sc);
       std::vector<std::uint8_t> pc(shadowDepthFx.constants.bytes, 0);
-      Put(pc, shadowDepthFx, "lx", s.lightRow[0]);
-      Put(pc, shadowDepthFx, "ly", s.lightRow[1]);
-      Put(pc, shadowDepthFx, "lz", s.lightRow[2]);
+      Put(pc, shadowDepthFx, "lx", m.row[0]);
+      Put(pc, shadowDepthFx, "ly", m.row[1]);
+      Put(pc, shadowDepthFx, "lz", m.row[2]);
       Put(pc, shadowDepthFx, "glz", glz);
       BindFixed(shadowDepthFx, nullptr, nullptr, 0, pc);
-      const VkDeviceSize offset = at;
+      const VkDeviceSize offset = at + (i ? figBytes : 0);
       vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
-      vkCmdDraw(cb, corners, 1, 0, 0);
+      vkCmdDraw(cb, i ? objCorners : figCorners, 1, 0, 0);
       EndPass();
-      shadowMap.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
+      map.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
     }
-    // 2. the figures' marks: where a figure is the visible surface (the EFB's depth)
+    // 2. the casters' marks: where a figure (red) or an object (green) is the visible surface (the EFB's depth)
     {
       Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
       auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
@@ -2722,22 +2748,30 @@ struct VkRenderer final : GxCore {
                         {static_cast<std::uint32_t>(s.region[2]), static_cast<std::uint32_t>(s.region[3])}};
       vkCmdSetViewport(cb, 0, 1, &vp);
       vkCmdSetScissor(cb, 0, 1, &sc);
-      std::vector<std::uint8_t> pc(shadowMarkFx.constants.bytes, 0);
-      Put(pc, shadowMarkFx, "vp0", s.vp0);
-      Put(pc, shadowMarkFx, "vp1", s.markVp1);
-      Put(pc, shadowMarkFx, "pr0", s.pr0);
-      Put(pc, shadowMarkFx, "pr1", s.pr1);
-      Put(pc, shadowMarkFx, "glz", glz);
-      BindFixed(shadowMarkFx, nullptr, nullptr, 0, pc);
-      const VkDeviceSize offset = at;
-      vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
-      vkCmdDraw(cb, corners, 1, 0, 0);
+      for (int i = 0; i < 2; i++) {
+        const std::uint32_t corners = i ? objCorners : figCorners;
+        if (!corners)
+          continue;
+        const float mark[4] = {i ? 0.0f : 1.0f, i ? 1.0f : 0.0f, 0.0f, 1.0f};
+        std::vector<std::uint8_t> pc(shadowMarkFx.constants.bytes, 0);
+        Put(pc, shadowMarkFx, "vp0", s.vp0);
+        Put(pc, shadowMarkFx, "vp1", s.markVp1);
+        Put(pc, shadowMarkFx, "pr0", s.pr0);
+        Put(pc, shadowMarkFx, "pr1", s.pr1);
+        Put(pc, shadowMarkFx, "glz", glz);
+        Put(pc, shadowMarkFx, "mark", mark);
+        BindFixed(shadowMarkFx, nullptr, nullptr, 0, pc);
+        const VkDeviceSize offset = at + (i ? figBytes : 0);
+        vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
+        vkCmdDraw(cb, corners, 1, 0, 0);
+      }
       EndPass();
       shadowMarks.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
     boundVb = VK_NULL_HANDLE;
     scissorValid = false;
-    // 3. the mask from the EFB's depth, the map (compared, and read as it is) and the marks
+    // 3. the mask from the EFB's depth, the maps (compared, and read as they are) and the marks (without the objects'
+    // map its place holds the figures', unread: omap.z; and the other way round)
     {
       Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       BeginTargetPass(copyPass, shadowMask);
@@ -2755,17 +2789,25 @@ struct VkRenderer final : GxCore {
       Put(pc, shadowMaskFx, "vp1", s.vp1);
       Put(pc, shadowMaskFx, "pr0", s.pr0);
       Put(pc, shadowMaskFx, "pr1", s.pr1);
-      Put(pc, shadowMaskFx, "lx", s.lightRow[0]);
-      Put(pc, shadowMaskFx, "ly", s.lightRow[1]);
-      Put(pc, shadowMaskFx, "lz", s.lightRow[2]);
+      Put(pc, shadowMaskFx, "lx", s.fig.row[0]);
+      Put(pc, shadowMaskFx, "ly", s.fig.row[1]);
+      Put(pc, shadowMaskFx, "lz", s.fig.row[2]);
+      Put(pc, shadowMaskFx, "olx", s.obj.row[0]);
+      Put(pc, shadowMaskFx, "oly", s.obj.row[1]);
+      Put(pc, shadowMaskFx, "olz", s.obj.row[2]);
       Put(pc, shadowMaskFx, "look", s.look);
-      Put(pc, shadowMaskFx, "bias", s.bias);
+      Put(pc, shadowMaskFx, "bias", s.fig.bias);
+      Put(pc, shadowMaskFx, "obias", s.obj.bias);
+      Put(pc, shadowMaskFx, "omap", s.omap);
       Put(pc, shadowMaskFx, "ldir", ldir);
+      const VkImageView figMap = shadowMap[s.hasFig ? 0 : 1].view, objMap = shadowMap[s.hasObj ? 1 : 0].view;
       BindFixedNamed(shadowMaskFx,
                      {{"src", efbDepth.view, nearestClamp},
-                      {"shd", shadowMap.view, shadowCompare},
+                      {"shd", figMap, shadowCompare},
                       {"fig", shadowMarks.view, nearestClamp},
-                      {"raw", shadowMap.view, nearestClamp}},
+                      {"raw", figMap, nearestClamp},
+                      {"oshd", objMap, shadowCompare},
+                      {"oraw", objMap, nearestClamp}},
                      pc);
       vkCmdDraw(cb, 4, 1, 0, 0);
       EndPass();
@@ -2785,15 +2827,16 @@ struct VkRenderer final : GxCore {
     }
     stats.shadowPasses++;
     if (timed)
-      GXLOG("real-time shadows (Vulkan): %.2f ms recorded (CPU), %zu triangles, map %d, mask %d x %d",
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count(), s.triangles,
-            s.size, s.maskW, s.maskH);
+      GXLOG("real-time shadows (Vulkan): %.2f ms recorded (CPU), %zu + %zu triangles (figures + objects), maps %d, "
+            "mask %d x %d",
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count(), figTris,
+            objTris, s.hasFig ? s.fig.size : s.obj.size, s.maskW, s.maskH);
   }
 
   void ShadowRelease() {
     for (Fixed *f : {&shadowDepthFx, &shadowMarkFx, &shadowMaskFx, &shadowApplyFx})
       FreeFixed(*f);
-    for (Image *img : {&shadowMap, &shadowMarks, &shadowMask})
+    for (Image *img : {&shadowMap[0], &shadowMap[1], &shadowMarks, &shadowMask})
       Destroy(*img);
     if (shadowMarkFb)
       vkDestroyFramebuffer(dev, shadowMarkFb, nullptr);

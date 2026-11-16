@@ -79,6 +79,7 @@ void re4ipc_aim_turn(float yaw, float pitch);
 void re4ipc_zoom(int notches);
 void re4ipc_set_enemy_random(int seed);
 void re4ipc_set_gentle_qte(int on);
+int re4ipc_rt_shadows(void);
 void re4ipc_swipe(int dir);
 void re4ipc_slash(float tilt);
 void re4ipc_set_fast_cores(int on);

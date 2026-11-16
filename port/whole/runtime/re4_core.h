@@ -369,6 +369,10 @@ void re4_core_set_enemy_random(int seed);
  * events of Professional take the time windows and press counts of Normal; damage, enemies and the rest stay
  * Professional's. Any thread. */
 void re4_core_set_gentle_qte(int on);
+/* The app's real-time shadows (debug builds until after 1.0; runtime/rt_shadow.cpp, runtime/gx_owner.cpp): what this
+ * core knows of them, 1 the figures, 2 also the objects (bits 5 and 6 of re4_core_set_potato). A core without the
+ * function knows none: the app logs "a core without real-time shadows (rebuild the core)". Any thread. */
+int re4_core_rt_shadows(void);
 /* A swipe across the picture (cores since 22.10.2026): dir 1 the next tab of
  * the sub screen (a swipe to the left), -1 the one before, nothing beyond the
  * first and the last; ignored outside the normal inventory. Any thread. */

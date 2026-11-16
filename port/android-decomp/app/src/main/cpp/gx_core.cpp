@@ -172,7 +172,9 @@ std::uint64_t GxCore::OwnerKey(const std::uint32_t *p) {
     return 0;
   std::uint64_t h = 1469598103934665603ull;
   for (int i = 0; i < 3; i++) {
-    h ^= p[i];
+    // (word 2 without the real-time shadows' classes: they come and go with the shadows, the in-between picture
+    // finds its draws either way)
+    h ^= i == 2 ? p[i] & ~(RE4_GX_OWNER_OBJECT | RE4_GX_OWNER_PART) : p[i];
     h *= 1099511628211ull;
   }
   return h | 1;
@@ -1343,7 +1345,7 @@ void GxCore::SetColour(int mode, int level) {
 void GxCore::SetFlares(bool on) { this->flaresOn = on; }
 void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
 void GxCore::SetBloom(int level) { this->bloomLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
-void GxCore::SetShadows(int level) { this->shadowLevel = level < 0 ? 0 : level > 1 ? 1 : level; }
+void GxCore::SetShadows(int level) { this->shadowLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 
 bool GxCore::HasShadowMark(const Re4GxChunk &chunk) {
   for (std::uint32_t at = 0; at < chunk.opWords;) {
@@ -1355,12 +1357,18 @@ bool GxCore::HasShadowMark(const Re4GxChunk &chunk) {
   return false;
 }
 
-// A figure's solid draw up to the shadow mark: its triangles into view space (the XF's position matrices, as the
-// lens flares' FlareNote reads them; in the in-between picture of 60 FPS the blended ones).
+// A figure's or an object's solid draw up to the shadow mark: its triangles into view space (the XF's position
+// matrices, as the lens flares' FlareNote reads them; in the in-between picture of 60 FPS the blended ones). The
+// figures and their parts (RE4_GX_OWNER_FIGURE / _PART) go into shadowTris, the objects (RE4_GX_OWNER_OBJECT, level 2)
+// into objectTris: two maps, each fitted to its casters.
 void GxCore::ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk) {
   if ((d.primitive & 0xFF) != RE4_GX_TRIANGLES || (xfReg[0x26] & 1) || !(AsFloat(xfReg[0x1A]) * 2.0f >= 500.0f))
     return;
-  if (ownerWords[2] == 0xFF || !(ownerWords[2] & RE4_GX_OWNER_FIGURE))
+  if (ownerWords[2] == 0xFF)
+    return;
+  const bool figure = (ownerWords[2] & (RE4_GX_OWNER_FIGURE | RE4_GX_OWNER_PART)) != 0;
+  const bool object = !figure && shadowLevel >= 2 && (ownerWords[2] & RE4_GX_OWNER_OBJECT) != 0;
+  if (!figure && !object)
     return;
   const std::uint32_t z = bp[0x40];
   if (!(z & 1) || !((z >> 4) & 1) || d.stride < 12 || d.vertexCount == 0)
@@ -1394,18 +1402,28 @@ void GxCore::ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk) {
   cx /= n;
   cy /= n;
   cz /= n;
-  if (cx * cx + cy * cy + cz * cz > static_cast<double>(kShadowRange) * kShadowRange)
+  // within kShadowRange of the camera: a figure's draw by its centre, an object's (a windmill's blades, a wide door)
+  // by its nearest corner
+  double radius2 = 0.0;
+  if (object)
+    for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+      const float *e = &shadowVerts[static_cast<std::size_t>(v) * 3];
+      radius2 = std::max(radius2, (e[0] - cx) * (e[0] - cx) + (e[1] - cy) * (e[1] - cy) + (e[2] - cz) * (e[2] - cz));
+    }
+  const double range = static_cast<double>(kShadowRange) + std::sqrt(radius2);
+  if (cx * cx + cy * cy + cz * cz > range * range)
     return;
-  const std::size_t before = shadowTris.size();
+  std::vector<float> &out = figure ? shadowTris : objectTris;
+  const std::size_t before = out.size();
   for (std::uint32_t i = 0; i + 2 < d.indexCount; i += 3) {
     for (int k = 0; k < 3; k++) {
       const std::uint32_t idx = chunk.indices[d.indexOffset + i + k];
       if (idx >= d.vertexCount) {
-        shadowTris.resize(before);
+        out.resize(before);
         return;
       }
       const float *e = &shadowVerts[static_cast<std::size_t>(idx) * 3];
-      shadowTris.insert(shadowTris.end(), e, e + 3);
+      out.insert(out.end(), e, e + 3);
     }
   }
   // the scene's viewport and projection (the mask works the EFB's depth back into view space with them)
@@ -1414,16 +1432,65 @@ void GxCore::ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk) {
   shadowXfValid = true;
 }
 
+// One map along the light `D` around `tris` (view space): the light's frame (right R, up U, along D), the square around
+// them, from just before them to beyond `reach` behind them; its rows, its biases (a texel's worth), the reach in the
+// map's depth. False without triangles.
+bool GxCore::ShadowFit(const std::vector<float> &tris, const float D[3], float reach, int size, ShadowMapParams *m) {
+  if (tris.size() < 9)
+    return false;
+  float up[3] = {0.0f, 1.0f, 0.0f};
+  if (std::fabs(D[1]) > 0.9f) {
+    up[0] = 1.0f;
+    up[1] = 0.0f;
+  }
+  float R[3] = {up[1] * D[2] - up[2] * D[1], up[2] * D[0] - up[0] * D[2], up[0] * D[1] - up[1] * D[0]};
+  const float rl = std::sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2]);
+  for (float &x : R)
+    x /= rl;
+  const float U[3] = {D[1] * R[2] - D[2] * R[1], D[2] * R[0] - D[0] * R[2], D[0] * R[1] - D[1] * R[0]};
+  float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+  for (std::size_t i = 0; i + 2 < tris.size(); i += 3) {
+    const float *v = &tris[i];
+    const float l[3] = {R[0] * v[0] + R[1] * v[1] + R[2] * v[2], U[0] * v[0] + U[1] * v[1] + U[2] * v[2],
+                        D[0] * v[0] + D[1] * v[1] + D[2] * v[2]};
+    for (int k = 0; k < 3; k++) {
+      lo[k] = std::min(lo[k], l[k]);
+      hi[k] = std::max(hi[k], l[k]);
+    }
+  }
+  const float extent = std::max(hi[0] - lo[0], hi[1] - lo[1]);
+  const float half = 0.5f * extent + 0.02f * extent + 20.0f;
+  const float mx = 0.5f * (lo[0] + hi[0]), my = 0.5f * (lo[1] + hi[1]);
+  const float zn = lo[2] - 100.0f, zf = hi[2] + 1.5f * reach;
+  const float sx = 1.0f / half, sz = 2.0f / (zf - zn), tz = -(zf + zn) / (zf - zn);
+  const float rows[3][4] = {{sx * R[0], sx * R[1], sx * R[2], -sx * mx},
+                            {sx * U[0], sx * U[1], sx * U[2], -sx * my},
+                            {sz * D[0], sz * D[1], sz * D[2], tz}};
+  std::memcpy(m->row, rows, sizeof(rows));
+  m->size = size;
+  m->triangles = tris.size() / 9;
+  m->extent = 2.0f * half;
+  const float texel = 2.0f * half / static_cast<float>(size);
+  const float depthUnit = texel / (zf - zn);  // a texel's width in the map's depth
+  m->bias[0] = 1.5f * depthUnit;
+  m->bias[1] = 1.0f * depthUnit;
+  m->bias[2] = 1.5f * texel;
+  m->bias[3] = 2.0f;
+  m->reach = reach / (zf - zn);
+  return true;
+}
+
 void GxCore::ShadowMark(const std::uint32_t *p) {
   if (!shadowWanted || shadowFailed)
     return;
   ShadowParams s{};
-  s.triangles = shadowTris.size() / 9;
   const unsigned strength = p[3] & 0xFF;
   float D[3] = {AsFloat(p[0]), AsFloat(p[1]), AsFloat(p[2])};
   const float len = std::sqrt(D[0] * D[0] + D[1] * D[1] + D[2] * D[2]);
-  if (s.triangles == 0 || !shadowXfValid || strength == 0 || !(len > 1e-3f) || !std::isfinite(len)) {
+  if ((shadowTris.empty() && objectTris.empty()) || !shadowXfValid || strength == 0 || !(len > 1e-3f) ||
+      !std::isfinite(len)) {
     shadowTris.clear();
+    objectTris.clear();
     return;
   }
   for (float &x : D)
@@ -1445,6 +1512,7 @@ void GxCore::ShadowMark(const std::uint32_t *p) {
     }
     if (x1 - x0 < 32 || y1 - y0 < 32) {
       shadowTris.clear();
+      objectTris.clear();
       return;
     }
     s.region[0] = Lo(x0);
@@ -1452,57 +1520,33 @@ void GxCore::ShadowMark(const std::uint32_t *p) {
     s.region[2] = Lo(x1) - Lo(x0);
     s.region[3] = Lo(y1) - Lo(y0);
   }
-  // the light's frame: right R, up U, along D; the map square around the figures, from just before them to beyond
-  // their reach behind them
-  float up[3] = {0.0f, 1.0f, 0.0f};
-  if (std::fabs(D[1]) > 0.9f) {
-    up[0] = 1.0f;
-    up[1] = 0.0f;
-  }
-  float R[3] = {up[1] * D[2] - up[2] * D[1], up[2] * D[0] - up[0] * D[2], up[0] * D[1] - up[1] * D[0]};
-  const float rl = std::sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2]);
-  for (float &x : R)
-    x /= rl;
-  const float U[3] = {D[1] * R[2] - D[2] * R[1], D[2] * R[0] - D[0] * R[2], D[0] * R[1] - D[1] * R[0]};
-  float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
-  for (std::size_t i = 0; i + 2 < shadowTris.size(); i += 3) {
-    const float *v = &shadowTris[i];
-    const float l[3] = {R[0] * v[0] + R[1] * v[1] + R[2] * v[2], U[0] * v[0] + U[1] * v[1] + U[2] * v[2],
-                        D[0] * v[0] + D[1] * v[1] + D[2] * v[2]};
-    for (int k = 0; k < 3; k++) {
-      lo[k] = std::min(lo[k], l[k]);
-      hi[k] = std::max(hi[k], l[k]);
-    }
-  }
-  const float extent = std::max(hi[0] - lo[0], hi[1] - lo[1]);
-  const float half = 0.5f * extent + 0.02f * extent + 20.0f;
-  const float mx = 0.5f * (lo[0] + hi[0]), my = 0.5f * (lo[1] + hi[1]);
-  const float zn = lo[2] - 100.0f, zf = hi[2] + 1.5f * kShadowReach;
-  const float sx = 1.0f / half, sz = 2.0f / (zf - zn), tz = -(zf + zn) / (zf - zn);
-  const float m[16] = {sx * R[0], sx * U[0], sz * D[0], 0.0f, sx * R[1], sx * U[1], sz * D[1], 0.0f,
-                       sx * R[2], sx * U[2], sz * D[2], 0.0f, -sx * mx,  -sx * my,  tz,        1.0f};
-  std::memcpy(s.toLight, m, sizeof(m));
-  for (int r = 0; r < 3; r++)
-    for (int c = 0; c < 4; c++)
-      s.lightRow[r][c] = m[c * 4 + r];
-  std::memcpy(s.dir, D, sizeof(D));
   static const int sizeEnv = [] {
     const char *v = std::getenv("RE4_GX_SHADOW_SIZE");
     return v && *v ? std::atoi(v) : 0;
   }();
-  s.size = sizeEnv >= 256 && sizeEnv <= 4096 ? sizeEnv : 1024;
-  const float texel = 2.0f * half / static_cast<float>(s.size);
-  const float depthUnit = texel / (zf - zn);  // a texel's width in the map's depth
+  const int size = sizeEnv >= 256 && sizeEnv <= 4096 ? sizeEnv : 1024;
+  // the figures' map, and with "Characters and objects" the objects' (their own fit: a windmill does not make the
+  // figures' map coarse)
+  s.hasFig = ShadowFit(shadowTris, D, kShadowReach, size, &s.fig);
+  s.hasObj = shadowLevel >= 2 && ShadowFit(objectTris, D, kShadowReach, size, &s.obj);
+  if (!s.hasFig && !s.hasObj) {
+    shadowTris.clear();
+    objectTris.clear();
+    return;
+  }
+  std::memcpy(s.dir, D, sizeof(D));
   // the mask: a texel per GameCube pixel from 2x on (the shadows are soft; the apply pass smooths), else per texel
   const int g = halves >= 4 ? halves : 2;
   s.maskW = std::max(1, (s.region[2] * 2 + g - 1) / g);
   s.maskH = std::max(1, (s.region[3] * 2 + g - 1) / g);
   s.grid[0] = static_cast<float>(s.region[2]) / static_cast<float>(s.maskW);
   s.grid[1] = static_cast<float>(s.region[3]) / static_cast<float>(s.maskH);
-  // (the figures' own pixels take no shadow at all: kShadowMaskFs; the world's take the small bias, the contact
-  // shadow at the feet stays)
   s.grid[2] = 0.0f;
-  s.grid[3] = kShadowReach / (zf - zn);
+  s.grid[3] = s.hasFig ? s.fig.reach : 0.0f;
+  s.omap[0] = s.hasObj ? s.obj.reach : 0.0f;
+  s.omap[1] = s.hasFig ? 1.0f : 0.0f;
+  s.omap[2] = s.hasObj ? 1.0f : 0.0f;
+  s.omap[3] = 1.0f / static_cast<float>(size);
   for (int r = 0; r < 4; r++) {
     s.vp0[r] = AsFloat(shadowXf[r]);           // xs ys zs ox (XF 0x101A..0x101D)
     s.pr0[r] = AsFloat(shadowXf[6 + r]);       // p0 .. p3 (XF 0x1020..0x1023)
@@ -1521,20 +1565,18 @@ void GxCore::ShadowMark(const std::uint32_t *p) {
   s.look[0] = std::min(0.6f, std::max(0.25f, static_cast<float>(strength) / 255.0f * 0.75f));
   s.look[1] = 12000.0f;
   s.look[2] = 20000.0f;
-  s.look[3] = 1.0f / static_cast<float>(s.size);
-  s.bias[0] = 1.5f * depthUnit;
-  s.bias[1] = 1.0f * depthUnit;
-  s.bias[2] = 1.5f * texel;
-  s.bias[3] = 2.0f;
+  s.look[3] = 1.0f / static_cast<float>(size);
   if (!shadowLogged) {
     shadowLogged = true;
-    GXLOG("real-time shadows: first picture with them: %zu triangles of the figures, a %d map over %.0f x %.0f, mask "
-          "%d x %d, strength %.2f",
-          s.triangles, s.size, 2.0f * half, 2.0f * half, s.maskW, s.maskH, s.look[0]);
+    GXLOG("real-time shadows: first picture with them: %zu triangles of the figures (a map over %.0f), %zu of the "
+          "objects (%.0f), maps %d, mask %d x %d, strength %.2f",
+          s.hasFig ? s.fig.triangles : 0, s.hasFig ? s.fig.extent : 0.0f, s.hasObj ? s.obj.triangles : 0,
+          s.hasObj ? s.obj.extent : 0.0f, size, s.maskW, s.maskH, s.look[0]);
   }
   ShadowPass(s);
-  stats.shadowTriangles = static_cast<unsigned>(s.triangles);
+  stats.shadowTriangles = static_cast<unsigned>((s.hasFig ? s.fig.triangles : 0) + (s.hasObj ? s.obj.triangles : 0));
   shadowTris.clear();
+  objectTris.clear();
 }
 const GxCore::BloomLook &GxCore::BloomLookOf(int level) {
   // light: the brightest parts only, a soft glow (two blurs, about 13 game pixels); strong: a little more of the
@@ -1752,6 +1794,7 @@ void GxCore::Run(const Re4GxChunk &chunk) {
                    HasShadowMark(chunk);
   if (m.shadowWanted) {
     m.shadowTris.clear();
+    m.objectTris.clear();
     m.shadowXfValid = false;
   }
   if (m.mergeOn && m.BaseVertex() && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded && !m.shadowWanted)

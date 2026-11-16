@@ -653,39 +653,50 @@ struct GxCore {
   // renderer's texels, w 1 (unused: 0).
   void BloomHalos(float out[8][4]) const;
   virtual void BloomPass() = 0;
-  // --- real-time shadows of the figures (GxRenderer::SetShadows; debug builds only until after 1.0, decision of the
-  // project owner, 15.11.2026; port/docs/echtzeit-schatten-studie.md) -------------------------------------------------
+  // --- real-time shadows of the figures and objects (GxRenderer::SetShadows; debug builds only until after 1.0,
+  // decisions of the project owner, 15.11.2026; port/docs/echtzeit-schatten-studie.md) --------------------------------
   // The game core marks the place (RE4_GX_OP_SHADOW: after the room, the figures and the game's own shadow receivers,
   // before the effects; only in play and with a foot shadow light of the room, whose direction it sends in view space).
-  // Up to the mark the figures' solid draws are collected (ShadowCollect: the owner tag's FIGURE bit, depth written,
-  // within kShadowRange of the camera) as triangles in view space. At the mark ShadowMark fits a map around them along
-  // the light and the API's ShadowPass draws them from the light (the depth map), marks the pixels where a figure is
-  // the visible surface, works out a mask from the EFB's depth (darker where a surface lies behind a figure as the
-  // light sees it) and multiplies it into the EFB's colour. Off (the default and every release build) nothing of it
-  // runs: no scan for the mark, no collecting, no pass, no program of it.
+  // Up to the mark the casters' solid draws are collected (ShadowCollect: the owner tag's FIGURE / PART bits, with
+  // level 2 also its OBJECT bit; depth written, within kShadowRange of the camera) as triangles in view space. At the
+  // mark ShadowMark fits a map around each kind along the light and the API's ShadowPass draws them from the light
+  // (the depth maps), marks the pixels where a figure (red) or an object (green) is the visible surface, works out a
+  // mask from the EFB's depth (darker where a surface lies behind a caster as the light sees it; a figure takes no
+  // shadow, an object only the figures') and multiplies it into the EFB's colour. Off (the default and every release
+  // build) nothing of it runs: no scan for the mark, no collecting, no pass, no program of it.
   static constexpr float kShadowRange = 15000.0f;  // view units (millimetres)
-  // how far a figure's shadow reaches behind it along the light (the ground under it, a wall beside it; the room
-  // casts nothing, so a longer shadow fell through walls onto what lies behind them: r101, 16.11.2026)
+  // how far a shadow reaches behind its caster along the light (the ground under it, a wall beside it; the room casts
+  // nothing, so a longer shadow fell through walls onto what lies behind them: r101). The same for the objects: with
+  // 8 m the drapes under a castle hall's ceiling darkened the whole floor while its statue cast nothing (r211); the
+  // windmill's blades shade their platform (r103), 16.11.2026.
   static constexpr float kShadowReach = 4000.0f;
+  // one of the two maps (the figures', the objects'): fitted around its casters along the light
+  struct ShadowMapParams {
+    float row[3][4];                 // view space to the map's clip space (x, y, z within -1..1; the shaders' lx, ly, lz)
+    float bias[4];                   // depth bias (map depth), slope bias, normal offset (view units), PCF radius
+    float reach;                     // how far its shadow reaches behind the caster (map depth)
+    float extent;                    // its square's side (view units)
+    int size;                        // its texels each way
+    std::size_t triangles;
+  };
   struct ShadowParams {
-    float toLight[16];               // view space to the map's clip space (column-major; x, y, z within -1..1)
-    float lightRow[3][4];            // its first three rows (the shaders' lx, ly, lz)
+    ShadowMapParams fig, obj;        // the figures' map (the figures and their parts), the objects' map
+    bool hasFig, hasObj;             // which of them casts in this picture (each map is drawn only with casters)
     float dir[3];                    // the light's direction in view space (unit)
-    int size;                        // the map's texels each way
     int region[4];                   // the scene's part of the EFB in the renderer's texels
     int maskW, maskH;                // the mask's texels (one per GameCube pixel from 2x on, else one per texel)
-    float grid[4];                   // EFB texels per mask texel (x, y), 0, the reach (map depth)
+    float grid[4];                   // EFB texels per mask texel (x, y), 0, the figures' reach (map depth)
+    float omap[4];                   // the objects' reach (map depth), the figures cast (1), the objects cast (1), 0
     float vp0[4], vp1[4], pr0[4], pr1[4];  // the scene's XF viewport and projection (kShadowMaskFs; vp1.z the scale)
     float markVp1[4];                // kShadowMarkVs's vp1: oy, zo, the EFB's width and height
     float look[4];                   // strength, fade start, fade end (view units), 1 / size
-    float bias[4];                   // depth bias (map depth), slope bias, normal offset (view units), PCF radius
-    std::size_t triangles;
   };
-  int shadowLevel = 0;               // 0 off, 1 the figures
+  int shadowLevel = 0;               // 0 off, 1 the figures, 2 the figures and the objects
   bool shadowFailed = false;         // the pass failed on this driver: off for good (the menu's choice stays)
   bool shadowWanted = false;         // this chunk: the level on and a mark in it (Run)
   bool shadowLogged = false;
   std::vector<float> shadowTris;     // the figures' triangles so far, view space, three floats a corner
+  std::vector<float> objectTris;     // the objects' (level 2: RE4_GX_OWNER_OBJECT)
   std::vector<float> shadowVerts;    // one draw's corners (ShadowCollect's scratch)
   std::uint32_t shadowXf[12] = {};   // XF 0x101A..0x1025 of the last figure draw: the scene's viewport and projection
   bool shadowXfValid = false;
@@ -693,6 +704,8 @@ struct GxCore {
   // the chunk has a shadow mark (only asked with the level on)
   static bool HasShadowMark(const Re4GxChunk &chunk);
   void ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk);
+  // one map around `tris` along the light D (unit, view space); false without triangles
+  static bool ShadowFit(const std::vector<float> &tris, const float D[3], float reach, int size, ShadowMapParams *m);
   // the mark's op (payload: direction x, y, z, strength): the parameters, then ShadowPass
   void ShadowMark(const std::uint32_t *p);
   virtual void ShadowPass(const ShadowParams &) {}
