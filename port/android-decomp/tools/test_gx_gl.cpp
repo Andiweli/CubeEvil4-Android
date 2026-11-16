@@ -28,6 +28,7 @@
 #include "etc2.h"
 #include "tex_pack.h"
 #include "tex_pack_words.h"
+#include "word_sharpen.h"
 #include "texture.h"
 
 #include <EGL/egl.h>
@@ -5223,6 +5224,125 @@ void TestHdKeptWords() {
   }
 }
 
+// "Sharper menu text" (1.0.0, word_sharpen.h), the pieces without a GPU: the enlargement by the scale and the word's
+// size, the size test, and the contour snap on a white bar: inside opaque, outside clear, its edges at most two pixels
+// wide (the smooth enlargement alone spreads them over four), the smaller levels down to the game's size.
+void TestWordSharpenParts() {
+  Check(re4gx::WordSharpenFactor(66, 14, 2) == 0 && re4gx::WordSharpenFactor(66, 14, 3) == 2 &&
+            re4gx::WordSharpenFactor(66, 14, 5) == 2 && re4gx::WordSharpenFactor(66, 14, 6) == 4 &&
+            re4gx::WordSharpenFactor(640, 336, 8) == 2 && re4gx::WordSharpenFactor(600, 101, 6) == 2,
+        "sharper words: none below 1.5x, 2x, 4x for small words from 3x, large pages 2x");
+  Check(re4gx::MaybeMenuWord(8, 66, 14) && !re4gx::MaybeMenuWord(8, 67, 14) && !re4gx::MaybeMenuWord(9, 66, 14),
+        "sharper words: the size test knows START's size and format only");
+  std::vector<std::uint8_t> src(16 * 8 * 4, 0);
+  for (unsigned y = 2; y < 6; y++)
+    for (unsigned x = 4; x < 12; x++)
+      for (int c = 0; c < 4; c++) src[(y * 16 + x) * 4 + c] = 255;
+  std::vector<std::uint8_t> levels;
+  unsigned count = 0;
+  re4gx::SharpenWord(src.data(), 16, 8, 2, levels, &count);
+  Check(count == 2 && levels.size() == (32 * 16 + 16 * 8) * 4u, "sharper words: 2x gives two levels");
+  auto alpha = [&](unsigned x, unsigned y) { return levels[(y * 32 + x) * 4 + 3]; };
+  unsigned soft = 0;
+  for (unsigned y = 0; y < 16; y++) soft += alpha(16, y) > 8 && alpha(16, y) < 247;
+  Check(alpha(16, 8) == 255 && alpha(0, 0) == 0 && alpha(16, 1) == 0 && soft <= 4,
+        "sharper words: inside opaque, outside clear, two sharp edges");
+  const std::uint8_t *mid = &levels[(8 * 32 + 16) * 4];
+  Check(mid[0] == 255 && mid[1] == 255 && mid[2] == 255,
+        "sharper words: the bar stays white");
+  re4gx::SharpenWord(src.data(), 16, 8, 4, levels, &count);
+  Check(count == 3 && levels.size() == (64 * 32 + 32 * 16 + 16 * 8) * 4u, "sharper words: 4x gives three levels");
+  const std::size_t last = (64 * 32 + 32 * 16) * 4;
+  int worst = 0;
+  for (std::size_t i = 0; i < 16 * 8; i++)
+    worst = std::max(worst, std::abs(static_cast<int>(levels[last + i * 4 + 3]) - static_cast<int>(src[i * 4 + 3])));
+  Check(worst <= 64, "sharper words: the smallest level is the game's picture again");
+}
+
+// "Sharper menu text" in the renderer (GxCore::AskWord / ApplyWords): a 4x4 RGBA8 texture, blue, registered as a word
+// (AddTestMenuWord), drawn at 2x. The first picture shows the game's own texture and asks for the sharper one, a later
+// one shows it (8x8 and 4x4 levels: 320 bytes); a reset while one waits drops it and the next picture asks again.
+// At 1x, off, or in the PSone demake no word is asked for. GL looks at the pixels, Vulkan at the counts.
+void TestWordSharpen(re4gx::GxApi api, const char *name) {
+  std::vector<std::uint8_t> game(64);
+  for (int i = 0; i < 16; i++) {
+    game[i * 2] = 255, game[i * 2 + 1] = 0;          // A, R
+    game[32 + i * 2] = 255, game[32 + i * 2 + 1] = 0;  // G, B: green (not the HD test's blue)
+  }
+  const re4gx::TexKey key =
+      re4gx::DolphinKey(6, 4, 4, false, game.data(), re4gx::GxTextureLevelBytes(6, 4, 4), nullptr, 0);
+  re4gx::AddTestMenuWord(key.tex, 4, 4, 6);
+  const std::string what = std::string("sharper words (") + name + "): ";
+  const bool gl = api == re4gx::GxApi::kGl;
+  std::string error;
+  for (int scale : {1, 2}) {
+    re4gx::GxRenderer r(api);
+    Require(r.Init(scale, &error), error.c_str());
+    r.SetWordSharpen(true);
+    auto run = [&](bool reset, bool withData) {
+      Builder b;
+      Baseline(b);
+      if (!reset)
+        b.flags = 0;
+      DisplayCopy(b, true, kBlack);
+      b.Bp(0x00, 1u | 1u << 4);
+      b.Xf(0x103F, {1});
+      b.Xf(0x1040, {5u << 7});
+      b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+      b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);  // colour = texture
+      b.Bp(0x80, 0);
+      b.Bp(0x84, 0);
+      b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+      b.Bp(0x30, 3);
+      b.Bp(0x31, 3);
+      b.Texture(0, 0x5678, 0, 0x100000, 4, 4, 6, withData ? game : std::vector<std::uint8_t>{});
+      std::vector<std::uint8_t> v;
+      VT(v, 100, 100, 0, kWhite, 0, 0);
+      VT(v, 164, 100, 0, kWhite, 1, 0);
+      VT(v, 164, 164, 0, kWhite, 1, 1);
+      VT(v, 100, 164, 0, kWhite, 0, 1);
+      b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+      r.Run(b.Chunk());
+    };
+    auto settle = [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); };
+    run(true, true);
+    if (scale == 1) {
+      Check(r.Stats().wordsQueued == 0, (what + "at 1x no word is asked for").c_str());
+      r.Release();
+      continue;
+    }
+    Check(r.Stats().wordsQueued == 1 && r.Stats().wordsWaitingNow == 1 && r.Stats().wordsSharpened == 0,
+          (what + "the first picture asks for the word and does not wait for it").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 260, 260), 0, 255, 0), (what + "meanwhile the game's own picture (green)").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().wordsSharpened == 1 && r.Stats().wordsWaitingNow == 0 && r.Stats().wordBytesNow == 320,
+          (what + "a later picture shows the sharper word (8x8 and 4x4 levels)").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 260, 260), 0, 255, 0, 8), (what + "still green").c_str());
+    Check(r.Stats().missingTextures == 0, (what + "nothing missing").c_str());
+    run(true, true);
+    run(true, true);
+    Check(r.Stats().wordsQueued == 3 && r.Stats().wordsWaitingNow == 1 && r.Stats().wordBytesNow == 0,
+          (what + "a reset drops the waiting word and its bytes").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().wordsSharpened == 2 && r.Stats().wordsWaitingNow == 0, (what + "then the word again").c_str());
+    r.SetWordSharpen(false);
+    run(true, true);
+    settle();
+    run(false, false);
+    Check(r.Stats().wordsQueued == 3 && r.Stats().wordsSharpened == 2 && r.Stats().wordBytesNow == 0,
+          (what + "off: the game's own picture, nothing asked for").c_str());
+    r.SetPsx(true);
+    r.SetWordSharpen(true);
+    run(true, true);
+    Check(r.Stats().wordsQueued == 3, (what + "the PSone demake keeps the game's own words").c_str());
+    r.Release();
+  }
+}
+
 void TestHdBackground(re4gx::GxApi api, const char *name) {
   // the game's texture: 4x4 RGBA8 (format 6), blue (one tile: AR AR ... then GB GB ...)
   std::vector<std::uint8_t> game(64);
@@ -5325,6 +5445,7 @@ int main() {
       TestBenchSteps();
       TestPotatoBits();
       TestHdKeptWords();
+      TestWordSharpenParts();
       TestPictureCadence();  // (1.0.0: the pictures' pacing, no GPU either)
       TestVsyncPeriod();
       TestPictureHold();
@@ -5362,10 +5483,13 @@ int main() {
   TestPotatoBits();
   TestHandOverCopies();
   TestHdKeptWords();
+  TestWordSharpenParts();
   TestHdBackground(re4gx::GxApi::kGl, "GL");
+  TestWordSharpen(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN
   if (VulkanStarts()) {
     TestHdBackground(re4gx::GxApi::kVulkan, "Vulkan");
+    TestWordSharpen(re4gx::GxApi::kVulkan, "Vulkan");
     TestVkRescale();
     TestVkHandOverCopies();
     TestVkOverlay();

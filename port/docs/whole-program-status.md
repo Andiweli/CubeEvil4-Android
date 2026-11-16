@@ -974,6 +974,19 @@ Spiels durch sein schwarzes Shirt ersetzt; als drittes dann den Zusatz 'Spezial'
     sich dort genauso; auf dem Gerät ist er seit 0.98 im Einsatz. Deshalb je Lauf nur ein Wechsel.
 - **Nicht geprüft:** auf einem Gerät; die Ereignisse in Burg und Insel mit Jacke (Modell, Stoff) nur aus dem Code.
 
+### 18. Option „Schärfere Menütexte“ (Texturen-Sitzung, Projektinhaber, 16.11.2026)
+
+`origin/textures` 187a2648 (6bf588ef „Sharper menu text“ und das Hineinmischen von release-candidate 759daa46)
+hineingemischt. Einzelheiten im Abschnitt des Texture Packers und in `port/docs/textur-lader-plan.md`
+(`word_sharpen.cpp`). Kein Kern-Patch. Releasetext: eine Zeile unter New, die die Texturen-Sitzung vorgab; README:
+„sharper menu text“ in der Liste der Grafik-Optionen.
+
+- Beim Mischen keine Konflikte. Der Kostüm-Knopf (Abschnitt 17) und die neue Zeile im App-Menü bestehen nebeneinander;
+  `check_translations.py` ohne Befund (473 Texte).
+- **Geprüft hier nach dem Mischen:** `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests 216 je Variante
+  (core, classic, sideload); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
@@ -2170,6 +2183,30 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   71 Ersetzungen wie vorher, nur die Namensschilder der Anzeige bleiben original; `TestHdKeptWords` mit Wörtern aus
   Optionen, Koffer, Kapitelende und Anzeige sowie Zeichen und Balken, die ersetzt bleiben (Gegenprobe: 6 Fehler).
   Nicht auf dem Gerät geprüft.
+- **„Sharper menu text“ (1.0.0; Entscheidung des Projektinhabers 16.11.2026: „Bitte baue den Schärfefilter für die
+  Schrift auch in 1.0.0 ein.“; Test vorher auf `menu-words-upscale` 3a237eaa; Basis `release-candidate` f43d61c8):**
+  Die 677 Wort-Bilder aus `tex_pack_words.h` werden auf dem Gerät aus den eigenen Discs vergrößert und geschärft
+  (`word_sharpen.h/.cpp`): Kontur-Schärfung (Catmull-Rom vergrößert, dann je Farbkanal zwischen dem dunkelsten und
+  hellsten der vier Ausgangspunkte wie ein Distanzfeld gelesen, Kante etwa einen Bildpunkt breit; nur wo die vier
+  deutlich verschieden sind, Holzmaserung und Verläufe bleiben weich). 2× für alle Wörter, 4× für kleine Wörter (höchstens
+  64 Zeilen und 32.768 Bildpunkte) ab 3× Auflösung, große Textseiten bleiben 2×; unter 1,5× und im PSone-Modus nichts.
+  Wie T4: `GxCore::Upload` zeigt das eigene Bild und fragt den Thread `WordSharpener` (niedrige Priorität), `ApplyWords`
+  setzt fertige Wörter zu Beginn jedes Bildes ein (2 ms, mindestens eins; 50 ms bei schwarzem Bild), eigene kleinere
+  Stufen bis zur Spielgröße, `lodShift` wie bei HD-Ersatzbildern; GLES und Vulkan über denselben Weg. Grenzen: fertig und
+  noch nicht hochgeladen höchstens 16/48 MB (32/64 bit), auf der GPU höchstens 32/96 MB, darüber bleibt das eigene Bild;
+  nur die Wörter des offenen Bildschirms liegen auf der GPU (die übrigen gibt der Kern frei). Mit HD-Paket: Wörter bleiben
+  Buchstaben des Spiels (nur schärfer), die Buchstaben-Schrift des Pakets bleibt. Umschalten verwirft die Texturen, der
+  Kern schickt sie neu. Menü: Grafik, unter „Texture filter“, Schalter „Sharper menu text“ (an), Hilfetext, 11 Sprachen
+  (`check_translations.py` ohne Befund); `CoreBridge.setSharperText`, `RE4_WORD_SHARPEN=0/1` (App und `gx_chunk_render`),
+  `RE4_WORD_SHARPEN_SYNC=1` (sofort, für Einzelbilder). Geprüft am PC: aus = Bild für Bild gleich wie `release-candidate`
+  (32 von 32: Titel, Optionen, Koffer, Karte, Dorf; 1× und 2,5×; mit und ohne Paket); an: Titel, Optionen, Koffer (US/Debug
+  und EU deutsch) bei 2,5× und 3×, Ergebnisseite aus ihren echten Wort-Bildern zusammengesetzt (kein Bildschirmfoto: das
+  Kapitelende braucht einen Kern-Testhaken), Bilder `builds\textures\pics\sharper-menu-text\`. Kosten (Ryzen 7 5700X, ein
+  Kern): je Bildschirm 4–40 ms (2,5×) bzw. 17–50 ms (3×) im Hintergrund, zusätzlich 0,4–4 MB auf der GPU; alle Wörter einer
+  Disc 0,5–0,6 s (2×) bzw. 0,8–0,9 s (3×), 33–43 bzw. 68–85 MB, wenn alle zugleich geladen wären. `gx_gl_check`
+  GLES und Vulkan 0 Fehler (`TestWordSharpenParts`, `TestWordSharpen`: erst das eigene Bild, dann das schärfere, Reset,
+  aus, 1×, PSone; Gegenprobe ohne Schärfen 7 Fehler); Android-Bau beider ABIs, App-Tests je 216 ohne Fehler. Nicht auf dem
+  Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 

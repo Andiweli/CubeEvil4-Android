@@ -272,6 +272,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">मूल GameCube टीवी फ़िल्टर</string>
     <string name="ingame_fxaa_help">आख़िरी चरण में दाँतेदार किनारों को चिकना करता है। MSAA के साथ या बिना काम करता है; तस्वीर थोड़ी नरम हो जाती है।</string>
+    <string name="ingame_sharper_text">स्पष्ट मेनू टेक्स्ट</string>
+    <string name="ingame_sharper_text_help">स्पष्ट मेनू टेक्स्ट ऊँचे रिज़ॉल्यूशन पर गेम के अपने मेनू शब्दों को साफ़ किनारों के साथ दिखाता है, हर भाषा में।</string>
     <string name="ingame_psx">रेट्रो पिक्सेल फ़िल्टर</string>
     <string name="ingame_filter">फ़िल्टर</string>
     <string name="ingame_filter_help">फ़िल्टर पूरी तस्वीर का रूप बदलते हैं और साथ में चालू किए जा सकते हैं।</string>

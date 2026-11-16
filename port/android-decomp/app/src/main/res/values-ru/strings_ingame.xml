@@ -278,6 +278,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Оригинальный ТВ-фильтр GameCube</string>
     <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
+    <string name="ingame_sharper_text">Чёткий текст меню</string>
+    <string name="ingame_sharper_text_help">Чёткий текст меню рисует слова в меню игры с чёткими краями при высоком разрешении, на любом языке.</string>
     <string name="ingame_psx">Ретро-пиксельный фильтр</string>
     <string name="ingame_filter">Фильтры</string>
     <string name="ingame_filter_help">Фильтры меняют вид всего изображения, их можно сочетать.</string>
