@@ -212,8 +212,9 @@ auch in den 11 Räumen, die nur zählen, **D** echte neue Stellen nahe den alten
 Auftrag des Projektinhabers (16.11.2026): „Prüfe nun auch separat und genau den Cheat für 'Zufällige Gegner' wie wir
 die sauber ohne Crash oder Fehler dennoch zufällig platzieren können. Es gibt immer wieder Userfeedback, dass das nicht
 klappt. Ich muss gestehen bei mir standen die Gegner auch immer an derselben Stelle.“ Nutzermeldungen: GitHub #264
-(„Random enemies, not working on some devices“), #236 („random enemies only add 1-2 Ganados“), #237. Nur ein
-Prototyp in eigenem Branch; nichts davon ist in `release-candidate` oder `master`.
+(„Random enemies, not working on some devices“), #236 („random enemies only add 1-2 Ganados“), #237. Zuerst nur ein
+Prototyp im Branch `random-enemies`; **am 16.11.2026 vom Projektinhaber für 1.0 übernommen** (0.99.19, Abschnitt 9 in
+`whole-program-status.md`), mit dem Aufräumen aus 10.4 und neuem Hilfetext.
 
 ### 10.1 Warum es unverändert aussieht (gemessen)
 
@@ -292,9 +293,10 @@ welcher). Der Vergleich je Listeneintrag übertreibt, weil Stufe 1.5 Ganados die
   Kleidung) wäre nötig; Ereignisse und Zählskripte nach Art (`SceCountEmAlive(0x10, 0x20)` zählt alle, einige Skripte
   einzelne Arten).
 - **Bei jedem Betreten neu** statt fest je Seed (der Tod einer Kopie bleibt an ihrem Eintrag).
-- **Aufräumen bei einer Übernahme:** `routeSpot` läuft auch für Ganados, die beim Raumbeginn nicht erscheinen (tot, später
-  im Kapitel); das kostet nur Versuche (r30f: 443 abgelehnte), ändert aber die übrigen Stellen über die Abstandsliste.
-  Vor der Übernahme nur die planen, die jetzt kommen (das ändert die Bilder je Seed).
+- **Aufräumen bei einer Übernahme (erledigt mit der Übernahme in 0.99.19, 16.11.2026):** `routeSpot` lief auch für
+  Ganados, die beim Raumbeginn nicht erscheinen (tot, später im Kapitel); das kostete nur Versuche (r30f: 443
+  abgelehnte) und konnte die übrigen Stellen über die Abstandsliste verschieben. Jetzt werden nur die geplant, die
+  jetzt kommen (im Rundgang mit 4242 und 777 dieselben Stellen wie im Prototyp).
 
 ### 10.5 Ergebnis am PC (16.11.2026)
 
