@@ -1037,6 +1037,13 @@ void re4ipc_aim_turn(float yaw, float pitch)
     post(kAimTurn, a, b, 0);
 }
 
+void re4ipc_body_turn(float yaw)
+{
+    int32_t a;
+    memcpy(&a, &yaw, 4);
+    post(kBodyTurn, a, 0, 0);
+}
+
 void re4ipc_zoom(int notches)
 {
     post(kZoom, notches, 0, 0);
