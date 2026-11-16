@@ -256,7 +256,7 @@ Figuren haben in beiden Fällen ihren Blob-Schatten.“ Bericht: `E:\Development
 Version 0.99.19-rc (versionCode 121), Releasetext `port/android-decomp/docs/releases/v0.99.19-rc.md`
 („Changes since v0.99.18.“, Known issues aus 0.99.18 übernommen). Release-APK `CubeEvil4-0.99.19-Android.apk`.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
-nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0233.
+nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0234.
 
 Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
 der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer bei jedem Kaltstart (einmal pro Prozess) ein
@@ -337,6 +337,28 @@ Freigabe des Inhabers für den Vorschlag aus Abschnitt 1: „Ja die Sichtweite-V
   `check_translations.py` ohne Befund. Vorher/Nachher-Bilder in
   `E:\Development\Android\builds\release-candidate\view-distance-0.99.19\`.
 - **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, Vulkan, US- und JP-Discs, Stellen weit weg vom Startplatz.
+
+### 4. Cheat-Seite neu geordnet, „Atemstopp beim Zielen“, kürzere Hilfetexte (Projektinhaber, 16.11.2026)
+
+- **Cheat-Seite** (`CoreMenu.cheats`): der Abschnitt „Spieler“ / „Player“ (vorher Leon) hat zwei Reihen zu drei
+  Schaltern: Leben, Munition, Unsichtbar / One-Hit-Kill, **Atemstopp beim Zielen**, Spezialkostüme. „Allgemein und
+  Inventar“ / „General & inventory“ (vorher Spiel) bekommt als dritte Reihe „Koffer L“ und „+1.000.000 PTAS“. Die
+  Figurenwahl steht als Raster Leon, Ada, HUNK / leer, Krauser, Wesker (`MenuLayout.Buttons.addGap`: eine leere,
+  nicht wählbare Zelle, die beim Umbrechen auf weniger Spalten wegfällt).
+- **Atemstopp beim Zielen** (`ingame_cheat_steady`, 11 Sprachen): Bit 31 der Cheat-Schalter
+  (`CoreMenu.STEADY_AIM_BIT`, `runtime/cheats.cpp` `re4_steady_aim`, `kAllBits`), Patch 0233: das Ziel des Lasers
+  wandert nicht mehr, das Zielfernrohr (Gewehre, Minenwerfer) atmet nicht. Das Fernglas bleibt.
+  **Geprüft am PC** (i686, Debug-Discs, r100, `RE4_TEST_WEAPON`, R gehalten): Handfeuerwaffe aus: Neigung wandert
+  −0,04…0, an: bleibt 0,00 (Laserbereich 13 statt 3279 geänderte Pixel zwischen drei Bildern); Gewehr-Zielfernrohr
+  300–1200 statt 10 000–24 000 geänderte Pixel. Bilder in `E:\Development\Android\builds\release-candidate\steady-aim\`.
+- **Hilfetexte:** 34 lange Hilfetexte im App-Menü in allen 11 Sprachen auf das Wesentliche gekürzt (Deutsch 12 173 →
+  7 792 Zeichen); Liste vorher/nachher in `E:\Development\Android\reports\0.99.19-help-texts.md`.
+- **Geprüft am PC:** Kern i686 gebaut (0 Fehler), `runtime-test` 0 Fehler, Rundgang der Prüfstrecke ohne Befund;
+  App-Tests 202 je Variante grün (Core und Classic; `CoreMenuLayoutTest.cheatsPageSwitchesSendTheirBits` prüft neu
+  die Reihen, Bit 31, die leere Zelle und das Umbrechen); `check_translations.py` ohne Befund (467 Texte). Bilder der
+  Cheat-Seite (Deutsch und Englisch, 360 px hochkant, 960 px quer) in
+  `E:\Development\Android\builds\release-candidate\cheats-layout\`.
+- **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, mit EU-Discs im Spiel.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
@@ -17325,6 +17347,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0230 `pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp` | Adas Nachladen mit ihren eigenen Waffen auf jeder Stufe mit ihrer Bewegung der Stufe 0 (0.99.11, Abschnitt 1) |
 | 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. 0.99.13 (Stufe 1.5): am Ende fragt eine Schleife bis -1 (bis zu zwei Kopien). Port-Merkmal |
 | 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
+| 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

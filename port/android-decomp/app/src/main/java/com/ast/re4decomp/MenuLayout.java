@@ -48,6 +48,22 @@ final class MenuLayout {
       addView(button, lp);
     }
 
+    /** An empty cell (the cheat page's player characters, the project owner, 16.11.2026: "Unter dem Button von Leon
+     *  bleibt der Platz also frei"): it keeps its place while the row has all its columns and goes away when a narrow
+     *  window folds the row, so no hole is left there; the controller's focus never stops on it. */
+    void addGap() {
+      View gap = new View(getContext());
+      gap.setTag(GAP_TAG);
+      gap.setFocusable(false);
+      gap.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      gap.setVisibility(View.INVISIBLE);
+      addButton(gap);
+    }
+
+    private static boolean isGap(View v) {
+      return GAP_TAG.equals(v.getTag());
+    }
+
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
       int available = Math.max(1, MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight());
       int needed = dp(getContext(), 64);
@@ -55,6 +71,7 @@ final class MenuLayout {
         View child = getChildAt(i);
         child.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        if (isGap(child)) continue;
         int padding = child.getPaddingLeft() + child.getPaddingRight();
         int text = child.getMeasuredWidth() - padding;
         needed = Math.max(needed, (text + lines - 1) / lines + padding + dp(getContext(), 2 * GAP));
@@ -64,19 +81,30 @@ final class MenuLayout {
       if (measuredColumns != columns) {
         setColumnCount(UNDEFINED);
         setRowCount(UNDEFINED);
+        int cell = 0;
         for (int i = 0; i < getChildCount(); i++) {
-          LayoutParams lp = (LayoutParams) getChildAt(i).getLayoutParams();
-          lp.columnSpec = spec(i % columns, FILL, 1f);
-          lp.rowSpec = spec(i / columns, FILL);
-          getChildAt(i).setLayoutParams(lp);
+          View child = getChildAt(i);
+          if (isGap(child)) {
+            // an empty cell only while the row has all its columns
+            boolean keep = columns == maxColumns;
+            child.setVisibility(keep ? View.INVISIBLE : View.GONE);
+            if (!keep) continue;
+          }
+          LayoutParams lp = (LayoutParams) child.getLayoutParams();
+          lp.columnSpec = spec(cell % columns, FILL, 1f);
+          lp.rowSpec = spec(cell / columns, FILL);
+          child.setLayoutParams(lp);
+          cell++;
         }
         setColumnCount(columns);
-        setRowCount((getChildCount() + columns - 1) / columns);
+        setRowCount(Math.max(1, (cell + columns - 1) / columns));
         measuredColumns = columns;
       }
       super.onMeasure(widthSpec, heightSpec);
     }
   }
+
+  private static final String GAP_TAG = "MenuLayout.gap";
 
   /**
    * Buttons as a piano (the resolution, wish of the project owner, 27.10.2026): the first `whites`

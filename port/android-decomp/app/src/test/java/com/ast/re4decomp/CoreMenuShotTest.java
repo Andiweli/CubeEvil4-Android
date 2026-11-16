@@ -125,6 +125,21 @@ public class CoreMenuShotTest {
           }
         }
         graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
+        // the Cheats & Mods page (0.99.19, the project owner's new order): a phone upright (360 px) and a handheld on
+        // its side (960 px)
+        show.invoke(menu, 5, false);
+        for (int width : new int[] {360, 960}) {
+          body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+              View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+          body.layout(0, 0, width, body.getMeasuredHeight());
+          Bitmap page = Bitmap.createBitmap(width, body.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+          Canvas canvas = new Canvas(page);
+          canvas.drawColor(0xff191f1c);
+          body.draw(canvas);
+          try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-cheats-" + width + ".png"))) {
+            page.compress(Bitmap.CompressFormat.PNG, 100, out);
+          }
+        }
         // the note under "Source and updates" (0.99.18): the management page's end from its heading on, 900 px and a
         // handheld's 360 px wide
         show.invoke(menu, 6, false);
