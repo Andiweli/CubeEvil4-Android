@@ -76,7 +76,15 @@
     <string name="ingame_rt_shadows">Real-time shadows</string>
     <string name="ingame_rt_shadows_figures">Characters</string>
     <string name="ingame_rt_shadows_objects">Characters and objects</string>
-    <string name="ingame_rt_shadows_help">Real-time shadows (test builds only): Leon, his companions and the enemies cast real shadows on the ground and on walls, from the light the designers set in each room for the shadows, instead of the round spots under them. Characters and objects adds the things that move: doors, crates, barrels, the windmill&#8217;s turning blades, flags and machines; the fixed scenery keeps the shadows painted into the rooms. Cut scenes keep the game&#8217;s own shadows; rooms without such a light stay as they are. Offered only on strong devices after the benchmark; it costs some graphics work, so the dynamic resolution may settle a little lower.</string>
+    <string name="ingame_rt_shadows_help">Real-time shadows (test builds only): Leon, his companions and the enemies cast real shadows on the ground and on walls, from the light the designers set in each room for the shadows, instead of the round spots under them. Characters and objects adds the things that move: doors, crates, barrels, the windmill&#8217;s turning blades, flags and machines; the fixed scenery keeps the shadows painted into the rooms. Cut scenes keep the game&#8217;s own shadows; rooms without such a light stay as they are. On by default only on strong devices after the benchmark, elsewhere off until you switch it on; it costs some graphics work, so the dynamic resolution may settle a little lower.</string>
+    <!-- under the row in a debug build when the device is not capable enough to have them on by default (RealtimeShadows.deviceCheck): the reason -->
+    <string name="ingame_rt_shadows_not_recommended">Not recommended for this device (%1$s).</string>
+    <string name="ingame_rt_shadows_why_gpu_unknown">graphics chip not known yet</string>
+    <string name="ingame_rt_shadows_why_gpu">graphics chip not strong enough</string>
+    <string name="ingame_rt_shadows_why_benchmark">no benchmark yet</string>
+    <string name="ingame_rt_shadows_why_benchmark_low">the benchmark’s levels are too low</string>
+    <string name="ingame_rt_shadows_why_cpu">processor at its limit</string>
+    <string name="ingame_rt_shadows_why_memory">less than 4 GB of memory</string>
     <string name="ingame_resolution_line">Resolution: %1$d × %2$d pixels (level %3$s) · screen %4$d × %5$d · applies when the menu closes. Higher levels need more power.</string>
     <string name="ingame_resolution_line_auto">Resolution: %1$d × %2$d pixels (level %3$s, Dynamic) · screen %4$d × %5$d · applies when the menu closes. Dynamic goes a level lower while the GPU cannot keep up.</string>
 

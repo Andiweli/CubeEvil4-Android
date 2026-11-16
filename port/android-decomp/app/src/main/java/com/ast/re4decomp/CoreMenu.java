@@ -561,6 +561,17 @@ final class CoreMenu extends Dialog {
     return choice <= 0 ? R.string.ingame_off : choice >= 2 ? R.string.ingame_rt_shadows_objects
         : R.string.ingame_rt_shadows_figures;
   }
+  /** Why the real-time shadows are not recommended on this device (RealtimeShadows.deviceCheck), for the note. */
+  static int shadowsWhy(int check) {
+    switch (check) {
+      case RealtimeShadows.GPU_UNKNOWN: return R.string.ingame_rt_shadows_why_gpu_unknown;
+      case RealtimeShadows.GPU_WEAK: return R.string.ingame_rt_shadows_why_gpu;
+      case RealtimeShadows.NO_BENCHMARK: return R.string.ingame_rt_shadows_why_benchmark;
+      case RealtimeShadows.BENCHMARK_LOW: return R.string.ingame_rt_shadows_why_benchmark_low;
+      case RealtimeShadows.CPU_LIMIT: return R.string.ingame_rt_shadows_why_cpu;
+      default: return R.string.ingame_rt_shadows_why_memory;
+    }
+  }
   /** "Name · value" on a button that moves through its values with each press, lit while not off. */
   private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
@@ -935,23 +946,29 @@ final class CoreMenu extends Dialog {
     valueLabel(bloom, R.string.ingame_bloom, bloomLabels[bloomLevel(graphics)], bloomLevel(graphics) != 0);
     // Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows):
     // "Off > Characters > Characters and objects" (the project owner, 15.11.2026), since 16.11.2026 under the effects
-    // (the project owner: "Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'"); only in a debug
-    // build on a capable device (weak devices never see it); a release build has no row
-    final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()), host.perfDevice(),
-        PerfProfile.Bench.of(graphics), host.vulkanRunning());
+    // (the project owner: "Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'"); since 16.11.2026
+    // in every debug build (the project owner: "Yes, always show it"): a device that is not capable enough shows "Off"
+    // until the player chooses, with a note why; a release build has no row and reads nothing of it
+    final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()));
+    final int shadowsCheck = shadowsRow ? RealtimeShadows.deviceCheck(host.perfDevice(), PerfProfile.Bench.of(graphics))
+        : RealtimeShadows.CAPABLE;
     if (shadowsRow) {
+      final boolean capable = shadowsCheck == RealtimeShadows.CAPABLE;
       Button shadows = cellAction(buttonsRow(effects), "", v -> {
-        int next = RealtimeShadows.next(RealtimeShadows.choice(graphics));
+        int next = RealtimeShadows.next(RealtimeShadows.choice(graphics, capable));
         graphics.edit().putInt(RealtimeShadows.KEY, next).apply();
         valueLabel((Button) v, R.string.ingame_rt_shadows, shadowsName(next), next > 0);
         host.shadowsChanged();
       });
-      final int shadowsChoice = RealtimeShadows.choice(graphics);
+      final int shadowsChoice = RealtimeShadows.choice(graphics, capable);
       valueLabel(shadows, R.string.ingame_rt_shadows, shadowsName(shadowsChoice), shadowsChoice > 0);
     }
     indentedHelp(s(R.string.ingame_flares_help));
     indentedHelp(s(R.string.ingame_bloom_help));
     if (shadowsRow) indentedHelp(s(R.string.ingame_rt_shadows_help));
+    if (shadowsRow && shadowsCheck != RealtimeShadows.CAPABLE) {
+      indentedHelp(getContext().getString(R.string.ingame_rt_shadows_not_recommended, s(shadowsWhy(shadowsCheck))));
+    }
     // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
     LinearLayout filters = labelledOptions(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)

@@ -67,7 +67,14 @@
     <string name="ingame_rt_shadows">Sombras en tiempo real</string>
     <string name="ingame_rt_shadows_figures">Personajes</string>
     <string name="ingame_rt_shadows_objects">Personajes y objetos</string>
-    <string name="ingame_rt_shadows_help">Sombras en tiempo real (solo versiones de prueba): Leon, sus acompañantes y los enemigos proyectan sombras reales sobre el suelo y las paredes, desde la luz que los diseñadores fijaron en cada sala para las sombras, en lugar de las manchas redondas bajo ellos. Personajes y objetos añade lo que se mueve: puertas, cajas, barriles, las aspas giratorias del molino, banderas y máquinas; el decorado fijo conserva las sombras pintadas en las salas. En las escenas se mantienen las sombras del juego; las salas sin esa luz quedan como están. Solo en dispositivos potentes tras el benchmark; cuesta algo de trabajo gráfico, así que la resolución dinámica puede quedar algo más baja.</string>
+    <string name="ingame_rt_shadows_help">Sombras en tiempo real (solo versiones de prueba): Leon, sus acompañantes y los enemigos proyectan sombras reales sobre el suelo y las paredes, desde la luz que los diseñadores fijaron en cada sala para las sombras, en lugar de las manchas redondas bajo ellos. Personajes y objetos añade lo que se mueve: puertas, cajas, barriles, las aspas giratorias del molino, banderas y máquinas; el decorado fijo conserva las sombras pintadas en las salas. En las escenas se mantienen las sombras del juego; las salas sin esa luz quedan como están. Activadas de serie solo en dispositivos potentes tras el benchmark; en los demás, apagadas hasta que las actives; cuesta algo de trabajo gráfico, así que la resolución dinámica puede quedar algo más baja.</string>
+    <string name="ingame_rt_shadows_not_recommended">No recomendado para este dispositivo (%1$s).</string>
+    <string name="ingame_rt_shadows_why_gpu_unknown">chip gráfico aún desconocido</string>
+    <string name="ingame_rt_shadows_why_gpu">chip gráfico poco potente</string>
+    <string name="ingame_rt_shadows_why_benchmark">aún sin benchmark</string>
+    <string name="ingame_rt_shadows_why_benchmark_low">niveles del benchmark demasiado bajos</string>
+    <string name="ingame_rt_shadows_why_cpu">procesador al límite</string>
+    <string name="ingame_rt_shadows_why_memory">menos de 4 GB de memoria</string>
     <string name="ingame_resolution_line">Resolución: %1$d × %2$d píxeles (nivel %3$s) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Los niveles más altos requieren más potencia.</string>
     <string name="ingame_resolution_line_auto">Resolución: %1$d × %2$d píxeles (nivel %3$s, Dinámica) · pantalla %4$d × %5$d · se aplica al cerrar el menú. Dinámica baja un nivel mientras la GPU no da abasto.</string>
 

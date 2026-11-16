@@ -68,7 +68,14 @@
     <string name="ingame_rt_shadows">Bayangan real-time</string>
     <string name="ingame_rt_shadows_figures">Karakter</string>
     <string name="ingame_rt_shadows_objects">Karakter dan objek</string>
-    <string name="ingame_rt_shadows_help">Bayangan real-time (hanya versi uji): Leon, rekannya, dan musuh menjatuhkan bayangan nyata ke tanah dan dinding, dari cahaya yang ditetapkan perancang di setiap ruangan untuk bayangan, sebagai ganti bercak bulat di bawah mereka. Karakter dan objek menambahkan benda yang bergerak: pintu, peti, tong, baling-baling kincir angin yang berputar, bendera, dan mesin; latar yang diam tetap memakai bayangan yang dilukis di ruangan. Adegan cerita tetap memakai bayangan game sendiri; ruangan tanpa cahaya seperti itu tetap apa adanya. Hanya ditawarkan di perangkat kuat setelah benchmark; memerlukan sedikit kerja grafis, jadi resolusi dinamis bisa menetap sedikit lebih rendah.</string>
+    <string name="ingame_rt_shadows_help">Bayangan real-time (hanya versi uji): Leon, rekannya, dan musuh menjatuhkan bayangan nyata ke tanah dan dinding, dari cahaya yang ditetapkan perancang di setiap ruangan untuk bayangan, sebagai ganti bercak bulat di bawah mereka. Karakter dan objek menambahkan benda yang bergerak: pintu, peti, tong, baling-baling kincir angin yang berputar, bendera, dan mesin; latar yang diam tetap memakai bayangan yang dilukis di ruangan. Adegan cerita tetap memakai bayangan game sendiri; ruangan tanpa cahaya seperti itu tetap apa adanya. Aktif bawaan hanya di perangkat kuat setelah benchmark, di perangkat lain mati sampai Anda menyalakannya; memerlukan sedikit kerja grafis, jadi resolusi dinamis bisa menetap sedikit lebih rendah.</string>
+    <string name="ingame_rt_shadows_not_recommended">Tidak disarankan untuk perangkat ini (%1$s).</string>
+    <string name="ingame_rt_shadows_why_gpu_unknown">chip grafis belum dikenali</string>
+    <string name="ingame_rt_shadows_why_gpu">chip grafis kurang kuat</string>
+    <string name="ingame_rt_shadows_why_benchmark">belum ada benchmark</string>
+    <string name="ingame_rt_shadows_why_benchmark_low">level benchmark terlalu rendah</string>
+    <string name="ingame_rt_shadows_why_cpu">prosesor di batasnya</string>
+    <string name="ingame_rt_shadows_why_memory">memori kurang dari 4 GB</string>
     <string name="ingame_resolution_line">Resolusi: %1$d × %2$d piksel (tingkat %3$s) · layar %4$d × %5$d · berlaku saat menu ditutup. Tingkat yang lebih tinggi butuh daya lebih besar.</string>
     <string name="ingame_resolution_line_auto">Resolusi: %1$d × %2$d piksel (tingkat %3$s, Dinamis) · layar %4$d × %5$d · berlaku saat menu ditutup. Dinamis turun satu tingkat selama GPU tidak sanggup mengikuti.</string>
 

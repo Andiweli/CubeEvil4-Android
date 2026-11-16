@@ -67,7 +67,14 @@
     <string name="ingame_rt_shadows">Echtzeitschatten</string>
     <string name="ingame_rt_shadows_figures">Figuren</string>
     <string name="ingame_rt_shadows_objects">Figuren und Objekte</string>
-    <string name="ingame_rt_shadows_help">Echtzeitschatten (nur Testversionen): Leon, seine Begleiter und die Gegner werfen echte Schatten auf Boden und Wände, aus dem Licht, das die Entwickler in jedem Raum für die Schatten gesetzt haben, statt der runden Flecken unter ihnen. „Figuren und Objekte“ nimmt alles Bewegliche dazu: Türen, Kisten, Fässer, die drehenden Flügel des Windrads, Fahnen und Maschinen; die feste Kulisse behält die Schatten, die in die Räume gemalt sind. In Zwischensequenzen bleiben die Schatten des Spiels; Räume ohne ein solches Licht bleiben, wie sie sind. Nur auf starken Geräten nach dem Benchmark; kostet etwas Grafikleistung, die dynamische Auflösung kann sich etwas tiefer einpendeln.</string>
+    <string name="ingame_rt_shadows_help">Echtzeitschatten (nur Testversionen): Leon, seine Begleiter und die Gegner werfen echte Schatten auf Boden und Wände, aus dem Licht, das die Entwickler in jedem Raum für die Schatten gesetzt haben, statt der runden Flecken unter ihnen. „Figuren und Objekte“ nimmt alles Bewegliche dazu: Türen, Kisten, Fässer, die drehenden Flügel des Windrads, Fahnen und Maschinen; die feste Kulisse behält die Schatten, die in die Räume gemalt sind. In Zwischensequenzen bleiben die Schatten des Spiels; Räume ohne ein solches Licht bleiben, wie sie sind. Von sich aus nur auf starken Geräten nach dem Benchmark an, sonst aus, bis du sie einschaltest; kostet etwas Grafikleistung, die dynamische Auflösung kann sich etwas tiefer einpendeln.</string>
+    <string name="ingame_rt_shadows_not_recommended">Für dieses Gerät nicht empfohlen (%1$s).</string>
+    <string name="ingame_rt_shadows_why_gpu_unknown">Grafikchip noch unbekannt</string>
+    <string name="ingame_rt_shadows_why_gpu">Grafikchip zu schwach</string>
+    <string name="ingame_rt_shadows_why_benchmark">noch kein Benchmark</string>
+    <string name="ingame_rt_shadows_why_benchmark_low">Benchmark-Stufen zu niedrig</string>
+    <string name="ingame_rt_shadows_why_cpu">Prozessor am Limit</string>
+    <string name="ingame_rt_shadows_why_memory">weniger als 4 GB Arbeitsspeicher</string>
     <string name="ingame_resolution_line">Auflösung: %1$d × %2$d Pixel (Stufe %3$s) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Höhere Stufen brauchen mehr Leistung.</string>
     <string name="ingame_resolution_line_auto">Auflösung: %1$d × %2$d Pixel (Stufe %3$s, Dynamisch) · Bildschirm %4$d × %5$d · gilt, sobald das Menü schließt. Dynamisch geht eine Stufe tiefer, solange der Grafikchip nicht mitkommt.</string>
 

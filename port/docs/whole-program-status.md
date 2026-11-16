@@ -39,6 +39,19 @@ erwartet), App-Tests 185 je Variante grün (neu `RealtimeShadowsTest`), `check_t
 Debug-Build erst, wenn der Benchmark auf einem starken Gerät gelaufen ist. Stufe 4 (Gegenstände, drei Stufen) folgt
 auf `realtime-shadows` und kommt später auf dieselbe Weise.
 
+**Seit 16.11.2026 (release-candidate, Projektinhaber: „Yes, always show it“):** Im Debug-Build steht die Zeile
+„Echtzeitschatten“ unter Anzeige → Effekte immer, auch ohne Benchmark, vor dem Erkennen des Grafikchips und auf
+schwachen Geräten. Solange der Spieler nichts gewählt hat (`rtShadows` nicht gespeichert), entscheidet das Gerät
+(`RealtimeShadows.deviceCheck`): ein starkes Gerät nach dem Benchmark hat „Figuren und Objekte“, jedes andere „Aus“, mit
+einem Hinweis unter der Zeile „Für dieses Gerät nicht empfohlen (Grund)“ (11 Sprachen; Grafikchip unbekannt/zu schwach,
+noch kein Benchmark, Benchmark-Stufen zu niedrig, Prozessor am Limit, unter 4 GB). Die Zeile zeigt den geltenden
+Wert. Eine im Menü getroffene Wahl gilt auf jedem Gerät; Potato „Schatten & Licht“ aus schaltet weiter ab. Logzeile
+z. B. „real-time shadows (debug build): on (characters and objects) (the menu's choice; device check: no benchmark
+yet)“. Release-Builds unverändert: keine Zeile, nichts gelesen oder gesendet. Geprüft am PC: `RealtimeShadowsTest`
+(Zeile immer im Debug-, nie im Release-Build; Standard je Gerät; gespeicherte Wahl gewinnt; Potato sperrt), App-Tests
+aller Varianten, `check_translations.py`, `assembleCoreRelease`. Bilder (ohne Benchmark, starkes Gerät) in
+`E:\Development\Android\builds\release-candidate\shadows-row-always\`. Nicht geprüft: auf einem Gerät.
+
 - **Kern** (`runtime/rt_shadow.cpp`, Patch 0240, Tabelle unten): Die App schaltet mit Bit 5 der Potato-Maske ein
   (`re4_core_set_potato`, auch über den 32-bit-Kernprozess, keine neue Nachricht; `potato.cpp` trennt das Bit von den
   Potato-Schaltern ab). Pro Bild prüft `re4_rt_shadow_frame` am Anfang von `Render`:
