@@ -22,6 +22,11 @@
 //                       attacks, is set with it. Bosses and room scripts that attack by themselves still can.
 // 1024 random items     (wish of the project owner, 07.11.2026, issue #161) the items lying in the story's rooms
 //                       dealt anew, the seed in bits 11..30 (the app's; patch 0218, re4_item_random below)
+// bit 31 steady aim     (wish of the project owner, 16.11.2026: "Atemstopp beim Zielen") the aim does not sway: the
+//                       laser sight's drift (patch 0233, pl_wep.cpp PlWepLockRand) and the scope's breathing
+//                       (cam_extra.cpp CameraScope::move, the rifles' and the Mine Thrower's scope) left out;
+//                       re4_steady_aim below. The switches hold -1 only before they are read (a player type 7 does
+//                       not exist), so bit 31 is a switch as the others.
 //  16 extra games       kept on by the app after button 4: the unlock below set again in every frame,
 //                       so a system file read from the card without it (the player has not saved since)
 //                       does not take it back; the next save writes it to the card (system file)
@@ -98,6 +103,8 @@ namespace {
 enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kCharShift = 5, kChar = 7 << kCharShift,
        kCostume = 256, kInvisible = 512, kItemRandom = 1024, kSeedShift = 11, kSeedMask = 0xFFFFF << kSeedShift,
        kAll = 31 | kChar | kCostume | kInvisible | kItemRandom | kSeedMask };
+const int kSteadyAim = (int) 0x80000000u;  // bit 31 (patch 0233)
+const int kAllBits = kAll | kSteadyAim;
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
@@ -420,6 +427,9 @@ void apply(int wanted)
         if ((wanted ^ gApplied) & kCostume) {
             re4_log("cheat: special costume %s", wanted & kCostume ? "on" : "off");
         }
+        if ((wanted ^ gApplied) & kSteadyAim) {
+            re4_log("cheat: steady aim %s", wanted & kSteadyAim ? "on" : "off");
+        }
         if ((wanted ^ gApplied) & kInvisible) {
             re4_log("cheat: invisibility %s", wanted & kInvisible ? "on" : "off");
         }
@@ -481,9 +491,9 @@ void switchNow();
 void hook(unsigned)
 {
     int wanted = gWanted.load(std::memory_order_acquire);
-    if (wanted < 0) {
+    if (wanted == -1) {
         const char* v = getenv("RE4_CHEATS");
-        wanted = v ? (int) strtol(v, 0, 0) & kAll : 0;
+        wanted = v ? (int) strtoul(v, 0, 0) & kAllBits : 0;
         int expected = -1;
         gWanted.compare_exchange_strong(expected, wanted);
         wanted = gWanted.load(std::memory_order_acquire);
@@ -559,9 +569,9 @@ int gCostumeGiven;      // 1 while the cheat gave the special costume (game_cost
 int wantedBits()
 {
     int wanted = gWanted.load(std::memory_order_acquire);
-    if (wanted < 0) {
+    if (wanted == -1) {
         const char* v = getenv("RE4_CHEATS");
-        wanted = v ? (int) strtol(v, 0, 0) & kAll : 0;
+        wanted = v ? (int) strtoul(v, 0, 0) & kAllBits : 0;
     }
     return wanted;
 }
@@ -1283,18 +1293,25 @@ extern "C" {
 int re4_invisible(void)
 {
     const int wanted = gWanted.load(std::memory_order_relaxed);
-    return wanted > 0 && (wanted & kInvisible) ? 1 : 0;
+    return wanted != -1 && (wanted & kInvisible) ? 1 : 0;
+}
+
+// Patch 0233 (pl_wep.cpp, cam_extra.cpp): the cheat "Steady aim" (any thread; the game frames read it).
+int re4_steady_aim(void)
+{
+    const int wanted = wantedBits();
+    return wanted != -1 && (wanted & kSteadyAim) ? 1 : 0;
 }
 
 void re4_cheats_set(int bits)
 {
-    gWanted.store(bits & kAll, std::memory_order_release);
+    gWanted.store(bits & kAllBits, std::memory_order_release);
 }
 
 int re4_cheats_wanted(void)
 {
     int w = gWanted.load(std::memory_order_acquire);
-    return w < 0 ? 0 : w;
+    return w == -1 ? 0 : w;
 }
 
 // A button while the game runs: done by the next game frame (returns 3 = queued).
