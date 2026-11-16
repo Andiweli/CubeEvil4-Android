@@ -870,6 +870,18 @@ des Titel- und Schwierigkeitsmenüs nie (`tex_pack.cpp`, `KeepsGameTexture`). Re
   0 Fehler; Android-Build.
 - **Geprüft hier nach dem Mischen:** `gx_gl_check` mit GLES **und Vulkan** (lavapipe) 0 Fehler, mit der neuen Gruppe
   `TestHdKeptWords`; App-Tests core 216 grün; `assembleCoreRelease` baut. Nicht auf dem Gerät geprüft.
+- **Nachtrag: alle Menüwörter (`origin/textures` fefe91c5, per Fast-Forward auf 1c829194).** Entscheidung des
+  Projektinhabers: „Es sollen alle Menüwörter die Originalschrift behalten.“
+  - Neu `tex_pack_words.h` mit 677 Wortbildern aus den Menü-Dateien aller Discs; die 33 Wörter des Titelmenüs sind
+    darin aufgegangen.
+  - Die Datei enthält nur Kennungen (Prüfsumme der Bilddaten, Größe, Format), keine Bilddaten.
+  - Die Buchstaben-Schrift (Meldungen, Untertitel, Beschreibungen) ersetzt das Paket weiter (dieselben Buchstaben,
+    nur schärfer). Darüber entscheidet der Inhaber; nicht Teil dieses Schritts.
+  - Releasetext: die Zeile unter Changed jetzt für alle Menüs.
+  - Geprüft von der Texturen-Sitzung: vorher/nachher für alle 8 Disc-Fassungen, GLES und Vulkan 0 Fehler,
+    Android-Build.
+  - Geprüft hier: `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests core 216 grün;
+    `assembleCoreRelease` und `assembleSideloadRelease` bauen. Nicht auf dem Gerät geprüft.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
