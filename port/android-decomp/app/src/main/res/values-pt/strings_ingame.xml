@@ -146,6 +146,9 @@
     <string name="ingame_source_line">Mais sobre este port em %1$s</string>
     <string name="ingame_source_only">CubeEvil4 para Android e OUYA/Potato só está disponível aqui.</string>
     <string name="ingame_source_avoid">Evite baixá-lo de outros sites ou plataformas de jogos.</string>
+    <string name="ingame_unofficial_title">Versão não oficial</string>
+    <string name="ingame_unofficial_text">Este app não está assinado com a assinatura do desenvolvedor e pode ter sido modificado. O CubeEvil4 oficial só está disponível em github.com/Andiweli/CubeEvil4-Android.</string>
+    <string name="ingame_unofficial_ok">Entendi</string>
     <string name="ingame_no_browser">Nenhum navegador neste dispositivo</string>
 
     <string name="ingame_fps_none">-- FPS (jogo)</string>

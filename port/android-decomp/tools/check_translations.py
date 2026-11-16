@@ -33,7 +33,8 @@ RES = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "app/src/main/res"
 NAME = "strings_ingame.xml"
 JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "CoreBridge.java",
                                                                   "AppUpdate.java", "BenchmarkFlow.java",
-                                                                  "PerfProfile.java", "TextureImportActivity.java")]
+                                                                  "PerfProfile.java", "TextureImportActivity.java",
+                                                                  "UnofficialWarning.java")]
 PREFIX = "ingame_"
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]")
 LOCALES = "xml/locales_config.xml"
@@ -51,7 +52,8 @@ LRM, RLM = "\u200e", "\u200f"
 SAME = [("ingame_cancel", "ingame_wipe_cancel")]
 # names that stay as they are in every language (KEEP): the note under "Source and updates" (the project owner,
 # 15.11.2026)
-KEEP = {"ingame_source_only": ("CubeEvil4", "Android", "OUYA/Potato")}
+KEEP = {"ingame_source_only": ("CubeEvil4", "Android", "OUYA/Potato"),
+        "ingame_unofficial_text": ("CubeEvil4", "github.com/Andiweli/CubeEvil4-Android")}
 
 
 def texts(path):

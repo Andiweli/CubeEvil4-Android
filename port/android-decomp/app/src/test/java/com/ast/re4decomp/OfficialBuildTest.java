@@ -9,8 +9,10 @@ import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,8 +32,9 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowSigningInfo;
 
-/** The note for unofficial builds (OfficialBuild, 0.99.19): the decision, the reading of the APK's certificates and
- *  the start screen with the note (with RE4_MENU_SHOTS set, its pictures go there). */
+/** The warning of unofficial builds (OfficialBuild, UnofficialWarning, 0.99.19): the decision, the reading of the APK's
+ *  certificates, once per process, and the popup before the game starts (with RE4_MENU_SHOTS set, its pictures go
+ *  there). */
 @RunWith(org.robolectric.RobolectricTestRunner.class)
 @Config(sdk = 33, application = Application.class)
 public class OfficialBuildTest {
@@ -40,6 +43,7 @@ public class OfficialBuildTest {
 
   @After public void forget() {
     OfficialBuild.forget();
+    AppStorage.forget();
   }
 
   @Test public void theDecision() {
@@ -111,7 +115,23 @@ public class OfficialBuildTest {
     assertTrue("a release with another key", OfficialBuild.unofficial(app));
     OfficialBuild.forget();
     Shadows.shadowOf(app.getPackageManager()).getInternalMutablePackageInfo(app.getPackageName()).signingInfo = null;
-    assertFalse("nothing to read: no note", OfficialBuild.unofficial(app));
+    assertFalse("nothing to read: no warning", OfficialBuild.unofficial(app));
+  }
+
+  @Test public void oncePerProcess() {
+    Application app = RuntimeEnvironment.getApplication();
+    sign(new Signature[] {new Signature(new byte[] {1})}, null);
+    release();
+    assertTrue("due at the start", OfficialBuild.mustWarn(app));
+    assertTrue("still due until confirmed", OfficialBuild.mustWarn(app));
+    OfficialBuild.confirm();
+    assertFalse("confirmed: not again in this process", OfficialBuild.mustWarn(app));
+    assertTrue("the error log still names it", OfficialBuild.unofficial(app));
+    OfficialBuild.forget();  // as a new process
+    assertTrue("a cold start asks again", OfficialBuild.mustWarn(app));
+    OfficialBuild.forget();
+    app.getApplicationInfo().flags |= ApplicationInfo.FLAG_DEBUGGABLE;
+    assertFalse("a debug build: never", OfficialBuild.mustWarn(app));
   }
 
   /** The start screen needs Re4Application, whose core this sandbox cannot load. */
@@ -131,56 +151,206 @@ public class OfficialBuildTest {
     return null;
   }
 
-  /** The start screen of a release build signed with another key. */
-  private static View startScreen() {
+  /** Imported discs of the debug build as the start screen checks them (DiscInstaller.coreReady): the game starts by
+   *  itself from the start screen then. */
+  private static void discsReady() throws Exception {
+    Application app = RuntimeEnvironment.getApplication();
+    File root = ((Re4Application) app).imports.root;
+    for (int n = 1; n <= 2; n++) {
+      File disc = new File(root, "disc" + n);
+      new File(disc, "sys").mkdirs();
+      try (FileOutputStream out = new FileOutputStream(new File(disc, "ready.properties"))) {
+        out.write(("format=1\nid=G4BE08\ndisc=" + n + "\nreferences=" + (n == 1 ? 111 : 5) + "\n").getBytes("UTF-8"));
+      }
+      try (java.io.RandomAccessFile dol = new java.io.RandomAccessFile(new File(disc, "sys/main.dol"), "rw")) {
+        dol.setLength(com.ast.re4decomp.disc.GameCubeDisc.dolSize("debug"));
+      }
+      try (java.io.RandomAccessFile boot = new java.io.RandomAccessFile(new File(disc, "sys/boot.bin"), "rw")) {
+        boot.setLength(0x440);
+      }
+      new File(disc, "sys/fst.bin").createNewFile();
+      new File(disc, "manifest.tsv").createNewFile();
+    }
+  }
+
+  /** What the start screen starts when it starts the game: CoreActivity (the classic variant: StartupActivity). */
+  private static boolean startedGame(android.app.Activity screen) {
+    android.content.Intent next = Shadows.shadowOf(screen).getNextStartedActivity();
+    if (next == null || next.getComponent() == null) return false;
+    String name = next.getComponent().getClassName();
+    return name.equals(CoreActivity.class.getName()) || name.equals(StartupActivity.class.getName());
+  }
+
+  private static android.app.AlertDialog shownDialog() {
+    android.app.Dialog d = org.robolectric.shadows.ShadowDialog.getLatestDialog();
+    return d instanceof android.app.AlertDialog && d.isShowing() ? (android.app.AlertDialog) d : null;
+  }
+
+  private static Button okButton(android.app.AlertDialog dialog, Application app) {
+    TextView t = withText(dialog.getWindow().getDecorView(), app.getString(R.string.ingame_unofficial_ok));
+    return t instanceof Button ? (Button) t : null;
+  }
+
+  private static void key(android.app.AlertDialog dialog, int code) {
+    for (int action : new int[] {KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP}) {
+      KeyEvent e = new KeyEvent(0, 0, action, code, 0, 0, 0, 0, 0, android.view.InputDevice.SOURCE_GAMEPAD);
+      dialog.getWindow().getDecorView().dispatchKeyEvent(e);
+    }
+    TestLooper.idle();
+  }
+
+  @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class, qualifiers = "w960dp-h540dp-land-mdpi")
+  @GraphicsMode(GraphicsMode.Mode.NATIVE)
+  @Test public void theGameWaitsForTheWarning() throws Exception {
+    Application app = RuntimeEnvironment.getApplication();
     sign(new Signature[] {new Signature(new byte[] {1})}, null);
     release();
-    try (var controller = Robolectric.buildActivity(MainActivity.class).create()) {
-      return controller.get().findViewById(android.R.id.content);
+    discsReady();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      MainActivity screen = controller.get();
+      TestLooper.idle();
+      android.app.AlertDialog dialog = shownDialog();
+      assertNotNull("the warning at the start", dialog);
+      assertFalse("the game does not start behind it", startedGame(screen));
+      View box = dialog.getWindow().getDecorView();
+      assertNotNull(withText(box, app.getString(R.string.ingame_unofficial_title)));
+      assertNotNull(withText(box, app.getString(R.string.ingame_unofficial_text)));
+      Button ok = okButton(dialog, app);
+      assertNotNull("one button", ok);
+      assertTrue("the focus on it (a touch screen gives it with the first key)", ok.isFocused() || ok.isInTouchMode());
+      picture(screen, dialog, "warning-game-start-landscape");
+      // Back, B, Select and a tap beside it: it stays
+      dialog.onBackPressed();
+      key(dialog, KeyEvent.KEYCODE_BACK);
+      key(dialog, KeyEvent.KEYCODE_BUTTON_B);
+      key(dialog, KeyEvent.KEYCODE_BUTTON_SELECT);
+      assertTrue("Back and B do not close it", dialog.isShowing());
+      assertFalse(startedGame(screen));
+      // the start screen's own button waits for it as well
+      Button start = (Button) withText(screen.findViewById(android.R.id.content), app.getString(R.string.core_start));
+      if (start != null) start.performClick();
+      assertFalse("Start game waits too", startedGame(screen));
+      // A on the focused button confirms it, and the game starts
+      key(dialog, KeyEvent.KEYCODE_BUTTON_A);
+      assertFalse("confirmed", dialog.isShowing());
+      assertTrue("then the game starts", startedGame(screen));
+      assertFalse(OfficialBuild.mustWarn(app));
+    }
+    // a new start screen in the same process (back from the game): no warning again
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      TestLooper.idle();
+      android.app.AlertDialog again = shownDialog();
+      assertTrue("once per process", again == null
+          || withText(again.getWindow().getDecorView(), app.getString(R.string.ingame_unofficial_ok)) == null);
+    }
+  }
+
+  @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class, qualifiers = "w360dp-h740dp-port-mdpi")
+  @GraphicsMode(GraphicsMode.Mode.NATIVE)
+  @Test public void theWarningOnTheFirstStartScreen() throws Exception {
+    Application app = RuntimeEnvironment.getApplication();
+    sign(new Signature[] {new Signature(new byte[] {1})}, null);
+    release();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      MainActivity screen = controller.get();
+      TestLooper.idle();
+      android.app.AlertDialog dialog = shownDialog();
+      assertNotNull("the warning on the first start screen too", dialog);
+      assertNull("no line under the name any more",
+          withText(screen.findViewById(android.R.id.content), app.getString(R.string.core_unofficial)));
+      assertTrue("the error log names it", CoreLog.deviceText(app, "").contains(app.getString(R.string.core_unofficial) + "\n"));
+      picture(screen, dialog, "warning-first-start-phone");
+      // Start on a controller confirms it
+      key(dialog, KeyEvent.KEYCODE_BUTTON_START);
+      assertFalse(dialog.isShowing());
+    }
+  }
+
+  @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class, qualifiers = "w360dp-h740dp-port-mdpi")
+  @GraphicsMode(GraphicsMode.Mode.NATIVE)
+  @Test public void theGameStartOnAPhone() throws Exception {
+    Application app = RuntimeEnvironment.getApplication();
+    sign(new Signature[] {new Signature(new byte[] {1})}, null);
+    release();
+    discsReady();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      MainActivity screen = controller.get();
+      TestLooper.idle();
+      android.app.AlertDialog dialog = shownDialog();
+      assertNotNull(dialog);
+      picture(screen, dialog, "warning-game-start-phone");
+      okButton(dialog, app).performClick();  // touch
+      TestLooper.idle();
+      assertTrue(startedGame(screen));
     }
   }
 
   @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class, qualifiers = "w960dp-h540dp-land-mdpi")
   @GraphicsMode(GraphicsMode.Mode.NATIVE)
-  @Test public void theStartScreenShowsTheNote() throws Exception {
-    Application app = RuntimeEnvironment.getApplication();
-    String note = app.getString(R.string.core_unofficial);
-    assertTrue(note.contains("github.com/Andiweli/CubeEvil4-Android"));
-    View screen = startScreen();
-    TextView shown = withText(screen, note);
-    assertNotNull("the note under the name", shown);
-    assertEquals(View.VISIBLE, shown.getVisibility());
-    String report = CoreLog.deviceText(app, "");
-    assertTrue("the same line in the error log", report.contains(note + "\n"));
-    picture(screen, "start-unofficial");
+  @Test public void theFirstStartScreenLandscape() throws Exception {
+    sign(new Signature[] {new Signature(new byte[] {1})}, null);
+    release();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      TestLooper.idle();
+      android.app.AlertDialog dialog = shownDialog();
+      assertNotNull(dialog);
+      picture(controller.get(), dialog, "warning-first-start-landscape");
+    }
   }
 
-  @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class, qualifiers = "w360dp-h740dp-port-mdpi")
+  @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class, qualifiers = "de-w960dp-h540dp-land-mdpi")
   @GraphicsMode(GraphicsMode.Mode.NATIVE)
-  @Test public void theNoteOnANarrowPhone() throws Exception {
-    View screen = startScreen();
-    assertNotNull(withText(screen, RuntimeEnvironment.getApplication().getString(R.string.core_unofficial)));
-    picture(screen, "start-unofficial-phone");
+  @Test public void theWarningInGerman() throws Exception {
+    Application app = RuntimeEnvironment.getApplication();
+    sign(new Signature[] {new Signature(new byte[] {1})}, null);
+    release();
+    discsReady();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      TestLooper.idle();
+      android.app.AlertDialog dialog = shownDialog();
+      assertNotNull(dialog);
+      assertNotNull(withText(dialog.getWindow().getDecorView(), "Inoffizielle Version"));
+      assertNotNull(okButton(dialog, app));
+      assertEquals("Verstanden", okButton(dialog, app).getText().toString());
+      picture(controller.get(), dialog, "warning-game-start-landscape-de");
+    }
   }
 
   @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class)
-  @Test public void aDebugBuildShowsNoNote() {
+  @Test public void aDebugBuildStartsWithoutIt() throws Exception {
     Application app = RuntimeEnvironment.getApplication();
     sign(new Signature[] {new Signature(new byte[] {1})}, null);
     app.getApplicationInfo().flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-    try (var controller = Robolectric.buildActivity(MainActivity.class).create()) {
-      View screen = controller.get().findViewById(android.R.id.content);
-      assertNull(withText(screen, app.getString(R.string.core_unofficial)));
+    discsReady();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      TestLooper.idle();
+      assertNull("no warning", shownDialog());
+      assertTrue("the game starts at once", startedGame(controller.get()));
       assertFalse(CoreLog.deviceText(app, "").contains(app.getString(R.string.core_unofficial)));
     }
   }
 
-  private static void picture(View screen, String name) throws Exception {
+  @Config(sdk = 33, application = Re4Application.class, shadows = NoCore.class)
+  @Test public void anUnreadableSignatureStartsWithoutIt() throws Exception {
+    Application app = RuntimeEnvironment.getApplication();
+    sign(new Signature[] {new Signature(new byte[] {1})}, null);
+    Shadows.shadowOf(app.getPackageManager()).getInternalMutablePackageInfo(app.getPackageName()).signingInfo = null;
+    release();
+    discsReady();
+    try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
+      TestLooper.idle();
+      assertNull("no false alarm", shownDialog());
+      assertTrue(startedGame(controller.get()));
+    }
+  }
+
+  /** The start screen with the warning over it, dimmed behind as Android does (RE4_MENU_SHOTS: the folder). */
+  private static void picture(android.app.Activity screen, android.app.AlertDialog dialog, String name) throws Exception {
     String folder = System.getenv("RE4_MENU_SHOTS");
     if (folder == null || folder.isEmpty()) return;
     new File(folder).mkdirs();
     android.util.DisplayMetrics m = screen.getResources().getDisplayMetrics();
-    View root = screen.getRootView();
+    View root = screen.getWindow().getDecorView();
     root.measure(View.MeasureSpec.makeMeasureSpec(m.widthPixels, View.MeasureSpec.EXACTLY),
         View.MeasureSpec.makeMeasureSpec(m.heightPixels, View.MeasureSpec.EXACTLY));
     root.layout(0, 0, m.widthPixels, m.heightPixels);
@@ -188,6 +358,16 @@ public class OfficialBuildTest {
     Canvas c = new Canvas(b);
     c.drawColor(0xff303030);
     root.draw(c);
+    c.drawColor(0x99000000);  // Android's dim behind a dialog
+    View box = dialog.getWindow().getDecorView();
+    int width = Math.min(m.widthPixels - Math.round(32 * m.density), Math.round(520 * m.density));
+    box.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+        View.MeasureSpec.makeMeasureSpec(m.heightPixels - Math.round(48 * m.density), View.MeasureSpec.AT_MOST));
+    box.layout(0, 0, box.getMeasuredWidth(), box.getMeasuredHeight());
+    c.save();
+    c.translate((m.widthPixels - box.getMeasuredWidth()) / 2f, (m.heightPixels - box.getMeasuredHeight()) / 2f);
+    box.draw(c);
+    c.restore();
     try (FileOutputStream out = new FileOutputStream(new File(folder, name + ".png"))) {
       b.compress(Bitmap.CompressFormat.PNG, 100, out);
     }

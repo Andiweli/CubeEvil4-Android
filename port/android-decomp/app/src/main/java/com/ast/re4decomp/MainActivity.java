@@ -22,6 +22,8 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   private final Handler main = new Handler(Looper.getMainLooper());
   private volatile boolean destroyed;
   private boolean loading, startupShown;
+  /** The warning of an unofficial build while it shows (warnFirst). */
+  private AlertDialog warning;
   /** Core flavor: the original game core runs the game (CoreActivity). */
   private boolean core;
   private ImportManager imports;
@@ -45,7 +47,6 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       centered(body, getString(R.string.core_author), 15, false, dp(4));
       // under the name (CubeEvil4 since 18.10.2026): own discs needed, not the original's maker
       centered(body, getString(R.string.core_notice), 12, false, dp(2));
-      unofficialNote(body);
       line(body, dp(10));
       start = button(body, getString(R.string.core_start), this::startOriginalTitle);
       heading(body, getString(R.string.core_import_heading));
@@ -55,7 +56,6 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       TextView title = new TextView(this); title.setText(getString(R.string.app_title) + " · " + versionName()); title.setTextSize(25); body.addView(title);
       TextView note = new TextView(this); note.setText(R.string.browser_notice);
       note.setPadding(0, dp(8), 0, dp(12)); body.addView(note);
-      unofficialNote(body);
       button(body,"Start game",this::startOriginalTitle);
     }
     // The room browser opens the app's own game modules; the core mode has none.
@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom()); return insets;
     });
   }
-  private void startOriginalTitle(){if(!loading&&!imports.busy&&gameReady()){startupShown=true;Intent start=new Intent(this,core?CoreActivity.class:StartupActivity.class);if(core)start.putExtra("coreSettings",getIntent().getStringExtra("coreSettings"));startActivity(start);}else importPanel.setVisibility(View.VISIBLE);}
+  private void startOriginalTitle(){if(warnFirst())return;if(!loading&&!imports.busy&&gameReady()){startupShown=true;Intent start=new Intent(this,core?CoreActivity.class:StartupActivity.class);if(core)start.putExtra("coreSettings",getIntent().getStringExtra("coreSettings"));startActivity(start);}else importPanel.setVisibility(View.VISIBLE);}
   @Override protected void onSaveInstanceState(Bundle state){state.putBoolean("startupShown",startupShown);super.onSaveInstanceState(state);}
   private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
   private String versionName() {
@@ -109,12 +109,16 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     if (bold) t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
     t.setPadding(0, top, 0, 0); body.addView(t); return t;
   }
-  /** A release build signed with another key than the project owner's (OfficialBuild, 0.99.19): a calm note under the
-   *  name where the official CubeEvil4 is; nothing else changes. */
-  private void unofficialNote(LinearLayout body) {
-    if (!OfficialBuild.unofficial(this)) return;
-    TextView t = centered(body, getString(R.string.core_unofficial), 13, false, dp(10));
-    t.setTextColor(0xFFE8B860);
+  /** A release build signed with another key than the project owner's (OfficialBuild, 0.99.19): the red warning at
+   *  each start of the app, before the game starts (also the game's own start once the discs are there); confirmed,
+   *  the start screen goes on as it would have (changed(): the game starts by itself when its discs are ready).
+   *  True while it is due. */
+  private boolean warnFirst() {
+    if (!OfficialBuild.mustWarn(this)) return false;
+    if (warning == null || !warning.isShowing()) {
+      warning = UnofficialWarning.show(this, () -> { warning = null; if (!destroyed) changed(); });
+    }
+    return true;
   }
   /** A thin line in the text colour (the core launcher's separators). */
   private View rule(int color) {
@@ -255,7 +259,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     super.onActivityResult(request, result, data);
     if ((request == 1 || request == 2) && result == RESULT_OK && data != null && data.getData() != null) imports.start(data.getData(), request);
   }
-  @Override protected void onResume() { super.onResume(); imports.attach(this); }
+  @Override protected void onResume() { super.onResume(); imports.attach(this); warnFirst(); }
   @Override protected void onPause() { imports.detach(this); super.onPause(); }
   @Override public void changed() {
     // the core launcher shows the import prompt as its heading: the status line only for the rest
@@ -286,5 +290,5 @@ public final class MainActivity extends Activity implements ImportManager.Listen
           e.getRepeatCount(), e.getMetaState(), e.getDeviceId(), e.getScanCode(), e.getFlags(), InputDevice.SOURCE_DPAD));
     return super.dispatchKeyEvent(e);
   }
-  @Override protected void onDestroy() { destroyed = true; worker.shutdownNow(); main.removeCallbacksAndMessages(null); super.onDestroy(); }
+  @Override protected void onDestroy() { destroyed = true; if (warning != null) warning.dismiss(); worker.shutdownNow(); main.removeCallbacksAndMessages(null); super.onDestroy(); }
 }

@@ -279,6 +279,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   @SuppressLint("ClickableViewAccessibility")
   public void onCreate(Bundle state) {
     super.onCreate(state);
+    // an unofficial build's warning not confirmed in this process (OfficialBuild; Android brought the game back in a
+    // new process, past the start screen): the start screen first, which warns and then starts the game itself
+    if (OfficialBuild.mustWarn(this)) {
+      startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
+      finish();
+      return;
+    }
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     // no force dark over the game, its touch controls and displays (FocusLook, 0.99.11)
     FocusLook.noForceDark(getWindow());

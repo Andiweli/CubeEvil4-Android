@@ -246,9 +246,10 @@ Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen
 nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0233.
 
 Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
-der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer eine Zeile auf dem Startbildschirm
-(`core_unofficial`) und in `device.txt`. Debug-Builds lesen nichts, nicht lesbar = keine Zeile. Test
-`OfficialBuildTest`.
+der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer bei jedem Kaltstart (einmal pro Prozess) ein
+rotes Popup `UnofficialWarning` (Texte `ingame_unofficial_*`, 11 Sprachen), das vor dem Spielstart bestätigt werden
+muss (MainActivity hält den Start an, CoreActivity schickt einen neuen Prozess zuerst dorthin), und eine Zeile in
+`device.txt` (`core_unofficial`). Debug-Builds lesen nichts, nicht lesbar = nichts. Test `OfficialBuildTest`.
 
 ### 1. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
 

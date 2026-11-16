@@ -178,7 +178,7 @@ final class CoreMenu extends Dialog {
    *  and its seed in bits 11..30, a new one each time the switch goes on (the rooms dealt alike until then). */
   static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
-  private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
+  static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
   private final SharedPreferences graphics, input;
   private boolean tools;
@@ -189,9 +189,9 @@ final class CoreMenu extends Dialog {
   private final TextView title;
   private final Button back, resume, update;
   private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;
-  private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
+  static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
   // the warning before another player character (08.11.2026): a dark red under the text, the "Update" button's edge
-  private static final int WARN_RED = 0xff4e1f1c;
+  static final int WARN_RED = 0xff4e1f1c;
   // "Delete All Data" in a quiet red (wish of the project owner, 14.11.2026: "dezent rötlich"), as the Benchmark's green
   private static final int WIPE_RED = 0xff3a2321, WIPE_RED_EDGE = 0xff6e3c37, WIPE_TEXT = 0xffe2c7c2;
   // the Benchmark button: the green of "Up to date", quieter (wish of the project owner, 06.11.2026)
