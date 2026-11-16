@@ -1073,6 +1073,20 @@ hineingemischt. Einzelheiten im Abschnitt des Texture Packers und in `port/docs/
   (core, classic, sideload); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
 - **Nicht geprüft:** auf einem Gerät.
 
+### 19. Echtzeit-Schatten Stufe 6: Schatten anderer Figuren wandern nicht mehr mit Leon (Projektinhaber, 16./17.11.2026)
+
+`origin/realtime-shadows` 2511eec6 (58e55bc2 „each figure's shadow from where it stands“ und das Hineinmischen von
+release-candidate bf921151) per Fast-Forward. Einzelheiten im Abschnitt „Branch `realtime-shadows`“ oben, Stufe 6.
+Kein neuer Patch (die Haken von 0240 bleiben). Releasetext unverändert: Die Zeile zu den Schatten unter New stimmt
+weiter, und der Fehler gehört zu einer Funktion, die es in 0.99.18 nicht gab.
+
+- **Geprüft hier (Stand 2511eec6):**
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Android-Kern ARM32 und ARM64 0 Fehler;
+  - `gx_gl_check` mit GLES und Vulkan 0 Fehler;
+  - Schatten aus zeichnen wie vor allen Schatten: 212 von 212 Aufnahmen Byte für Byte gleich (wie Abschnitt 10);
+  - App-Tests 216 je Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
