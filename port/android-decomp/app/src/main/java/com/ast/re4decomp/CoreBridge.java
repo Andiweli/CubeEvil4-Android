@@ -346,6 +346,9 @@ public final class CoreBridge {
   /** "Gentler QTEs" (CoreMenu, comfort controls, 0.99.15): Professional's quick-time events as Normal's
    *  (runtime/qte_touch.cpp re4_qte_level, patch 0232); cores before 0.99.15 leave it out. */
   public static native void setGentleQte(boolean on);
+  /** The cheat "Costumes · Leon's jacket" (1.0, runtime/cheats.cpp, patch 0235): Leon keeps the brown jacket of chapter
+   *  1 for the whole story; the story's Leon changes at once (his room starts again where he stands). */
+  public static native void setLeonJacket(boolean on);
   /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores

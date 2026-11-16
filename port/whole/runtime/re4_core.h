@@ -363,6 +363,9 @@ void re4_core_aim_turn(float yaw, float pitch);
  * frame and added to Leon's yaw there while he stands, walks or runs (not while he aims, nor on a ladder, in an
  * event ...). Any thread. */
 void re4_core_body_turn(float yaw);
+/* The cheat "Leon's jacket" (1.0, runtime/cheats.cpp, patch 0235): 1 Leon keeps the brown jacket of chapter 1 for
+ * the whole story (the cheat page's "Costumes"; the special costume is the cheats' bit 256). Any thread. */
+void re4_core_set_leon_jacket(int on);
 /* The mouse wheel (cores since 12.11.2026, 0.99.12; runtime/wheel_zoom.cpp): `notches` up (positive, zooms in) or
  * down, an eighth of the zoom each, handed to the game as a short push of the C stick while the scope or the
  * binoculars are up; dropped anywhere else. Any thread. */

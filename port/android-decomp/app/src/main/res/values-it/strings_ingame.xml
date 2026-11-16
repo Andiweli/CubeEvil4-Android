@@ -319,7 +319,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Valigetta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; i salvataggi non li conservano. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). Invisibilità: i nemici ti ignorano, i boss e le scene fisse no. Mira stabile: il laser e il mirino telescopico non oscillano. Costumi speciali: Leon e Ashley indossano i loro costumi speciali. I pulsanti cambiano la partita: le armi, la valigetta e il denaro restano nel prossimo salvataggio. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale.</string>
+    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; i salvataggi non li conservano. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). Invisibilità: i nemici ti ignorano, i boss e le scene fisse no. Mira stabile: il laser e il mirino telescopico non oscillano. Costumi: Giacca di Leon fa indossare a Leon la giacca marrone per tutto il gioco; Speciale veste Leon e Ashley con i loro costumi speciali. I pulsanti cambiano la partita: le armi, la valigetta e il denaro restano nel prossimo salvataggio. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale.</string>
     <string name="ingame_cheat_done">Fatto: %1$s.</string>
     <string name="ingame_cheat_already">Già presente: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s già presente: ora ai livelli massimi.</string>
@@ -337,8 +337,11 @@
     <string name="ingame_cheat_extras_later">Sbloccati: Assignment Ada e The Mercenaries saranno nel menu principale al prossimo riavvio.</string>
     <string name="ingame_cheat_extras_already">Già sbloccati: Assignment Ada e The Mercenaries sono nel menu principale.</string>
     <string name="ingame_cheat_character">Personaggio</string>
-    <string name="ingame_cheat_costume">Costumi speciali</string>
-    <string name="ingame_cheat_costume_note">(solo Leon/Ashley)</string>
+    <string name="ingame_cheat_costume">Costumi</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normale</string>
+    <string name="ingame_cheat_costume_jacket">Giacca di Leon</string>
+    <string name="ingame_cheat_costume_special">Speciale</string>
     <string name="ingame_cheat_character_help">Il personaggio prende subito il posto di Leon (la stanza si ricarica dove ti trovi). La valigetta, la vita e il denaro di Leon restano; le scene e le chiamate radio mostrano sempre Leon, e la parte di Ashley resta di Ashley. Krauser porta il suo arco e Wesker il suo silenziatore finché sono scelti. I tuoi salvataggi tengono sempre Leon. I personaggi diversi da Leon non sono pensati per il gioco principale, quindi prima compare un avviso.</string>
     <string name="ingame_cheat_character_warning">Attenzione: questo personaggio non è pensato per il gioco principale. Gli errori possono verificarsi e si verificheranno, sono inevitabili!</string>
     <string name="ingame_understood">Ho capito</string>

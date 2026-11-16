@@ -316,7 +316,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Aktenkoffer L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; Spielstände merken sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Unsichtbarkeit: Gegner beachten dich nicht, Bosse und feste Szenen schon. Atemstopp beim Zielen: Laser und Zielfernrohr wackeln nicht. Spezialkostüme: Leon und Ashley tragen ihre Spezialkostüme. Die Knöpfe ändern dein Spiel: Waffen, Koffer und Geld bleiben im nächsten Spielstand. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü.</string>
+    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; Spielstände merken sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Unsichtbarkeit: Gegner beachten dich nicht, Bosse und feste Szenen schon. Atemstopp beim Zielen: Laser und Zielfernrohr wackeln nicht. Kostüme: Leons Jacke lässt Leon das ganze Spiel über seine braune Jacke tragen; Spezial zieht Leon und Ashley ihre Spezialkostüme an. Die Knöpfe ändern dein Spiel: Waffen, Koffer und Geld bleiben im nächsten Spielstand. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü.</string>
     <string name="ingame_cheat_done">Erledigt: %1$s.</string>
     <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s schon vorhanden: jetzt auf den höchsten Stufen.</string>
@@ -334,8 +334,11 @@
     <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
     <string name="ingame_cheat_extras_already">Schon freigeschaltet: Assignment Ada und The Mercenaries stehen im Titelmenü.</string>
     <string name="ingame_cheat_character">Spielfigur</string>
-    <string name="ingame_cheat_costume">Spezialkostüme</string>
-    <string name="ingame_cheat_costume_note">(nur Leon/Ashley)</string>
+    <string name="ingame_cheat_costume">Kostüme</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Leons Jacke</string>
+    <string name="ingame_cheat_costume_special">Spezial</string>
     <string name="ingame_cheat_character_help">Die Figur übernimmt sofort Leons Platz (der Raum lädt dort neu, wo du stehst). Leons Koffer, Leben und Geld bleiben; Zwischensequenzen und Funksprüche zeigen weiter Leon, und Ashleys Teil bleibt Ashleys. Krauser bringt seinen Bogen und Wesker seinen Schalldämpfer mit, solange sie gewählt sind. Deine Spielstände behalten immer Leon. Figuren außer Leon sind nicht für das Hauptspiel gedacht, deshalb kommt zuerst eine Warnung.</string>
     <string name="ingame_cheat_character_warning">Achtung: Diese Spielfigur ist nicht für das Hauptspiel gedacht, es können und werden Fehler auftreten, diese sind unumgänglich!</string>
     <string name="ingame_understood">Ich habe verstanden</string>

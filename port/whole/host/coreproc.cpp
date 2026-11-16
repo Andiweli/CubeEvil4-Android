@@ -127,6 +127,7 @@ struct Core {
     void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
     void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
     void (*setGentleQte)(int);    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+    void (*setLeonJacket)(int);   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
     int (*rtShadows)(void);       // optional (cores since 16.11.2026): the real-time shadows it knows
     void (*swipe)(int);
     void (*slash)(float);
@@ -805,6 +806,7 @@ bool loadCore(std::string& problem)
     bind(core.bodyTurn, "re4_core_body_turn", false);
     bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
     bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
+    bind(core.setLeonJacket, "re4_core_set_leon_jacket", false);
     bind(core.rtShadows, "re4_core_rt_shadows", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
@@ -990,6 +992,9 @@ void serve()
             break;
         case kSetGentleQte:
             if (core.setGentleQte) core.setGentleQte(h.a);
+            break;
+        case kLeonJacket:
+            if (core.setLeonJacket) core.setLeonJacket(h.a);
             break;
         case kRtShadows:
             reply(h.id, core.rtShadows ? core.rtShadows() : 0, "");

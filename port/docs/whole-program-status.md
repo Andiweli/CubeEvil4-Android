@@ -914,6 +914,49 @@ Analyse, Zusammenfassung für den Inhaber und Antwort für die Spieler: `E:\Deve
   dem alten Code an). App-Tests 216 je Variante grün, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
 - **Nicht geprüft:** auf einem Gerät (120-Hz-Xiaomi/POCO, 90-Hz-Samsung).
 
+### 17. Cheat „Kostüme“: Normal / Leons Jacke / Spezial (für 1.0, Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Bei den CHEATS gibt es den Button für Spezialkostüme, dieser soll ein
+Toggle-Button werden und nur mehr 'Kostüme' heißen (auch ohne Untertitel '(nur Leon/Ashley)'). Der Zusatz nach dem
+Punkt 'Normal' ist der Standardfall, wo alles funktioniert wie im Spiel vorgesehen (Button nicht gehighlighted); dann
+soll es neu den Zusatz geben 'Leon's Jacke', wo Leon dann seine braune Jacke immer an hat und nicht im Laufe des
+Spiels durch sein schwarzes Shirt ersetzt; als drittes dann den Zusatz 'Spezial', was unser bisheriges
+'Spezialkostüme an' ist.“
+
+- **App:**
+  - `CoreMenu.costumeSwitch` ist ein Knopf, der wie Frame skip weiterschaltet: „Kostüme · Normal / Leons Jacke /
+    Spezial“, leuchtet außer bei Normal. Der Zusatz „(nur Leon/Ashley)“ ist weg.
+  - Spezial ist das Bit 256 der Cheats wie bisher; das alte „Spezialkostüme an“ zeigt also von selbst Spezial.
+  - Leons Jacke ist eine eigene Einstellung (`CoreActivity.LEON_JACKET` in `core_game`), weil alle 32 Bits der
+    Cheats belegt sind (das Bit des Zufallswerts der Gegenstände umzuwidmen hätte alte Einstellungen falsch gelesen).
+  - Weg in den Kern: `CoreBridge.setLeonJacket` → `re4_core_set_leon_jacket`, für den 32-bit-Kernprozess die Nachricht
+    `kLeonJacket` = 48.
+  - Texte in 11 Sprachen (Name, drei Werte, Satz im Hilfetext der Cheats).
+- **Kern** (`runtime/cheats.cpp`, Patch 0235):
+  - In der Geschichte gibt `PlSetCostume` Leon die Jacke (Kostüm 0), wo seine Regel Hemd (1) oder Weste (2) gäbe.
+    Das gilt auch für die Ersatzfiguren in seinem Kostüm. Die Ereignisse laden dann Leons `pl00` (`loadLeon`).
+  - Die Weste schützt mit dem Cheat über den Gegenstand selbst.
+  - Umschalten wirkt sofort wie beim Spezialkostüm: Der Raum startet dort neu, wo Leon steht (`switchNow`, nur wenn
+    sich sein Aussehen wirklich ändert; `jacketChange`).
+  - Spezial gewinnt. Separate Ways, The Mercenaries und Ashley sind unberührt.
+  - Kein Eintrag im Spielstand: Jedes Laden wählt das Kostüm neu (`PlSetCostume` in `game.cpp`).
+  - Testschalter `RE4_LEON_JACKET=1` und `RE4_TEST_LEON_JACKET="free+N:J,..."` (J 0/1, `s` Kostüm neu wählen,
+    `v` die Weste wie vom Händler).
+- **Releasetext:** eine Zeile unter Changed (der Knopf), eine unter New (Leons Jacke).
+- **Geprüft am PC** (Kern i686 -O2, Debug-Discs, r100; Skript `rc-measure/jacket_run.sh` im Notizordner):
+  - Jacke an, r106-Flag gesetzt, Jacke aus: Der Raum startet neu, Kostüm 1 (Hemd).
+  - Hemd (Kostüm 1), Jacke an: Kostüm 0.
+  - Weste und Jacke an: Kostüm 0, die Weste schützt. Jacke aus: Kostüm 2, schützt.
+  - Weste ohne Jacke (Kostüm 2), Jacke an: Kostüm 0, schützt.
+  - Spezial und Jacke zugleich: Kostüm 3.
+  - Kern- und Laufzeittests bestanden; Android-Kern ARM32 und ARM64 0 Fehler (mit dem 32-bit-Kernprozess); App-Tests
+    216 je Variante grün (`CoreMenuLayoutTest`: Normal > Leons Jacke > Spezial > Normal, das alte Bit 256 zeigt Spezial);
+    `check_translations.py` ohne Befund (471 Texte); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+  - Nebenbefund der Testumgebung: Nach dem Neustart eines Raums (auch beim bisherigen Spezialkostüm) kommt der
+    PC-Lauf mit Raumauswahl nicht mehr in die Hauptschleife („step 6“). Der bisherige Spezialkostüm-Wechsel verhält
+    sich dort genauso; auf dem Gerät ist er seit 0.98 im Einsatz. Deshalb je Lauf nur ein Wechsel.
+- **Nicht geprüft:** auf einem Gerät; die Ereignisse in Burg und Insel mit Jacke (Modell, Stoff) nur aus dem Code.
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
@@ -17931,6 +17974,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
 | 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
 | 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
+| 0235 `pl_sub.cpp` | Cheat „Kostüme · Leons Jacke“ (1.0, Projektinhaber 16.11.2026): `PlSetCostume` gibt Leon (und einer Ersatzfigur in seinem Kostüm) Kostüm 0, die braune Jacke aus Kapitel 1, auch wo seine Regel das schwarze Hemd (1, nach dem Ereignis in r106) oder die Weste (2) gäbe, solange `runtime/cheats.cpp re4_cheat_leon_jacket` es sagt (an, Geschichte, nicht am Benchmark-Platz; das Spezialkostüm gewinnt). Der Schutz der Weste hängt im Spiel am Kostüm (`PlIsArmor`: 2 oder 3): mit dem Cheat schützt die Weste selbst (Gegenstand 0xFE), Profi-Modus wie bisher ohne. Separate Ways, The Mercenaries (`PlSetCostume` kehrt vorher zurück) und Ashleys Teil unberührt; ein Spielstand merkt sich nichts davon. Ohne den Cheat: wie das Spiel. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

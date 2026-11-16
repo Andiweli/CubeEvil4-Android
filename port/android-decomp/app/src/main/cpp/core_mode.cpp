@@ -122,6 +122,7 @@ struct CoreApi {
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+  void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
   int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -476,6 +477,7 @@ void loadCore(JNIEnv *env) {
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
+  api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
   api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -3128,6 +3130,7 @@ void useCoreProcess(const std::string &why) {
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setGentleQte = re4ipc_set_gentle_qte;
+  api.setLeonJacket = re4ipc_set_leon_jacket;
   api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -3887,6 +3890,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_zoom(JNIEnv 
 }
 
 // The cheat "Random enemies" (CoreMenu): its seed, 0 off (cores since 12.11.2026, 0.99.12; older ones: nothing).
+// The cheat "Leon's jacket" (1.0, CoreMenu's "Costumes"; runtime/cheats.cpp)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLeonJacket(JNIEnv *, jclass, jboolean on) {
+  if (api.setLeonJacket) api.setLeonJacket(on ? 1 : 0);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGentleQte(JNIEnv *, jclass, jboolean on) {
   if (api.setGentleQte) api.setGentleQte(on ? 1 : 0);
 }

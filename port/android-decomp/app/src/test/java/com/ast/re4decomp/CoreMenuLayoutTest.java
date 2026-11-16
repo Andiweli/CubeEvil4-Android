@@ -565,9 +565,16 @@ public class CoreMenuLayoutTest {
   @Test public void cheatsPageSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
     final int[] enemySeed = {-1};
+    final Boolean[] jacket = {null};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
+          if (method.getName().equals("leonJacketChanged")) {
+            jacket[0] = (Boolean) args[0];
+            // as CoreActivity: the setting the button reads at its next press
+            org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences(CoreActivity.GAME_PREFS, 0)
+                .edit().putBoolean(CoreActivity.LEON_JACKET, (Boolean) args[0]).commit();
+          }
           if (method.getName().equals("enemyRandomChanged")) enemySeed[0] = (Integer) args[0];
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
               : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
@@ -719,14 +726,35 @@ public class CoreMenuLayoutTest {
       leon.performClick(); assertEquals(5, sent[0]);
       assertSame("Leon and the chosen one ask nothing", ask, org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog());
       assertTrue(leon.isSelected()); assertFalse(wesker.isSelected());
-      // the special costumes, the player section's sixth button (16.11.2026): bit 256, the character kept
+      // the costumes, the player section's sixth button (1.0, the project owner, 16.11.2026): Normal > Leon's jacket >
+      // Special > Normal, as Frame skip; Special is bit 256 (the special costumes of before), Leon's jacket a setting
+      // of its own (leonJacketChanged); the character kept; lit but at Normal; no note under it any more
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
       assertSame(inventory, costume.getParent());
       assertEquals(2, inventory.indexOfChild(costume));
-      assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
-      costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
+      final String name = activity.getString(R.string.ingame_cheat_costume);
+      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
+          activity.getString(R.string.ingame_cheat_costume_normal)), costume.getText().toString());
+      assertFalse(costume.isSelected());
+      costume.performClick();
+      assertEquals(Boolean.TRUE, jacket[0]); assertEquals(5, sent[0]); assertTrue(costume.isSelected());
+      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
+          activity.getString(R.string.ingame_cheat_costume_jacket)), costume.getText().toString());
+      costume.performClick();
+      assertEquals(Boolean.FALSE, jacket[0]); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
+      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
+          activity.getString(R.string.ingame_cheat_costume_special)), costume.getText().toString());
       hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      jacket[0] = null;
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
+      assertNull("Special > Normal leaves the jacket off", jacket[0]);
+      // the switch of before (bit 256 stored) shows Special; Leon's jacket alone Leon's jacket
+      assertEquals(CoreMenu.COSTUME_SPECIAL, CoreMenu.costumeChoice(256, false));
+      assertEquals(CoreMenu.COSTUME_SPECIAL, CoreMenu.costumeChoice(256 | 5, true));
+      assertEquals(CoreMenu.COSTUME_JACKET, CoreMenu.costumeChoice(5, true));
+      assertEquals(CoreMenu.COSTUME_NORMAL, CoreMenu.costumeChoice(5, false));
+      assertEquals(5 | 256, CoreMenu.costumeBits(5, CoreMenu.COSTUME_SPECIAL));
+      assertEquals(5, CoreMenu.costumeBits(5 | 256, CoreMenu.COSTUME_JACKET));
     }
   }
 

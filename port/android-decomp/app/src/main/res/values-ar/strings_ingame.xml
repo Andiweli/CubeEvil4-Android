@@ -333,7 +333,7 @@
     <string name="ingame_cheat_matilda">‏Matilda</string>
     <string name="ingame_cheat_case">الحقيبة L</string>
     <string name="ingame_cheat_money">‏+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا تحفظها ملفات الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). الاختفاء: يتجاهلك الأعداء، أما الزعماء والمشاهد المعدّة مسبقًا فلا. تصويب ثابت: لا يتمايل الليزر ولا المنظار. أزياء خاصة: يرتدي ليون وآشلي أزياءهما الخاصة. تغيّر الأزرار لعبتك: تبقى الأسلحة والحقيبة والمال في الحفظ التالي. ويضيف فتح الألعاب الإضافية Assignment Ada و The Mercenaries إلى قائمة العنوان.</string>
+    <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا تحفظها ملفات الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). الاختفاء: يتجاهلك الأعداء، أما الزعماء والمشاهد المعدّة مسبقًا فلا. تصويب ثابت: لا يتمايل الليزر ولا المنظار. الأزياء: سترة ليون تُبقي ليون بسترته البنية طوال اللعبة؛ وخاص يُلبس ليون وآشلي أزياءهما الخاصة. تغيّر الأزرار لعبتك: تبقى الأسلحة والحقيبة والمال في الحفظ التالي. ويضيف فتح الألعاب الإضافية Assignment Ada و The Mercenaries إلى قائمة العنوان.</string>
     <string name="ingame_cheat_done">تم: %1$s.</string>
     <string name="ingame_cheat_already">موجود بالفعل: %1$s.</string>
     <string name="ingame_cheat_raised">‏%1$s موجود بالفعل: أصبح الآن في أعلى المستويات.</string>
@@ -351,8 +351,11 @@
     <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
     <string name="ingame_cheat_extras_already">مفتوحة بالفعل: Assignment Ada و The Mercenaries في قائمة العنوان.</string>
     <string name="ingame_cheat_character">الشخصية</string>
-    <string name="ingame_cheat_costume">أزياء خاصة</string>
-    <string name="ingame_cheat_costume_note">(ليون/آشلي فقط)</string>
+    <string name="ingame_cheat_costume">الأزياء</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">عادي</string>
+    <string name="ingame_cheat_costume_jacket">سترة ليون</string>
+    <string name="ingame_cheat_costume_special">خاص</string>
     <string name="ingame_cheat_character_help">تحل الشخصية فورًا محل ليون (تُحمَّل الغرفة من جديد حيث تقف). تبقى حقيبة ليون وصحته وأمواله؛ وتظل المشاهد السينمائية والمكالمات اللاسلكية تُظهر ليون، ويبقى جزء آشلي لآشلي. يأتي كراوزر بقوسه وويسكر بكاتم صوته ما داما مختارين. تحتفظ ملفات الحفظ دائمًا بليون. الشخصيات غير ليون ليست مخصصة للعبة الرئيسية، لذا يظهر تحذير أولًا.</string>
     <string name="ingame_cheat_character_warning">تنبيه: هذه الشخصية ليست مخصصة للعبة الرئيسية. قد تحدث أخطاء وستحدث حتمًا، ولا يمكن تجنّبها!</string>
     <string name="ingame_understood">فهمت</string>

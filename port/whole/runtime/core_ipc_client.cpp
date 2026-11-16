@@ -1054,6 +1054,12 @@ void re4ipc_set_enemy_random(int seed)
     post(kSetEnemyRandom, seed, 0, 0);
 }
 
+// The cheat "Leon's jacket" (1.0): to the core process, no reply
+void re4ipc_set_leon_jacket(int on)
+{
+    post(kLeonJacket, on ? 1 : 0, 0, 0);
+}
+
 void re4ipc_set_gentle_qte(int on)
 {
     post(kSetGentleQte, on ? 1 : 0, 0, 0);
