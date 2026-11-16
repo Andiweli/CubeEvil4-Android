@@ -34,6 +34,9 @@ struct TexKey {
 TexKey DolphinKey(unsigned format, unsigned width, unsigned height, bool mip, const std::uint8_t *level0,
                   std::size_t level0Bytes, const std::uint8_t *palette, std::size_t paletteBytes);
 
+// a game texture no pack replaces: the title menu's words keep the game's own font (tex_pack.cpp says why)
+bool KeepsGameTexture(const TexKey &key);
+
 class TexPack {
  public:
   TexPack() = default;
@@ -46,7 +49,8 @@ class TexPack {
   void Close();
   bool IsOpen() const { return fd_ >= 0; }
 
-  // the replacement of a game texture: the entry with the same "_m" first, else the other one; nullptr: none
+  // the replacement of a game texture: the entry with the same "_m" first, else the other one; nullptr: none (also
+  // for a texture KeepsGameTexture keeps)
   const c4tex::Entry *Find(const TexKey &key) const;
   // the entry's texels from `firstLevel` on (Sharpness Half: 1); false when the file cannot be read
   bool Read(const c4tex::Entry &e, unsigned firstLevel, std::vector<std::uint8_t> &out) const;

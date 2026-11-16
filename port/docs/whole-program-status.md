@@ -1864,6 +1864,18 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Knopf-Paare ZIP/Ordner, Start/Abbruch, Bericht/Import nebeneinander, lange Texte zweizeilig. `PackerScreenTest`: 11
   Sprachen bei 360 dp, Schrift 100 und 130 %, drei Zustände: nichts abgeschnitten, gekürzt oder außerhalb, Paare gleich
   breit (Gegenprobe mit einzeiligen Knöpfen schlägt an). Bilder `builds\textures\pics\packer-*.png`.
+- **Titelmenü in der Schrift des Spiels (Meldung eines Spielers und des Inhabers, Entscheidung des Projektinhabers
+  16.11.2026; Basis `release-candidate` 9247f05d):** Mit dem HD Project hatte START (US) eine andere, dünne Schrift,
+  mit EU-Discs nur ASSIGNMENT ADA und THE MERCENARIES (englisch in allen Sprachen, im US-Paket enthalten). Ursache das
+  Paket: es malt nur einen Teil der Wörter neu, START in einer anderen Schrift, und kennt nur die US-Wörter; unsere
+  Kennungen sind dieselben wie Dolphins Dateinamen. Jetzt ersetzt der Lader die 33 Menüwörter des Titel- und
+  Schwierigkeitsmenüs nie (`KeepsGameTexture`, `tex_pack.cpp`; Liste aus allen `title.dat` von Debug, US, EU in fünf
+  Sprachen und JP; Größe, Format und Kennung der Bilddaten, jede Farbtabelle). Geprüft am PC: Titel-Dumps aller acht
+  Fassungen und das US-Schwierigkeitsmenü mit dem 512er-Paket: es fallen genau die Menüwörter weg (US/Debug 5, EU
+  englisch 5, EU deutsch/spanisch/italienisch 2, französisch 3, JP 4), alle anderen Ersetzungen bleiben gleich; im
+  Dorf (Debug-Dump) dieselben 116 Ersetzungen wie vorher. `gx_gl_check`-Gruppe `TestHdKeptWords` (START bleibt,
+  gleiche Kennung in anderer Größe oder anderem Format und andere 66×14-Bilder werden ersetzt; Gegenprobe ohne die
+  Liste: 2 Fehler). Bild `builds\textures\pics\title-menu-own-font.png`. Nicht auf dem Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 
