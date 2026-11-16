@@ -326,7 +326,7 @@
     <string name="ingame_cheat_random_items">随机物品</string>
     <string name="ingame_cheat_random_items_help">随机物品：剧情房间里放置的弹药、草药、手雷、比塞塔和宝物会重新分配；同一个房间会保留它的物品，直到你关闭后再重新打开此开关。钥匙、武器和其他剧情物品保持不变，因此游戏始终可以通关。不适用于 Assignment Ada 和 The Mercenaries。</string>
     <string name="ingame_cheat_random_enemies">随机敌人</string>
-    <string name="ingame_cheat_random_enemies_help">随机敌人：在许多房间里，普通的 Ganado 会站在其他地方，大群敌人会多或少一两个。开头的村庄、事件需要特定敌人的房间、头目、特殊敌人和敌人波次保持不变，因此游戏始终可以通关。从下一个房间开始生效；不适用于 Assignment Ada、The Mercenaries 和 Ashley 的部分。</string>
+    <string name="ingame_cheat_random_enemies_help">随机敌人：普通的 Ganado 会出现在随机位置，房间里任何它们能走到的地方都有可能，大群敌人会多或少一两个。头目、特殊敌人、有固定任务的 Ganado 和敌人波次保持不变，因此开头的村庄变化不大，游戏始终可以通关。从下一个房间开始生效；不适用于 Assignment Ada、The Mercenaries 和 Ashley 的部分。</string>
     <string name="ingame_cheat_extras">解锁额外游戏</string>
     <string name="ingame_cheat_extras_text">Assignment Ada 和 The Mercenaries 已解锁（还有 Professional，与通关后相同）。重新启动后，标题菜单会显示它们。自上次存档以来的进度将会丢失。</string>
     <string name="ingame_cheat_extras_later">已解锁：下次重新启动后，Assignment Ada 和 The Mercenaries 会出现在标题菜单中。</string>

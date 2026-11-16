@@ -345,7 +345,7 @@
     <string name="ingame_cheat_random_items">عناصر عشوائية</string>
     <string name="ingame_cheat_random_items_help">عناصر عشوائية: يُعاد توزيع الذخيرة والأعشاب والقنابل والبيزيتا والكنوز الموجودة في غرف القصة؛ وتحتفظ الغرفة بعناصرها حتى توقف هذا الخيار وتشغّله من جديد. تبقى المفاتيح والأسلحة وعناصر القصة الأخرى، فيمكن دائمًا إنهاء اللعبة. ليس في Assignment Ada وThe Mercenaries.</string>
     <string name="ingame_cheat_random_enemies">أعداء عشوائيون</string>
-    <string name="ingame_cheat_random_enemies_help">أعداء عشوائيون: في كثير من الغرف يقف الغانادو العاديون في أماكن أخرى، وتزيد المجموعات الكبيرة أو تنقص واحدًا أو اثنين. تبقى القرية في البداية والغرف التي تحتاج أحداثها أعداءً معيّنين والزعماء والأعداء الخاصون والموجات كما هي، فيمكن إنهاء اللعبة دائمًا. من الغرفة التالية؛ ليس في Assignment Ada وThe Mercenaries وجزء آشلي.</string>
+    <string name="ingame_cheat_random_enemies_help">أعداء عشوائيون: يبدأ الغانادو العاديون في أماكن عشوائية، في أي مكان من الغرفة يستطيعون السير فيه، وتزيد المجموعات الكبيرة أو تنقص واحدًا أو اثنين. يبقى الزعماء والأعداء الخاصون والغانادو ذوو الدور الثابت والموجات كما هي، لذلك لا تتغير القرية في البداية إلا قليلًا ويمكن إنهاء اللعبة دائمًا. من الغرفة التالية؛ ليس في Assignment Ada وThe Mercenaries وجزء آشلي.</string>
     <string name="ingame_cheat_extras">فتح الألعاب الإضافية</string>
     <string name="ingame_cheat_extras_text">تم فتح Assignment Ada و The Mercenaries (وProfessional أيضًا، كما بعد إنهاء اللعبة). تعرضها قائمة العنوان بعد إعادة التشغيل. سيضيع التقدم منذ آخر حفظ.</string>
     <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
