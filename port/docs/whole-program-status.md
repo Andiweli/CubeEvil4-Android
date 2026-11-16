@@ -696,6 +696,24 @@ Releasetext.“ Kein neuer Patch (0231 unverändert), nächste freie Patchnummer
   App-Tests (Gradle) nicht neu gelaufen (nur Texte geändert).
 - **Nicht geprüft:** auf einem Gerät (Test des Projektinhabers auf dem Retroid steht aus).
 
+### 10. Echtzeit-Schatten Stufe 5 übernommen (nur Debug-Builds, Hauptsitzung, 16.11.2026)
+
+`origin/realtime-shadows` 9247f05d (f22bd6ea „die Schatten folgen den Lichtern des Spiels“ und das Hineinmischen von
+release-candidate 70a505e0) per Fast-Forward in release-candidate. Einzelheiten: Abschnitt „Branch
+`realtime-shadows`“ oben, Stufe 5. Kein neuer Patch (die Haken von 0240 bleiben), nächste freie Patchnummer weiter 0235.
+Keine Zeile im Releasetext: die Schatten gab es da nur in Debug-Builds (Vorgabe der Hauptsitzung).
+
+- **Geprüft am PC (Stand 9247f05d):** Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet;
+  `gx_gl_check` GLES und Vulkan 0 Fehler (mit `TestShadows`, zwei Lichter); App-Tests 213 je Variante grün (core,
+  classic, sideload); `check_translations.py` ohne Befund (469 Texte); `assembleCoreRelease` und `lintVitalCoreRelease`
+  ohne Befund, das Release-Manifest nicht „debuggable“.
+- **Release unverändert (Bilder):** die Aufnahmen der Schatten-Sitzung von Stufe 5 (r100, r117, r201, r323, r118 und
+  r119 mit Blitzen; je ein Lauf ohne Marke wie bisher jedes Release und einer mit Marke und Objekt-Tags), gezeichnet vom
+  Renderer vor allen Schatten (release-candidate c2f5dcda) und von 9247f05d mit Schatten aus: **212 von 212 Bildern
+  Byte für Byte gleich**, kein Schatten-Durchgang (Skript `rc-measure/rc_shadows_off_same.sh` im Notizordner der
+  Sitzungen).
+- **Nicht geprüft:** auf einem Gerät.
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
