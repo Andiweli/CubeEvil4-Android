@@ -105,6 +105,36 @@ public final class FramePacingTests {
     p.due(at[0]);
     check(p.step(at[0]) == 0 && !p.due(at[0]) && !p.due(at[0] - 1_000_000L));
 
+    // 1.0.0 (a user's Xiaomi, 120 Hz LTPO): a callback a fraction of a vsync after the one before (its time moved
+    // off the grid) is no vsync of its own: nothing counted, no picture, and the beat keeps its slots of two vsyncs
+    {
+      final long[] own = {at[0]};  // (a timeline of its own: p goes on below)
+      FramePacing q = at120(own);
+      final double period = 1e9 / 120;
+      final long start = own[0];
+      int pictures = 0;
+      long lastSlot = -1;
+      for (int i = 1; i <= 1200; i++) {
+        final long t = start + Math.round(i * period);
+        if (i % 37 == 0) {
+          // an extra callback 2.2 ms after the vsync before (the "448 Hz" of the report)
+          final long odd = start + Math.round((i - 1) * period) + 2_200_000L;
+          q.vsync(odd);
+          check(q.step(odd) == 0 && !q.due(odd));
+        }
+        q.vsync(t);
+        if (q.due(t)) {
+          pictures++;
+          final long slot = i / 2;
+          check(slot != lastSlot && i % 2 == 0);  // always at the same vsync of each pair
+          lastSlot = slot;
+        }
+      }
+      check(pictures == 600 && q.every() == 2 && Math.abs(q.hz() - 120) < 0.5);
+      int[] cq = q.takeCounts();
+      check(cq[1] == 0);  // no callback taken for late
+    }
+
     // a stall of 100 ms: one picture at once, then the beat goes on
     long t = at[0] + 100_000_000L;
     p.vsync(t);

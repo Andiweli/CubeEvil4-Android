@@ -2431,8 +2431,9 @@ bool drawGx() {
   // A steady rhythm (0.99.12, a user's Helio G85 phone at 30 FPS on 60 Hz: 46 % of the new pictures two vsyncs apart,
   // the others 1 and 3 in turn, felt as small frame drops): a new game picture that is ready one vsync after the last
   // one (that one came late) waits for the next vsync, so every picture shows for two. Only at 30 game pictures a
-  // second without 60 FPS on a screen near 60 Hz, and only while the render thread keeps up (this refresh is the vsync
-  // right after the last new picture); never twice for a chunk (skipNext draws it at the next refresh).
+  // second without 60 FPS on a screen near 60 Hz (since 1.0.0 also near 90 Hz: three vsyncs a picture, one ready after
+  // one or two waits one), and only while the render thread keeps up; never twice for a chunk (skipNext draws it at
+  // the next refresh).
   if (chunk && fresh && !smoothOn) {
     const long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
@@ -2441,8 +2442,8 @@ bool drawGx() {
       skipNext = chunk;
       chunk = nullptr;
       if (pictureHold.held == 1 || pictureHold.held % 600 == 0)
-        LOG("picture pacing: %u new pictures held back one vsync so far (a steady two-vsync rhythm at 30 a second)",
-            pictureHold.held);
+        LOG("picture pacing: %u new pictures held back one vsync so far (a steady rhythm at 30 a second: %d vsyncs a "
+            "picture)", pictureHold.held, re4gx::PictureHold::Target(period));
     }
   }
   // Behind: the core has finished the next chunk already. Then the in-between picture (60 FPS) is
@@ -3363,15 +3364,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPictureEv
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_vsync(JNIEnv *, jclass, jlong ns) {
   if (api.vsync) api.vsync(static_cast<int64_t>(ns));
-  // the display's vsyncs for the pictures' cadence (NotePicture)
-  const long long last = displayVsyncAt.exchange(ns), p = displayVsyncPeriod.load();
-  if (last > 0 && ns > last) {
-    const long long d = ns - last;
-    if (p <= 0 || d < p / 2)
-      displayVsyncPeriod.store(d);  // (the first, or much shorter than thought: start over)
-    else if (d < p * 3 / 2)
-      displayVsyncPeriod.store(p + (d - p) / 16);
-  }
+  // the display's vsyncs for the pictures' cadence (NotePicture), the 120 Hz rhythm (present::pacer) and the 30 FPS
+  // one (pictureHold): the latest and the period, the median of the last intervals (picture_cadence.h VsyncPeriod,
+  // 1.0.0; only this thread, the app's beat, calls it)
+  static re4gx::VsyncPeriod vsyncPeriod;
+  displayVsyncAt.store(ns);
+  const long long period = vsyncPeriod.Note(ns);
+  if (period > 0)
+    displayVsyncPeriod.store(period);
 }
 
 // The room the game is in (for the Java room loader), -1 outside a room.

@@ -883,6 +883,37 @@ des Titel- und Schwierigkeitsmenüs nie (`tex_pack.cpp`, `KeepsGameTexture`). Re
   - Geprüft hier: `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests core 216 grün;
     `assembleCoreRelease` und `assembleSideloadRelease` bauen. Nicht auf dem Gerät geprüft.
 
+### 16. Framedrops: Bildwiederholrate falsch gemessen, 30 FPS auf 90 Hz (Spielerberichte über den Projektinhaber, 16.11.2026)
+
+Zwei Berichte von 0.99.18-rc: Xiaomi 2412DPC0AG (Mali-G720, 120 Hz LTPO) und Samsung SM-A175F (Mali-G57, nur 90 Hz).
+Analyse, Zusammenfassung für den Inhaber und Antwort für die Spieler: `E:\Development\Android\reports\framedrops-2026-11-16\analysis.md`.
+
+- **Ursache auf dem Xiaomi:** Der Kern maß die Vsync-Periode seit 0.99.9 mit einem gleitenden Wert, der bei einem
+  Abstand unter der halben Periode von vorn begann.
+  - Android meldete alle paar Sekunden einen Vsync ~2,2 ms nach dem vorigen (Choreographers Zeit für ein spätes Bild,
+    neben dem Raster dieses Bildschirms).
+  - Die Periode fiel auf 2,2 ms („448 Hz“) und kam nie zurück.
+  - Damit waren der 120-Hz-Rhythmus (0.99.13, `PresentPacer`; lief nur für 7 Bilder) und der 30-FPS-Rhythmus
+    (0.99.12) aus. 60 FPS zeigte der Bildschirm daher als 1, 2 und 3 Vsyncs im Wechsel.
+- **Behoben:**
+  - `picture_cadence.h` `VsyncPeriod`: Median der letzten 32 Abstände, wie `FramePacing` in der App.
+  - `FramePacing.step`: Ein Aufruf weniger als einen halben Vsync nach dem vorigen zählt nicht als eigener Vsync.
+  - `PictureHold` auch auf 85–95 Hz: 3 Vsyncs je Bild bei 30 FPS; ein Bild, das nach 1 oder 2 Vsyncs fertig ist,
+    wartet einen.
+- **Nicht geändert:**
+  - 60 FPS auf 90 Hz (geht nicht gleichmäßig; das Menü empfiehlt 30);
+  - Prozessorgrenze und Wärme des Samsung;
+  - die festen 3× mit 2 Samples des Xiaomi;
+  - MIUIs „QueueBuffer time out“;
+  - der neue Benchmark nach dem Update (lief vom Titelmenü aus, wie gewollt).
+- **Releasetext:** zwei Zeilen unter Fixed.
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan 0 Fehler, mit `TestVsyncPeriod` (120 Hz mit verrutschten und
+  späten Vsyncs: 8,333 ms; die alte Regel fällt auf den kurzen Abstand; folgt 120 → 60 → 90 Hz) und `TestPictureHold`
+  auf 90 Hz (ohne Halten 2/3/4 Vsyncs und 54 % daneben, mit Halten alle 3 und 0 %, 330 von 330 gezeigt; 60 Hz wie
+  vorher); beide auch im schnellen Lauf `RE4_CHECK_RULES=1`. `FramePacingTests` 4084 Prüfungen (die neue schlägt mit
+  dem alten Code an). App-Tests 216 je Variante grün, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät (120-Hz-Xiaomi/POCO, 90-Hz-Samsung).
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom

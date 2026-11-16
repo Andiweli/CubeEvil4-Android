@@ -1699,8 +1699,9 @@ void TestRescale() {
 // so its first vsync is 2 or 3 after the frame's start and the screen shows 1, 2 and 3 vsyncs a picture. The render
 // thread draws at every vsync: without the hold the newest picture at once; with it a picture one vsync after the
 // last waits one more (and is never held twice). Returns the line of PictureCadence and the pictures held.
-static std::string HoldRun(bool hold, double from, double to, unsigned *held, unsigned *shownOut, double *lagOut) {
-  const long long period = 16638935;  // 60.1 Hz
+// 1.0.0: `period` and `per` (vsyncs a game picture is) for the 90 Hz screen (11098779 ns, 3).
+static std::string HoldRun(bool hold, double from, double to, unsigned *held, unsigned *shownOut, double *lagOut,
+                           long long period = 16638935 /* 60.1 Hz */, int per = 2) {
   const long long start = 1000000000LL;
   re4gx::PictureCadence cadence;
   re4gx::PictureHold steady;
@@ -1710,12 +1711,12 @@ static std::string HoldRun(bool hold, double from, double to, unsigned *held, un
   for (int k = 0; k < 330; k++) {
     seed = seed * 1103515245u + 12345u;
     const double r = from + (to - from) * ((seed >> 8) & 0xFFFF) / 65535.0;
-    ready.push_back(start + 2LL * k * period + static_cast<long long>(r * period));
+    ready.push_back(start + static_cast<long long>(per) * k * period + static_cast<long long>(r * period));
   }
   std::size_t next = 0;
   bool pending = false;  // a picture held back, drawn at the next vsync
   std::string line, last;
-  for (long long v = start; v < start + 680LL * period && next < ready.size(); v += period) {
+  for (long long v = start; v < start + (340LL * per + 20) * period && next < ready.size(); v += period) {
     bool draw = false;
     if (pending) {
       draw = true;
@@ -1731,7 +1732,7 @@ static std::string HoldRun(bool hold, double from, double to, unsigned *held, un
       next++;
       shown++;
       steady.Shown(v);
-      if (cadence.Note(v, period, 60.1, &line)) last = line;
+      if (cadence.Note(v, period, 1e9 / static_cast<double>(period), &line)) last = line;
     }
   }
   *held = steady.held;
@@ -1766,6 +1767,84 @@ void TestPictureHold() {
   Check(!h.Wait(1000000000LL + 16666667LL, 0), "picture hold: not without the screen's period");
   Check(!h.Wait(1000000000LL + 2 * 16666667LL, 16666667LL), "picture hold: two vsyncs after the last: drawn");
   Check(h.Wait(1000000000LL + 16666667LL, 16666667LL), "picture hold: one vsync after the last: waits");
+  // 1.0.0: a 90 Hz screen (the user's Samsung SM-A175F, no 60 Hz mode): a game picture is three vsyncs; ready 2.6 ..
+  // 3.4 vsyncs after its frame began (the game's thread near its limit), without the hold 2, 3 and 4 in turn
+  const long long p90 = 11098779;  // 90.1 Hz
+  const std::string before90 = HoldRun(false, 2.6, 3.4, &held, &shown, &lag, p90, 3);
+  std::fprintf(stderr, "  90 Hz, hold off: %s (%u shown)\n", before90.c_str(), shown);
+  Check(before90.find("2: 0,") == std::string::npos && before90.find("4: 0,") == std::string::npos,
+        "picture hold 90 Hz: without it pictures show 2, 3 and 4 vsyncs (the report's pattern)");
+  const unsigned shown90 = shown;
+  const std::string after90 = HoldRun(true, 2.6, 3.4, &held, &shown, &lag, p90, 3);
+  std::fprintf(stderr, "  90 Hz, hold on:  %s (%u shown, %u held one vsync, waited %.2f vsyncs on average)\n",
+               after90.c_str(), shown, held, lag);
+  Check(after90.find("1: 0, 2: 0,") != std::string::npos, "picture hold 90 Hz: no picture shows for one or two vsyncs");
+  Check(shown == shown90, "picture hold 90 Hz: every game picture is shown (30 a second as before)");
+  Check(held > 0 && lag < 1.0, "picture hold 90 Hz: some pictures wait one vsync, on average less than a vsync");
+  const std::string even90 = HoldRun(true, 2.2, 2.5, &held, &shown, &lag, p90, 3);
+  Check(held == 0 && even90.find("0 % more than 2 ms") != std::string::npos,
+        "picture hold 90 Hz: a steady device: nothing held");
+  re4gx::PictureHold h90;
+  h90.Shown(1000000000LL);
+  Check(h90.Wait(1000000000LL + p90, p90) && h90.Wait(1000000000LL + 2 * p90, p90),
+        "picture hold 90 Hz: one or two vsyncs after the last: waits");
+  Check(!h90.Wait(1000000000LL + 3 * p90, p90), "picture hold 90 Hz: three vsyncs after the last: drawn");
+  Check(re4gx::PictureHold::Target(8333333LL) == 0 && re4gx::PictureHold::Target(13888889LL) == 0,
+        "picture hold: not at 120 or 72 Hz");
+}
+
+// 1.0.0: the display's vsync period (picture_cadence.h VsyncPeriod) from the vsyncs as the user's Xiaomi reported
+// them: 120 Hz, now and then one a fraction of a vsync after the one before (2.2 ms), and late callbacks (two vsyncs
+// and more). Until 1.0.0 the period fell to 2.2 ms ("448 Hz") and stayed there; the median stays at 120 Hz and
+// follows a screen that changes its rate (120 -> 60 -> 90 Hz).
+void TestVsyncPeriod() {
+  re4gx::VsyncPeriod v;
+  const long long p120 = 8333333;
+  long long t = 1000000000LL, got = 0;
+  for (int i = 0; i < 600; i++) {
+    t += p120;
+    if (i % 2 == 0 && i % 37 == 0)
+      got = v.Note(t - p120 + 2200000LL);  // the off-grid vsync
+    if (i % 53 == 0)
+      t += 2 * p120;  // a late callback: three vsyncs in one interval
+    got = v.Note(t);
+  }
+  std::fprintf(stderr, "  vsync period: %.3f ms at 120 Hz with off-grid and late vsyncs\n", got / 1e6);
+  Check(std::llabs(got - p120) < 100000, "vsync period: 120 Hz with off-grid and late vsyncs (not 448 Hz)");
+  // the old rule (a sixteenth, anew at an interval under half): the report's 448 Hz
+  {
+    long long p = 0, last = 0, tt = 1000000000LL;
+    auto old = [&](long long ns) {
+      if (last > 0 && ns > last) {
+        const long long d = ns - last;
+        if (p <= 0 || d < p / 2) p = d;
+        else if (d < p * 3 / 2) p = p + (d - p) / 16;
+      }
+      last = ns;
+    };
+    for (int i = 0; i < 600; i++) {
+      tt += p120;
+      if (i % 2 == 0 && i % 37 == 0) old(tt - p120 + 2200000LL);
+      old(tt);
+    }
+    Check(p < 3000000, "vsync period: the rule before 1.0.0 falls to the off-grid interval (the report)");
+  }
+  // the screen changes its rate: the median follows within 16 intervals
+  for (int i = 0; i < 20; i++)
+    got = v.Note(t += 16666667);
+  Check(std::llabs(got - 16666667) < 100000, "vsync period: follows 120 -> 60 Hz");
+  for (int i = 0; i < 20; i++)
+    got = v.Note(t += 11111111);
+  Check(std::llabs(got - 11111111) < 100000, "vsync period: follows 60 -> 90 Hz");
+  // a pause (a second and more) is no interval; the same or an older vsync changes nothing
+  got = v.Note(t += 3000000000LL);
+  Check(std::llabs(got - 11111111) < 100000, "vsync period: a pause is no interval");
+  got = v.Note(t);
+  got = v.Note(t - 5000000);
+  Check(std::llabs(got - 11111111) < 100000, "vsync period: the same or an older vsync: nothing");
+  re4gx::VsyncPeriod first;
+  Check(first.Note(1000000000LL) == 0 && first.Note(1000000000LL + p120) == p120,
+        "vsync period: known from the first interval on");
 }
 
 // 0.99.13: the steady rhythm of 60 pictures a second on a screen that stays at 120 Hz (picture_cadence.h
@@ -5246,6 +5325,9 @@ int main() {
       TestBenchSteps();
       TestPotatoBits();
       TestHdKeptWords();
+      TestPictureCadence();  // (1.0.0: the pictures' pacing, no GPU either)
+      TestVsyncPeriod();
+      TestPictureHold();
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }
@@ -5333,6 +5415,7 @@ int main() {
     TestBloom(renderer, poison ? "GL, forgotten contents magenta" : "GL");
     TestShadows(renderer, poison ? "GL, forgotten contents magenta" : "GL");
     TestPictureCadence();
+    TestVsyncPeriod();
     TestPictureHold();
     if (!poison)
       TestPresentPacer();

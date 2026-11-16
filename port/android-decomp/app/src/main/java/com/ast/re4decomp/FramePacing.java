@@ -93,18 +93,22 @@ final class FramePacing {
   /**
    * The callback of the vsync at `nanos`: the vsyncs since the one before (at least 1), from
    * their times with the measured rate (1 a callback until the first measurement). A callback
-   * for the same vsync again or an older one is 0.
+   * for the same vsync again or an older one is 0, and so (1.0.0) is one less than half a vsync
+   * after the one before: a user's Xiaomi (120 Hz LTPO, the 60 Hz mode asked for but not taken)
+   * reported a vsync now and then a fraction of a vsync off the grid; counted as one it moved the
+   * beat by a vsync, and the next picture came a vsync early. The beat stays at the last one.
    */
   synchronized int step(long nanos) {
     final long before = stepAt;
     if (before != Long.MIN_VALUE && nanos <= before) return 0;
-    stepAt = nanos;
     final double rate = hz;
     int n = 1;
     if (before != Long.MIN_VALUE && rate > 0) {
       final long counted = Math.round((nanos - before) * rate / 1e9);
-      n = (int) Math.max(1, Math.min(1000, counted));
+      if (counted < 1) return 0;
+      n = (int) Math.min(1000, counted);
     }
+    stepAt = nanos;
     beat += n;
     callbacks++;
     if (n > 1) {

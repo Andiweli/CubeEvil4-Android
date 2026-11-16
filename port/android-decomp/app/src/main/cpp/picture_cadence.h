@@ -88,20 +88,68 @@ struct PictureCadence {
 // exactly the one after the last new picture (a render thread that is late itself never waits). The caller holds it
 // only once (core_mode.cpp drawGx: skipNext) and not at 60 game pictures a second or with 60 FPS. Independent of
 // Android (tools/test_gx_gl.cpp TestPictureHold).
+//
+// 1.0.0 (16.11.2026, a user's Samsung SM-A175F at 30 FPS on its 90 Hz screen, no 60 Hz mode there: the pictures 1, 2,
+// 3 and 4 vsyncs apart, 50-65 % more than 2 ms off): on a screen of 85..95 Hz a game picture is three vsyncs, and a
+// new one ready one or two vsyncs after the last waits one vsync as well (Target: 2 at 54..66 Hz, 3 at 85..95 Hz).
 struct PictureHold {
   long long last = 0;  // the vsync of the last new picture
   unsigned held = 0;   // pictures held back one vsync so far (the log)
 
   void Shown(long long vsync) { last = vsync; }
 
+  // The vsyncs a game picture of 30 a second is on a screen of `period` (0: a screen where the hold does not help).
+  static int Target(long long period) {
+    if (period >= 15150000LL && period <= 18520000LL)
+      return 2;  // 54..66 Hz
+    if (period >= 10526000LL && period <= 11765000LL)
+      return 3;  // 85..95 Hz
+    return 0;
+  }
+
   bool Wait(long long vsync, long long period) {
-    if (period < 15150000LL || period > 18520000LL || last <= 0 || vsync <= last)
+    const int target = Target(period);
+    if (!target || last <= 0 || vsync <= last)
       return false;
     const long long n = (vsync - last + period / 2) / period;
-    if (n != 1)
+    if (n < 1 || n >= target)
       return false;
     held++;
     return true;
+  }
+};
+
+// The display's vsync period from the vsyncs Android reports (CoreBridge.vsync, the app's beat thread): the median of
+// the last 32 intervals, as the app's FramePacing measures it. Until 1.0.0 (0.99.9) the period followed each interval
+// a sixteenth and started over at any interval under half of it; a user's Xiaomi 2412DPC0AG (120 Hz LTPO, the 60 Hz
+// mode asked for but not taken) reported a vsync now and then a fraction of a vsync after the one before (a late
+// callback whose time Android moved off the grid), the period fell to 2.2 ms ("448 Hz") and never came back (an
+// interval of 8.3 ms was more than half again as long): the 120 Hz rhythm (PresentPacer) and the 30 FPS one
+// (PictureHold) were off for the rest of the game. The median leaves such intervals and late callbacks (two vsyncs or
+// more) out and follows a screen that changes its rate within 16 intervals. Independent of Android
+// (tools/test_gx_gl.cpp TestVsyncPeriod).
+struct VsyncPeriod {
+  static constexpr int kWindow = 32;
+  static constexpr long long kGapNs = 1000000000LL;  // a gap this long (a pause) is no interval
+  long long last = 0, period = 0;
+  long long deltas[kWindow] = {};
+  int count = 0, next = 0;
+
+  // A vsync at `ns`; the period after it (0 until the first interval).
+  long long Note(long long ns) {
+    if (last > 0 && ns > last && ns - last < kGapNs) {
+      deltas[next] = ns - last;
+      next = (next + 1) % kWindow;
+      if (count < kWindow)
+        count++;
+      long long sorted[kWindow];
+      std::copy(deltas, deltas + count, sorted);
+      std::nth_element(sorted, sorted + count / 2, sorted + count);
+      period = sorted[count / 2];
+    }
+    if (ns > last)
+      last = ns;
+    return period;
   }
 };
 
