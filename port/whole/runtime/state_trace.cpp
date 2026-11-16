@@ -182,7 +182,8 @@
 //                          with life HP, as hits that do not kill (U-3 at 1 in the first
 //                          room jumps onto the containers and hides with life 0);
 //                          "F:ID:all/E/K" kills every live one of the id, every E frames, K times
-//                          (Mercenaries: the next waves come in, r404's rocket Ganados);
+//                          (Mercenaries: the next waves come in, r404's rocket Ganados; ID 100: every
+//                          Ganado, 0x10..0x20 without the trader, the "Random enemies" check);
 //                          "F:ID:head[/E/K]" leaves the first live one with life 1 and hits its
 //                          head with a handgun bullet (the head burst, patch 0212)
 //   RE4_TEST_EM_SET="F:NO[,NO...]"  at game frame F the room's enemy list entries NO (hex) are set as a
@@ -2148,7 +2149,9 @@ void frame(unsigned n)
         int killed = 0;
         for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
             cEm* e = EmMgr.fastAt(i);
-            if (live(e) && e->isAlive() && e->id == g_killId && e->hp > 0) {
+            // ID 100: every Ganado (0x10..0x20 without the trader; the "Random enemies" check, 16.11.2026)
+            const bool kind = g_killId == 0x100 ? e->id >= 0x10 && e->id <= 0x20 && e->id != 0x18 : e->id == g_killId;
+            if (live(e) && e->isAlive() && kind && e->hp > 0) {
                 e->hp = 0;
                 EmSetDie(e);
                 EmSetDieCnt(e);
