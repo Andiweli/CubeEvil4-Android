@@ -279,6 +279,13 @@ final class CoreTouch {
       if (lookX != 0 || lookY != 0) centreLook();
       return;
     }
+    if (input.bodyTurn()) {
+      // "Turn Leon with mouse / look area" (1.0): sideways turns Leon himself (CoreInput.touchTurn), up and down stays
+      // the camera's C stick
+      input.touchTurn(dx);
+      dx = 0;
+      lookX = 0;
+    }
     lookX += dx;
     lookY += dy;
     float way = (float) Math.sqrt(lookX * lookX + lookY * lookY);

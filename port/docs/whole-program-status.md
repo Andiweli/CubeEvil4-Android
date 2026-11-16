@@ -25,7 +25,9 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 1.0 (Projektinhaber, 16.11.2026):** Ziel- und Messer-Stick für die Touch-Steuerung („Die Funktion 8
   baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19. Die nächste Veröffentlichung ist 1.0
   („Yes, next is 1.0“, 16.11.2026, kein weiteres 0.99.x): die Sticks bleiben sichtbar, Zeile unter New im Releasetext;
-  die Version heißt bis zur Umbenennung weiter 0.99.19-rc (versionCode 121).
+  die Version heißt bis zur Umbenennung weiter 0.99.19-rc (versionCode 121). Ebenso für 1.0 (Projektinhaber,
+  16.11.2026: „Nimm das auch noch als Feature für 1.0 mit auf“): die Option „Leon mit Maus / Blickfeld drehen“,
+  Abschnitt 7 von 0.99.19.
 
 ## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
 
@@ -260,7 +262,7 @@ Figuren haben in beiden Fällen ihren Blob-Schatten.“ Bericht: `E:\Development
 Version 0.99.19-rc (versionCode 121), Releasetext `port/android-decomp/docs/releases/v0.99.19-rc.md`
 („Changes since v0.99.18.“, Known issues aus 0.99.18 übernommen). Release-APK `CubeEvil4-0.99.19-Android.apk`.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
-nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0234.
+nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0235.
 
 Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
 der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer bei jedem Kaltstart (einmal pro Prozess) ein
@@ -424,6 +426,43 @@ Perhaps it's possible to map the zoom function to the left stick. I am using a D
   auf 1,0 (Sichtwinkel 9°) und wieder heraus auf 0,5 (27°); Skript `rc-measure/alt_zoom.sh` im Notizordner, Bilder
   und Log in `E:\Development\Android\builds\release-candidate\alt-scope-zoom\`.
 - **Nicht geprüft:** auf einem Gerät mit echtem Controller (D3), das Fernglas mit der alternativen Steuerung.
+
+### 7. „Leon mit Maus / Blickfeld drehen“ (für 1.0, Spielerwunsch über den Projektinhaber, 16.11.2026)
+
+„will there be better camera physics in the future? in the pc version (hd) modders have made it that you can turn leon
+using your mouse only. will it be a thing in CubeEvil? being able to change directions immediately through the look
+area?“ Gemeint ist das Maus-Drehen der PC-Mods: Leon selbst dreht sich mit der Maus, die Panzersteuerung bleibt. Nicht
+die „moderne Bewegung“ aus 0.99.7 (kamerabezogenes Gehen mit Einrasten, in b4fb8572 wieder entfernt).
+
+- **Schalter** im App-Menü, Abschnitt Komfort unter „Vertikal umkehren / Zielgeschwindigkeit“, ganze Reihe, aus ab
+  Werk (`CoreActivity.BODY_TURN`, Texte `ingame_body_turn`, `ingame_body_turn_help`, 11 Sprachen).
+- **Maus** (`CoreInput.mouseMoved`): seitwärts dreht Leon (dieselbe Drehung wie beim Zielen, `MOUSE_AIM_RADIANS` ×
+  Maus-Empfindlichkeit), die Kamera schaut dann nur noch hoch und runter. **Touch-Blickfeld** (`CoreTouch.look`,
+  `CoreInput.touchTurn/takeBodyTurn`): der Weg des Fingers seitwärts dreht Leon (`SWIPE_RADIANS` × „Zielgeschwindigkeit“),
+  hoch/runter bleibt der C-Stick. **Hoch/runter bleibt wie bisher** (die Kamera schaut hoch und runter): Leon selbst hat
+  keine Neigung, und so geht der Blick nach oben nicht verloren. Zielen unverändert (Maus und „Touch-Fläche“ zielen wie
+  vorher; beim Zielen kommt keine Drehung bei Leon an). Controller und ihre Sticks unverändert; ohne Schalter nichts.
+- **Kern:** `CoreBridge.bodyTurn` → `re4_core_body_turn` (`runtime/gyro.cpp`, über den Kernprozess `kBodyTurn` = 47),
+  zum nächsten Spielbild aufsummiert und dort auf `pPL->ang.y` gelegt, gleichmäßig wie die Bewegung kommt. Nur im
+  Spiel (`Rno0` 3), ohne Untermenü, Ereignis, gesperrte Tasten (`SPF_KEY`), Zielfernrohr oder Fernglas, und nur in
+  Leons eigenen Bewegungsroutinen 0/0..4 (Stehen, Gehen, Rückwärts, Laufen, Drehen auf der Stelle). Nicht beim
+  Zielen (0/6), Messer (0/0xB), schneller Wende (0/5), Leiter (0/0x10), Springen, Fallen, Boot, Ducken, Schieben,
+  nicht bei Treffern, Griffen, Tod, Szenen (Routine 0 ≠ 0). Ashleys Teil geht mit (gleiche Routinen). **Patch 0234**
+  (`player.cpp`): Steht Leon still, gab das Spiel der Schulterkamera seine Richtung nicht weiter; ein gedrehtes Bild
+  zählt jetzt als bewegt, die Kamera folgt.
+- **Geprüft am PC:**
+  - `CoreInputTests` 1861 (Maus aus: niemand dreht sich, Kamera wie bisher; an: Leon dreht, Kamera nur hoch/runter,
+    Zielen gleich), `CoreTouchTests` 369 (Blickfeld seitwärts dreht, hoch/runter schaut; „Touch-Fläche“ mit R zielt
+    und dreht niemanden; aus: wie bisher), App-Tests 202 je Variante grün, `check_translations.py` ohne Befund (469).
+  - Kern i686 gebaut (0 Fehler, runtime-test 0 Fehler). **Rundgang** (`rc-measure/mouse_turn.sh`, Testschalter
+    `RE4_TEST_TURN`, `RE4_TEST_LADDER`, `RE4_TRACE_TURN`) in r100 (Wald), r101 (Dorf), r205 (Burghof): im Stand 60
+    Bilder je 0,03 rad gedreht (+1,8 rad), beim Gehen 100 Bilder je −0,02 rad (−2,0 rad), gleichmäßig Bild für Bild;
+    die Kamera folgt im Stand (Bilder: gleiche Lage, Blick dreht mit). Keine Drehung im Ereignis (r100 899 Bilder,
+    r101 76), im Untermenü (r101 Funkspruch und Anleitung, 360), bei gesperrten Tasten (r101 10), in der schnellen
+    Wende (je 23) und auf der Leiter (je 69); die schnelle Wende läuft wie gewohnt. Keine Abstürze. Bilder, Protokolle
+    und Zusammenfassung in `E:\Development\Android\builds\release-candidate\mouse-turn\`.
+- **Nicht geprüft:** auf einem Gerät, mit echter Maus, mit echtem Finger im Blickfeld; Gefühl und Empfindlichkeit;
+  ARM32/ARM64; Ashleys Teil; das Boot und andere Sonderlagen nur über die Routinenregel.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
@@ -17413,6 +17452,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. 0.99.13 (Stufe 1.5): am Ende fragt eine Schleife bis -1 (bis zu zwei Kopien). Port-Merkmal |
 | 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
 | 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
+| 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

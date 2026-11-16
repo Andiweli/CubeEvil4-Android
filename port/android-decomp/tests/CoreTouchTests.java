@@ -244,6 +244,34 @@ public final class CoreTouchTests {
     t.cancel();
     check(!t.looking() && in.pad()[4] == 0);
 
+    // 1.0, "Turn Leon with mouse / look area": a looking finger's way sideways turns Leon (CoreInput.takeBodyTurn; the
+    // core turns him where he stands, walks or runs), the C stick only up and down; aiming with "Touch Area" the swipe
+    // aims as before and turns no one; off again the look zone looks as before
+    in.setBodyTurn(true);
+    t.beginEvent(true);
+    t.fingerDown(1, true);
+    t.look(0.05f, 0);  // to the right: Leon turns right (yaw negative), the camera stays
+    check(in.pad()[3] == 0 && Math.abs(in.takeBodyTurn() + 0.05f * CoreInput.SWIPE_RADIANS) < 1e-6f);
+    t.look(-0.02f, -CoreTouch.LOOK_RANGE / 2);  // left and up: Leon turns left, the camera looks up
+    check(in.pad()[3] == 0 && in.pad()[4] == 46
+        && Math.abs(in.takeBodyTurn() - 0.02f * CoreInput.SWIPE_RADIANS) < 1e-6f && in.takeBodyTurn() == 0);
+    in.setTouchAim(CoreInput.AIM_LOOK);
+    t.action(CoreTouch.R, true);
+    in.pad();  // (R held: the look zone aims)
+    t.look(0.1f, 0);
+    in.pad();
+    check(in.takeAimSwipe() != null && in.takeBodyTurn() == 0);
+    t.action(CoreTouch.R, false);
+    in.setTouchAim(CoreInput.AIM_MOVE_STICK);
+    t.fingerUp(1);
+    in.setBodyTurn(false);
+    t.beginEvent(true);
+    t.fingerDown(1, true);
+    t.look(0.05f, 0);
+    check(in.pad()[3] > 20 && in.takeBodyTurn() == 0);
+    t.fingerUp(1);
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
+
     // touch aiming (the menu's "Touch Aiming"): while R is held the chosen way moves the control
     // stick, the other stays the C stick; without R both are the C stick
     t.reset();

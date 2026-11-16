@@ -330,6 +330,12 @@ public final class CoreBridge {
    */
   public static native void aimTurn(float yaw, float pitch);
   /**
+   * "Turn Leon with mouse / look area" (1.0): the mouse's or the look zone's movement sideways as Leon's turn in
+   * radians (positive left); the core adds it to his facing at the next game frame while he stands, walks or runs, and
+   * drops it while he aims, climbs, in an event and so on. Cores before 16.11.2026 ignore it.
+   */
+  public static native void bodyTurn(float yaw);
+  /**
    * The mouse wheel (CoreActivity, 0.99.12): whole notches, up positive. While the scope or the binoculars are up
    * the core zooms by them (an eighth of the zoom a notch, up zooms in, as the C stick does); elsewhere it drops
    * them. Cores before 12.11.2026 ignore it.

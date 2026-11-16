@@ -100,6 +100,8 @@
     <string name="ingame_far_camera">Câmara afastada</string>
     <string name="ingame_auto_aim_help">Mira automática: ao erguer a arma, a mira salta para o inimigo mais próximo à sua frente e o segue por um momento (a assistência de mira do próprio jogo).</string>
     <string name="ingame_always_run_help">Correr sempre: Leon corre sempre que você se move; segure o botão de correr (ex.: B) para andar.</string>
+    <string name="ingame_body_turn">Girar Leon com mouse / área de visão</string>
+    <string name="ingame_body_turn_help">Girar Leon com mouse / área de visão: mover o mouse ou deslizar para os lados na área de visão de toque gira Leon; para cima e para baixo move a câmera como antes. A mira não muda.</string>
     <string name="ingame_gentle_qte">QTEs mais suaves (Professional)</string>
     <string name="ingame_gentle_qte_help">QTEs mais suaves: no Professional, os eventos de botão dão tanto tempo e pedem tantos toques quanto no Normal; o dano e os inimigos continuam os do Professional. Um dedo na imagem aperta na hora os botões de um aviso, em qualquer dificuldade.</string>
     <string name="ingame_far_camera_help">Mantém a câmara de ombro um pouco mais atrás de Leon; ao mirar e em lugares apertados ela se aproxima como antes.</string>

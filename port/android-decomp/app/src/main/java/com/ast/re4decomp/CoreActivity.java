@@ -136,6 +136,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
   /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's; on by default. */
   static final String GENTLE_QTE = "gentleQte";
+  /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn); off. */
+  static final String BODY_TURN = "bodyTurn";
   static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
@@ -422,6 +424,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     aimInvert = inputPrefs.getBoolean(AIM_INVERT_V, false);
     autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
+    input.setBodyTurn(inputPrefs.getBoolean(BODY_TURN, false));
+    if (input.bodyTurn()) Log.i(TAG, "turn Leon with mouse / look area: on");
     // "modernMove": a switch of a 0.99.7 test build, taken out again (decision of the project owner, 10.11.2026)
     if (inputPrefs.contains("modernMove")) inputPrefs.edit().remove("modernMove").apply();
     aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
@@ -1103,6 +1107,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
       alwaysRun = on;
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void bodyTurnChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(BODY_TURN, on).apply();
+      input.setBodyTurn(on);
+      Log.i(TAG, "turn Leon with mouse / look area: " + (on ? "on" : "off"));
     }
 
     @Override public void gentleQteChanged(boolean on) {
@@ -2040,6 +2050,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // menu's "Aim speed" and "Invert vertical" as the sticks
     float[] turn = input.takeAimSwipe();
     if (turn != null) CoreBridge.aimTurn(turn[0] * aimSpeed, (aimInvert ? -turn[1] : turn[1]) * aimSpeed);
+    // "Turn Leon with mouse / look area": the look zone's movement sideways, with the menu's "Aim speed"
+    float body = input.takeBodyTurn();
+    if (body != 0) CoreBridge.bodyTurn(body * aimSpeed);
   }
 
   /** The keys the game maps or the app uses: which of them a device reports. */
@@ -2736,9 +2749,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
         // since 0.99.12: moving the mouse up and down zoomed there)
         // ("Invert vertical" for the mouse too, 0.99.12: aiming, the scope, the binoculars)
-        float[] turn = CoreInput.mouseAim(dx, dy, MOUSE_AIM_RADIANS * mouseSensitivity, aimInvert);
+        // ("Turn Leon with mouse / look area", 1.0: the movement sideways turns Leon too, where he does not aim, and
+        // the camera only looks up and down)
+        float[] turn = input.mouseMoved(dx, dy, MOUSE_AIM_RADIANS * mouseSensitivity, MOUSE_LOOK * mouseSensitivity,
+            aimInvert);
         CoreBridge.aimTurn(turn[0], turn[1]);
-        input.mouseLook(dx * MOUSE_LOOK * mouseSensitivity, dy * MOUSE_LOOK * mouseSensitivity);
+        if (turn[2] != 0) CoreBridge.bodyTurn(turn[2]);
         main.removeCallbacks(mouseRest);
         main.postDelayed(mouseRest, 60);
       }

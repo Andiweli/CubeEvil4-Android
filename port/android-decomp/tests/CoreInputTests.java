@@ -547,6 +547,28 @@ public final class CoreInputTests {
       check(Math.abs(inverted[0] - aim[0]) < 1e-6f && Math.abs(inverted[1] - 0.05f) < 1e-6f);
       float[] fast = CoreInput.mouseAim(10f, -20f, 0.0025f * 3f, true);
       check(Math.abs(fast[0] + 0.075f) < 1e-6f && Math.abs(fast[1] + 0.15f) < 1e-6f);
+      // 1.0, "Turn Leon with mouse / look area": off (the default) the mouse turns no one and looks around with the C
+      // stick as before; on, its movement sideways turns Leon (the aim's yaw, also handed over for the aim, which the
+      // core turns where he aims) and the camera only looks up and down; off again: as before
+      check(!kb.bodyTurn());
+      float[] moved = kb.mouseMoved(10f, 20f, 0.0025f, 0.05f, false);
+      check(moved[2] == 0 && Math.abs(moved[0] - aim[0]) < 1e-6f && Math.abs(moved[1] - aim[1]) < 1e-6f);
+      check(kb.pad()[3] > 30 && kb.pad()[4] < -60);
+      kb.setBodyTurn(true);
+      moved = kb.mouseMoved(10f, 20f, 0.0025f, 0.05f, false);
+      check(kb.bodyTurn() && Math.abs(moved[2] + 0.025f) < 1e-6f && Math.abs(moved[0] - aim[0]) < 1e-6f
+          && Math.abs(moved[1] - aim[1]) < 1e-6f);
+      check(kb.pad()[3] == 0 && kb.pad()[4] < -60);
+      moved = kb.mouseMoved(-4f, 0, 0.0025f * 2f, 0.05f, true);  // left, the sensitivity twice: 0.02 to the left
+      check(Math.abs(moved[2] - 0.02f) < 1e-6f && kb.pad()[3] == 0 && kb.pad()[4] == 0);
+      kb.touchTurn(0.1f);  // (the look zone's turn: below in CoreTouchTests)
+      check(Math.abs(kb.takeBodyTurn() + 0.1f * 1.6f) < 1e-6f && kb.takeBodyTurn() == 0);  // (SWIPE_RADIANS 1.6)
+      kb.setBodyTurn(false);
+      kb.touchTurn(0.1f);
+      check(kb.takeBodyTurn() == 0);
+      moved = kb.mouseMoved(10f, 0, 0.0025f, 0.05f, false);
+      check(moved[2] == 0 && kb.pad()[3] > 30);
+      kb.mouseLook(0, 0);
       // the wheel: whole notches, a fine wheel's parts add up, the other way drops the part left
       check(kb.wheel(1f) == 1 && kb.wheel(-1f) == -1 && kb.wheel(3f) == 3 && kb.wheel(0) == 0);
       check(kb.wheel(Float.NaN) == 0 && kb.wheel(Float.POSITIVE_INFINITY) == 0);

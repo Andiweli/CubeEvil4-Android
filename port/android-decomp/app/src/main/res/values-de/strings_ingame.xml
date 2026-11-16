@@ -99,6 +99,8 @@
     <string name="ingame_far_camera">Kamera weiter weg</string>
     <string name="ingame_auto_aim_help">Auto-Zielen: Beim Anlegen der Waffe springt das Ziel auf den nächsten Gegner vor dir und folgt ihm einen Moment (die eingebaute Zielhilfe des Spiels).</string>
     <string name="ingame_always_run_help">Immer laufen: Leon läuft, sobald du dich bewegst; halte die Lauftaste (z. B. B), um stattdessen zu gehen.</string>
+    <string name="ingame_body_turn">Leon mit Maus / Blickfeld drehen</string>
+    <string name="ingame_body_turn_help">Leon mit Maus / Blickfeld drehen: Maus oder Wischen im Touch-Blickfeld seitwärts dreht Leon selbst; hoch und runter bewegt die Kamera wie bisher. Zielen bleibt unverändert.</string>
     <string name="ingame_gentle_qte">Sanftere QTEs (Professional)</string>
     <string name="ingame_gentle_qte_help">Sanftere QTEs: In Professional lassen die Tastenaufforderungen so viel Zeit und brauchen so viele Drücke wie in Normal; Schaden und Gegner bleiben wie in Professional. Ein Finger auf dem Bild drückt die Tasten einer Aufforderung sofort, in jedem Schwierigkeitsgrad.</string>
     <string name="ingame_far_camera_help">Hält die Schulterkamera etwas weiter hinter Leon; beim Zielen und an engen Stellen kommt sie wie bisher nah heran.</string>

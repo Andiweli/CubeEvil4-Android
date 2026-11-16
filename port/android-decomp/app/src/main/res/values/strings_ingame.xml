@@ -110,6 +110,8 @@
     <string name="ingame_far_camera">Far camera</string>
     <string name="ingame_auto_aim_help">Auto aim: when you raise your weapon, the aim jumps to the nearest enemy in front of you and follows it for a moment (the game\'s own lock-on).</string>
     <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
+    <string name="ingame_body_turn">Turn Leon with mouse / look area</string>
+    <string name="ingame_body_turn_help">Turn Leon with mouse / look area: moving the mouse or swiping the touch look area sideways turns Leon himself; up and down moves the camera as before. Aiming is unchanged.</string>
     <string name="ingame_gentle_qte">Gentler QTEs (Professional)</string>
     <string name="ingame_gentle_qte_help">Gentler QTEs: in Professional the quick-time events give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s. A finger on the picture presses a prompt\'s buttons at once, in every difficulty.</string>
     <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon; when aiming and in tight spots it comes close as before.</string>
