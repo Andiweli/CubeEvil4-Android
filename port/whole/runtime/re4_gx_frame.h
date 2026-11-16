@@ -81,13 +81,16 @@ enum Re4GxOp {
      * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
      * the op skips it by its length. */
     RE4_GX_OP_OWNER = 8,
-    /* payload 4 words (real-time shadows, debug builds until after 1.0, port/docs/echtzeit-schatten-studie.md;
+    /* real-time shadows (debug builds until after 1.0, port/docs/echtzeit-schatten-studie.md;
      * runtime/rt_shadow.cpp, patch 0240): the scene's opaque part is drawn (the game's ordering tables up to
-     * 14, its own shadow receivers; before the effects), now the figures' shadows go on it. [0..2] the
-     * direction the room's foot shadow light shines in, in view space (floats as their bits), [3] bits 0-7
-     * its strength (0..255), bits 8.. 0. Sent only while the app switched the shadows on, in play (no event,
-     * no sub screen, no death or continue screen) and with a foot shadow light reaching the player; the core
-     * then draws no foot shadow blobs. A renderer that does not know the op skips it by its length. */
+     * 14, its own shadow receivers; before the effects), now the shadows go on it. Since stage 5 (16.11.2026)
+     * payload 1 + 5 k words: [0] k (1..3), then for each light that lights the player its direction in view
+     * space (x, y, z), its weight (how much of the light there a shadow takes away) and its softness (the
+     * filter's radius in map texels), floats as their bits (gx_fifo.cpp re4_gx_put_shadow_lights, port command
+     * 0x04). Until then 4 words (port command 0x03, still read): [0..2] the foot shadow light's direction in
+     * view space, [3] bits 0-7 its strength (0..255). Sent only while the app switched the shadows on, in play
+     * (no event, no sub screen, no death or continue screen) and with a light that casts; the core then draws
+     * no foot shadow blobs. A renderer that does not know the op skips it by its length. */
     RE4_GX_OP_SHADOW = 9
 };
 

@@ -29,7 +29,7 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   16.11.2026: „Nimm das auch noch als Feature für 1.0 mit auf“): die Option „Leon mit Maus / Blickfeld drehen“,
   Abschnitt 7 von 0.99.19; und der Flavor „sideload“ mit Datenordner nach Wahl, Abschnitt 8.
 
-## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
 dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
@@ -256,6 +256,104 @@ Figuren haben in beiden Fällen ihren Blob-Schatten.“ Bericht: `E:\Development
   `allPagesFitAcrossLanguagesWidthsAndFontScales` jetzt mit der Zeile auf der Anzeige-Seite in allen 11 Sprachen, 5
   Breiten und 3 Schriftgrößen), Android-Kern ARM32 und ARM64 ohne Fehler.
 - **Nicht geprüft:** auf dem Retroid (der Inhaber testet nach dem Zusammenführen erneut).
+
+**Stufe 5 (16.11.2026, auf 9f660236): Die Schatten folgen dem Licht des Spiels.** Weiter nur in Debug-Builds. Wunsch des
+Inhabers nach seinem Gerätetest, Wortlaut: „Derzeit wird der Echtzeitschatten immer in die gleiche Richtung
+angezeigt, mit der gleichen Intensität egal ob hell, dunkel oder in Räumen. 1. Besser wäre evtl. den Schatten in
+Dunkelheit nur dezent und bei etwas Licht. 2. Wenn Fackeln oder Deckenleuchten, Lampen oder Kerzen in der Nähe sind,
+sollen die sich auch auf den Schatten auswirken. 3. In manchen Räumen oder Regionen sind Unwetter und es blitzt immer
+wieder hell am Himmel, hier sollte der Schatten auch beeinflusst werden. 4. Beachte auch Kernschatten und Halbschatten
+bei mehreren Lichtquellen. 5. In Räumen wäre auch wichtig, Schatten nur bei Licht zu zeichnen und da auch unter
+Beachtung der Lichtquelle(n).“
+
+- **Woher das Licht kommt (Analyse):**
+  - Jedes Modell bekommt pro Bild seine Lichter in `cLightInfo::pLight[8]` (`cLightMgr::setModel2` in `Trans`, in der
+    Reihenfolge des Lichter-Pools, ohne Rangfolge). `LightSetModel` (`trans_lit.cpp`) macht daraus die GX-Lichter:
+    - Farbe `DispCol × Alpha/128` (Fackeln flackern über Id 1, der Mündungsblitz verblasst über Id 0x10);
+    - Abfall je Typ: 0 konstant, 1 linear, 2 quadratisch, 3/6 Spot mit Kegel, 4 eigene GX-Koeffizienten, 5
+      parallel, 7 nur Umgebungslicht.
+  - Das Umgebungslicht einer Figur ist `cLightEnv::AmbientEm` oder ein lokales Umgebungslicht (Typ 7).
+  - Parallele Lichter mit `dir.Flag & 1` drehen sich mit der Kamera (Fülllicht der Entwickler).
+  - Das Fußschatten-Licht (Id 4, Kind 5) ist nur für die runden Flecken da und beleuchtet keine Figur.
+  - **Gewitter:** Die Sturmräume (r10c, r111–r113, r117–r119, r11b–r11d) setzen per Zeitgeber einen Raumeffekt mit einem
+    Effekt-Licht (ESP11, `be_flag` 0x40). Solange es lebt, ist der Blitz-Zustand gesetzt (`EffGetToolState() & 3`, der
+    Raum schaltet `ThunderFlagOn`).
+    - r118 (Friedhof bei Nacht) zeigt beim Blitz ein Raummodell und setzt ein paralleles Welt-Licht als Effekt-Licht.
+    - r119 (Kolosseum bei Nacht) hebt die Intensität zweier Lichter, darunter eines, das sich mit der Kamera dreht.
+    - Die Baumschatten beim Blitz zeichnet das Spiel selbst (das Raummodell oder ein Schattenlicht des Effekts). Sie
+      bleiben wie sie sind.
+- **Kern** (`runtime/rt_shadow.cpp`, kein neuer Patch; die Haken von 0240 bleiben):
+  - Am Anfang von `Render` rechnet `chooseLights` für Leon jedes Licht seiner Liste wie `LightSetModel` aus (ohne den
+    Winkel zur Fläche). Dazu kommt das Umgebungslicht.
+  - Werfen dürfen Lichter, die in der Welt sitzen: parallele nach ihrer Richtung, die anderen von ihrem Ort weg (weg
+    von Fackel, Lampe, Kerze). Lichter, die sich mit der Kamera drehen, werfen nur während eines Blitzes.
+    Lichter an Leon selbst (Mündungsblitz, näher als 40 cm) werfen nie.
+  - Die hellsten drei werfen. Gewicht je Licht = sein Anteil am ganzen Licht bei Leon (höchstens 0,75), im Dunkeln
+    weniger: voll ab 0,9 eines weißen Lichts, nichts unter 0,15. Weichheit: Himmel und Blitz scharf (1,5 Texel),
+    Lampen näher an Leon weicher (bis 4).
+  - Der neue Port-Befehl 0x04 (`re4_gx_put_shadow_lights`) wird zu `RE4_GX_OP_SHADOW` mit 1 + 5·k Wörtern. Der alte
+    Befehl 0x03 bleibt lesbar (alte PC-Aufnahmen).
+  - Die Flecken sind aus, sobald die Schatten im Spiel an sind, auch wo kein Licht wirft (Schatten nur bei Licht).
+  - Log: je Raum „on (… from the lights that reach the player …)“ oder „none (no light that sits in the world reaches
+    the player here …)“. Mit `RE4_SHADOW_LIGHTS=N` alle N Bilder jedes Licht, die Wahl und die Richtungen.
+- **Renderer:** bis zu drei Lichter je Bild in einem Tiefen-Atlas von 2048² (vier Kacheln zu 1024²):
+  - Licht 0: Figuren und Objekte; Licht 1 und 2: nur Figuren (die Kosten).
+  - Die Maske zählt die Lichter zusammen: wo zwei Lichter verdeckt sind, ist es dunkler (Kernschatten), wo eins, heller
+    (Halbschatten). Höchstens 0,85 dunkler.
+  - Jede Abfrage bleibt in ihrer Kachel. Nur noch zwei Kartentexturen im Shader (Vulkan: 4 statt 6 Sampler).
+  - GLES und Vulkan gleich.
+- **App:** Hilfetext um einen Satz ergänzt („folgen den Lichtern des Spiels – Fackeln, Lampen, Himmel, Blitze – und
+  bleiben im Dunkeln schwach“), 11 Sprachen.
+- **Geprüft (PC):**
+  - Kern i686 -O2: 0 Fehler, Kern- und Laufzeittests bestanden, Stubs wie erwartet. Android-Kern ARM32 und ARM64 ohne
+    Fehler.
+  - `gx_gl_check` GLES und Vulkan je 0 Fehler. Neu in `TestShadows`: zwei Lichter von links und rechts geben auf jeder
+    Seite der Figur einen Halbschatten (Wand 160 → 96 statt 66 bei einem Licht), ein Licht mit Gewicht 0 wirft
+    nichts (kein Durchgang). Die alte Marke mit vier Wörtern gibt Byte für Byte das Bild von Stufe 4.
+  - App-Tests 213 je Variante grün, `check_translations.py` ohne Befund (469 Texte).
+  - **Release unverändert, Renderer:** 6 Bilder ohne Marke bei Stufe 0, 1 und 2 und 45 Bilder mit Marke (auch neuen
+    Lichter-Marken) bei Stufe 0 zeichnet der neue Renderer Byte für Byte wie release-candidate c2f5dcda vor allen
+    Schatten (63 von 63 gleich).
+  - Lichter im Spiel (Log `RE4_SHADOW_LIGHTS`):
+
+    | Raum | Licht bei Leon | Lichter, die werfen (Gewicht) |
+    |---|---|---|
+    | r100 Wald am Tag | 1,53 | 2 (0,42 / 0,15) |
+    | r117 Kirche, Kerzen und Leuchter | 1,35 | 3 (0,34 / 0,31 / 0,18) |
+    | r201 Schlosshalle | 1,52 | 1 (0,42) |
+    | r323-Start (Nacht, Felswand, eine Lampe) | 0,75 | 2 (0,10 / 0,05) |
+    | r118 Friedhof zwischen den Blitzen | 0,44 | 1, die Laterne 1,9 m entfernt (0,12) |
+    | r118 Friedhof beim Blitz | 0,79 | 3: Blitz-Effektlicht, Kameralicht, Laterne (0,38 / 0,25 / 0,15) |
+    | r119 Kolosseum zwischen den Blitzen | 0,40 | 1 (0,11) |
+    | r119 Kolosseum beim Blitz | 0,85 | 2: das aufgehellte Kameralicht, Lampe (0,70 / 0,15) |
+
+  - **Kosten am PC** (llvmpipe, 2×, „Figuren und Objekte“, Durchgang mit `glFinish`, Mittel):
+
+    | Lichter | Durchgang | Räume |
+    |---|---|---|
+    | 1 | 13–16 ms | r118, r119, r201 |
+    | 2 | 14–18 ms | r100, r323, r118/r119 beim Blitz |
+    | 3 | 18–21 ms | r117, r118 beim Blitz |
+
+    Gleiche Bilder, Stufe 4 gegen Stufe 5 abwechselnd gezeichnet (ein Licht): r11f 13,4 → 13,6 ms, r100 9,5 → 10,8 ms,
+    r209 12,5 → 16,9 ms. Mit Kacheln zu 1024 Texeln dauerte es doppelt so lange wie Stufe 4, deshalb 768 (eine Figur
+    etwa 3 mm je Texel). Schätzung Retroid, nicht gemessen: ein Licht wie bisher 1 bis 2 ms, drei Lichter etwa 1,5 bis 3
+    ms.
+  - **Raum-Rundgang** mit eingeschalteten Schatten im Kern (`RE4_POTATO=96`, i686, 126 Räume, je 6000 Bilder ab der
+    Hauptschleife, Leon läuft, zielt, schießt): **126 von 126 ohne Fehler**. In 116 Räumen werfen Lichter Schatten;
+    in 53 gibt es Stellen ohne werfendes Licht (dort weder Schatten noch Flecken).
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage5\` (je links ohne Schatten, Mitte Stufe 5, rechts
+  die Maske, dunkel = Schatten): Friedhof r118 zwischen den Blitzen und beim Blitz, Kolosseum r119 ebenso, Kirche r117
+  (drei Lichter), Nacht mit einer Lampe (r323-Start), Wald r100 am Tag, Schlosshalle r201; dazu ein Auszug aus dem
+  Lichter-Log von r118.
+- **Was man sieht und was nicht:** Die Kamera schneidet Leon an den Knien ab. Sein eigener Schatten liegt oft außerhalb
+  des Bildes, und ein Kameralicht wirft ihn von der Kamera weg genau hinter ihn. Deutlich wird es an Begleitern,
+  Gegnern und Gegenständen im Bild und an Wänden neben Leon. Die Masken zeigen, wo die Schatten fallen.
+- **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung, Flackern der Fackeln), EU-Disc, Ashley
+  auf dem Friedhof (der Debug-Start hat sie nicht).
+- **Grenzen (so gewollt):** Die Lichter sind die von Leon und gelten für alle Figuren im Bild (keine Lichter je Figur).
+  Die Objekte werfen nur vom stärksten Licht. Punktlichter werfen mit einer Richtung (von der Lampe zu Leon), nicht
+  strahlenförmig. Die Baumschatten beim Blitz zeichnet das Spiel selbst.
 
 ## Version 0.99.19-rc (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc)
 

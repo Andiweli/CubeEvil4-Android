@@ -68,7 +68,7 @@
     <string name="ingame_rt_shadows">Bayangan real-time</string>
     <string name="ingame_rt_shadows_figures">Karakter</string>
     <string name="ingame_rt_shadows_objects">Karakter dan objek</string>
-    <string name="ingame_rt_shadows_help">Bayangan real-time (hanya versi uji): Leon, rekannya, dan musuh menjatuhkan bayangan nyata sebagai ganti bercak bulat; Karakter dan objek menambahkan pintu, peti, tong, dan benda bergerak lainnya. Adegan cerita tetap memakai bayangan game sendiri. Aktif bawaan hanya di perangkat kuat setelah benchmark; memerlukan sedikit kerja grafis.</string>
+    <string name="ingame_rt_shadows_help">Bayangan real-time (hanya versi uji): Leon, rekannya, dan musuh menjatuhkan bayangan nyata sebagai ganti bercak bulat; Karakter dan objek menambahkan pintu, peti, tong, dan benda bergerak lainnya. Bayangan mengikuti cahaya game sendiri (obor, lampu, langit, kilat) dan tetap samar dalam gelap. Adegan cerita tetap memakai bayangan game sendiri. Aktif bawaan hanya di perangkat kuat setelah benchmark; memerlukan sedikit kerja grafis.</string>
     <string name="ingame_rt_shadows_not_recommended">Tidak disarankan untuk perangkat ini (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">chip grafis belum dikenali</string>
     <string name="ingame_rt_shadows_why_gpu">chip grafis kurang kuat</string>

@@ -670,26 +670,37 @@ struct GxCore {
   // 8 m the drapes under a castle hall's ceiling darkened the whole floor while its statue cast nothing (r211); the
   // windmill's blades shade their platform (r103), 16.11.2026.
   static constexpr float kShadowReach = 4000.0f;
-  // one of the two maps (the figures', the objects'): fitted around its casters along the light
+  // Stage 5 (16.11.2026, the project owner: the shadows follow the game's light): up to three lights a picture, the
+  // ones that really light the figures (runtime/rt_shadow.cpp), each with its direction, weight and softness. Their
+  // maps share one depth atlas of 2 x 2 tiles of kShadowTile texels: 0 light 0's figures, 1 light 0's objects, 2
+  // light 1's figures, 3 light 2's figures (the weaker lights' objects cast nothing: the cost).
+  // (768 texels a tile: a figure gets about 3 mm a texel, its map fitted around it; with 1024 the PC's pass took twice
+  // as long as with the two maps of stage 4, 16.11.2026)
+  static constexpr int kShadowLights = 3, kShadowTiles = 4, kShadowTile = 768;
+  // one tile's map: fitted around its casters along its light
   struct ShadowMapParams {
     float row[3][4];                 // view space to the map's clip space (x, y, z within -1..1; the shaders' lx, ly, lz)
-    float bias[4];                   // depth bias (map depth), slope bias, normal offset (view units), PCF radius
+    float bias[4];                   // depth bias (map depth), slope bias, normal offset (view units), PCF radius (texels)
     float reach;                     // how far its shadow reaches behind the caster (map depth)
     float extent;                    // its square's side (view units)
     int size;                        // its texels each way
     std::size_t triangles;
+    bool casts;                      // it has casters (ShadowFit); only such a tile is drawn
+    bool objects;                    // the objects' triangles (tile 1), else the figures'
   };
   struct ShadowParams {
-    ShadowMapParams fig, obj;        // the figures' map (the figures and their parts), the objects' map
-    bool hasFig, hasObj;             // which of them casts in this picture (each map is drawn only with casters)
-    float dir[3];                    // the light's direction in view space (unit)
+    ShadowMapParams tile[kShadowTiles];
+    float tileInfo[kShadowTiles][4];  // corner in the atlas (x, y: 0 or 0.5), reach (map depth), 1 when it casts
+    float light[kShadowLights][4];    // direction in view space (unit), weight (0: it casts nothing here)
+    int lights;                      // lights that cast
+    int atlas;                       // the atlas' texels each way (2 tiles)
+    std::size_t figTriangles, objTriangles;
     int region[4];                   // the scene's part of the EFB in the renderer's texels
     int maskW, maskH;                // the mask's texels (one per GameCube pixel from 2x on, else one per texel)
-    float grid[4];                   // EFB texels per mask texel (x, y), 0, the figures' reach (map depth)
-    float omap[4];                   // the objects' reach (map depth), the figures cast (1), the objects cast (1), 0
+    float grid[4];                   // EFB texels per mask texel (x, y)
     float vp0[4], vp1[4], pr0[4], pr1[4];  // the scene's XF viewport and projection (kShadowMaskFs; vp1.z the scale)
     float markVp1[4];                // kShadowMarkVs's vp1: oy, zo, the EFB's width and height
-    float look[4];                   // strength, fade start, fade end (view units), 1 / size
+    float look[4];                   // the darkest (1 - x), fade start, fade end (view units), half an atlas texel
   };
   int shadowLevel = 0;               // 0 off, 1 the figures, 2 the figures and the objects
   bool shadowFailed = false;         // the pass failed on this driver: off for good (the menu's choice stays)
@@ -706,8 +717,8 @@ struct GxCore {
   void ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk);
   // one map around `tris` along the light D (unit, view space); false without triangles
   static bool ShadowFit(const std::vector<float> &tris, const float D[3], float reach, int size, ShadowMapParams *m);
-  // the mark's op (payload: direction x, y, z, strength): the parameters, then ShadowPass
-  void ShadowMark(const std::uint32_t *p);
+  // the mark's op (stage 5: the lights; stages 1 to 4: one direction and strength): the parameters, then ShadowPass
+  void ShadowMark(const std::uint32_t *p, std::uint32_t n);
   virtual void ShadowPass(const ShadowParams &) {}
   // One op of the chunk at `at` (Run); the next op's place (the end when the op is cut off).
   std::uint32_t Op(const Re4GxChunk &chunk, std::uint32_t at);

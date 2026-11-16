@@ -45,6 +45,20 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 >   höchstens 4 m hinter seinen Werfer, auch bei Gegenständen (sonst dunkelten hoch hängende Stoffbahnen ganze Böden).
 > - Tabelle aller Arten, Kosten je Stufe und was geprüft ist: `port/docs/whole-program-status.md`, Abschnitt „Branch
 >   `realtime-shadows`“, Stufe 4. Bilder: `E:\Development\Android\builds\realtime-shadows\objects\`.
+>
+> **Nachtrag 16.11.2026, Stufe 5: Die Schatten folgen dem Licht des Spiels (weiter nur in Debug-Builds).** Wunsch des
+> Inhabers: nicht mehr eine feste Richtung und Stärke, sondern Fackeln, Lampen, Kerzen, Himmel und Blitze; im Dunkeln
+> nur dezent; Kern- und Halbschatten bei mehreren Lichtern.
+>
+> - Der Kern nimmt die Lichter, die Leon in diesem Bild wirklich beleuchten (die Liste des Spiels je Modell), und
+>   rechnet sie aus wie das Spiel. Die drei hellsten, die in der Welt sitzen, werfen Schatten, jeder mit seinem Anteil
+>   am ganzen Licht bei Leon. Im Dunkeln wird alles schwächer. Lichter, die sich mit der Kamera drehen, werfen nur
+>   beim Blitz.
+> - Das Fußschatten-Licht der Entwickler bestimmt die Richtung nicht mehr. Die runden Flecken bleiben aus, auch wo kein
+>   Licht wirft.
+> - Der Renderer zeichnet bis zu drei Lichter; wo zwei verdeckt sind, ist es dunkler (Kernschatten).
+> - Stand, Lichter je Raum, Kosten und Prüfungen: `port/docs/whole-program-status.md`, Stufe 5. Bilder:
+>   `E:\Development\Android\builds\realtime-shadows\stage5\`.
 
 ---
 

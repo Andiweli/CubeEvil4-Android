@@ -3042,7 +3042,8 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
 // the mark, no pass. None on a menu screen of the game (RE4_GX_CHUNK_STILL).
 void TestShadows(re4gx::GxRenderer &r, const char *tag) {
   const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255}, kObject[4] = {60, 160, 60, 255};
-  auto scene = [&](bool mark, bool still) {
+  // (`lights`: stage 5's mark, k lights of direction x, y, z, weight, softness each; else the mark of stages 1 to 4)
+  auto scene = [&](bool mark, bool still, const std::vector<float> *lights = nullptr) {
     Builder b;
     Baseline(b);
     DisplayCopy(b, true, kBlack);
@@ -3056,7 +3057,12 @@ void TestShadows(re4gx::GxRenderer &r, const char *tag) {
     b.Owner(0x80001200u, 0x80002100u, 0x0B | RE4_GX_OWNER_OBJECT);  // an object (its shadow at x 205 .. 245)
     QuadAt(b, 100, 200, 160, 330, 2000.0f, kObject);
     b.Owner(0, 0, 0xFF);
-    if (mark) {
+    if (mark && lights) {
+      std::vector<std::uint32_t> p(1 + lights->size());
+      p[0] = static_cast<std::uint32_t>(lights->size() / 5);
+      std::memcpy(&p[1], lights->data(), lights->size() * 4);
+      b.Op(RE4_GX_OP_SHADOW, p.data(), static_cast<std::uint32_t>(p.size()));
+    } else if (mark) {
       // the light along (0.3, 0, -1) in view space, the strength of a bright foot shadow light (200 of 255)
       const float l = std::sqrt(0.3f * 0.3f + 1.0f);
       const float d[3] = {0.3f / l, 0.0f, -1.0f / l};
@@ -3137,7 +3143,28 @@ void TestShadows(re4gx::GxRenderer &r, const char *tag) {
             px(objects, 270, 264) == px(plain, 270, 264) && px(objects, 100, 100) == px(plain, 100, 100) &&
             px(objects, 580, 60) == px(plain, 580, 60),
         what);
+  // stage 5: two lights, one from each side (weight 0.4 each): a lighter half shadow on each side of the figure; a
+  // light of weight 0 casts nothing (no pass, the picture as without the mark)
   r.SetShadows(1);
+  {
+    const float l = std::sqrt(0.3f * 0.3f + 1.0f);
+    const std::vector<float> two = {0.3f / l, 0.0f, -1.0f / l, 0.4f, 2.0f, -0.3f / l, 0.0f, -1.0f / l, 0.4f, 2.0f};
+    const unsigned beforeTwo = r.Stats().shadowPasses;
+    const auto both = scene(true, false, &two);
+    const auto right = px(both, 375, 264), left = px(both, 270, 264), off = px(plain, 270, 264);
+    std::fprintf(stderr, "  shadows (%s): two lights: wall right of the figure %d, left %d (off %d, one light %d)\n",
+                 tag, right[0], left[0], off[0], wallBeside[0]);
+    std::snprintf(what, sizeof(what), "shadows (%s): two lights, one pass, a half shadow on each side", tag);
+    Check(r.Stats().shadowPasses == beforeTwo + 1 && right[0] < wallBesideOff[0] - 20 && right[0] > wallBeside[0] &&
+              left[0] < off[0] - 20 && left[0] > wallBeside[0] && std::abs(left[0] - right[0]) <= 6 &&
+              px(both, 320, 264) == px(plain, 320, 264),
+          what);
+    const std::vector<float> none = {0.3f / l, 0.0f, -1.0f / l, 0.0f, 2.0f};
+    const unsigned beforeNone = r.Stats().shadowPasses;
+    const auto zero = scene(true, false, &none);
+    std::snprintf(what, sizeof(what), "shadows (%s): a light of weight 0 casts nothing", tag);
+    Check(zero == plain && r.Stats().shadowPasses == beforeNone, what);
+  }
   const unsigned beforeStill = r.Stats().shadowPasses;
   const auto still = scene(true, true);
   std::snprintf(what, sizeof(what), "shadows (%s): none on a menu screen of the game", tag);

@@ -2366,15 +2366,13 @@ struct GlRenderer final : GxCore {
 
   GLuint shadowDepthProg = 0, shadowMarkProg = 0, shadowMaskProg = 0, shadowApplyProg = 0;
   GLint shadowMarkVp0 = -1, shadowMarkVp1 = -1, shadowMarkPr0 = -1, shadowMarkPr1 = -1, shadowMarkColour = -1,
-        shadowMaskRegion = -1, shadowMaskGrid = -1, shadowMaskVp0 = -1, shadowMaskVp1 = -1, shadowMaskPr0 = -1,
-        shadowMaskPr1 = -1, shadowMaskLook = -1, shadowMaskBias = -1, shadowMaskObias = -1, shadowMaskOmap = -1,
-        shadowMaskLdir = -1, shadowApplyRegion = -1;
-  // the depth maps (the figures', the objects'; each with its frame buffer), the casters' corners, their marks (the
-  // EFB's size, with the EFB's depth), the mask (a texel per GameCube pixel of the scene's part)
-  GLuint shadowMapTex[2] = {}, shadowMapFbo[2] = {};
-  int shadowMapSize[2] = {};
+        shadowApplyRegion = -1;
+  // the depth atlas (2 x 2 tiles, stage 5; its frame buffer), the casters' corners, their marks (the EFB's size, with
+  // the EFB's depth), the mask (a texel per GameCube pixel of the scene's part)
+  GLuint shadowAtlasTex = 0, shadowAtlasFbo = 0;
+  int shadowAtlasSize = 0;
   GLuint shadowVbo = 0, shadowVao = 0, shadowMarkTex = 0, shadowMarkFbo = 0, shadowMaskTex = 0;
-  GLuint shadowRawSampler = 0;  // a depth map read without comparing (kShadowMaskFs raw, oraw)
+  GLuint shadowRawSampler = 0;  // the atlas read without comparing (kShadowMaskFs raw)
   GLuint shadowMarkDepth = 0;  // the depth texture shadowMarkFbo has attached (efbDepth changes with MSAA on the tiles)
   int shadowMarkW = 0, shadowMarkH = 0, shadowMaskW = 0, shadowMaskH = 0;
   std::size_t shadowVboBytes = 0;
@@ -2400,25 +2398,12 @@ struct GlRenderer final : GxCore {
     glUniform1i(glGetUniformLocation(shadowMaskProg, "shd"), 1);
     glUniform1i(glGetUniformLocation(shadowMaskProg, "fig"), 2);
     glUniform1i(glGetUniformLocation(shadowMaskProg, "raw"), 3);
-    glUniform1i(glGetUniformLocation(shadowMaskProg, "oshd"), 4);
-    glUniform1i(glGetUniformLocation(shadowMaskProg, "oraw"), 5);
     glGenSamplers(1, &shadowRawSampler);
     glSamplerParameteri(shadowRawSampler, GL_TEXTURE_COMPARE_MODE, GL_NONE);
     glSamplerParameteri(shadowRawSampler, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glSamplerParameteri(shadowRawSampler, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glSamplerParameteri(shadowRawSampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glSamplerParameteri(shadowRawSampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    shadowMaskRegion = glGetUniformLocation(shadowMaskProg, "region");
-    shadowMaskGrid = glGetUniformLocation(shadowMaskProg, "grid");
-    shadowMaskVp0 = glGetUniformLocation(shadowMaskProg, "vp0");
-    shadowMaskVp1 = glGetUniformLocation(shadowMaskProg, "vp1");
-    shadowMaskPr0 = glGetUniformLocation(shadowMaskProg, "pr0");
-    shadowMaskPr1 = glGetUniformLocation(shadowMaskProg, "pr1");
-    shadowMaskLook = glGetUniformLocation(shadowMaskProg, "look");
-    shadowMaskBias = glGetUniformLocation(shadowMaskProg, "bias");
-    shadowMaskObias = glGetUniformLocation(shadowMaskProg, "obias");
-    shadowMaskOmap = glGetUniformLocation(shadowMaskProg, "omap");
-    shadowMaskLdir = glGetUniformLocation(shadowMaskProg, "ldir");
     glUseProgram(shadowApplyProg);
     glUniform1i(glGetUniformLocation(shadowApplyProg, "mask"), 0);
     shadowApplyRegion = glGetUniformLocation(shadowApplyProg, "region");
@@ -2433,17 +2418,17 @@ struct GlRenderer final : GxCore {
     return true;
   }
 
-  // depth map `i` (0 the figures', 1 the objects') of `size` texels each way: a depth texture compared by its sampler
+  // the depth atlas of `size` texels each way (2 x 2 tiles): a depth texture compared by its sampler
   // (sampler2DShadow), linear (a 2 x 2 comparison a tap)
-  bool ShadowMap(int i, int size) {
-    if (shadowMapTex[i] && shadowMapSize[i] == size)
+  bool ShadowAtlas(int size) {
+    if (shadowAtlasTex && shadowAtlasSize == size)
       return true;
-    if (shadowMapTex[i])
-      glDeleteTextures(1, &shadowMapTex[i]);
-    if (!shadowMapFbo[i])
-      glGenFramebuffers(1, &shadowMapFbo[i]);
-    glGenTextures(1, &shadowMapTex[i]);
-    glBindTexture(GL_TEXTURE_2D, shadowMapTex[i]);
+    if (shadowAtlasTex)
+      glDeleteTextures(1, &shadowAtlasTex);
+    if (!shadowAtlasFbo)
+      glGenFramebuffers(1, &shadowAtlasFbo);
+    glGenTextures(1, &shadowAtlasTex);
+    glBindTexture(GL_TEXTURE_2D, shadowAtlasTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, size, size, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2451,15 +2436,15 @@ struct GlRenderer final : GxCore {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-    BindFbo(shadowMapFbo[i]);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMapTex[i], 0);
+    BindFbo(shadowAtlasFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowAtlasTex, 0);
     const GLenum none = GL_NONE;
     glDrawBuffers(1, &none);
     glReadBuffer(GL_NONE);
     const bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
-    shadowMapSize[i] = size;
+    shadowAtlasSize = size;
     if (!ok)
-      GXLOG("real-time shadows: depth map %d's frame buffer is not complete", i);
+      GXLOG("real-time shadows: the depth atlas' frame buffer is not complete");
     return ok;
   }
 
@@ -2495,11 +2480,11 @@ struct GlRenderer final : GxCore {
     return true;
   }
 
-  // a map's rows into the program in use (lx, ly, lz or olx, oly, olz)
-  static void ShadowRows(GLuint prog, const ShadowMapParams &m, bool objects) {
-    glUniform4fv(glGetUniformLocation(prog, objects ? "olx" : "lx"), 1, m.row[0]);
-    glUniform4fv(glGetUniformLocation(prog, objects ? "oly" : "ly"), 1, m.row[1]);
-    glUniform4fv(glGetUniformLocation(prog, objects ? "olz" : "lz"), 1, m.row[2]);
+  // a tile's rows into the program in use: lx, ly, lz (the depth pass) or lxN, lyN, lzN (the mask)
+  static void ShadowRows(GLuint prog, const ShadowMapParams &m, const char *suffix) {
+    static const char *const names[3] = {"lx", "ly", "lz"};
+    for (int r = 0; r < 3; r++)
+      glUniform4fv(glGetUniformLocation(prog, (std::string(names[r]) + suffix).c_str()), 1, m.row[r]);
   }
 
   void ShadowPass(const ShadowParams &s) override {
@@ -2512,17 +2497,15 @@ struct GlRenderer final : GxCore {
     Touched();
     SaveAndPlainState();
     const int fw = Lo(kEfbWidth), fh = Lo(kEfbHeight);
-    // (the objects' map only once they cast: not at all with "Characters")
-    if ((!shadowApplyProg && !MakeShadow()) || (s.hasFig && !ShadowMap(0, s.fig.size)) ||
-        (s.hasObj && !ShadowMap(1, s.obj.size)) || !ShadowMarks(fw, fh)) {
+    if ((!shadowApplyProg && !MakeShadow()) || !ShadowAtlas(s.atlas) || !ShadowMarks(fw, fh)) {
       shadowFailed = true;  // off for good on this driver (the menu's choice stays)
       GXLOG("real-time shadows: could not be set up; left out from now on");
       BindFbo(DrawFbo());
       Touched();
       return;
     }
-    // the casters' corners: the figures', then the objects'
-    const std::size_t figTris = s.hasFig ? s.fig.triangles : 0, objTris = s.hasObj ? s.obj.triangles : 0;
+    // the casters' corners: the figures', then the objects' (when tile 1 casts)
+    const std::size_t figTris = s.figTriangles, objTris = s.objTriangles;
     const std::size_t figBytes = figTris * 9 * sizeof(float), bytes = figBytes + objTris * 9 * sizeof(float);
     glBindVertexArray(shadowVao);
     glBindBuffer(GL_ARRAY_BUFFER, shadowVbo);
@@ -2536,26 +2519,31 @@ struct GlRenderer final : GxCore {
       glBufferSubData(GL_ARRAY_BUFFER, static_cast<GLintptr>(figBytes), static_cast<GLsizeiptr>(bytes - figBytes),
                       objectTris.data());
     const GLsizei figCorners = static_cast<GLsizei>(figTris * 3), objCorners = static_cast<GLsizei>(objTris * 3);
-    // 1. the depth maps: the casters from the light
+    // 1. the depth atlas: each casting tile's casters from its light (only those tiles cleared: one light without
+    // objects clears a quarter of it)
+    BindFbo(shadowAtlasFbo);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glDepthMask(GL_TRUE);
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     glClearDepthf(1.0f);
+    glEnable(GL_SCISSOR_TEST);
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(1.5f, 2.0f);
     glUseProgram(shadowDepthProg);
     glUniform4f(glGetUniformLocation(shadowDepthProg, "glz"), 1.0f, 0.0f, 0.0f, 0.0f);  // GL's clip depth
-    for (int i = 0; i < 2; i++) {
-      const ShadowMapParams &m = i ? s.obj : s.fig;
-      if (!(i ? s.hasObj : s.hasFig))
+    const int tile = s.atlas / 2;
+    for (int t = 0; t < kShadowTiles; t++) {
+      const ShadowMapParams &m = s.tile[t];
+      if (!m.casts)
         continue;
-      BindFbo(shadowMapFbo[i]);
-      glViewport(0, 0, m.size, m.size);
+      glViewport((t & 1) * tile, (t >> 1) * tile, tile, tile);
+      glScissor((t & 1) * tile, (t >> 1) * tile, tile, tile);
       glClear(GL_DEPTH_BUFFER_BIT);
-      ShadowRows(shadowDepthProg, m, false);
-      glDrawArrays(GL_TRIANGLES, i ? figCorners : 0, i ? objCorners : figCorners);
+      ShadowRows(shadowDepthProg, m, "");
+      glDrawArrays(GL_TRIANGLES, m.objects ? figCorners : 0, m.objects ? objCorners : figCorners);
     }
+    glDisable(GL_SCISSOR_TEST);
     // 2. the casters' marks: the same triangles with the scene's camera where they are the visible surface (the EFB's
     // depth, resolved with MSAA); red the figures, green the objects, blended by the larger
     Resolve(s.region[0], s.region[1], s.region[2], s.region[3], true);
@@ -2594,39 +2582,35 @@ struct GlRenderer final : GxCore {
     glDepthMask(GL_TRUE);
     glBindVertexArray(0);
     vaoBound = false;
-    // 3. the mask from the EFB's depth, the maps and the marks (without the objects' map its place holds the
-    // figures', unread: omap.z)
+    // 3. the mask from the EFB's depth, the atlas and the marks
     PassTexture(&shadowMaskTex, &shadowMaskW, &shadowMaskH, s.maskW, s.maskH);
     glUseProgram(shadowMaskProg);
-    glUniform4f(shadowMaskRegion, float(s.region[0]), float(s.region[1]), float(s.region[2]), float(s.region[3]));
-    glUniform4fv(shadowMaskGrid, 1, s.grid);
-    glUniform4fv(shadowMaskVp0, 1, s.vp0);
-    glUniform4fv(shadowMaskVp1, 1, s.vp1);
-    glUniform4fv(shadowMaskPr0, 1, s.pr0);
-    glUniform4fv(shadowMaskPr1, 1, s.pr1);
-    ShadowRows(shadowMaskProg, s.fig, false);
-    ShadowRows(shadowMaskProg, s.obj, true);
-    glUniform4fv(shadowMaskLook, 1, s.look);
-    glUniform4fv(shadowMaskBias, 1, s.fig.bias);
-    glUniform4fv(shadowMaskObias, 1, s.obj.bias);
-    glUniform4fv(shadowMaskOmap, 1, s.omap);
-    glUniform4f(shadowMaskLdir, s.dir[0], s.dir[1], s.dir[2], 0.0f);
-    const GLuint figMap = shadowMapTex[s.hasFig ? 0 : 1], objMap = shadowMapTex[s.hasObj ? 1 : 0];
+    const GLuint p = shadowMaskProg;
+    glUniform4f(glGetUniformLocation(p, "region"), float(s.region[0]), float(s.region[1]), float(s.region[2]),
+                float(s.region[3]));
+    glUniform4fv(glGetUniformLocation(p, "grid"), 1, s.grid);
+    glUniform4fv(glGetUniformLocation(p, "vp0"), 1, s.vp0);
+    glUniform4fv(glGetUniformLocation(p, "vp1"), 1, s.vp1);
+    glUniform4fv(glGetUniformLocation(p, "pr0"), 1, s.pr0);
+    glUniform4fv(glGetUniformLocation(p, "pr1"), 1, s.pr1);
+    glUniform4fv(glGetUniformLocation(p, "look"), 1, s.look);
+    for (int t = 0; t < kShadowTiles; t++) {
+      const std::string n = std::to_string(t);
+      ShadowRows(p, s.tile[t], n.c_str());
+      glUniform4fv(glGetUniformLocation(p, ("b" + n).c_str()), 1, s.tile[t].bias);
+      glUniform4fv(glGetUniformLocation(p, ("t" + n).c_str()), 1, s.tileInfo[t]);
+    }
+    for (int i = 0; i < kShadowLights; i++)
+      glUniform4fv(glGetUniformLocation(p, ("ld" + std::to_string(i)).c_str()), 1, s.light[i]);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, figMap);
+    glBindTexture(GL_TEXTURE_2D, shadowAtlasTex);
     glBindSampler(1, 0);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, shadowMarkTex);
     glBindSampler(2, 0);
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, figMap);
+    glBindTexture(GL_TEXTURE_2D, shadowAtlasTex);
     glBindSampler(3, shadowRawSampler);
-    glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, objMap);
-    glBindSampler(4, 0);
-    glActiveTexture(GL_TEXTURE5);
-    glBindTexture(GL_TEXTURE_2D, objMap);
-    glBindSampler(5, shadowRawSampler);
     FilterDraw(shadowMaskProg, shadowMaskTex, s.maskW, s.maskH, efbDepth);
     // 4. the mask times the EFB's colour over the scene's part (MSAA: the multisampled one, as the bloom)
     SaveAndPlainState();
@@ -2659,10 +2643,10 @@ struct GlRenderer final : GxCore {
     stats.shadowPasses++;
     if (timed) {
       glFinish();
-      GXLOG("real-time shadows: %.2f ms (with glFinish), %zu + %zu triangles (figures + objects), maps %d, mask %d x "
-            "%d of %d x %d",
+      GXLOG("real-time shadows: %.2f ms (with glFinish), %zu + %zu triangles (figures + objects), %d light(s), atlas "
+            "%d, mask %d x %d of %d x %d",
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count(), figTris,
-            objTris, s.hasFig ? s.fig.size : s.obj.size, s.maskW, s.maskH, s.region[2], s.region[3]);
+            objTris, s.lights, s.atlas, s.maskW, s.maskH, s.region[2], s.region[3]);
     }
   }
 
@@ -2671,24 +2655,24 @@ struct GlRenderer final : GxCore {
       if (*prog)
         glDeleteProgram(*prog);
     shadowDepthProg = shadowMarkProg = shadowMaskProg = shadowApplyProg = 0;
-    for (GLuint *tex : {&shadowMapTex[0], &shadowMapTex[1], &shadowMarkTex, &shadowMaskTex})
+    for (GLuint *tex : {&shadowAtlasTex, &shadowMarkTex, &shadowMaskTex})
       if (*tex)
         glDeleteTextures(1, tex);
-    shadowMapTex[0] = shadowMapTex[1] = shadowMarkTex = shadowMaskTex = 0;
+    shadowAtlasTex = shadowMarkTex = shadowMaskTex = 0;
     if (shadowRawSampler)
       glDeleteSamplers(1, &shadowRawSampler);
     shadowRawSampler = 0;
-    for (GLuint *fbo : {&shadowMapFbo[0], &shadowMapFbo[1], &shadowMarkFbo})
+    for (GLuint *fbo : {&shadowAtlasFbo, &shadowMarkFbo})
       if (*fbo)
         glDeleteFramebuffers(1, fbo);
-    shadowMapFbo[0] = shadowMapFbo[1] = shadowMarkFbo = 0;
+    shadowAtlasFbo = shadowMarkFbo = 0;
     if (shadowVbo)
       glDeleteBuffers(1, &shadowVbo);
     if (shadowVao)
       glDeleteVertexArrays(1, &shadowVao);
     shadowVbo = shadowVao = 0;
     shadowVboBytes = 0;
-    shadowMapSize[0] = shadowMapSize[1] = shadowMarkW = shadowMarkH = shadowMaskW = shadowMaskH = 0;
+    shadowAtlasSize = shadowMarkW = shadowMarkH = shadowMaskW = shadowMaskH = 0;
     shadowMarkDepth = 0;
   }
 

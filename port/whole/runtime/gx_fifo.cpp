@@ -264,6 +264,22 @@ void re4_gx_put_shadow(float x, float y, float z, unsigned int strength)
     re4_gx_put_u32(strength & 0xFF);
 }
 
+// Stage 5: byte 0x04, the count, then five words a light (gx_decode.cpp makes RE4_GX_OP_SHADOW of 1 + 5 k words).
+void re4_gx_put_shadow_lights(int count, const float* lights)
+{
+    if (count < 1 || !lights) {
+        return;
+    }
+    if (count > 3) {
+        count = 3;
+    }
+    re4_gx_put_u8(0x04);
+    re4_gx_put_u8((unsigned char) count);
+    for (int i = 0; i < count * 5; i++) {
+        re4_gx_put_f32(lights[i]);
+    }
+}
+
 void re4_gx_put_s8(signed char v)
 {
     re4_gx_put_u8((unsigned char) v);

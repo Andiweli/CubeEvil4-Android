@@ -2264,6 +2264,27 @@ size_t command(const u8* p, size_t n, size_t* need, bool be, int depth)
         }
         return 17;
     }
+    case 0x04: {  // stage 5's lights for the real-time shadows (gx_fifo.cpp re4_gx_put_shadow_lights): the count,
+                  // five words a light
+        *need = 2;
+        if (n < 2) {
+            return 0;
+        }
+        const unsigned count = p[1] >= 1 && p[1] <= 3 ? p[1] : 0;
+        *need = 2 + 20 * count;
+        if (n < *need) {
+            return 0;
+        }
+        u32 lights[16];
+        lights[0] = count;
+        for (unsigned i = 0; i < 5 * count; i++) {
+            lights[1 + i] = rd32(p + 2 + 4 * i, be);
+        }
+        if (count && chunk()) {
+            emit(RE4_GX_OP_SHADOW, lights, 1 + 5 * count);
+        }
+        return 2 + 20 * count;
+    }
     case 0x44:  // metrics
     case 0x48:  // invalidate the vertex cache
         gStats.commands++;

@@ -2476,7 +2476,7 @@ struct VkRenderer final : GxCore {
   Fixed shadowDepthFx, shadowMarkFx, shadowMaskFx, shadowApplyFx;
   // the depth maps (the figures', the objects'), the casters' marks (the EFB's size; red the figures, green the
   // objects), the mask (a texel per GameCube pixel of the scene's part)
-  Image shadowMap[2], shadowMarks, shadowMask;
+  Image shadowAtlas, shadowMarks, shadowMask;
   // the depth map's pass (its depth only), the marks' pass (their colour, the EFB's depth loaded and kept)
   VkRenderPass shadowMapPass = VK_NULL_HANDLE, shadowMarkPass = VK_NULL_HANDLE;
   VkFramebuffer shadowMarkFb = VK_NULL_HANDLE;
@@ -2621,9 +2621,9 @@ struct VkRenderer final : GxCore {
     return true;
   }
 
-  // a depth map (0 the figures', 1 the objects') at its size
-  bool ShadowMapImage(int i, int size) {
-    Image &m = shadowMap[i];
+  // the depth atlas (2 x 2 tiles, stage 5) at its size
+  bool ShadowAtlasImage(int size) {
+    Image &m = shadowAtlas;
     if (m.image && m.width != static_cast<unsigned>(size))
       Trash(m);
     if (!m.image) {
@@ -2635,10 +2635,9 @@ struct VkRenderer final : GxCore {
     return m.fb != VK_NULL_HANDLE;
   }
 
-  // the maps that cast (the objects' only once they do: not at all with "Characters"), the marks (the EFB's size)
-  // and the mask at their sizes
+  // the atlas, the marks (the EFB's size) and the mask at their sizes
   bool ShadowImages(const ShadowParams &s) {
-    if ((s.hasFig && !ShadowMapImage(0, s.fig.size)) || (s.hasObj && !ShadowMapImage(1, s.obj.size)))
+    if (!ShadowAtlasImage(s.atlas))
       return false;
     if (shadowMarks.image && (shadowMarks.width != efbColor.width || shadowMarks.height != efbColor.height)) {
       Trash(shadowMarks);
@@ -2681,11 +2680,11 @@ struct VkRenderer final : GxCore {
     Begin();
     EndPass();
     VkCommandBuffer cb = F().draw;
-    // the casters' corners in the frame's vertex stream: the figures', then the objects'
+    // the casters' corners in the frame's vertex stream: the figures', then the objects' (when tile 1 casts)
     Frame &fr = F();
     std::size_t blk = 0;
     VkDeviceSize at = 0;
-    const std::size_t figTris = s.hasFig ? s.fig.triangles : 0, objTris = s.hasObj ? s.obj.triangles : 0;
+    const std::size_t figTris = s.figTriangles, objTris = s.objTriangles;
     const std::size_t figBytes = figTris * 9 * sizeof(float), bytes = figBytes + objTris * 9 * sizeof(float);
     if (!Alloc(fr.vertex, bytes, 64, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &blk, &at))
       return;
@@ -2697,35 +2696,54 @@ struct VkRenderer final : GxCore {
     const std::uint32_t figCorners = static_cast<std::uint32_t>(figTris * 3);
     const std::uint32_t objCorners = static_cast<std::uint32_t>(objTris * 3);
     const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs, kShadowMarkVs)
-    // 1. the depth maps: the casters from the light
-    for (int i = 0; i < 2; i++) {
-      if (!(i ? s.hasObj : s.hasFig))
-        continue;
-      const ShadowMapParams &m = i ? s.obj : s.fig;
-      Image &map = shadowMap[i];
+    // 1. the depth atlas: each casting tile's casters from its light (one pass, a viewport per tile; the pass covers
+    // and clears only the casting tiles' rectangle: one light without objects a quarter of it)
+    {
+      Image &map = shadowAtlas;
+      const std::uint32_t half = map.width / 2;
+      std::uint32_t ax0 = map.width, ay0 = map.height, ax1 = 0, ay1 = 0;
+      for (int t = 0; t < kShadowTiles; t++)
+        if (s.tile[t].casts) {
+          ax0 = std::min<std::uint32_t>(ax0, (t & 1) * half);
+          ay0 = std::min<std::uint32_t>(ay0, (t >> 1) * half);
+          ax1 = std::max<std::uint32_t>(ax1, (t & 1) * half + half);
+          ay1 = std::max<std::uint32_t>(ay1, (t >> 1) * half + half);
+        }
+      if (ax1 <= ax0 || ay1 <= ay0) {
+        ax0 = ay0 = 0;
+        ax1 = map.width;
+        ay1 = map.height;
+      }
       auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
       rbi.renderPass = shadowMapPass;
       rbi.framebuffer = map.fb;
-      rbi.renderArea = {{0, 0}, {map.width, map.height}};
+      rbi.renderArea = {{static_cast<std::int32_t>(ax0), static_cast<std::int32_t>(ay0)}, {ax1 - ax0, ay1 - ay0}};
       VkClearValue clear{};
       clear.depthStencil = {1.0f, 0};
       rbi.clearValueCount = 1;
       rbi.pClearValues = &clear;
       vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
       pass = kOtherPass;
-      const VkViewport vp{0.0f, 0.0f, float(map.width), float(map.height), 0.0f, 1.0f};
-      const VkRect2D sc{{0, 0}, {map.width, map.height}};
-      vkCmdSetViewport(cb, 0, 1, &vp);
-      vkCmdSetScissor(cb, 0, 1, &sc);
-      std::vector<std::uint8_t> pc(shadowDepthFx.constants.bytes, 0);
-      Put(pc, shadowDepthFx, "lx", m.row[0]);
-      Put(pc, shadowDepthFx, "ly", m.row[1]);
-      Put(pc, shadowDepthFx, "lz", m.row[2]);
-      Put(pc, shadowDepthFx, "glz", glz);
-      BindFixed(shadowDepthFx, nullptr, nullptr, 0, pc);
-      const VkDeviceSize offset = at + (i ? figBytes : 0);
-      vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
-      vkCmdDraw(cb, i ? objCorners : figCorners, 1, 0, 0);
+      const std::uint32_t tile = map.width / 2;
+      for (int t = 0; t < kShadowTiles; t++) {
+        const ShadowMapParams &m = s.tile[t];
+        if (!m.casts)
+          continue;
+        const VkViewport vp{float((t & 1) * tile), float((t >> 1) * tile), float(tile), float(tile), 0.0f, 1.0f};
+        const VkRect2D sc{{static_cast<std::int32_t>((t & 1) * tile), static_cast<std::int32_t>((t >> 1) * tile)},
+                          {tile, tile}};
+        vkCmdSetViewport(cb, 0, 1, &vp);
+        vkCmdSetScissor(cb, 0, 1, &sc);
+        std::vector<std::uint8_t> pc(shadowDepthFx.constants.bytes, 0);
+        Put(pc, shadowDepthFx, "lx", m.row[0]);
+        Put(pc, shadowDepthFx, "ly", m.row[1]);
+        Put(pc, shadowDepthFx, "lz", m.row[2]);
+        Put(pc, shadowDepthFx, "glz", glz);
+        BindFixed(shadowDepthFx, nullptr, nullptr, 0, pc);
+        const VkDeviceSize offset = at + (m.objects ? figBytes : 0);
+        vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
+        vkCmdDraw(cb, m.objects ? objCorners : figCorners, 1, 0, 0);
+      }
       EndPass();
       map.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
     }
@@ -2770,8 +2788,7 @@ struct VkRenderer final : GxCore {
     }
     boundVb = VK_NULL_HANDLE;
     scissorValid = false;
-    // 3. the mask from the EFB's depth, the maps (compared, and read as they are) and the marks (without the objects'
-    // map its place holds the figures', unread: omap.z; and the other way round)
+    // 3. the mask from the EFB's depth, the atlas (compared, and read as it is) and the marks
     {
       Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       BeginTargetPass(copyPass, shadowMask);
@@ -2782,32 +2799,28 @@ struct VkRenderer final : GxCore {
       vkCmdSetScissor(cb, 0, 1, &sc);
       std::vector<std::uint8_t> pc(shadowMaskFx.constants.bytes, 0);
       const float region[4] = {float(s.region[0]), float(s.region[1]), float(s.region[2]), float(s.region[3])};
-      const float ldir[4] = {s.dir[0], s.dir[1], s.dir[2], 0.0f};
       Put(pc, shadowMaskFx, "region", region);
       Put(pc, shadowMaskFx, "grid", s.grid);
       Put(pc, shadowMaskFx, "vp0", s.vp0);
       Put(pc, shadowMaskFx, "vp1", s.vp1);
       Put(pc, shadowMaskFx, "pr0", s.pr0);
       Put(pc, shadowMaskFx, "pr1", s.pr1);
-      Put(pc, shadowMaskFx, "lx", s.fig.row[0]);
-      Put(pc, shadowMaskFx, "ly", s.fig.row[1]);
-      Put(pc, shadowMaskFx, "lz", s.fig.row[2]);
-      Put(pc, shadowMaskFx, "olx", s.obj.row[0]);
-      Put(pc, shadowMaskFx, "oly", s.obj.row[1]);
-      Put(pc, shadowMaskFx, "olz", s.obj.row[2]);
       Put(pc, shadowMaskFx, "look", s.look);
-      Put(pc, shadowMaskFx, "bias", s.fig.bias);
-      Put(pc, shadowMaskFx, "obias", s.obj.bias);
-      Put(pc, shadowMaskFx, "omap", s.omap);
-      Put(pc, shadowMaskFx, "ldir", ldir);
-      const VkImageView figMap = shadowMap[s.hasFig ? 0 : 1].view, objMap = shadowMap[s.hasObj ? 1 : 0].view;
+      for (int t = 0; t < kShadowTiles; t++) {
+        const std::string n = std::to_string(t);
+        Put(pc, shadowMaskFx, ("lx" + n).c_str(), s.tile[t].row[0]);
+        Put(pc, shadowMaskFx, ("ly" + n).c_str(), s.tile[t].row[1]);
+        Put(pc, shadowMaskFx, ("lz" + n).c_str(), s.tile[t].row[2]);
+        Put(pc, shadowMaskFx, ("b" + n).c_str(), s.tile[t].bias);
+        Put(pc, shadowMaskFx, ("t" + n).c_str(), s.tileInfo[t]);
+      }
+      for (int i = 0; i < kShadowLights; i++)
+        Put(pc, shadowMaskFx, ("ld" + std::to_string(i)).c_str(), s.light[i]);
       BindFixedNamed(shadowMaskFx,
                      {{"src", efbDepth.view, nearestClamp},
-                      {"shd", figMap, shadowCompare},
+                      {"shd", shadowAtlas.view, shadowCompare},
                       {"fig", shadowMarks.view, nearestClamp},
-                      {"raw", figMap, nearestClamp},
-                      {"oshd", objMap, shadowCompare},
-                      {"oraw", objMap, nearestClamp}},
+                      {"raw", shadowAtlas.view, nearestClamp}},
                      pc);
       vkCmdDraw(cb, 4, 1, 0, 0);
       EndPass();
@@ -2827,16 +2840,16 @@ struct VkRenderer final : GxCore {
     }
     stats.shadowPasses++;
     if (timed)
-      GXLOG("real-time shadows (Vulkan): %.2f ms recorded (CPU), %zu + %zu triangles (figures + objects), maps %d, "
-            "mask %d x %d",
+      GXLOG("real-time shadows (Vulkan): %.2f ms recorded (CPU), %zu + %zu triangles (figures + objects), %d light(s), "
+            "atlas %d, mask %d x %d",
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count(), figTris,
-            objTris, s.hasFig ? s.fig.size : s.obj.size, s.maskW, s.maskH);
+            objTris, s.lights, s.atlas, s.maskW, s.maskH);
   }
 
   void ShadowRelease() {
     for (Fixed *f : {&shadowDepthFx, &shadowMarkFx, &shadowMaskFx, &shadowApplyFx})
       FreeFixed(*f);
-    for (Image *img : {&shadowMap[0], &shadowMap[1], &shadowMarks, &shadowMask})
+    for (Image *img : {&shadowAtlas, &shadowMarks, &shadowMask})
       Destroy(*img);
     if (shadowMarkFb)
       vkDestroyFramebuffer(dev, shadowMarkFb, nullptr);
