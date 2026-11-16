@@ -3790,12 +3790,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setBloom(JNI
     LOG("bloom: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
-// Real-time shadows of the figures (debug builds only until after 1.0, RealtimeShadows.java; GxRenderer::SetShadows):
-// 0 off, 1 the figures. The game core gets its part with the Potato mask (bit 5).
+// Real-time shadows (debug builds only until after 1.0, RealtimeShadows.java; GxRenderer::SetShadows): 0 off, 1 the
+// figures, 2 the figures and the objects. The game core gets its part with the Potato mask (bits 5 and 6).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setShadows(JNIEnv *, jclass, jint level) {
-  const int want = level <= 0 ? 0 : 1;
+  const int want = level <= 0 ? 0 : level >= 2 ? 2 : 1;
   if (optShadows.exchange(want) != want)
-    LOG("real-time shadows: %s", want ? "the figures" : "off");
+    LOG("real-time shadows: %s", want == 2 ? "the figures and the objects" : want ? "the figures" : "off");
 }
 
 // Colour (the menu, 0.99.9; GxRenderer::SetColour): mode 0 off, 1 warm film, 2 survival horror; level 1 light,

@@ -3,25 +3,33 @@ package com.ast.re4decomp;
 import android.content.SharedPreferences;
 
 /**
- * Real-time shadows of the figures (port/docs/echtzeit-schatten-studie.md). Debug builds only until after 1.0: the
+ * Real-time shadows of the figures and objects (port/docs/echtzeit-schatten-studie.md). Debug builds only until after 1.0: the
  * project owner, 15.11.2026: "Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
  * aktiviert, nicht wenn man Release baut. Erst nach 1.0 kommen sie ins Release." A debug build is Android Studio's
  * coreDebug, which the app knows by Android's flag "debuggable" (built()); a signed release build has it not. In a
  * release build nothing of it exists: no menu row, the setting is never read, nothing is sent to the core or the
  * renderer, so the game runs as before.
  *
- * In a debug build the figures cast shadows when all of these hold: the device is capable (a strong graphics chip, the
+ * In a debug build they cast shadows when all of these hold: the device is capable (a strong graphics chip, the
  * benchmark measured with 3x at 30 or 2x at 60 pictures a second, the processor not at its limit, 4 GB of memory;
  * weak devices never see the row), the renderer can draw them (OpenGL ES and Vulkan, VULKAN_READY),
- * the Potato mode's "Shadows &amp; light" is on, and the menu's "Real-time shadows" is "Characters" (the default on a
- * capable device). The game core then marks where they go (bit 5 of the Potato mask, runtime/rt_shadow.cpp) and leaves
- * its round foot shadows out there; the renderer draws them (CoreBridge.setShadows, GxRenderer::SetShadows).
+ * the Potato mode's "Shadows &amp; light" is on, and the menu's "Real-time shadows" is not off: "Characters" (the
+ * figures and what they hold) or "Characters and objects" (also what moves: doors, crates, barrels, the windmill's
+ * blades, flags; the project owner, 15.11.2026: "Aus &gt; Figuren &gt; Figuren und Objekte"; DEFAULT_LEVEL on a capable
+ * device). The game core then marks where they go (bit 5 of the Potato mask, bit 6 for the objects;
+ * runtime/rt_shadow.cpp, runtime/gx_owner.cpp) and leaves its round foot shadows out there; the renderer draws them
+ * (CoreBridge.setShadows, GxRenderer::SetShadows).
  */
 final class RealtimeShadows {
-  /** GRAPHICS_PREFS: 0 off, 1 the figures; missing: 1 (on in a debug build on a capable device). */
+  /** GRAPHICS_PREFS: 0 off, 1 the figures, 2 the figures and the objects; missing: DEFAULT_LEVEL. */
   static final String KEY = "rtShadows";
+  /** The level of a capable device until the menu changes it: "Characters and objects" (the PC measurement of
+   *  15.11.2026, port/docs/whole-program-status.md: the objects add little to the figures' cost). */
+  static final int DEFAULT_LEVEL = 2;
   /** Bit 5 of the Potato mask the core gets (CoreBridge.setPotato): the core's mark and no foot shadow blobs. */
   static final int CORE_BIT = 32;
+  /** Bit 6 with "Characters and objects": the core tags the objects that cast (runtime/gx_owner.cpp). */
+  static final int OBJECTS_BIT = 64;
   /** The Vulkan renderer draws them too (gx_vk.cpp ShadowPass, stage 3; the same picture as OpenGL ES on the PC). */
   static final boolean VULKAN_READY = true;
 
@@ -53,12 +61,28 @@ final class RealtimeShadows {
     return refusal(debug, d, b, vulkan) == null;
   }
 
-  /** The menu's choice: 1 the figures (the default), 0 off. */
+  /** The menu's choice: 0 off, 1 the figures, 2 the figures and the objects (missing: DEFAULT_LEVEL). */
   static int choice(SharedPreferences g) {
-    return g.getInt(KEY, 1) != 0 ? 1 : 0;
+    int v = g.getInt(KEY, DEFAULT_LEVEL);
+    return v <= 0 ? 0 : v >= 2 ? 2 : 1;
   }
 
-  /** The level the game gets (0 off, 1 the figures) and, in why[0], the reason for the log. */
+  /** The menu's next choice: Off, Characters, Characters and objects, Off again. */
+  static int next(int choice) {
+    return (choice + 1) % 3;
+  }
+
+  /** The Potato mask's bits for the core at `level` (0 none). */
+  static int coreBits(int level) {
+    return level <= 0 ? 0 : level >= 2 ? CORE_BIT | OBJECTS_BIT : CORE_BIT;
+  }
+
+  /** The level's name in the error log. */
+  static String logName(int level) {
+    return level <= 0 ? "off" : level >= 2 ? "on (characters and objects)" : "on (characters)";
+  }
+
+  /** The level the game gets (0 off, 1 the figures, 2 also the objects) and, in why[0], the reason for the log. */
   static int level(boolean debug, SharedPreferences g, PerfProfile.Device d, PerfProfile.Bench b, boolean vulkan,
                    String[] why) {
     String refused = refusal(debug, d, b, vulkan);
@@ -71,7 +95,7 @@ final class RealtimeShadows {
     } else if (choice(g) == 0) {
       reason = "the menu's choice";
     } else {
-      level = 1;
+      level = choice(g);
       reason = "debug build, " + d.gpu + ", benchmark " + b.cap30 / 2.0 + "x at 30 / " + b.cap60 / 2.0 + "x at 60 FPS";
     }
     if (why != null && why.length > 0) why[0] = reason;

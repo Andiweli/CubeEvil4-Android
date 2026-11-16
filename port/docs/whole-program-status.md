@@ -23,7 +23,7 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
 
-## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
 dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
@@ -78,7 +78,7 @@ auf `realtime-shadows` und kommt später auf dieselbe Weise.
     Es schickt `CoreBridge.setShadows` und das Bit mit `CoreBridge.potatoSent` (an allen sechs Stellen statt
     `potatoMask`; `bloomSent` liest weiter `potatoMask`).
   - Ins Fehlerprotokoll schreibt es „real-time shadows (debug build): on/off (Grund)“.
-  - Menü Leistung, unter der Sichtweite: „Echtzeitschatten · Aus / Figuren“ mit Hilfetext, nur wo freigegeben, 11
+  - Menü Leistung, unter der Sichtweite: „Echtzeitschatten · Aus / Figuren“ (seit Stufe 4 drei Stufen, unten) mit Hilfetext, nur wo freigegeben, 11
     Sprachen (`ingame_rt_shadows`, `_figures`, `_help`; `check_translations.py` 455 Texte ok).
   - Release-Build: keine Zeile, kein Lesen der Einstellung, kein Aufruf zu Kern oder Renderer, kein Log.
 - **Geprüft (PC):**
@@ -116,6 +116,87 @@ auf `realtime-shadows` und kommt später auf dieselbe Weise.
 - **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung), MSAA und Vulkan am Gerät, EU-Disc.
 - **Offene Grenzen (so gewollt):** Haare und Laub zeichnet das Spiel erst nach der Marke: Sie werfen keinen Schatten.
   Gebäude werfen keinen Schatten auf Figuren. Der Benchmark misst ohne Schatten.
+
+**Stufe 4 (16.11.2026, auf 66e5bc8b): Gegenstände, drei Stufen.** Wünsche des Projektinhabers (über die
+Hauptsitzung), Wortlaut: „Fässer und Windräder sollen aber auch Schatten haben.“ und „Prüfe generell alles
+Bewegliche, ob Schatten möglich sind: Flaggen wie in Map 1-2 usw. Es sollte nicht inkonsistent wirken. Von daher wäre
+ein Schalter für Aus > Figuren > Figuren und Objekte evtl. sinnvoll.“ Weiter nur in Debug-Builds.
+
+- **Bestandsaufnahme** (alle 127 Räume der Debug-Disc am PC, je ein Start mit Leon, der sich einmal dreht; Messcode
+  nur in der WSL-Kopie, `RE4_OWNER_CENSUS`/`RE4_SHADOW_WHERE`): jedes Objekt einer Ordnungstabelle einmal mit seiner
+  Art. Ganze Arten sind drin oder draußen, nie einzelne Stücke.
+
+  | Was | Woher der Kern es kennt | Stufe | Sauber? Was stört | Beispielräume |
+  |---|---|---|---|---|
+  | Waffen und Schilde in der Hand, Parasiten | ObjMgr-Waffen, EmMgr WEP 0x42 und SHIELD 0x50, ObjMgr 18/22/38/65 | Figuren | sauber, gehören zur Figur (folgen ihren Matrizen) | alle mit Gegnern |
+  | Türen | EmMgr DOOR 0x41 (152) | Figuren und Objekte | sauber; die Wand daneben wirft keinen Schatten, bei schrägem Licht steht der Türschatten allein | 100, 101, 104, 209 |
+  | Kisten | EmMgr BOX 0x43 (472), ObjMgr BOX 6 | Figuren und Objekte | sauber; zerschlagen ist auch der Schatten weg | fast alle |
+  | Fässer | EmMgr BARREL 0x48 (59) | Figuren und Objekte | sauber (Bilder r209, r11f) | 104, 11f, 202, 203, 209, 301 |
+  | Regale, Schränke zum Schieben | EmMgr RACK 0x45 (22) | Figuren und Objekte | sauber | 101, 103, 10d, 111 |
+  | Bäume und Felsen, die fallen oder rollen | EmMgr TREE 0x49 (3), ROCK 0x4A (9) | Figuren und Objekte | nicht im Bild geprüft | 119; 106, 10a, 11e, 202 |
+  | Hebel, Gittertore | EmMgr SWITCH 0x4B (18), BARRED 0x4E (28) | Figuren und Objekte | nicht im Bild geprüft; wo das Spiel selbst einen Schatten zeichnet, keiner dazu | 201, 204, 206, 208 |
+  | Drehende Raum-Modelle (Windradflügel, Räder, Zahnräder) | Scroll-Modell SMX-Typ 1 (125) | Figuren und Objekte | sauber (Windrad r103: Flügelschatten auf Plattform und Palisade) | 103, 104, 10c, 10f, 113, 217 |
+  | Schwingende Raum-Modelle (Lampen, Schilder, Käfige) | SMX-Typ 2 (109) | Figuren und Objekte | nicht im Bild geprüft; 55 in Tabelle 16 (r104) kommen nach der Marke und werfen nicht | 104, 107, 10d, 205, 300 |
+  | Vom Raum-Skript gesetzte oder bewegte Modelle, Modelle aus Szenen (das Auto in r100) | Scroll ohne Typ mit be_flag 0x20 (`SetObjSmd`, 137), ObjMgr 2 (59), ObjMgr EVENT 24 (115) | Figuren und Objekte | sauber (Auto r100); nicht vorbeleuchtet, weil nicht im SMD | 100, 103, 105, 108, 10c |
+  | Stoff: Fahnen, Banner, Stoffbahnen | `clothTrans` (22) | Figuren und Objekte | ein Stoff ist dünn, sein Schatten auch; hoch Hängendes reicht mit 4 m nicht bis zum Boden (r211) | 100, 103, 104, 113, 211, 327 |
+  | Maschinen: Leitern, Glocken, Gatling, Gondel, Lore, Speere, Ketten, Säulen, schwimmende Insel, Wachturm, Statue, Stier, Sprengfässer | ObjMgr 19, 20, 21, 53, 59, 27, 29, 31, 28, 57, 55, 62, 5, 6, 64 | Figuren und Objekte | nicht im Bild geprüft | 10f, 21b, 224, 226, 30f, 320, 332 |
+  | Fenster | EmMgr WINDOW 0x46 (346) | nie | bündig in der Wand, die Wand wirft nichts; meist erst nach der Marke (Tabelle 17) | 100, 101, 209, 211 |
+  | Fackeln, Leuchter | EmMgr TORCH 0x47 (236) | nie | sind selbst Licht | 102, 109, 203, 209 |
+  | Gegenstände zum Aufheben, Treffer- und Minenkörper | EmMgr ITEM, HIT, MINE; ObjMgr ITEM 25 (724) | nie | klein und blinkend; HIT und MINE unsichtbar | fast alle |
+  | Feste Kulisse: Häuser, Zäune, Mauern, Seile, Brücken | Scroll-Modelle ohne Bewegung (17 485) | nie | ihre Schatten sind in die Raumgrafik gemalt: doppelt dunkel; ein Zaun ja und ein Haus nein wirkte inkonsistent | alle |
+  | Haare, Laub, Gras, Feuer, Rauch, Wasser, Spiegel | nach der Marke, Effekte, SMX-Typ 15 | nie | – | – |
+  | Was das Spiel selbst beschattet | be_flag 0x10 mit Schattenlicht (`shadowModelRender`, Tabelle 8) | nie dazu | sonst doppelt dunkel auf den Empfängern des Spiels | 100, 206, 228 |
+
+- **Kern** (`runtime/gx_owner.cpp`, `runtime/rt_shadow.cpp`, kein neuer Patch): Bit 6 der Potato-Maske (nur mit Bit
+  5) heißt „Figuren und Objekte“. In einem Bild mit Echtzeitschatten trägt die Owner-Marke `RE4_GX_OWNER_PART`
+  (0x400, schon bei „Figuren“) oder `RE4_GX_OWNER_OBJECT` (0x200, nur bei „Figuren und Objekte“) nach der Tabelle oben
+  (`shadowClass`). Vom Spiel selbst beschattete Objekte merkt sich der Kern aus Tabelle 8 (`shadowModelRender`, ohne
+  Eigenschatten) und lässt sie aus. Ohne Echtzeitschatten (jeder Release-Build) bleiben die Marken wie vorher.
+- **Renderer:** Stufe 2 sammelt die Objekte in eine eigene zweite Karte (1024², eigener Ausschnitt, damit ein Windrad
+  die Karte der Figuren nicht grob macht). Ein Objekt wird bis 15 m plus seinem Radius gesammelt. Sein Schatten reicht
+  wie bei den Figuren höchstens 4 m hinter den Werfer: Mit 8 m dunkelten die Stoffbahnen unter der Decke der
+  Schlosshalle (r211) den ganzen Boden ab, während die Statue daneben nichts warf. Die Windradflügel beschatten so ihre
+  Plattform und die Palisade, nicht den 7 m tieferen Boden.
+  Markierungen rot für Figuren, grün für Objekte (Mischen nach Maximum). Die Maske nimmt auf der Welt den dunkleren
+  Wert beider Karten, auf einem Objekt nur den der Figuren (kein Eigenschatten, keine Streifen), auf einer Figur nichts.
+  GLES und Vulkan gleich (Vulkan: zweites Tiefenbild, Mischart MAX in der Markierungs-Pipeline). Die Owner-Schlüssel
+  des 60-FPS-Zwischenbilds lassen die neuen Bits weg.
+- **App:** „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“ (`RealtimeShadows`: 0, 1, 2; jeder Druck die
+  nächste Stufe), neuer Text `ingame_rt_shadows_objects` und ein Satz mehr im Hilfetext, 11 Sprachen
+  (`check_translations.py` 456 Texte ok). Ab Werk **„Figuren und Objekte“** (`DEFAULT_LEVEL`, Begründung bei den
+  Kosten). Fehlerprotokoll: „real-time shadows (debug build): on (characters and objects) (Grund)“.
+- **Geprüft (PC):** Kern i686 -O2 (0 Fehler, Kern- und Laufzeittests bestanden, Stubs wie erwartet); `gx_gl_check`
+  GLES und Vulkan je 0 Fehler, `TestShadows` neu mit einem Objekt: bei „Figuren“ wirft es nichts, bei „Figuren und
+  Objekte“ seinen Schatten (Wand 160 → 66), Figurschatten unverändert, Objekt und Figur selbst unverändert; App-Tests
+  186 je Variante grün (neu `theThreeLevels`, die Menüzeile durchläuft alle drei Stufen); `externalNativeBuildCoreDebug`.
+  **Release unverändert, Renderer:** 6 Bilder des Spiels wie im Release (ohne Marke und Bits) bei Stufe 0, 1 und 2 und
+  24 Bilder mit Marke und Objekt-Bits bei Stufe 0 zeichnet der neue Renderer Byte für Byte wie der Renderer von
+  release-candidate c2f5dcda vor allen Schatten (42 von 42 gleich, `same4.sh`). Ohne Bit 5 fragt der Kern keine Klasse
+  ab (`re4_rt_shadow_classes` 0): die Owner-Marken bleiben wie vorher. Der Android-Kern baut für ARM32 und ARM64
+  ohne Fehler (`whole_build_android.sh --abi all`).
+- **Kosten je Stufe am PC** (llvmpipe, 2×, je 7 Bilder ohne das erste, jeder Satz allein gezeichnet; Durchgang mit
+  `glFinish` davor und danach, Median):
+
+  | Raum | „Figuren“ | „Figuren und Objekte“ | dazu | Dreiecke der Objekte |
+  |---|---|---|---|---|
+  | r100 Auto | 8,3 ms | 9,1 ms | +0,8 ms | 0–19 305 |
+  | r103 Windrad | 10,0 ms | 10,9 ms | +0,9 ms | 724 |
+  | r209 Fass | 10,5 ms | 13,3 ms | +2,8 ms | 604 |
+  | r209 Fässchen | 10,5 ms | 11,1 ms | +0,6 ms | 384 |
+  | r11f Fass | 12,0 ms | 12,4 ms | +0,4 ms | 60 |
+  | r211 Stoffbahnen | 9,7 ms | 11,6 ms | +1,9 ms | 3 762 |
+  | r211 Stoffbahnen 2 | 9,9 ms | 10,9 ms | +1,0 ms | 3 762 |
+  | r104 | 10,3 ms | 10,6 ms | +0,3 ms | 160–1 486 |
+  | r203 | 15,3 ms | 16,7 ms | +1,4 ms | 688 |
+
+  Im Mittel kosten die Objekte knapp 1 ms zu den rund 10 ms der Figuren, das sind etwa 1 % des ganzen Bildes (die
+  Figuren etwa 10 %). Ohne Objekte im Umkreis wird die zweite Karte nicht gezeichnet. Schätzung Retroid (Adreno 650,
+  3×), nicht gemessen: zu den 1 bis 2 ms der Figuren etwa 0,1 bis 0,3 ms. Deshalb ab Werk „Figuren und Objekte“.
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\objects\` (je links „Figuren“, Mitte „Figuren und
+  Objekte“, rechts dasselbe mit rot markiert, was sich ändert): Windradflügel r103 (auch nah), Fässer r209 und r11f,
+  Fässchen r209, das Auto r100, die Stoffbahnen der Schlosshalle r211 und zum Vergleich r211 mit den verworfenen 8 m.
+- **Nicht geprüft:** Gerät (Kosten auf dem Adreno, Bild in Bewegung), EU-Disc, im Bild: Schwingendes, Hebel,
+  Gittertore, Maschinen, Bäume und Felsen.
 
 ## Version 0.99.19-rc (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc)
 

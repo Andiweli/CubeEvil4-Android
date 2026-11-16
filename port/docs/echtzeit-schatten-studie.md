@@ -22,6 +22,26 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 >   mit MSAA.
 > - Stand, Tests und Kosten: `port/docs/whole-program-status.md`, Abschnitt „Branch `realtime-shadows`“.
 > - Bilder: `E:\Development\Android\builds\realtime-shadows\debug-build\`.
+>
+> **Nachtrag 16.11.2026: auch Gegenstände, drei Stufen (weiter nur in Debug-Builds).** Wünsche des Projektinhabers:
+> „Fässer und Windräder sollen aber auch Schatten haben.“ und „Prüfe generell alles Bewegliche, ob Schatten möglich
+> sind: Flaggen wie in Map 1-2 usw. Es sollte nicht inkonsistent wirken. Von daher wäre ein Schalter für
+> Aus > Figuren > Figuren und Objekte evtl. sinnvoll.“
+>
+> - Die Zeile heißt jetzt „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“, ab Werk „Figuren und Objekte“.
+> - Bei „Figuren und Objekte“ wirft alles Bewegliche Schatten, und zwar immer ganze Arten: Türen, Kisten, Fässer,
+>   Regale, Hebel, Gittertore, fallende Bäume und rollende Felsen, die drehenden und schwingenden Teile der Räume
+>   (Windradflügel, Räder, Lampen), was ein Raum-Skript oder eine Szene in den Raum stellt (das Auto in r100), Stoff
+>   (Fahnen, Banner) und die Maschinen (Leitern, Glocken, Gondel, Lore …). Waffen und Schilde in der Hand gehören schon
+>   bei „Figuren“ dazu.
+> - Nie: die feste Kulisse (Häuser, Zäune, Mauern, Seile, Brücken; ihre Schatten sind in die Raumgrafik gemalt),
+>   Fenster, Fackeln, Gegenstände zum Aufheben, Haare, Laub, Effekte, und was das Spiel schon selbst beschattet.
+> - **Zäune:** Sie sind feste Kulisse. Technisch ginge es, aber dann gehörte die ganze Kulisse dazu (sonst wirft der
+>   Zaun und das Haus daneben nicht), und die gemalten Schatten würden doppelt dunkel. Deshalb draußen.
+> - Gegenstände bekommen den Schatten der Figuren, aber nicht ihren eigenen (keine Streifen). Jeder Schatten reicht
+>   höchstens 4 m hinter seinen Werfer, auch bei Gegenständen (sonst dunkelten hoch hängende Stoffbahnen ganze Böden).
+> - Tabelle aller Arten, Kosten je Stufe und was geprüft ist: `port/docs/whole-program-status.md`, Abschnitt „Branch
+>   `realtime-shadows`“, Stufe 4. Bilder: `E:\Development\Android\builds\realtime-shadows\objects\`.
 
 ---
 

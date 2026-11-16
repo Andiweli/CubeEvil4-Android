@@ -94,6 +94,15 @@ enum Re4GxOp {
 /* RE4_GX_OP_OWNER word 2: the object is a figure (Leon, Ashley, Luis, an enemy, the merchant: a work of
  * EmMgr) or a particle attached to one (runtime/gx_owner.cpp); the lens flares take no light from it. */
 #define RE4_GX_OWNER_FIGURE 0x100u
+/* RE4_GX_OP_OWNER word 2, only in a picture with the app's real-time shadows (debug builds; runtime/rt_shadow.cpp,
+ * runtime/gx_owner.cpp; never in a release build): the object casts a shadow with the figures (a weapon or shield
+ * a figure holds, a parasite of an enemy: RE4_GX_OWNER_PART) or, with "Characters and objects", one of its own
+ * (RE4_GX_OWNER_OBJECT: doors, crates, barrels, racks, rocks, trees, levers, barred gates, the room's turning,
+ * swinging or script-moved models such as the windmill's blades, models events leave in the room, cloth such as
+ * flags, ladders, bells, carts and other machinery; not one the game shadows itself). The room's static scenery is
+ * never marked: its light and shadows are pre-lit. */
+#define RE4_GX_OWNER_OBJECT 0x200u
+#define RE4_GX_OWNER_PART 0x400u
 
 /* Primitive classes (Re4GxDraw.primitive bits 0-7). Quads, strips and fans
  * arrive as triangle lists with GX's winding kept (strips: every second

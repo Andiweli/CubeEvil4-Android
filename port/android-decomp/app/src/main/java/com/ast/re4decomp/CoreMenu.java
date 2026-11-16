@@ -556,6 +556,11 @@ final class CoreMenu extends Dialog {
     return b;
   }
   private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_info_hud, place, on); }
+  /** The real-time shadows' value (RealtimeShadows.choice): Off, Characters, Characters and objects. */
+  static int shadowsName(int choice) {
+    return choice <= 0 ? R.string.ingame_off : choice >= 2 ? R.string.ingame_rt_shadows_objects
+        : R.string.ingame_rt_shadows_figures;
+  }
   /** "Name · value" on a button that moves through its values with each press, lit while not off. */
   private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
@@ -1630,25 +1635,24 @@ final class CoreMenu extends Dialog {
     body.addView(view, wide);
     viewLabel(view, CoreBridge.viewDistance(graphics));
     // Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows):
-    // "Off / Characters", a row of its own over the whole width as the view distance, only in a debug build on a
-    // capable device (weak devices never see it); a release build has no row
+    // "Off > Characters > Characters and objects" (the project owner, 15.11.2026), a row of its own over the whole
+    // width as the view distance, only in a debug build on a capable device (weak devices never see it); a release
+    // build has no row
     final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()), host.perfDevice(),
         PerfProfile.Bench.of(graphics), host.vulkanRunning());
     if (shadowsRow) {
       Button shadows = button("", v -> {
-        int next = RealtimeShadows.choice(graphics) == 1 ? 0 : 1;
+        int next = RealtimeShadows.next(RealtimeShadows.choice(graphics));
         graphics.edit().putInt(RealtimeShadows.KEY, next).apply();
-        valueLabel((Button) v, R.string.ingame_rt_shadows, next == 1 ? R.string.ingame_rt_shadows_figures
-            : R.string.ingame_off, next == 1);
+        valueLabel((Button) v, R.string.ingame_rt_shadows, shadowsName(next), next > 0);
         host.shadowsChanged();
       });
       LinearLayout.LayoutParams wideShadows = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
           ViewGroup.LayoutParams.WRAP_CONTENT);
       wideShadows.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
       body.addView(shadows, wideShadows);
-      final boolean shadowsOn = RealtimeShadows.choice(graphics) == 1;
-      valueLabel(shadows, R.string.ingame_rt_shadows, shadowsOn ? R.string.ingame_rt_shadows_figures : R.string.ingame_off,
-          shadowsOn);
+      final int shadowsChoice = RealtimeShadows.choice(graphics);
+      valueLabel(shadows, R.string.ingame_rt_shadows, shadowsName(shadowsChoice), shadowsChoice > 0);
     }
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
