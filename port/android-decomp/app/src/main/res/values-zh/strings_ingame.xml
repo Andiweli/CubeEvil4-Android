@@ -454,7 +454,7 @@
     <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
     <string name="ingame_renderer">渲染器</string>
     <string name="ingame_renderer_gles">OpenGL ES</string>
-    <string name="ingame_renderer_vulkan">Vulkan（实验性）</string>
+    <string name="ingame_renderer_vulkan">Vulkan</string>
     <string name="ingame_renderer_help">在部分设备上 Vulkan 可能更快，尤其是 Mali 显卡。如果无法启动，游戏会自动改回 OpenGL ES。更改后游戏会重新启动。</string>
     <string name="ingame_renderer_restart_text">新的渲染器将在游戏重新启动后使用。上次存档之后的进度将会丢失。</string>
     <string name="ingame_renderer_unavailable">Vulkan 需要 Android 10 和支持 Vulkan 1.1 的显卡；此设备使用 OpenGL ES 绘制。</string>

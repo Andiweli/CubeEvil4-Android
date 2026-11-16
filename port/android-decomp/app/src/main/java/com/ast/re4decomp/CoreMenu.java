@@ -1083,7 +1083,8 @@ final class CoreMenu extends Dialog {
     parent.addButton(box);
     return box;
   }
-  /** "Renderer": OpenGL ES or Vulkan (experimental, port/docs/vulkan-bauplan.md E7); a change restarts the game
+  /** "Renderer": OpenGL ES or Vulkan (port/docs/vulkan-bauplan.md E7; not experimental since 16.11.2026, the project
+   *  owner: "Vulkan kannst du auch nicht mehr experimental machen"); a change restarts the game
    *  after a question, "Cancel" keeps the one before (as the game's language). Without Vulkan here: OpenGL ES only. */
   private void renderer() {
     final String[] labels = {s(R.string.ingame_renderer_gles), s(R.string.ingame_renderer_vulkan)};

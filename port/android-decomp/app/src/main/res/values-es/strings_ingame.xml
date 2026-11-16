@@ -459,7 +459,7 @@
     <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
     <string name="ingame_renderer">Renderizador</string>
     <string name="ingame_renderer_gles">OpenGL ES</string>
-    <string name="ingame_renderer_vulkan">Vulkan (experimental)</string>
+    <string name="ingame_renderer_vulkan">Vulkan</string>
     <string name="ingame_renderer_help">Vulkan puede ser más rápido en algunos dispositivos, sobre todo con gráficos Mali. Si no se inicia, el juego vuelve solo a OpenGL ES. Un cambio reinicia el juego.</string>
     <string name="ingame_renderer_restart_text">El nuevo renderizador se usa tras reiniciar el juego. Se pierde el progreso desde la última vez que guardaste.</string>
     <string name="ingame_renderer_unavailable">Vulkan necesita Android 10 y gráficos con Vulkan 1.1; este dispositivo dibuja con OpenGL ES.</string>

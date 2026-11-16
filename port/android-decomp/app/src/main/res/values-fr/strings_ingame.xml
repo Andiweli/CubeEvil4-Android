@@ -461,7 +461,7 @@
     <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
     <string name="ingame_renderer">Moteur de rendu</string>
     <string name="ingame_renderer_gles">OpenGL ES</string>
-    <string name="ingame_renderer_vulkan">Vulkan (expérimental)</string>
+    <string name="ingame_renderer_vulkan">Vulkan</string>
     <string name="ingame_renderer_help">Vulkan peut être plus rapide sur certains appareils, surtout avec un GPU Mali. S\'il ne démarre pas, le jeu revient de lui-même à OpenGL ES. Un changement redémarre le jeu.</string>
     <string name="ingame_renderer_restart_text">Le nouveau moteur de rendu est utilisé après un redémarrage du jeu. La progression depuis la dernière sauvegarde est perdue.</string>
     <string name="ingame_renderer_unavailable">Vulkan nécessite Android 10 et un GPU compatible Vulkan 1.1 ; cet appareil dessine avec OpenGL ES.</string>

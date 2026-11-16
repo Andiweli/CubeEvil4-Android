@@ -212,7 +212,7 @@ struct GxOptions {
 };
 
 // The graphics API a renderer draws with (port/docs/vulkan-bauplan.md): GLES 3 (the default and the fallback) or
-// Vulkan (experimental, later).
+// Vulkan (the menu's choice; GLES stays the default, port/docs/vulkan-bauplan.md).
 enum class GxApi { kGl, kVulkan };
 
 struct GxCore;

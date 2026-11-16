@@ -765,6 +765,26 @@ genau den Regeln, die bisher die Debug-Builds hatten. Kein neuer Patch, nächste
   - auf einem Gerät, vor allem ein signierter Release-Build auf dem Retroid: Zeile, Vorgabe nach dem Benchmark, Kosten;
   - ein schwaches Gerät mit Release-Build (Hinweis unter der Zeile; nur in den Unit-Tests).
 
+### 12. Vulkan nicht mehr „experimentell“ (für 1.0, Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Vulkan kannst du auch nicht mehr experimental machen.“
+
+- Die Wahl unter Anzeige → Renderer heißt nur noch „Vulkan“, in allen 11 Sprachen; Arabisch behält das
+  Rechts-nach-links-Zeichen vorne (`check_translations.py`).
+- Sonst nannte Vulkan nirgends mehr „experimentell“: der Hilfetext, die Neustart-Frage, die Meldungen beim Rückfall auf
+  OpenGL ES, die Start- und Benchmark-Texte, README und `lokal-bauen.md` nicht.
+- Angepasst sind außerdem zwei Code-Kommentare (`CoreMenu.renderer`, `gx_gl.h`), ein Hinweis oben in
+  `port/docs/vulkan-bauplan.md` und im Releasetext die bekannte Schwäche „Vulkan (experimental): …“, jetzt „Vulkan: …“.
+- Unverändert:
+  - OpenGL ES bleibt Standard („gles“, wenn nichts gewählt ist); Absturz-Wächter und Rückfall wie bisher.
+  - Die Menü-Gruppe „Experimental“ mit 60 FPS, Frame skip, zusammengefassten Zeichenaufrufen, Vertex-Ring und „Save
+    bandwidth (Vulkan)“ bleibt.
+- **Releasetext** v0.99.19-rc: eine Zeile unter Changed.
+- **Geprüft am PC:** App-Tests 213 je Variante grün (core, classic, sideload; die Menü-Layout-Tests mit den
+  kürzeren Namen); `check_translations.py` ohne Befund (469 Texte); `assembleCoreRelease` und `lintVitalCoreRelease`
+  ohne Befund. Kern und Renderer nicht neu geprüft (nur ein Kommentar in `gx_gl.h`, mit dem Release-Build kompiliert).
+- **Nicht geprüft:** auf einem Gerät (nur Texte und Kommentare geändert).
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom

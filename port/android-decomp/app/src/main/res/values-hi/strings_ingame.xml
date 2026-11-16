@@ -456,7 +456,7 @@
     <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
     <string name="ingame_renderer">रेंडरर</string>
     <string name="ingame_renderer_gles">OpenGL ES</string>
-    <string name="ingame_renderer_vulkan">Vulkan (प्रायोगिक)</string>
+    <string name="ingame_renderer_vulkan">Vulkan</string>
     <string name="ingame_renderer_help">कुछ डिवाइसों पर, खासकर Mali ग्राफ़िक्स के साथ, Vulkan तेज़ हो सकता है। अगर यह शुरू न हो, तो गेम अपने आप OpenGL ES पर लौट जाता है। बदलाव करने पर गेम फिर से शुरू होता है।</string>
     <string name="ingame_renderer_restart_text">नया रेंडरर गेम को फिर से शुरू करने के बाद इस्तेमाल होता है। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
     <string name="ingame_renderer_unavailable">Vulkan के लिए Android 10 और Vulkan 1.1 वाला ग्राफ़िक्स चाहिए; यह डिवाइस OpenGL ES से बनाता है।</string>
