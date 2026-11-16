@@ -5032,9 +5032,12 @@ void TestPrewarm() {
 // the game's own texture and asks for the read, a later one the replacement; a reset while a read waits drops it and
 // the next picture asks again; the loader keeps at most its limit read and not taken, and Cancel empties it. GL looks
 // at the pixels, Vulkan (lavapipe takes no ETC2: the decoded levels) at the counts.
+// keyGiven: the entry takes *key as it is (a texture known by its Dolphin name only), `game` is not used
 std::string MakeHdPack(const std::vector<std::uint8_t> &game, unsigned format, unsigned w, unsigned h,
-                       std::uint8_t red, std::uint8_t green, std::uint8_t blue, re4gx::TexKey *key) {
-  *key = re4gx::DolphinKey(format, w, h, false, game.data(), re4gx::GxTextureLevelBytes(format, w, h), nullptr, 0);
+                       std::uint8_t red, std::uint8_t green, std::uint8_t blue, re4gx::TexKey *key,
+                       bool keyGiven = false) {
+  if (!keyGiven)
+    *key = re4gx::DolphinKey(format, w, h, false, game.data(), re4gx::GxTextureLevelBytes(format, w, h), nullptr, 0);
   std::vector<std::uint8_t> rgba(8 * 8 * 4);
   for (int i = 0; i < 64; i++) {
     rgba[i * 4] = red;
@@ -5059,6 +5062,10 @@ std::string MakeHdPack(const std::vector<std::uint8_t> &game, unsigned format, u
   head.maxSide = 512;
   c4tex::Entry e{};
   e.texHash = key->tex;
+  if (key->hasTlut) {
+    e.tlutHash = key->tlut;
+    e.flags |= c4tex::kFlagTlut;
+  }
   e.origWidth = static_cast<std::uint16_t>(w);
   e.origHeight = static_cast<std::uint16_t>(h);
   e.gxFormat = static_cast<std::uint8_t>(format);
@@ -5081,6 +5088,43 @@ std::string MakeHdPack(const std::vector<std::uint8_t> &game, unsigned format, u
   Require(f && std::fwrite(file.data(), 1, file.size(), f) == file.size(), "HD background: the test pack written");
   std::fclose(f);
   return path;
+}
+
+// The title menu's words keep the game's font (re4gx::KeepsGameTexture, 16.11.2026): a pack with START (US, as the HD
+// Project names it) does not replace it; the same texels at another size, another 14-pixel 4-bit texture and a
+// START in another format still get replaced. Every word of the list is kept, whatever its palette.
+void TestHdKeptWords() {
+  struct Case {
+    unsigned format, w, h;
+    std::uint64_t tex;
+    bool kept;
+    const char *what;
+  };
+  const Case cases[] = {
+      {8, 66, 14, 0xe45b61626fb865f4ull, true, "START (tex1_66x14_e45b61626fb865f4_a2f12b9001ef7ea9_8) is kept"},
+      {8, 67, 14, 0xe45b61626fb865f4ull, false, "the same hash at another size is replaced"},
+      {8, 66, 14, 0x0123456789abcdefull, false, "another 66x14 4-bit texture is replaced"},
+      {9, 66, 14, 0xe45b61626fb865f4ull, false, "the same hash in another format is replaced"},
+      {8, 61, 20, 0x03fd2573f41831b9ull, true, "the Spanish FACIL (61x20) is kept"},
+  };
+  for (const Case &c : cases) {
+    re4gx::TexKey key;
+    key.format = c.format;
+    key.width = c.w;
+    key.height = c.h;
+    key.tex = c.tex;
+    key.tlut = 0xa2f12b9001ef7ea9ull;
+    key.hasTlut = true;
+    const std::string path = MakeHdPack({}, c.format, c.w, c.h, 255, 0, 0, &key, true);
+    re4gx::TexPack pack;
+    std::string error;
+    Require(pack.Open(path, &error), ("HD kept words: the test pack opens: " + error).c_str());
+    Check((pack.Find(key) == nullptr) == c.kept, (std::string("HD kept words: ") + c.what).c_str());
+    key.tlut ^= 1;
+    Check(re4gx::KeepsGameTexture(key) == c.kept, (std::string("HD kept words, any palette: ") + c.what).c_str());
+    pack.Close();
+    std::remove(path.c_str());
+  }
 }
 
 void TestHdBackground(re4gx::GxApi api, const char *name) {
@@ -5184,6 +5228,7 @@ int main() {
       TestAutoLevelGpu();
       TestBenchSteps();
       TestPotatoBits();
+      TestHdKeptWords();
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }
@@ -5217,6 +5262,7 @@ int main() {
   TestBenchSteps();
   TestPotatoBits();
   TestHandOverCopies();
+  TestHdKeptWords();
   TestHdBackground(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN
   if (VulkanStarts()) {

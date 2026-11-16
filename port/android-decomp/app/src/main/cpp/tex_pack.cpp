@@ -154,6 +154,65 @@ TexKey DolphinKey(unsigned format, unsigned width, unsigned height, bool mip, co
   return k;
 }
 
+namespace {
+
+// The title menu's words (owner's decision 16.11.2026: the menu keeps the game's own font). Each word is a 4-bit
+// texture of its own (Dolphin format 8) from SS/<lang>/title.dat: the main menu (START or NEW GAME, LOAD, OPTIONS,
+// ASSIGNMENT ADA, THE MERCENARIES) and the difficulty menu after it, for the debug, US, EU (five languages) and JP
+// discs. The HD Project redrew only some of them, START even in another font, and only the US words; with EU discs
+// the two English words got replaced and the translated ones did not. So a pack showed two or three fonts in one
+// menu. None of them is replaced. A word is its size and its texels' hash (the first part of Dolphin's name), with
+// any palette: other textures of the same size still get replaced. Left out: the EU discs' language select, which
+// CubeEvil4 took out of the menu (R7). Found by reading every title.dat (port/docs/textur-lader-plan.md).
+struct KeptTexture {
+  unsigned short width, height;
+  std::uint64_t tex;
+};
+constexpr KeptTexture kTitleMenuWords[] = {
+    {66, 14, 0xe45b61626fb865f4ull},   // START (debug, US, EU English and German, JP)
+    {113, 14, 0x1c53f86066cf7297ull},  // NEW GAME (EU English, JP)
+    {57, 14, 0xcf226312e5bbccf4ull},   // LOAD
+    {87, 14, 0xe7fa0026e8d828beull},   // OPTIONS (also French)
+    {185, 14, 0x906e03179ee005b2ull},  // ASSIGNMENT ADA (all EU languages too)
+    {196, 14, 0xe536981743eb68a3ull},  // THE MERCENARIES (all EU languages too, JP)
+    {55, 14, 0x48471570241fa769ull},   // EASY
+    {87, 14, 0xa632357a930e0abfull},   // NORMAL (also German, French, Spanish)
+    {149, 14, 0x5af945b8e074a692ull},  // PROFESSIONAL
+    {139, 14, 0x26c719152800dcaaull},  // ADA THE SPY (JP)
+    {197, 14, 0xcb93bd55f6183a88ull},  // GLOBAL STANDARD (JP)
+    {130, 14, 0x89ec07f8409f07b9ull},  // NEUES SPIEL
+    {70, 14, 0x8bab5d63e8e9d578ull},   // LADEN
+    {102, 14, 0x75be4f4d6f040e99ull},  // OPTIONEN
+    {77, 14, 0xd41ff480c913e225ull},   // LEICHT
+    {60, 14, 0xa9a9195d25160fe1ull},   // PROFI
+    {131, 14, 0xef39b67805ba5ae7ull},  // COMMENCER
+    {188, 14, 0x170d099cf172becdull},  // NOUVELLE PARTIE
+    {100, 14, 0x62add5e27e2514f8ull},  // CHARGER
+    {74, 14, 0xbd1de53ff06b5254ull},   // FACILE (French and Italian)
+    {160, 14, 0x11af0b251db2399dull},  // PROFESSIONNEL
+    {60, 14, 0x92eac8c7a7b16f03ull},   // INCIO (sic, the Spanish START)
+    {169, 14, 0xfb03181528b14608ull},  // PARTIDA NUEVA
+    {86, 14, 0x3928037210e2844dull},   // CARGAR
+    {98, 14, 0xb5722dc146a98fa4ull},   // OPCIONES
+    {61, 20, 0x03fd2573f41831b9ull},   // FACIL with its accent
+    {140, 14, 0xee6dae13df9e88cbull},  // PROFESIONAL
+    {68, 14, 0xb4279d1c3d14fd76ull},   // AVVIA
+    {167, 14, 0xaf1a954efd17ef73ull},  // NUOVA PARTITA
+    {81, 14, 0x2045c0edb89c174bull},   // CARICA
+    {82, 14, 0x5be7bfb148cda59full},   // OPZIONI
+    {99, 14, 0x2ec167acb4e13dd9ull},   // NORMALE
+    {90, 14, 0x303358cf1fb0f90bull},   // ESPERTO
+};
+
+}  // namespace
+
+bool KeepsGameTexture(const TexKey &key) {
+  if (key.format != 8) return false;
+  for (const KeptTexture &k : kTitleMenuWords)
+    if (k.tex == key.tex && k.width == key.width && k.height == key.height) return true;
+  return false;
+}
+
 TexPack::~TexPack() { Close(); }
 
 void TexPack::Close() {
@@ -229,7 +288,7 @@ bool TexPack::Open(const std::string &path, std::string *error) {
 }
 
 const c4tex::Entry *TexPack::Find(const TexKey &key) const {
-  if (entries_.empty()) return nullptr;
+  if (entries_.empty() || KeepsGameTexture(key)) return nullptr;
   auto lo = std::lower_bound(entries_.begin(), entries_.end(), key.tex,
                              [](const c4tex::Entry &e, std::uint64_t h) { return e.texHash < h; });
   const c4tex::Entry *same = nullptr, *other = nullptr;

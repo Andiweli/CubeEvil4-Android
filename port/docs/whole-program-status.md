@@ -860,6 +860,17 @@ ja erst Freitag und teste bis dahin lokal.“
     `lintVitalCoreRelease` ohne Befund.
   - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Patch 0223 mit dem geänderten Kopf angewendet.
 
+### 15. HD-Texturen: das Titelmenü in der Schrift des Spiels (Texturen-Sitzung, Projektinhaber, 16.11.2026)
+
+`origin/textures` f204f1f7 (auf 9247f05d) hineingemischt. Einzelheiten im Abschnitt des Texture Packers
+(„Titelmenü in der Schrift des Spiels“) und in `port/docs/textur-lader-plan.md`: Der Lader ersetzt die 33 Menüwörter
+des Titel- und Schwierigkeitsmenüs nie (`tex_pack.cpp`, `KeepsGameTexture`). Releasetext: eine Zeile unter Changed.
+
+- **Geprüft von der Texturen-Sitzung:** acht Disc-Fassungen; im Dorf dieselben 116 Ersetzungen; `gx_gl_check` (GLES)
+  0 Fehler; Android-Build.
+- **Geprüft hier nach dem Mischen:** `gx_gl_check` mit GLES **und Vulkan** (lavapipe) 0 Fehler, mit der neuen Gruppe
+  `TestHdKeptWords`; App-Tests core 216 grün; `assembleCoreRelease` baut. Nicht auf dem Gerät geprüft.
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
@@ -2028,6 +2039,18 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Knopf-Paare ZIP/Ordner, Start/Abbruch, Bericht/Import nebeneinander, lange Texte zweizeilig. `PackerScreenTest`: 11
   Sprachen bei 360 dp, Schrift 100 und 130 %, drei Zustände: nichts abgeschnitten, gekürzt oder außerhalb, Paare gleich
   breit (Gegenprobe mit einzeiligen Knöpfen schlägt an). Bilder `builds\textures\pics\packer-*.png`.
+- **Titelmenü in der Schrift des Spiels (Meldung eines Spielers und des Inhabers, Entscheidung des Projektinhabers
+  16.11.2026; Basis `release-candidate` 9247f05d):** Mit dem HD Project hatte START (US) eine andere, dünne Schrift,
+  mit EU-Discs nur ASSIGNMENT ADA und THE MERCENARIES (englisch in allen Sprachen, im US-Paket enthalten). Ursache das
+  Paket: es malt nur einen Teil der Wörter neu, START in einer anderen Schrift, und kennt nur die US-Wörter; unsere
+  Kennungen sind dieselben wie Dolphins Dateinamen. Jetzt ersetzt der Lader die 33 Menüwörter des Titel- und
+  Schwierigkeitsmenüs nie (`KeepsGameTexture`, `tex_pack.cpp`; Liste aus allen `title.dat` von Debug, US, EU in fünf
+  Sprachen und JP; Größe, Format und Kennung der Bilddaten, jede Farbtabelle). Geprüft am PC: Titel-Dumps aller acht
+  Fassungen und das US-Schwierigkeitsmenü mit dem 512er-Paket: es fallen genau die Menüwörter weg (US/Debug 5, EU
+  englisch 5, EU deutsch/spanisch/italienisch 2, französisch 3, JP 4), alle anderen Ersetzungen bleiben gleich; im
+  Dorf (Debug-Dump) dieselben 116 Ersetzungen wie vorher. `gx_gl_check`-Gruppe `TestHdKeptWords` (START bleibt,
+  gleiche Kennung in anderer Größe oder anderem Format und andere 66×14-Bilder werden ersetzt; Gegenprobe ohne die
+  Liste: 2 Fehler). Bild `builds\textures\pics\title-menu-own-font.png`. Nicht auf dem Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 

@@ -255,6 +255,16 @@ Ein Ersatzbild muss erst aus der Paketdatei gelesen werden. Je nach Stufe sind d
 - Bilder mit Text in anderen Sprachen (das Paket ist für die US-Fassung gemacht; deutsche Menütexte der EU-Discs
   bleiben original).
 - Bilder, die das Spiel selbst erzeugt (siehe oben).
+- **Die Wörter des Titelmenüs** (Entscheidung des Projektinhabers, 16.11.2026: „können wir hier einfach die
+  Defaultschrift lassen und nicht die vom Texturpaket nehmen?“). Jedes Menüwort ist ein eigenes Bild aus
+  `SS/<Sprache>/title.dat`. Das HD Project hat nur einen Teil davon neu gemalt, START sogar in einer anderen, dünnen
+  Schrift, und nur die US-Wörter; mit EU-Discs wurden die beiden englischen Wörter ersetzt, die übersetzten nicht. So
+  standen zwei oder drei Schriften in einem Menü. Der Lader ersetzt diese Bilder nie (`KeepsGameTexture` in
+  `tex_pack.cpp`): 33 Wörter aus Hauptmenü und Schwierigkeitsmenü (START bzw. NEW GAME, LOAD, OPTIONS, ASSIGNMENT ADA,
+  THE MERCENARIES, EASY, NORMAL, PROFESSIONAL) für Debug-, US-, EU- (alle fünf Sprachen) und JP-Discs, gefunden durch
+  Auslesen jeder `title.dat`. Erkannt an Größe, Format und der Kennung der Bilddaten (dem ersten Teil von Dolphins
+  Namen), egal mit welcher Farbtabelle; andere Bilder gleicher Größe werden weiter ersetzt. Die Sprachauswahl der
+  EU-Discs fehlt in der Liste, weil CubeEvil4 sie aus dem Menü genommen hat (R7). Bestehende Pakete bleiben gültig.
 - **Im PSone-Modus** bleiben die Originalbilder (der Modus will ja den groben Look). Meine Entscheidung; sag Bescheid,
   wenn du es anders willst.
 
