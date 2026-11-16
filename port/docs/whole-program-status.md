@@ -785,6 +785,51 @@ Wortlaut des Inhabers (über die Hauptsitzung): „Vulkan kannst du auch nicht m
   ohne Befund. Kern und Renderer nicht neu geprüft (nur ein Kommentar in `gx_gl.h`, mit dem Release-Build kompiliert).
 - **Nicht geprüft:** auf einem Gerät (nur Texte und Kommentare geändert).
 
+### 13. RetroTouch 1.0.0-beta.12: vier Sticks, Symbole, Finger auf dem Stick (für 1.0, Projektinhaber, 16.11.2026)
+
+Das AAR des Inhabers (`RetroTouch-1.0.0-beta.12.aar`, sha256 `323c32e2…93ee`) ersetzt `app/libs/retrotouch.aar`. Es
+beantwortet die drei Lücken aus Abschnitt 5.
+
+- **Was sich an RetroTouch geändert hat** (javap gegen beta.11):
+  - `RetroTouchLayout.MAX_STICKS = 8` mit `RetroTouchView.setMaxSticks`; ohne den Aufruf bleiben es zwei Sticks.
+  - `registerStickAction` mit einem `RetroTouchIcon`.
+  - `RetroTouchStickTouchListener` mit `onStickDown` und `onStickUp`. RetroTouch ruft sie auf dem gewöhnlichen
+    Listener auf, wenn er die Schnittstelle hat. `onStickDown` kommt vor der ersten Meldung eines Sticks, `onStickUp`
+    nach der letzten, auch wenn RetroTouch alle Finger loslässt (neues Layout, Reset); im Editor nicht.
+  - Unverändert sind das Layout-Format 2, sein Lesen und Schreiben (bis auf die Grenze), `RetroTouchControl`, Manifest,
+    Lizenz und `proguard.txt`.
+- **App:**
+  - `TouchControls`:
+    - `setMaxSticks(4)` (`CoreTouch.MAX_STICKS`): Bewegungs-, C-, Ziel- und Messer-Stick passen in ein Layout.
+    - Der Listener hat `onStickDown` und `onStickUp`.
+    - Ziel- und Messer-Stick bekommen im Symbol-Stil die Symbole von R (Fadenkreuz) und L (Messer); der C-Stick
+      bleibt ohne.
+  - `CoreTouch`: Ziel- und Messer-Stick halten R bzw. L von `stickDown` bis `stickUp`. Die Meldungen (`onStick`) geben
+    nur noch die Neigung.
+    - Entfallen ist die Krücke von Abschnitt 5: welcher Finger in welchem Ereignis aufsetzte, das (0, 0) ohne Finger,
+      `endEvent`.
+    - Für Spieler bleibt alles gleich: R oder L gehalten, solange der Finger liegt, auch ruhig in der Mitte; die
+      Neigung zielt; Loslassen gibt frei.
+- **Releasetext:** die New-Zeile zu Ziel- und Messer-Stick um die Symbole und die vier Sticks ergänzt (beides gab es in
+  0.99.18 nicht).
+- **Geprüft:**
+  - App-Tests 215 je Variante grün (core, classic, sideload). Neu:
+    - `TouchLayoutFileTest.fourSticksOutAndBack`: vier Sticks mit den gesicherten Spielständen hinaus und zurück,
+      RetroTouch zeigt alle vier;
+    - `anOldLayoutStillLoads`: ein Layout und eine Layout-Datei von vor beta.12 laden wie bisher;
+    - `TouchStyleTest`: die Symbole und `getMaxSticks() == 4`.
+  - Host-Tests: `CoreTouchTests` 370 Prüfungen (Ziel- und Messer-Stick über `stickDown`/`stickUp`, Meldungen ohne
+    Finger halten nichts, Layout-Wechsel unter dem Finger, alle vier Sticks zugleich), `CoreInputTests` 1861.
+  - `lintVitalCoreRelease` ohne Befund.
+  - Emulator (x86_64-Telefon, Debug-Hülle ohne Spielkern, eine Wegwerf-Zeile fürs gesendete Pad):
+    - im Editor vier Sticks gelegt, ein fünfter wird nicht angeboten; gespeichert im Format 2;
+    - nach einem Neustart dasselbe Layout, beim Laden nichts gedrückt;
+    - Ziel-Stick hält R auch ruhig in der Mitte, Neigung zielt, Loslassen gibt frei; Messer-Stick ebenso mit L;
+      C-Stick wie bisher;
+    - GC-Stil wie bisher.
+  - Bilder und Protokoll: `E:\Development\Android\builds\release-candidate\retrotouch-beta12\` (`pruefung.txt`).
+- **Nicht geprüft:** auf einem Gerät mit Spielkern; zwei Finger zugleich im Emulator (nur in den Host-Tests).
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom

@@ -206,5 +206,9 @@ dependencies {
     // RetroTouchView.setSafeInsets(left, top, right, bottom), the camera cutout's insets for the editor's bar, its
     // "DRAG / Selected" line, their touch areas and the gear's default place (TouchControls.setSafeInsets, 0.99.17);
     // the controls and their saved places as before. Nothing else of the public API changed; notices unchanged.
+    // Now 1.0.0-beta.12 (16.11.2026, the project owner's AAR, sha256 323c32e2...ee): up to 8 sticks per layout
+    // (RetroTouchLayout.MAX_STICKS, RetroTouchView.setMaxSticks; the app allows 4: move, C, aim, knife), an icon for
+    // added sticks (registerStickAction with a RetroTouchIcon) and RetroTouchStickTouchListener (onStickDown / onStickUp
+    // on the listener, CoreTouch.stickDown / stickUp). The layout format (2) and its reader are as before; notices unchanged.
     implementation files('libs/retrotouch.aar')
 }

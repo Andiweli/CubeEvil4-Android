@@ -14,6 +14,7 @@ import com.ast.retrotouch.RetroTouchControl;
 import com.ast.retrotouch.RetroTouchLayout;
 import com.ast.retrotouch.RetroTouchMode;
 import com.ast.retrotouch.RetroTouchStickListener;
+import com.ast.retrotouch.RetroTouchStickTouchListener;
 import com.ast.retrotouch.RetroTouchView;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,6 +82,8 @@ final class TouchControls implements CoreTouch.Host {
     // both styles; the editor shows its style button, the names in the phone's language (upper case as its other tools)
     view.setAvailableButtonStyles(RetroTouchButtonStyle.LABELS, RetroTouchButtonStyle.ICONS);
     view.setDefaultButtonStyle(TouchStyle.DEFAULT_BUTTON_STYLE);
+    // the move stick, the C stick, the aim and the knife stick in one layout (RetroTouch 1.0.0-beta.12; before it two)
+    view.setMaxSticks(CoreTouch.MAX_STICKS);
     Locale language = context.getResources().getConfiguration().locale;
     view.setStyleToggleLabels(context.getString(R.string.ingame_button_labels).toUpperCase(language),
         context.getString(R.string.ingame_button_icons).toUpperCase(language));
@@ -108,6 +111,17 @@ final class TouchControls implements CoreTouch.Host {
     view.setListener(new Listener() {
       @Override public void onStick(String action, float x, float y) {
         touch.stick(action, x, y);
+        host.send();
+      }
+
+      // a finger on a stick and off it again (RetroTouch 1.0.0-beta.12): the aim and knife sticks hold R and L
+      @Override public void onStickDown(String action) {
+        touch.stickDown(action);
+        host.send();
+      }
+
+      @Override public void onStickUp(String action) {
+        touch.stickUp(action);
         host.send();
       }
 
@@ -144,8 +158,10 @@ final class TouchControls implements CoreTouch.Host {
     update();
   }
 
-  /** RetroTouch's callbacks and those of its sticks other than the move stick (the C stick). */
-  private abstract static class Listener extends RetroTouchAdapter implements RetroTouchStickListener {}
+  /** RetroTouch's callbacks, those of its sticks other than the move stick (the C, aim and knife sticks) and the
+   *  fingers on its sticks (RetroTouch calls the last on a listener that implements RetroTouchStickTouchListener). */
+  private abstract static class Listener extends RetroTouchAdapter
+      implements RetroTouchStickListener, RetroTouchStickTouchListener {}
 
   /**
    * The look of a button style (TouchStyle): the actions' labels, icons and colours, the shapes of L, R,
@@ -159,8 +175,9 @@ final class TouchControls implements CoreTouch.Host {
       // the border of every button #3e3c29 (wish of the project owner, 03.11.2026; RetroTouch 1.0.0-beta.8)
       RetroTouchColors colours = icons || CoreTouch.COLOURS[i] == 0 ? null
           : RetroTouchColors.of(CoreTouch.COLOURS[i]).withBorderColor(CoreTouch.BORDER);
-      // the C stick: an analog stick of its own (RetroTouch 1.0.0-beta.7's stick action)
-      if (CoreTouch.isStick(action)) view.registerStickAction(action, CoreTouch.LABELS[i], colours);
+      // the C, aim and knife sticks: analog sticks of their own (RetroTouch 1.0.0-beta.7's stick action), since
+      // 1.0.0-beta.12 with an icon in the ICONS style (the aim and knife sticks; the C stick keeps none)
+      if (CoreTouch.isStick(action)) view.registerStickAction(action, CoreTouch.LABELS[i], colours, TouchStyle.icon(action));
       else view.registerAction(action, CoreTouch.LABELS[i], colours, TouchStyle.icon(action));
       view.setButtonShape(action, icons ? TouchStyle.iconShape(action) : RetroTouchButtonShape.AUTO);
     }
@@ -395,20 +412,11 @@ final class TouchControls implements CoreTouch.Host {
 
   /** Before the window's touch event goes to the views (CoreActivity.dispatchTouchEvent). */
   void before(MotionEvent e) {
-    int action = e.getActionMasked();
-    if (shown) touch.beginEvent(action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN);
+    if (shown) touch.beginEvent();
   }
 
   /** After it went through them: which finger looks, which stopped. */
   void after(MotionEvent e) {
-    try {
-      afterEvent(e);
-    } finally {
-      touch.endEvent();  // RetroTouch's reports from now on come outside any touch
-    }
-  }
-
-  private void afterEvent(MotionEvent e) {
     if (!shown) {
       // hidden by a controller: the end of a touch shows them (the next one plays)
       if (e.getActionMasked() == MotionEvent.ACTION_UP && rule.touch()) update();
@@ -423,8 +431,8 @@ final class TouchControls implements CoreTouch.Host {
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_POINTER_UP:
         boolean looked = touch.looking();
-        // (an aim or knife stick let go: R or L up after RetroTouch's last report, sent here)
-        if (touch.fingerUp(e.getPointerId(i)) | looked) host.send();
+        touch.fingerUp(e.getPointerId(i));
+        if (looked) host.send();
         break;
       case MotionEvent.ACTION_CANCEL:
         touch.cancel();

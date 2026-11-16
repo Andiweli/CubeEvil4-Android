@@ -88,6 +88,15 @@ public class TouchStyleTest {
     assertNull(action(view, CoreTouch.R3).getIcon());
     for (String id : CoreTouch.ACTIONS) assertNull(id, action(view, id).getColors());
     assertTrue(view.isStickAction(CoreTouch.C_STICK));
+    // the aim and knife sticks with R's and L's icons (RetroTouch 1.0.0-beta.12), the C stick keeps its label
+    assertTrue(view.isStickAction(CoreTouch.AIM_STICK) && view.isStickAction(CoreTouch.KNIFE_STICK));
+    assertSame(RetroTouchIcon.CROSSHAIR, action(view, CoreTouch.AIM_STICK).getIcon());
+    assertSame(RetroTouchIcon.KNIFE_HORIZONTAL, action(view, CoreTouch.KNIFE_STICK).getIcon());
+    assertNull(action(view, CoreTouch.C_STICK).getIcon());
+    assertEquals("AIM", action(view, CoreTouch.AIM_STICK).getLabel());
+    // four sticks in one layout: the move stick, the C stick, the aim and the knife stick
+    assertEquals(CoreTouch.MAX_STICKS, view.getMaxSticks());
+    assertEquals(4, CoreTouch.MAX_STICKS);
   }
 
   @Test public void layoutKeepsPositionsAndSizes() {

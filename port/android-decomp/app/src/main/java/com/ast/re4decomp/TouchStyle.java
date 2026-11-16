@@ -49,7 +49,8 @@ final class TouchStyle {
   /**
    * The icon of an action, null for none (R3 and the C stick keep their labels). A: interact, confirm, fire
    * (with R held); B: run, cancel; X: Ashley (wait / follow); Y: the inventory (attache case); Z: the map;
-   * L: ready the knife; R: ready the weapon (aim); START: the game's menu; MENU: the app's menu (SELECT).
+   * L: ready the knife; R: ready the weapon (aim); START: the game's menu; MENU: the app's menu (SELECT). The aim
+   * and knife sticks as R and L (RetroTouch 1.0.0-beta.12 draws added sticks with an icon in the ICONS style).
    */
   static RetroTouchIcon icon(String action) {
     switch (action) {
@@ -62,6 +63,8 @@ final class TouchStyle {
       case CoreTouch.R: return RetroTouchIcon.CROSSHAIR;
       case CoreTouch.START: return RetroTouchIcon.CIRCLE_PAUSE;
       case CoreTouch.MENU: return RetroTouchIcon.MENU;
+      case CoreTouch.AIM_STICK: return RetroTouchIcon.CROSSHAIR;
+      case CoreTouch.KNIFE_STICK: return RetroTouchIcon.KNIFE_HORIZONTAL;
       default: return null;
     }
   }
