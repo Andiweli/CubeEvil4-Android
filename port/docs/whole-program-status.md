@@ -23,6 +23,46 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
   Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
 
+## Branch `random-enemies`: „Zufällige Gegner“ wirklich zufällig, Prüfung und Prototyp Stufe 2 (16.11.2026, Basis 3087fd5a)
+
+**Auftrag des Projektinhabers (16.11.2026, über die Hauptsitzung):** „Prüfe nun auch separat und genau den Cheat für
+'Zufällige Gegner' wie wir die sauber ohne Crash oder Fehler dennoch zufällig platzieren können. Es gibt immer wieder
+Userfeedback, dass das nicht klappt. Ich muss gestehen bei mir standen die Gegner auch immer an derselben Stelle.“
+**Nur Prototyp im eigenen Branch, nicht in `release-candidate` oder `master`; der Projektinhaber entscheidet.**
+Einzelheiten: `port/docs/gegner-randomizer-plan.md` Abschnitt 10; Bericht für den Inhaber
+`E:\Development\Android\reports\random-enemies-2026-11-16.md`; Karten `E:\Development\Android\builds\random-enemies\`.
+
+- **Befund:** kein Fehler im Weg zum Kern (auch nicht nach Laden, neuem Spiel, Neustart des Spiels, im eigenen
+  Kernprozess). Stufe 1.5 (0.99.19) setzt bei jedem Seed (4242, 777, 31337) **höchstens 1 von 380 Ganados** des
+  Rundgangs an eine neue Stelle (mehr als 5 m von jedem Original-Platz): Ganze Räume waren gesperrt (175 Ganados in 26
+  Räumen), sonst tauschen Ganados nur die Plätze (± 1,5–4 m), im frühen Dorf kommen die Gegner per Skript oder haben
+  Sonderrollen.
+- **Prototyp Stufe 2** (`runtime/enemy_random.cpp`, `port/tools/enemy_random_table.py` → `enemy_random_rooms.inc`,
+  `RE4_TEST_EM_KILL` mit Kennung 100 in `state_trace.cpp`; **kein neuer Patch**, 0231 unverändert): Stellen überall auf
+  dem Wegenetz des Raums (`pG->Rtp`, im Teil, den der eigene Platz in beide Richtungen erreicht), geprüft mit Boden,
+  Wänden, Bereichen (Türen 3 m, Leitern, Gegenstände 1,5 m), 10 m von Leon, zuerst 5 m von allen Original-Plätzen;
+  sonst Stufe 1.5. Die Schutzliste trennt „Skript steuert“ (bleibt) von „Skript schaltet an/aus“: 11 Räume
+  unangetastet (10 Bossräume, r100), 52 „nur Stellen“, 45 offen.
+- **Geprüft am PC** (i686 -O2, `whole_build.sh` alle Prüfungen grün; `whole_build_android.sh --abi all` 0 Fehler;
+  Skripte `re-*.sh`/`re-*.py` im Notizordner der Sitzungen):
+  - Rundgang aller 126 Räume, Debug-Discs: ohne Cheat, Seed 4242 (mit Listen-Prüfung), 4242 noch einmal, 777, 31337:
+    je **ALLES OK**. Seed 4242: **90 von 380 Ganados in 25 Räumen an neuen Stellen** (heute 1 in 1 Raum), 777: 91 in
+    26 (eine Kopie in r225, 12 → 13), 31337: 92 in 26; gleicher Seed zweimal: alle Räume gleich.
+  - US-Discs 4242 und 777 (mit Listen-Prüfung): ALLES OK, dieselbe Planung wie Debug. EU-Discs 4242 und 777: 125 von
+    126, r333 stürzt im Prüfprotokoll ab (Altbefund, **auch ohne Cheat** in diesem Stand, r333 ohne gewöhnlichen
+    Ganado); EU: 93 Ganados an neuen Stellen (heute 4). In 390 Raumstarts mit Listen-Prüfung nie geschrieben, kein
+    „Em set failed“, keine gescheiterte Kopie.
+  - Dorf-Belagerung r101 (`re-siege.sh`: Leon in Bereich 8, alle Ganados fallen nach und nach): Glocken-Szene
+    `r101s30` nach 24 Toten, ohne Cheat und mit 4242/777/31337 (Debug), 0/4242 (EU, US).
+  - Rundgang „alle Ganados fallen alle 300 Bilder“ (`re-killtour.sh`, `re-events.py`: gelesene Ereignis-Dateien und
+    Türschlösser gegen denselben Lauf ohne Cheat): Debug 4242 und US 4242 126 von 126 gleich; Debug 777 und EU 4242 je
+    ein Raum anders, weil Leon durch eine Tür in den nächsten Raum lief (r11a → r11b, r103 → r101); r200/r218 mit dem
+    Cheat eine Welle mehr. „Em set failed“ nur in r400–r409 der EU-/US-Discs, gleich oft ohne Cheat (Stufe 4, nie
+    angefasst). EU r333 wie oben.
+  - Randbefund (nicht vom Cheat): beim Wechsel r11a → r11b schreibt `RE4_TEST_DOORS` eine Zeile mit unsinnigen Werten
+    für Eintrag 21 (auch ohne Cheat, gleiche Werte; `re-door.sh`): das Prüfprotokoll liest ein Objekt mitten im Laden.
+  - **Nicht geprüft:** auf einem Gerät; ganze Kapitel durchgespielt.
+
 ## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von

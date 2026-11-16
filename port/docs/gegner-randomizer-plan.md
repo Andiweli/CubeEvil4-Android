@@ -292,6 +292,26 @@ welcher). Der Vergleich je Listeneintrag übertreibt, weil Stufe 1.5 Ganados die
   Kleidung) wäre nötig; Ereignisse und Zählskripte nach Art (`SceCountEmAlive(0x10, 0x20)` zählt alle, einige Skripte
   einzelne Arten).
 - **Bei jedem Betreten neu** statt fest je Seed (der Tod einer Kopie bleibt an ihrem Eintrag).
+- **Aufräumen bei einer Übernahme:** `routeSpot` läuft auch für Ganados, die beim Raumbeginn nicht erscheinen (tot, später
+  im Kapitel); das kostet nur Versuche (r30f: 443 abgelehnte), ändert aber die übrigen Stellen über die Abstandsliste.
+  Vor der Übernahme nur die planen, die jetzt kommen (das ändert die Bilder je Seed).
+
+### 10.5 Ergebnis am PC (16.11.2026)
+
+Rundgänge aller 126 Räume (`re-tours.sh`), Auswertung `re-compare.py`/`re-table.py`, Karten `re-map.py` (alle im
+Notizordner der Sitzungen), Maß „an neuer Stelle“ wie 10.1:
+
+| Stand | Disc, Seed | Ergebnis | Ganados an neuer Stelle (von 380) | Räume |
+|---|---|---|---:|---:|
+| heute (1.5) | Debug 4242 / 777 / 31337 | ALLES OK | 1 / 0 / 1 | 1 / 0 / 1 |
+| heute (1.5) | EU 4242, US 4242 | 125/126 (r333), ALLES OK | 4, 2 | – |
+| Prototyp | Debug ohne, 4242 (2×), 777, 31337 | ALLES OK | 90 / 91 / 92 | 25 / 26 / 26 |
+| Prototyp | US 4242, 777 | ALLES OK | 92 / 92 | 28 / 27 |
+| Prototyp | EU 4242, 777 | 125/126 (r333, auch ohne Cheat) | 93 (gegen EU ohne Cheat) | 27 |
+
+Dazu: Dorf-Belagerung bis zur Glocke (alle Seeds und Discs), „alle fallen“-Rundgang ohne fehlendes Ereignis, Liste in
+390 Raumstarts nie geschrieben, `whole_build_android.sh --abi all` 0 Fehler. Einzelheiten: `whole-program-status.md`,
+Abschnitt „Branch `random-enemies`“. Nicht geprüft: auf einem Gerät.
 
 ## Quellen der Prüfung
 
