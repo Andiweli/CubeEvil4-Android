@@ -764,6 +764,12 @@ extern "C" void re4_enemy_random_room(void)
     int now[256], nn = 0, idle = -1;
     for (int k = 0; k < nm; k++) {
         const int no = movers[k];
+        if (!comesNow(pG->Em_list[no], no)) {
+            // (dead or later in the chapter: EmSetFromList does not create it now, nothing to place; its spot stays
+            // one the others may take in stage 1.5's shuffle)
+            idle = idle < 0 ? no : idle;
+            continue;
+        }
         const Place own = placeOf(pG->Em_list[no]);
         const Place spot = placeOf(pG->Em_list[spots[k]]);
         Place near;
@@ -785,17 +791,13 @@ extern "C" void re4_enemy_random_room(void)
             p.moved[no] = true;
             p.swapped++;
         }
-        if (comesNow(pG->Em_list[no], no)) {
-            now[nn++] = no;
-            if (p.moved[no]) {
-                const float d = distOf(p.place[no].pos, own.pos);
-                p.movedSum += d;
-                p.movedMax = d > p.movedMax ? d : p.movedMax;
-            }
-            p.moverCount++;
-        } else if (idle < 0) {
-            idle = no;
+        now[nn++] = no;
+        if (p.moved[no]) {
+            const float d = distOf(p.place[no].pos, own.pos);
+            p.movedSum += d;
+            p.movedMax = d > p.movedMax ? d : p.movedMax;
         }
+        p.moverCount++;
     }
     // the number: +/- 10 % (rooms with 10 or more Ganados at the start), never in a room that counts
     const int range = p.kind == kPlacesOnly ? 0 : p.ganados >= 20 ? 2 : p.ganados >= 10 ? 1 : 0;
