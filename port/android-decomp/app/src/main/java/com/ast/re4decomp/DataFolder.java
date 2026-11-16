@@ -170,11 +170,19 @@ final class DataFolder {
     return rel.equals(folder) || rel.startsWith(folder + "/");
   }
 
-  /** The app's files (ENTRIES) in `dir`. */
+  /** The app's files (ENTRIES) in `dir`, those with a file in them (an empty "game" the imports made is no data). */
   static List<String> present(File dir) {
     List<String> found = new ArrayList<>();
-    for (String e : ENTRIES) if (new File(dir, e).exists()) found.add(e);
+    for (String e : ENTRIES) if (hasFile(new File(dir, e))) found.add(e);
     return found;
+  }
+
+  /** `f` is a file, or a folder with a file somewhere in it. */
+  static boolean hasFile(File f) {
+    if (f.isFile()) return true;
+    File[] all = f.listFiles();
+    if (all != null) for (File c : all) if (hasFile(c)) return true;
+    return false;
   }
 
   /** The progress of move: bytes copied of all to copy. */
@@ -194,7 +202,7 @@ final class DataFolder {
   /** move; `rename` false: every entry copied (tests: the way between two storages). */
   static String move(File from, File to, Progress progress, boolean rename) {
     List<String> entries = present(from);
-    for (String e : entries) if (new File(to, e).exists()) return to + " already holds " + e;
+    for (String e : entries) if (hasFile(new File(to, e))) return to + " already holds " + e;
     boolean sameVolume = rename && volume(from).equals(volume(to));
     List<String> renamed = new ArrayList<>(), copy = new ArrayList<>();
     for (String e : entries) {

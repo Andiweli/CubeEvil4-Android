@@ -27,7 +27,7 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
   („Yes, next is 1.0“, 16.11.2026, kein weiteres 0.99.x): die Sticks bleiben sichtbar, Zeile unter New im Releasetext;
   die Version heißt bis zur Umbenennung weiter 0.99.19-rc (versionCode 121). Ebenso für 1.0 (Projektinhaber,
   16.11.2026: „Nimm das auch noch als Feature für 1.0 mit auf“): die Option „Leon mit Maus / Blickfeld drehen“,
-  Abschnitt 7 von 0.99.19.
+  Abschnitt 7 von 0.99.19; und der Flavor „sideload“ mit Datenordner nach Wahl, Abschnitt 8.
 
 ## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b)
 
@@ -463,6 +463,69 @@ die „moderne Bewegung“ aus 0.99.7 (kamerabezogenes Gehen mit Einrasten, in b
     und Zusammenfassung in `E:\Development\Android\builds\release-candidate\mouse-turn\`.
 - **Nicht geprüft:** auf einem Gerät, mit echter Maus, mit echtem Finger im Blickfeld; Gefühl und Empfindlichkeit;
   ARM32/ARM64; Ashleys Teil; das Boot und andere Sonderlagen nur über die Routinenregel.
+
+### 8. Flavor „sideload“: Datenordner nach Wahl (für 1.0, Projektinhaber, 16.11.2026)
+
+„Hier auch noch ein Punkt für die Installation: Daten sollen auf Userwunsch auch außerhalb des /android/data/* Ordners
+eingelesen werden können beim DVD Import“, mit einer Anleitung des Inhabers (Flavor `sideload`, Berechtigungen nur dort).
+Branch `sideload-data-folder` (von `release-candidate` 603e0cd9), danach in `release-candidate` gemischt.
+
+- **Flavors:** Haupt-Flavor ist `core` (`com.ast.cubeevil4`, `-core`, die GitHub-Releases); `car` ist der Google-Play-Build
+  (Android Automotive, `com.ast.re4decomp`); `classic` die alte arm64-App. Neu `sideload`: alles wie `core` (App-ID,
+  SDKs, ABIs, CMake, Emulator-Schalter, Ressourcen/Bibliotheken/Assets aus `src/core` wie bei `car`), `versionNameSuffix
+  '-sideload'`, `BuildConfig.CUSTOM_DATA_FOLDER` true (sonst überall false; `buildFeatures.buildConfig`). `src/sideload`
+  hat nur das Manifest: `MANAGE_EXTERNAL_STORAGE`, `READ/WRITE_EXTERNAL_STORAGE` mit `maxSdkVersion 29`,
+  `requestLegacyExternalStorage`. Gleiche App-ID und Signatur (der Inhaber signiert in Android Studio): `core` und
+  `sideload` installieren übereinander. Keine GitHub-Workflows im Repository: Release-APK von Hand, Generate Signed APK
+  → `sideloadRelease`, Name `CubeEvil4-<Version>-Android-sideload.apk`.
+- **Datenpfad:** `AppStorage.base` war schon die einzige Stelle (Datenordner; darunter `game` = Discs, Speicherkarte,
+  Sofortspeicher und der Pfad an den Kern über `ImportManager.root`/`CoreBridge.start`, `textures`, `logs`,
+  `gx-dumps`); sie nimmt jetzt `DataFolder.usable`, sonst wie bisher `AppStorage.standard`. Bleiben intern:
+  Shader-Cache (`noBackupFilesDir`), Bericht-Dateien zum Teilen und Filme/Räume im Cache, die App-Einstellungen
+  (SharedPreferences), die classic-Spielstände. Im nativen Code kein eigener Pfad.
+- **Startbildschirm** (nur `sideload`, englisch wie der übrige Startbildschirm): Abschnitt „Data folder“ vor dem
+  Disc-Import mit Pfad, „Choose folder“, „Restore default“. Erst die Berechtigung (Android 11+: Erklärung, dann
+  Einstellungen „Zugriff auf alle Dateien“ für die App, sonst für alle Apps, geprüft in `onResume`; Android 7–10:
+  Laufzeit-Recht), dann `ACTION_OPEN_DOCUMENT_TREE`; `DataFolder.pathOfTree` macht daraus einen Pfad
+  (`primary:` → `/storage/emulated/0/…`, `XXXX-XXXX:` → `/storage/XXXX-XXXX/…`, Downloads `raw:`), `check` lehnt
+  Android, Android/data, Android/obb (jeder App) und alles außerhalb `/storage` ab, ein Speicher-Stamm wird
+  `…/CubeEvil4`; `prepare` legt an und schreibt/löscht eine Probedatei. Dann Daten verschieben (Ja/Nein/Abbrechen),
+  Neustart über `LauncherRestartActivity`.
+- **Verschieben** (`DataFolder.move`): nur die Einträge der App (`game`, `textures`, `logs`, `gx-dumps`); gleicher
+  Speicher: umbenennen, sonst kopieren mit Fortschritt (Platz vorher geprüft, 64 MB Reserve), Originale erst nach
+  vollständigem Kopieren gelöscht; bei einem Fehler alles zurück (Kopien gelöscht, Umbenanntes zurück), der alte Ordner
+  bleibt in Gebrauch. Hat der neue Ordner schon CubeEvil4-Daten, wird nichts verschoben, er wird so genommen.
+- **Rückfall beim Start:** Ordner fehlt, nicht beschreibbar oder Berechtigung entzogen → eigener Ordner für diesen Lauf,
+  Hinweis auf dem Startbildschirm, die Wahl bleibt gespeichert, nichts gelöscht; der Fehlerbericht nennt es.
+- **Update-Prüfung:** `AppUpdate.plain` lässt `-core` und `-sideload` weg (auch Menü-Version und Touch-Layout-Datei):
+  „1.0-sideload“ ist Release „1.0“, kein falsches Update.
+- **Geprüft am PC:** App-Tests je Variante 213 grün (core, classic, sideload; neu `DataFolderTest` 10: Pfade der
+  Ordnerwahl, abgelehnte Ordner, Schreibprobe, Verschieben mit Umbenennen und Kopieren samt Fortschritt, Rücknahme bei
+  einem Fehler, nichts über vorhandene Daten, leere Ordner keine Daten, AppStorage mit Wahl, ohne Berechtigung, ohne Ordner, ohne Flavor;
+  `AppUpdateTest` „-sideload“); Lint der Release-Builds (`lintVital` sideload, core, car) ohne Befund. Zusammengeführte Manifeste von coreDebug/Release, carDebug/Release,
+  classicDebug/Release byte-gleich wie vor dem Branch; nur sideload hat `MANAGE_EXTERNAL_STORAGE` (auch `aapt dump
+  permissions` der APKs: core ohne, sideload mit, die Speicher-Rechte dort nur bis `maxSdkVersion 29`). Befund nebenbei:
+  core (wie vor dem Branch) hat über die RetroTouch-Bibliothek `READ/WRITE_EXTERNAL_STORAGE` und `READ_PHONE_STATE`
+  ohne Grenze, car entfernt sie; nichts geändert.
+- **Emulatoren** (Debug-Hülle x86_64 ohne Kern, Platzhalter-Discs; Bilder in
+  `E:\Development\Android\builds\release-candidate\sideload-data-folder\android10|12|14|16\`):
+  - Android 16: Erklärung → App-Seite „Zugriff auf alle Dateien“ → zurück → Ordnerwahl (Stamm von Android gesperrt) →
+    `CubeData` → Daten verschieben (aus `Android/data` heraus kein Umbenennen, also kopiert, 8 MB) → Neustart, Discs
+    gefunden; Spielbildschirm schreibt `logs` in den neuen Ordner, Fehlerbericht „the player's folder“; Zugriff
+    entzogen → eigener Ordner mit Hinweis, Daten unberührt; „Restore default“ verschiebt zurück; die core-APK
+    installiert sich darüber, ohne Abschnitt, mit dem eigenen Ordner.
+  - Android 14: dasselbe mit „Start empty“ (neuer Ordner leer, alter unverändert), dann **echter Import von Disc 1**
+    (Debug-Disc, nur auf dem Emulator) in den gewählten Ordner: „verified and imported successfully“, 1,3 GB.
+  - Android 12: Ablehnung (zurück ohne Einschalten → Hinweis, nichts geändert), dann Einschalten → `Documents` →
+    verschoben. Eigenheit des Abbilds: steht der Zugriff auf „default“, schaltet schon das Öffnen der Seite ihn ein.
+  - Android 10: Laufzeit-Recht „photos, media and files“; `Android/data` wählbar, von der App abgelehnt; der
+    Speicher-Stamm wird `/storage/emulated/0/CubeEvil4`; verschoben per Umbenennen; Recht entzogen → Rückfall mit Hinweis.
+  - Gefunden und behoben: Androids „Ja/Nein“ heißen auf neuen Versionen „OK/Cancel“ (Knöpfe jetzt „Move data“ /
+    „Start empty“); ein leerer `game`-Ordner galt als Daten (zählt jetzt nur mit einer Datei darin); Überschrift auf
+    Android 7–10 „Access to the storage“.
+- **Nicht geprüft:** das Spiel selbst aus einem gewählten Ordner (Emulator ohne Kern; der Kern bekommt denselben
+  Pfad wie die Importe), SD-Karte oder USB-Stick (dort wird kopiert statt umbenannt), ein echtes Gerät, ARM32/ARM64,
+  Android TV und Autos, der signierte Release-Build.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 

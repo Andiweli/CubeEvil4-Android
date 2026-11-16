@@ -19,6 +19,7 @@
     <string name="data_folder_choose">Choose folder</string>
     <string name="data_folder_reset">Restore default</string>
     <string name="data_folder_permission_title">Access to all files</string>
+    <string name="data_folder_permission_title_storage">Access to the storage</string>
     <string name="data_folder_permission_all_files">To keep CubeEvil4\'s data in a folder of your choice, Android must allow CubeEvil4 \"All files access\". Its settings open now: switch it on, then come back.</string>
     <string name="data_folder_permission_storage">To keep CubeEvil4\'s data in a folder of your choice, allow the access to the storage in the next question.</string>
     <string name="data_folder_permission_denied">Without that access the data stay in the app\'s own folder.</string>
@@ -30,7 +31,9 @@
     <string name="data_folder_unavailable">The data folder %1$s cannot be used now: %2$s. CubeEvil4 uses its own folder until it is back; nothing was deleted.</string>
     <string name="data_folder_existing">%1$s already holds CubeEvil4 data: it is used as it is. The data in the old folder stay there.</string>
     <string name="data_folder_move_title">Move the data?</string>
-    <string name="data_folder_move_text">Move the existing data (discs, memory card, instant save, texture packs, error logs) from %1$s to %2$s?\n\nNo: the new folder starts empty and the discs must be imported again; the old folder stays as it is.</string>
+    <string name="data_folder_move_text">Move the existing data (discs, memory card, instant save, texture packs, error logs) from %1$s to %2$s?\n\nStart empty: the new folder starts without data and the discs must be imported again; the old folder stays as it is.</string>
+    <string name="data_folder_move_yes">Move data</string>
+    <string name="data_folder_move_no">Start empty</string>
     <string name="data_folder_moving">Moving the data…</string>
     <string name="data_folder_moved_of">%1$s of %2$s</string>
     <string name="data_folder_move_failed">Moving failed: %1$s. Nothing was changed; the data folder stays %2$s.</string>

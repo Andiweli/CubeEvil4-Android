@@ -163,6 +163,19 @@ public class DataFolderTest {
     assertEquals(2000, new File(from, "game/disc1/b.bin").length());
   }
 
+  @Test public void emptyFoldersAreNoData() throws IOException {
+    // the imports make an empty "game" in a folder they look at (emulator, 16.11.2026: it kept the data from moving back)
+    File from = new File(temp, "from"), to = new File(temp, "to");
+    write(new File(from, "game/card.raw"), 10);
+    assertTrue(new File(from, "logs/previous").mkdirs());
+    assertTrue(new File(to, "game/disc1").mkdirs());
+    assertEquals(Arrays.asList("game"), DataFolder.present(from));
+    assertTrue(DataFolder.present(to).isEmpty());
+    assertNull(DataFolder.move(from, to, null, false));
+    assertEquals(10, new File(to, "game/card.raw").length());
+    assertNull(DataFolder.move(new File(temp, "from2"), to, null));  // nothing there: nothing to do
+  }
+
   @Test public void nothingMovesOverTheAppsFilesInTheNewFolder() throws IOException {
     File from = new File(temp, "from"), to = new File(temp, "to");
     write(new File(from, "game/card.raw"), 10);

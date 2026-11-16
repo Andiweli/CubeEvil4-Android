@@ -327,7 +327,8 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   private void chooseFolder() {
     if (imports.busy || loading || folderBusy) return;
     if (DataFolder.hasPermission(this)) { openTree(); return; }
-    new AlertDialog.Builder(this).setTitle(R.string.data_folder_permission_title)
+    new AlertDialog.Builder(this).setTitle(Build.VERSION.SDK_INT >= 30 ? R.string.data_folder_permission_title
+            : R.string.data_folder_permission_title_storage)
         .setMessage(Build.VERSION.SDK_INT >= 30 ? R.string.data_folder_permission_all_files : R.string.data_folder_permission_storage)
         .setPositiveButton(android.R.string.ok, (d, w) -> askPermission())
         .setNegativeButton(android.R.string.cancel, null).show();
@@ -393,8 +394,9 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     if (DataFolder.present(from).isEmpty()) { commit(path); return; }
     new AlertDialog.Builder(this).setTitle(R.string.data_folder_move_title)
         .setMessage(getString(R.string.data_folder_move_text, from.getAbsolutePath(), to.getAbsolutePath()))
-        .setPositiveButton(android.R.string.yes, (d, w) -> move(from, to, path))
-        .setNegativeButton(android.R.string.no, (d, w) -> commit(path))
+        // (Android's own "yes" and "no" read "OK" and "Cancel" on newer versions: the buttons say what they do)
+        .setPositiveButton(R.string.data_folder_move_yes, (d, w) -> move(from, to, path))
+        .setNegativeButton(R.string.data_folder_move_no, (d, w) -> commit(path))
         .setNeutralButton(android.R.string.cancel, null).show();
   }
 
