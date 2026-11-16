@@ -161,7 +161,7 @@ final class CoreMenu extends Dialog {
     PerfProfile.Device perfDevice();
     /** A performance profile chosen on the start page (PerfProfile.CUSTOM .. HIGH): stored and applied. */
     void profileChosen(int profile);
-    /** A switch the real-time shadows depend on changed (debug builds only, RealtimeShadows): their level anew. */
+    /** A switch the real-time shadows depend on changed (RealtimeShadows): their level anew. */
     void shadowsChanged();
   }
 
@@ -896,7 +896,7 @@ final class CoreMenu extends Dialog {
   }
 
   // DISPLAY (order of the project owner, 04.11.2026): GRAPHICS with the picture format first, then POST-PROCESSING
-  // (effects: depth of field, lens flares, bloom, in debug builds the real-time shadows; the picture filters), then
+  // (effects: depth of field, lens flares, bloom, the real-time shadows; the picture filters), then
   // OPTIONAL FEATURES (minimap, FPS display)
   private void display() {
     heading(R.string.ingame_graphics);
@@ -949,12 +949,12 @@ final class CoreMenu extends Dialog {
       CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     valueLabel(bloom, R.string.ingame_bloom, bloomLabels[bloomLevel(graphics)], bloomLevel(graphics) != 0);
-    // Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows):
-    // "Off > Characters > Characters and objects" (the project owner, 15.11.2026), since 16.11.2026 under the effects
-    // (the project owner: "Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'"); since 16.11.2026
-    // in every debug build (the project owner: "Yes, always show it"): a device that is not capable enough shows "Off"
-    // until the player chooses, with a note why; a release build has no row and reads nothing of it
-    final boolean shadowsRow = host != null && RealtimeShadows.offered(RealtimeShadows.built(getContext()));
+    // Real-time shadows (RealtimeShadows; until 16.11.2026 debug builds only, since then every build, decisions of the
+    // project owner): "Off > Characters > Characters and objects" (the project owner, 15.11.2026), since 16.11.2026
+    // under the effects (the project owner: "Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'"),
+    // always shown (the project owner: "Yes, always show it"): a device that is not capable enough shows "Off" until
+    // the player chooses, with a note why
+    final boolean shadowsRow = host != null;
     final int shadowsCheck = shadowsRow ? RealtimeShadows.deviceCheck(host.perfDevice(), PerfProfile.Bench.of(graphics))
         : RealtimeShadows.CAPABLE;
     if (shadowsRow) {

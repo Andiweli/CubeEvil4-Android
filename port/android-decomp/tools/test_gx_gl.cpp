@@ -3033,7 +3033,7 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
   r.SetBloom(0);
 }
 
-// Real-time shadows (debug builds only until after 1.0; GxCore::ShadowMark): a grey wall 3 m away, a figure (owner
+// Real-time shadows (GxCore::ShadowMark): a grey wall 3 m away, a figure (owner
 // tag with RE4_GX_OWNER_FIGURE) and an object (RE4_GX_OWNER_OBJECT: a crate, a barrel) 2 m away in front of it, the
 // core's mark after them with a light shining into the picture and a little to the right. Level 1 (Characters): the
 // figure's shadow on the wall to its right, the object casts none; the figure, the object and the wall away from them

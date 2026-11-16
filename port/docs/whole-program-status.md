@@ -404,6 +404,12 @@ Version 0.99.19-rc (versionCode 121), Releasetext `port/android-decomp/docs/rele
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
 nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0235.
 
+**Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
+**1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
+sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche ja erst Freitag und teste bis dahin lokal.“ Die Umbenennung
+kommt als eigener Commit. Der Tag `1.0.0` entsteht erst, wenn der Inhaber veröffentlicht (voraussichtlich Freitag,
+20.11.2026) und es freigibt.
+
 Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
 der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer bei jedem Kaltstart (einmal pro Prozess) ein
 rotes Popup `UnofficialWarning` (Texte `ingame_unofficial_*`, 11 Sprachen), das vor dem Spielstart bestätigt werden
@@ -713,6 +719,51 @@ Keine Zeile im Releasetext: die Schatten gab es da nur in Debug-Builds (Vorgabe 
   Byte für Byte gleich**, kein Schatten-Durchgang (Skript `rc-measure/rc_shadows_off_same.sh` im Notizordner der
   Sitzungen).
 - **Nicht geprüft:** auf einem Gerät.
+
+### 11. Echtzeit-Schatten auch im Release-Build (für 1.0, Projektinhaber, 16.11.2026)
+
+Entscheidung des Projektinhabers (über die Hauptsitzung), Wortlaut: „Die Schatten kannst du auch in den Hauptbuild
+übernehmen. Ich release erst 1.0 Ende der Woche. Also keine Beta mehr.“ Die Schatten gibt es jetzt in jedem Build mit
+genau den Regeln, die bisher die Debug-Builds hatten. Kein neuer Patch, nächste freie Patchnummer weiter 0235.
+
+- **App:**
+  - `RealtimeShadows`: Die Prüfung auf „debuggable“ ist weg (`built()`, `offered()` und die Ablehnung „release build“
+    entfallen). `refusal(vulkan)` lehnt nur noch ab, wenn der Renderer sie nicht zeichnen kann (heute keiner).
+  - Die Zeile „Echtzeit-Schatten“ steht immer unter Anzeige → Effekte.
+  - Ohne eigene Wahl entscheidet das Gerät: Ein starkes Gerät (`deviceCheck` CAPABLE) hat „Figuren und Objekte“, jedes
+    andere „Aus“ mit dem Hinweis, warum. Die Wahl im Menü gilt auf jedem Gerät. Potatos „Schatten & Licht“ aus schaltet
+    sie ab.
+  - `CoreActivity.checkShadows` läuft in jedem Build (nicht während des Benchmarks); die Log-Zeile heißt jetzt
+    „real-time shadows: …“.
+  - `OfficialBuild` hat seine eigene Prüfung auf „debuggable“ (`OfficialBuild.debuggable`); vorher lieh es sie von
+    `RealtimeShadows.built`.
+  - Hilfetext ohne „(nur Testversionen)“, 11 Sprachen.
+  - Die Kommentare „nur Debug-Builds bis nach 1.0“ in App, Renderer und Kern sind angepasst. Der Kopf von Patch 0240
+    bleibt, wie er ist (Geschichte).
+- **Was sonst an „debuggable“ hing:** nichts.
+  - Der Kern (Bits 5 und 6 der Potato-Maske, `re4_core_rt_shadows`) und der Renderer (`CoreBridge.setShadows`,
+    `GxRenderer::SetShadows`) hatten nie eine eigene Sperre: Sie taten nur nichts, weil ein Release-Build nichts schickte.
+  - JNI und der 32-bit-Kernprozess reichen die Werte wie bisher weiter.
+- **Die Varianten:**
+  - `core` und `sideload`: Debug und Release gleich (Zeile, Gerätewahl, eigene Wahl).
+  - `car` (Google Play, Android Automotive): derselbe Code wie `core`, also ebenso.
+  - `classic`: hat keinen Spielkern und kein App-Menü des Kerns, also keine Schatten.
+  - Die OUYA-App liegt nicht in diesem Repository und ist unverändert.
+- **Releasetext** v0.99.19-rc: eine Zeile unter New. README: „real-time shadows“ in der Liste der Grafik-Optionen.
+- **Geprüft am PC:**
+  - App-Tests 213 je Variante grün (core, classic, sideload). `RealtimeShadowsTest` neu:
+    - Aus schickt dem Kern die Potato-Maske wie vor den Schatten;
+    - nur der Renderer kann ablehnen;
+    - die Menüzeile in je drei Geräten als Debug- und als Release-Build gleich (Wert, Hinweis, Weiterschalten).
+  - `assembleCoreRelease`, `lintVitalCoreRelease` und `lintVitalCarRelease` ohne Befund; `check_translations.py`
+    ohne Befund (469 Texte).
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; `gx_gl_check` GLES und Vulkan 0 Fehler.
+  - **Release mit Schatten aus zeichnet wie vorher:** dieselben 212 Aufnahmen wie in Abschnitt 10, Renderer vor allen
+    Schatten (c2f5dcda) gegen diesen Stand mit Schatten aus: 212 von 212 Byte für Byte gleich. Der Renderer selbst ist
+    hier unverändert (nur Kommentare).
+- **Nicht geprüft:**
+  - auf einem Gerät, vor allem ein signierter Release-Build auf dem Retroid: Zeile, Vorgabe nach dem Benchmark, Kosten;
+  - ein schwaches Gerät mit Release-Build (Hinweis unter der Zeile; nur in den Unit-Tests).
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 

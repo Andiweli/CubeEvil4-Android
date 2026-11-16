@@ -717,7 +717,7 @@ std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridg
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flares, 2 halos + lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optCrt{0};       // the menu's CRT (CoreBridge.setCrt: 0 off, 1 light, 2 strong; or RE4_GX_CRT)
-std::atomic<int> optShadows{0};  // real-time shadows (CoreBridge.setShadows; debug builds only, RealtimeShadows.java)
+std::atomic<int> optShadows{0};  // real-time shadows (CoreBridge.setShadows, RealtimeShadows.java)
 std::atomic<int> optBloom{0};     // the menu's bloom (CoreBridge.setBloom, 0.99.13: 0 off, 1 light, 2 strong; or RE4_GX_BLOOM)
 std::atomic<int> optColour{0};    // the menu's colour (CoreBridge.setColour: mode * 4 + level; or RE4_GX_COLOUR=M,L)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
@@ -2360,7 +2360,7 @@ bool drawGx() {
   gx->SetCrt(crtEnv > 0 ? crtEnv : optCrt.load());
   static const int bloomEnv = getenv("RE4_GX_BLOOM") ? atoi(getenv("RE4_GX_BLOOM")) : 0;
   gx->SetBloom(bloomEnv > 0 ? bloomEnv : optBloom.load());
-  // real-time shadows (debug builds only until after 1.0; never sent by a release build: 0, nothing of them runs)
+  // real-time shadows (every build since 16.11.2026; Off: 0, nothing of them runs)
   static const int shadowsEnv = getenv("RE4_GX_SHADOWS") ? atoi(getenv("RE4_GX_SHADOWS")) : -1;
   const int shadowsWanted = shadowsEnv >= 0 ? shadowsEnv : optShadows.load();
   gx->SetShadows(shadowsWanted);
@@ -3566,7 +3566,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores
 // The menu's Potato mode (drawGx tells the core): bit 0 weather effects off, bit 1 special effects off, bits 2..3 particle
 // effects (1 less, 2 none), bit 4 shadows and light effects off. (Until 0.99.6 this kept only bits 0 and 1: the menu's
 // "Particle effects" and "Shadows & light" of 0.99.3 never reached the core; found 09.11.2026.)
-// Bits 5 and 6 are no Potato switches: the real-time shadows (debug builds; RealtimeShadows.java, CoreBridge.potatoSent),
+// Bits 5 and 6 are no Potato switches: the real-time shadows (RealtimeShadows.java, CoreBridge.potatoSent),
 // kept for the core (re4::PotatoForCore; until 16.11.2026 this cut them off and the core never got them).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JNIEnv *, jclass, jint mask) {
   const int want = re4::PotatoForCore(static_cast<int>(mask));
@@ -3819,7 +3819,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setBloom(JNI
     LOG("bloom: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
-// Real-time shadows (debug builds only until after 1.0, RealtimeShadows.java; GxRenderer::SetShadows): 0 off, 1 the
+// Real-time shadows (RealtimeShadows.java; GxRenderer::SetShadows; every build since 16.11.2026): 0 off, 1 the
 // figures, 2 the figures and the objects. The game core gets its part with the Potato mask (bits 5 and 6).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setShadows(JNIEnv *, jclass, jint level) {
   const int want = level <= 0 ? 0 : level >= 2 ? 2 : 1;

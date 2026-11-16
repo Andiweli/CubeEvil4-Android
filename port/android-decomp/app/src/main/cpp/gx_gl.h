@@ -333,7 +333,7 @@ public:
   // picture of one texel per 4 x 4 game pixels, blurred, added into the EFB); not where "Halos + lens flares" draw
   // their halo, not on the game's menu screens. Takes effect with the next chunk.
   void SetBloom(int level);
-  // Real-time shadows (debug builds only until after 1.0, decisions of the project owner, 15.11.2026;
+  // Real-time shadows (every build since 16.11.2026, until then debug builds only, decisions of the project owner;
   // port/docs/echtzeit-schatten-studie.md): 0 off (the default), 1 the figures, 2 the figures and the objects (the
   // owner tag's RE4_GX_OWNER_OBJECT: doors, crates, barrels, the windmill's blades, flags, ...). Where the game core
   // marks the place (RE4_GX_OP_SHADOW: in play, with the room's foot shadow light), they cast their shadows on the

@@ -67,7 +67,7 @@
     <string name="ingame_rt_shadows">Ombre in tempo reale</string>
     <string name="ingame_rt_shadows_figures">Personaggi</string>
     <string name="ingame_rt_shadows_objects">Personaggi e oggetti</string>
-    <string name="ingame_rt_shadows_help">Ombre in tempo reale (solo versioni di prova): Leon, i suoi compagni e i nemici proiettano ombre vere invece di macchie rotonde; Personaggi e oggetti aggiunge porte, casse, barili e altre cose che si muovono. Seguono le luci del gioco (torce, lampade, cielo, fulmini) e restano tenui al buio. Nei filmati restano le ombre del gioco. Attive di serie solo su dispositivi potenti dopo il benchmark; costano un poco di lavoro grafico.</string>
+    <string name="ingame_rt_shadows_help">Ombre in tempo reale: Leon, i suoi compagni e i nemici proiettano ombre vere invece di macchie rotonde; Personaggi e oggetti aggiunge porte, casse, barili e altre cose che si muovono. Seguono le luci del gioco (torce, lampade, cielo, fulmini) e restano tenui al buio. Nei filmati restano le ombre del gioco. Attive di serie solo su dispositivi potenti dopo il benchmark; costano un poco di lavoro grafico.</string>
     <string name="ingame_rt_shadows_not_recommended">Sconsigliato per questo dispositivo (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">chip grafico non ancora noto</string>
     <string name="ingame_rt_shadows_why_gpu">chip grafico troppo debole</string>

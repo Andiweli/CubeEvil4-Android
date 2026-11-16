@@ -314,7 +314,7 @@ int re4_potato_no_shadows(void)
 
 // The app's switches (core_api.cpp re4_core_set_potato): bit 0 weather effects off, bit 1 special effects off,
 // bits 2..3 the effects level (1 less, 2 none), bit 4 shadows and light effects off. Bits 5 and 6 are no Potato
-// switches: the app's real-time shadows (debug builds until after 1.0, runtime/rt_shadow.cpp; 5 on, 6 also the
+// switches: the app's real-time shadows (runtime/rt_shadow.cpp; 5 on, 6 also the
 // objects), kept apart from the mask so that the Potato switches work exactly as before.
 void re4_potato_set(int mask)
 {

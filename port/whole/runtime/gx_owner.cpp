@@ -49,7 +49,7 @@ bool isFigure(const void* p)
     return false;
 }
 
-// The real-time shadows' class of an object (debug builds only; RE4_GX_OWNER_OBJECT / _PART), asked only in a
+// The real-time shadows' class of an object (RE4_GX_OWNER_OBJECT / _PART), asked only in a
 // picture that casts them (`level` 1 the figures, 2 also the objects). Whole kinds, so that all of a kind cast or
 // none (the room census of 15.11.2026 over the debug disc's 127 rooms, port/docs/echtzeit-schatten-studie.md):
 //  - parts of a figure (with the figures): the weapons the player holds (the ObjMgr's weapon ids), the weapons and
@@ -129,7 +129,7 @@ unsigned shadowClass(const void* p, const void* func, int level)
     return 0;
 }
 
-// The game's own texture shadows of this frame (debug builds, "Characters and objects"): ExecOt runs ordering
+// The game's own texture shadows of this frame ("Characters and objects"): ExecOt runs ordering
 // table 8 (shadowModelRender, an entry per ShadowMng of game/shadow.cpp) before the models' tables. An object one of
 // them casts (be_flag 0x10 in a room with a shadow light reaching it: r100, r206, r228, ...) gets no real-time shadow
 // on top, which darkened the game's receivers twice. Self shadows (ShadowMng::self) are the model's own and count
@@ -190,7 +190,7 @@ extern "C" void re4_gx_owner(void* data, void* func, int table)
             }
         }
     }
-    // the real-time shadows' classes (debug builds; 0 in every release build and in every picture without them)
+    // the real-time shadows' classes (0 in every picture without them)
     const int classes = figure ? 0 : re4_rt_shadow_classes();
     unsigned shadow = 0;
     if (classes > 0) {

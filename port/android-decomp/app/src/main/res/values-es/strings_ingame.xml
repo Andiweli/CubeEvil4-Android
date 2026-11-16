@@ -67,7 +67,7 @@
     <string name="ingame_rt_shadows">Sombras en tiempo real</string>
     <string name="ingame_rt_shadows_figures">Personajes</string>
     <string name="ingame_rt_shadows_objects">Personajes y objetos</string>
-    <string name="ingame_rt_shadows_help">Sombras en tiempo real (solo versiones de prueba): Leon, sus acompañantes y los enemigos proyectan sombras reales en lugar de manchas redondas; Personajes y objetos añade puertas, cajas, barriles y otras cosas que se mueven. Siguen las luces del propio juego (antorchas, lámparas, el cielo, los relámpagos) y son tenues en la oscuridad. En las escenas se mantienen las sombras del juego. Activadas de serie solo en dispositivos potentes tras el benchmark; cuesta algo de trabajo gráfico.</string>
+    <string name="ingame_rt_shadows_help">Sombras en tiempo real: Leon, sus acompañantes y los enemigos proyectan sombras reales en lugar de manchas redondas; Personajes y objetos añade puertas, cajas, barriles y otras cosas que se mueven. Siguen las luces del propio juego (antorchas, lámparas, el cielo, los relámpagos) y son tenues en la oscuridad. En las escenas se mantienen las sombras del juego. Activadas de serie solo en dispositivos potentes tras el benchmark; cuesta algo de trabajo gráfico.</string>
     <string name="ingame_rt_shadows_not_recommended">No recomendado para este dispositivo (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">chip gráfico aún desconocido</string>
     <string name="ingame_rt_shadows_why_gpu">chip gráfico poco potente</string>

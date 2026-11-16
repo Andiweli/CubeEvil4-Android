@@ -1758,7 +1758,7 @@ std::uint32_t GxCore::Op(const Re4GxChunk &chunk, std::uint32_t at) {
       SetOwner(p);
     break;
   case RE4_GX_OP_SHADOW:
-    // the figures' real-time shadows go on the scene here (debug builds; ShadowMark)
+    // the figures' real-time shadows go on the scene here (ShadowMark)
     if (n >= 4 && shadowWanted)
       ShadowMark(p, n);
     break;
@@ -1834,7 +1834,7 @@ void GxCore::Run(const Re4GxChunk &chunk) {
   // merged draw calls: the chains and their indices (after the chunk's in ibo)
   m.mergeMarks.clear();
   m.mergeNext = 0;
-  // real-time shadows (debug builds): only with the level on is the chunk scanned for the core's mark; then the
+  // real-time shadows: only with the level on is the chunk scanned for the core's mark; then the
   // figures' draws are collected one by one (no merged draws in such a chunk)
   m.shadowWanted = m.shadowLevel > 0 && !m.shadowFailed && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL) &&
                    HasShadowMark(chunk);
@@ -1954,7 +1954,7 @@ void GxCore::Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *
     blended = BlendDraw(d, k, chunk);
   else if (recordDraws)
     RecordDraw(d, k);
-  // a figure's triangles for the real-time shadows (debug builds; with the in-between picture's blended matrices)
+  // a figure's triangles for the real-time shadows (with the in-between picture's blended matrices)
   if (shadowWanted && !merge)
     ShadowCollect(d, chunk);
   // a light source for the lens flares (with the in-between picture's blended matrices)

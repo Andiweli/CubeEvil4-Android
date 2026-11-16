@@ -1,6 +1,6 @@
-// The app's real-time shadows of the figures and objects (port/docs/echtzeit-schatten-studie.md; debug builds only
-// until after 1.0, decision of the project owner, 15.11.2026: "nur in der Debug Version die ich nutze aktiviert, nicht
-// wenn man Release baut"). Compiled with the game's flags (re4_gamehooks_obj).
+// The app's real-time shadows of the figures and objects (port/docs/echtzeit-schatten-studie.md; until
+// 16.11.2026 debug builds only, since then every build, decisions of the project owner: "Die Schatten kannst du auch
+// in den Hauptbuild übernehmen"). Compiled with the game's flags (re4_gamehooks_obj).
 //
 // The renderer draws the shadows (gx_core.cpp, GxCore::ShadowPass); the core says where and from which lights:
 //  - re4_rt_shadow_frame (patch 0240, at the start of Render): the app switched them on (bit 5 of the Potato mask,

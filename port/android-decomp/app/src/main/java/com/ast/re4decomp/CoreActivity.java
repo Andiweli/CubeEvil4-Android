@@ -649,22 +649,21 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private int shadowLevel = -1;
   private String shadowWhy = "";
 
-  /** The real-time shadows (debug builds only until after 1.0, RealtimeShadows): their level from the device, the
-   *  benchmark, the renderer, Potato's "Shadows & light" and the menu, sent to the renderer and the core when it
-   *  changes, with a line in the error log saying on or off and why. Each tick (the graphics chip is known once the
-   *  renderer runs, a benchmark changes the levels) and at once after the menu changed a switch; not while the
-   *  benchmark measures (it sets the Potato mask itself). A release build: nothing at all. */
+  /** The real-time shadows (RealtimeShadows; in every build since 16.11.2026, until then debug builds only): their
+   *  level from the device, the benchmark, the renderer, Potato's "Shadows & light" and the menu, sent to the renderer
+   *  and the core when it changes, with a line in the error log saying on or off and why. Each tick (the graphics chip
+   *  is known once the renderer runs, a benchmark changes the levels) and at once after the menu changed a switch; not
+   *  while the benchmark measures (it sets the Potato mask itself). */
   private void checkShadows() {
-    if (!RealtimeShadows.built(this) || (benchFlow != null && benchFlow.running())) return;
+    if (benchFlow != null && benchFlow.running()) return;
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
     String[] why = new String[1];
-    int level = RealtimeShadows.level(true, g, perfDevice(), PerfProfile.Bench.of(g), surface instanceof VulkanSurface,
-        why);
+    int level = RealtimeShadows.level(g, perfDevice(), PerfProfile.Bench.of(g), surface instanceof VulkanSurface, why);
     if (level == shadowLevel && why[0].equals(shadowWhy)) return;
     boolean changed = level != shadowLevel;
     shadowLevel = level;
     shadowWhy = why[0];
-    Log.i(TAG, "real-time shadows (debug build): " + RealtimeShadows.logName(level) + " (" + why[0] + ")");
+    Log.i(TAG, "real-time shadows: " + RealtimeShadows.logName(level) + " (" + why[0] + ")");
     if (!changed) return;
     CoreBridge.shadowBit = RealtimeShadows.coreBits(level);
     CoreBridge.setShadows(level);

@@ -3,20 +3,18 @@ package com.ast.re4decomp;
 import android.content.SharedPreferences;
 
 /**
- * Real-time shadows of the figures and objects (port/docs/echtzeit-schatten-studie.md). Debug builds only until after 1.0: the
- * project owner, 15.11.2026: "Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
- * aktiviert, nicht wenn man Release baut. Erst nach 1.0 kommen sie ins Release." A debug build is Android Studio's
- * coreDebug, which the app knows by Android's flag "debuggable" (built()); a signed release build has it not. In a
- * release build nothing of it exists: no menu row, the setting is never read, nothing is sent to the core or the
- * renderer, so the game runs as before.
+ * Real-time shadows of the figures and objects (port/docs/echtzeit-schatten-studie.md). In every build since 16.11.2026,
+ * for 1.0: until then only in debug builds (the project owner, 15.11.2026), now in signed release builds too (the
+ * project owner, 16.11.2026: "Die Schatten kannst du auch in den Hauptbuild übernehmen. Ich release erst 1.0 Ende der
+ * Woche."), with the rules the debug builds had.
  *
- * In a debug build the menu's row "Real-time shadows" is always there (the project owner, 16.11.2026: "Yes, always
- * show it"): "Off", "Characters" (the figures and what they hold) or "Characters and objects" (also what moves: doors,
- * crates, barrels, the windmill's blades, flags; the project owner, 15.11.2026: "Aus &gt; Figuren &gt; Figuren und
- * Objekte"). Until the player chooses, the device decides (deviceCheck): a capable one (a strong graphics chip, the
- * benchmark measured with 3x at 30 or 2x at 60 pictures a second, the processor not at its limit, 4 GB of memory) has
- * DEFAULT_LEVEL, any other "Off", with a note under the row why it is not recommended. A choice made in the menu (KEY
- * stored) counts on any device. They cast shadows when the renderer can draw them (OpenGL ES and Vulkan,
+ * The menu's row "Real-time shadows" is always there (the project owner, 16.11.2026: "Yes, always show it"): "Off",
+ * "Characters" (the figures and what they hold) or "Characters and objects" (also what moves: doors, crates, barrels,
+ * the windmill's blades, flags; the project owner, 15.11.2026: "Aus &gt; Figuren &gt; Figuren und Objekte"). Until
+ * the player chooses, the device decides (deviceCheck): a capable one (a strong graphics chip, the benchmark measured
+ * with 3x at 30 or 2x at 60 pictures a second, the processor not at its limit, 4 GB of memory) has DEFAULT_LEVEL, any
+ * other "Off", with a note under the row why it is not recommended. A choice made in the menu (KEY stored) counts on
+ * any device. They cast shadows when the renderer can draw them (OpenGL ES and Vulkan,
  * VULKAN_READY), the Potato mode's "Shadows &amp; light" is on and the level is not "Off". The game core then marks
  * where they go (bit 5 of the Potato mask, bit 6 for the objects; runtime/rt_shadow.cpp, runtime/gx_owner.cpp) and
  * leaves its round foot shadows out there; the renderer draws them (CoreBridge.setShadows, GxRenderer::SetShadows).
@@ -38,12 +36,6 @@ final class RealtimeShadows {
       MEMORY = 6;
 
   private RealtimeShadows() {}
-
-  /** A debug build (Android Studio's coreDebug: debuggable, a signed release is not); else the feature does not exist. */
-  static boolean built(android.content.Context c) {
-    return c != null
-        && (c.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-  }
 
   /** Whether the device is capable enough for them by default (CAPABLE), or the first reason it is not. */
   static int deviceCheck(PerfProfile.Device d, PerfProfile.Bench b) {
@@ -70,17 +62,11 @@ final class RealtimeShadows {
     }
   }
 
-  /** Why they cannot be drawn at all, whatever the menu says (null: they can): a release build, or a renderer that
-   *  cannot draw them. `debug` is built() (the tests pass both). */
-  static String refusal(boolean debug, boolean vulkan) {
-    if (!debug) return "release build";
+  /** Why they cannot be drawn at all, whatever the menu says (null: they can): a renderer that cannot draw them. Debug
+   *  and release builds alike (since 16.11.2026). */
+  static String refusal(boolean vulkan) {
     if (vulkan && !VULKAN_READY) return "the Vulkan renderer draws them not yet";
     return null;
-  }
-
-  /** The menu shows the row: in every debug build (the project owner, 16.11.2026), never in a release build. */
-  static boolean offered(boolean debug) {
-    return debug;
   }
 
   /** The player chose a level in the menu (KEY stored); until then the device decides. */
@@ -115,9 +101,8 @@ final class RealtimeShadows {
   /** The level the game gets (0 off, 1 the figures, 2 also the objects) and, in why[0], the reason for the log: who
    *  decided (the menu's choice or the device) and the device check, e.g. "the menu's choice; device check: no
    *  benchmark yet". */
-  static int level(boolean debug, SharedPreferences g, PerfProfile.Device d, PerfProfile.Bench b, boolean vulkan,
-                   String[] why) {
-    String refused = refusal(debug, vulkan);
+  static int level(SharedPreferences g, PerfProfile.Device d, PerfProfile.Bench b, boolean vulkan, String[] why) {
+    String refused = refusal(vulkan);
     int level = 0;
     String reason;
     if (refused != null) {

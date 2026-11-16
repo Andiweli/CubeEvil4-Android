@@ -2471,7 +2471,7 @@ struct VkRenderer final : GxCore {
     vkCmdDraw(cb, 4, 1, 0, 0);
     stats.bloomPasses++;
   }
-  // ---- real-time shadows of the figures and objects (GxCore::ShadowMark; debug builds only until after 1.0; as
+  // ---- real-time shadows of the figures and objects (GxCore::ShadowMark; as
   // GlRenderer::ShadowPass, the same shaders) ----
   Fixed shadowDepthFx, shadowMarkFx, shadowMaskFx, shadowApplyFx;
   // the depth maps (the figures', the objects'), the casters' marks (the EFB's size; red the figures, green the

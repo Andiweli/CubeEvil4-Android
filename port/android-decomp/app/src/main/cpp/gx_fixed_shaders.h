@@ -733,7 +733,7 @@ constexpr char kBloomAddFs[] =
     "  o = vec4(texture(bloom, t).rgb * size.w + texture(core, t).rgb * glow.x, 0.0);\n"
     "}\n";
 
-// --- real-time shadows of the figures and objects (GxCore::ShadowMark; debug builds only until after 1.0) -----------
+// --- real-time shadows of the figures and objects (GxCore::ShadowMark) ----------------------------------------------
 // The casters' triangles (view space, three floats a corner) from the light: only their depth (the map's clip space:
 // the rows lx, ly, lz of the light's affine matrix; as rows, since the Vulkan renderer's constants have no mat4).
 // glz.x: 1 GL's clip depth (-w..w), 0 Vulkan's (0..w); the map holds the same 0..1 depth either way.

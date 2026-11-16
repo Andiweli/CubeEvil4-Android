@@ -653,8 +653,8 @@ struct GxCore {
   // renderer's texels, w 1 (unused: 0).
   void BloomHalos(float out[8][4]) const;
   virtual void BloomPass() = 0;
-  // --- real-time shadows of the figures and objects (GxRenderer::SetShadows; debug builds only until after 1.0,
-  // decisions of the project owner, 15.11.2026; port/docs/echtzeit-schatten-studie.md) --------------------------------
+  // --- real-time shadows of the figures and objects (GxRenderer::SetShadows; every build since 16.11.2026, until
+  // then debug builds only, decisions of the project owner; port/docs/echtzeit-schatten-studie.md) ------------------
   // The game core marks the place (RE4_GX_OP_SHADOW: after the room, the figures and the game's own shadow receivers,
   // before the effects; only in play and with a foot shadow light of the room, whose direction it sends in view space).
   // Up to the mark the casters' solid draws are collected (ShadowCollect: the owner tag's FIGURE / PART bits, with

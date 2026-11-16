@@ -69,7 +69,7 @@
     <string name="ingame_rt_shadows">Ombres en temps réel</string>
     <string name="ingame_rt_shadows_figures">Personnages</string>
     <string name="ingame_rt_shadows_objects">Personnages et objets</string>
-    <string name="ingame_rt_shadows_help">Ombres en temps réel (versions de test uniquement)\u00A0: Leon, ses compagnons et les ennemis projettent de vraies ombres au lieu de taches rondes\u00A0; Personnages et objets ajoute portes, caisses, tonneaux et autres objets mobiles. Elles suivent les lumières du jeu (torches, lampes, ciel, éclairs) et restent discrètes dans l’obscurité. Les cinématiques gardent les ombres du jeu. Activées d’office seulement sur les appareils puissants après le benchmark\u00A0; cela coûte un peu de travail graphique.</string>
+    <string name="ingame_rt_shadows_help">Ombres en temps réel\u00A0: Leon, ses compagnons et les ennemis projettent de vraies ombres au lieu de taches rondes\u00A0; Personnages et objets ajoute portes, caisses, tonneaux et autres objets mobiles. Elles suivent les lumières du jeu (torches, lampes, ciel, éclairs) et restent discrètes dans l’obscurité. Les cinématiques gardent les ombres du jeu. Activées d’office seulement sur les appareils puissants après le benchmark\u00A0; cela coûte un peu de travail graphique.</string>
     <string name="ingame_rt_shadows_not_recommended">Déconseillé sur cet appareil (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">puce graphique encore inconnue</string>
     <string name="ingame_rt_shadows_why_gpu">puce graphique trop faible</string>

@@ -98,7 +98,7 @@ public class CoreMenuLayoutTest {
 
   @Test public void allPagesFitAcrossLanguagesWidthsAndFontScales() throws Exception {
     String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"};
-    // a debug build on a capable device (the project owner's Retroid, its benchmark): the Display page with the
+    // a capable device (the project owner's Retroid, its benchmark): the Display page with the
     // real-time shadows' row under the effects (16.11.2026), the longest of its values
     final PerfProfile.Device retroid =
         new PerfProfile.Device("Qualcomm Adreno (TM) 650, OpenGL ES 3.2", 8, 4, 2841, 7600, 60.0, 4, 16, 1080);

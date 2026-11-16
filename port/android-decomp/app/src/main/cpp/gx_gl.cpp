@@ -2362,7 +2362,7 @@ struct GlRenderer final : GxCore {
     }
   }
 
-  // --- real-time shadows of the figures and objects (GxCore::ShadowMark; debug builds only until after 1.0) -------
+  // --- real-time shadows of the figures and objects (GxCore::ShadowMark) ------------------------------------------
 
   GLuint shadowDepthProg = 0, shadowMarkProg = 0, shadowMaskProg = 0, shadowApplyProg = 0;
   GLint shadowMarkVp0 = -1, shadowMarkVp1 = -1, shadowMarkPr0 = -1, shadowMarkPr1 = -1, shadowMarkColour = -1,

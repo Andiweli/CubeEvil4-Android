@@ -18,7 +18,7 @@ import java.util.Locale;
  * owner, 16.11.2026: "als popup das man mit rotem button bestätigen muss bei jedem start"), and one line in the error
  * log (CoreLog.deviceText, R.string.core_unofficial). Nothing is locked and the game is unchanged.
  *
- * Only release builds are checked: a debug build (Android Studio's coreDebug, debuggable, RealtimeShadows.built) never
+ * Only release builds are checked: a debug build (Android Studio's coreDebug, debuggable, debuggable()) never
  * reads its signature and never warns. A signature Android does not give (or that cannot be read) gives no warning
  * either: no false alarm.
  */
@@ -47,10 +47,16 @@ final class OfficialBuild {
     return true;
   }
 
+  /** A debug build (Android Studio's coreDebug: Android's flag "debuggable"; a signed release build has it not). */
+  static boolean debuggable(Context c) {
+    return c != null
+        && (c.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+  }
+
   /** This APK: a release build signed with an unknown key (once per process; a debug build reads nothing). */
   static synchronized boolean unofficial(Context c) {
     if (cached == null) {
-      boolean debug = RealtimeShadows.built(c);
+      boolean debug = debuggable(c);
       cached = noticeFor(debug, debug ? null : signers(c));
     }
     return cached;

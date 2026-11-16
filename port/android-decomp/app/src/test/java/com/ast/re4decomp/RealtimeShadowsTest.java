@@ -24,11 +24,11 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
 /**
- * Real-time shadows (debug builds only until after 1.0, decision of the project owner, 15.11.2026; RealtimeShadows): a
- * release build never gets them, has no row and sends the core the Potato mask as before; a debug build always shows
- * the row (the project owner, 16.11.2026: "Yes, always show it"); until the player chooses, a capable device has them
- * ("Characters and objects") and any other has "Off" with a note why; the player's choice wins on any device;
- * Potato's "Shadows &amp; light" off turns them off.
+ * Real-time shadows (RealtimeShadows; until 16.11.2026 debug builds only, since then every build, decisions of the
+ * project owner): debug and release builds alike always show the row (the project owner, 16.11.2026: "Yes, always show
+ * it"); until the player chooses, a capable device has them ("Characters and objects") and any other has "Off" with a
+ * note why; the player's choice wins on any device; Potato's "Shadows &amp; light" off turns them off; Off sends the
+ * core the Potato mask as before.
  */
 @RunWith(org.robolectric.RobolectricTestRunner.class)
 @Config(sdk = 28, application = Application.class, shadows = CoreMenuLayoutTest.Bridge.class)
@@ -50,29 +50,32 @@ public class RealtimeShadowsTest {
     CoreBridge.shadowBit = 0;
   }
 
-  @Test public void aReleaseBuildNeverGetsThem() {
+  /** Off (chosen, or the device decides): the core's Potato mask exactly as before the shadows, no bit 5 or 6. */
+  @Test public void offSendsTheCoreTheMaskAsBefore() {
     String[] why = new String[1];
-    assertEquals(0, RealtimeShadows.level(false, g, RETROID, MEASURED, false, why));
-    assertEquals("release build", why[0]);
-    assertFalse("no row in a release build", RealtimeShadows.offered(false));
-    g.edit().putInt(RealtimeShadows.KEY, 2).commit();
-    assertEquals("not even with a stored choice", 0, RealtimeShadows.level(false, g, RETROID, MEASURED, false, why));
-    // the core's Potato mask exactly as before: no bit 5 without the shadows
-    g.edit().putBoolean("shadowsLight", false).putBoolean("weatherEffects", false).putInt("particleEffects", 2).commit();
+    g.edit().putInt(RealtimeShadows.KEY, 0).commit();
+    assertEquals(0, RealtimeShadows.level(g, RETROID, MEASURED, false, why));
+    CoreBridge.shadowBit = RealtimeShadows.coreBits(0);
+    g.edit().putBoolean("weatherEffects", false).putInt("particleEffects", 2).commit();
     assertEquals(CoreBridge.potatoMask(g), CoreBridge.potatoSent(g));
-    assertEquals(0, CoreBridge.potatoSent(g) & RealtimeShadows.CORE_BIT);
+    assertEquals(0, CoreBridge.potatoSent(g) & (RealtimeShadows.CORE_BIT | RealtimeShadows.OBJECTS_BIT));
+    g.edit().clear().commit();
+    assertEquals(0, RealtimeShadows.level(g, MALI_G52, MEASURED, false, why));
+    CoreBridge.shadowBit = RealtimeShadows.coreBits(0);
+    assertEquals(CoreBridge.potatoMask(g), CoreBridge.potatoSent(g));
   }
 
-  @Test public void theRowInEveryDebugBuild() {
-    assertTrue(RealtimeShadows.offered(true));
-    assertFalse(RealtimeShadows.offered(false));
+  /** No refusal for a release build any more (16.11.2026): only a renderer that cannot draw them would refuse. */
+  @Test public void onlyTheRendererCanRefuse() {
+    assertNull(RealtimeShadows.refusal(false));
+    assertEquals(RealtimeShadows.VULKAN_READY, RealtimeShadows.refusal(true) == null);
   }
 
   @Test public void aCapableDeviceHasThemByDefault() {
     String[] why = new String[1];
     assertEquals(RealtimeShadows.CAPABLE, RealtimeShadows.deviceCheck(RETROID, MEASURED));
     assertEquals(RealtimeShadows.DEFAULT_LEVEL, RealtimeShadows.choice(g, true));
-    assertEquals(RealtimeShadows.DEFAULT_LEVEL, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
+    assertEquals(RealtimeShadows.DEFAULT_LEVEL, RealtimeShadows.level(g, RETROID, MEASURED, false, why));
     assertEquals(2, RealtimeShadows.DEFAULT_LEVEL);
     assertTrue(why[0], why[0].startsWith("device check: passed (Qualcomm Adreno (TM) 650"));
     CoreBridge.shadowBit = RealtimeShadows.coreBits(RealtimeShadows.DEFAULT_LEVEL);
@@ -82,11 +85,11 @@ public class RealtimeShadowsTest {
   @Test public void anyOtherDeviceStartsOff() {
     String[] why = new String[1];
     assertEquals(0, RealtimeShadows.choice(g, false));
-    assertEquals(0, RealtimeShadows.level(true, g, RETROID, NONE, false, why));
+    assertEquals(0, RealtimeShadows.level(g, RETROID, NONE, false, why));
     assertEquals("device check: no benchmark yet", why[0]);
-    assertEquals(0, RealtimeShadows.level(true, g, MALI_G52, MEASURED, false, why));
+    assertEquals(0, RealtimeShadows.level(g, MALI_G52, MEASURED, false, why));
     assertTrue(why[0], why[0].startsWith("device check: graphics chip not strong enough"));
-    assertEquals(0, RealtimeShadows.level(true, g, null, NONE, false, why));
+    assertEquals(0, RealtimeShadows.level(g, null, NONE, false, why));
     assertEquals("device check: the graphics chip is not known yet", why[0]);
   }
 
@@ -99,7 +102,6 @@ public class RealtimeShadowsTest {
         new PerfProfile.Device("", 8, 4, 2841, 7600, 60.0, 4, 16, 1080), MEASURED));
     PerfProfile.Device small = new PerfProfile.Device("Adreno (TM) 650", 8, 4, 2841, 3000, 60.0, 4, 16, 1080);
     assertEquals(RealtimeShadows.MEMORY, RealtimeShadows.deviceCheck(small, MEASURED));
-    assertEquals(RealtimeShadows.VULKAN_READY, RealtimeShadows.refusal(true, true) == null);
   }
 
   /** Off, Characters, Characters and objects chosen in the menu: on any device, the core's bits and the log's words. */
@@ -111,15 +113,13 @@ public class RealtimeShadowsTest {
       g.edit().putInt(RealtimeShadows.KEY, level).commit();
       assertEquals(level, RealtimeShadows.choice(g, true));
       assertEquals("a choice counts on a device that is not capable too", level, RealtimeShadows.choice(g, false));
-      assertEquals(level, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
-      assertEquals(level, RealtimeShadows.level(true, g, RETROID, NONE, false, why));
+      assertEquals(level, RealtimeShadows.level(g, RETROID, MEASURED, false, why));
+      assertEquals(level, RealtimeShadows.level(g, RETROID, NONE, false, why));
       assertEquals("the menu's choice; device check: no benchmark yet", why[0]);
-      assertEquals(level, RealtimeShadows.level(true, g, MALI_G52, MEASURED, false, why));
+      assertEquals(level, RealtimeShadows.level(g, MALI_G52, MEASURED, false, why));
       assertEquals(bits[level], RealtimeShadows.coreBits(level));
       assertEquals(names[level], RealtimeShadows.logName(level));
       assertEquals((level + 1) % 3, RealtimeShadows.next(level));
-      // a release build: nothing at any stored level
-      assertEquals(0, RealtimeShadows.level(false, g, RETROID, MEASURED, false, why));
     }
     g.edit().putInt(RealtimeShadows.KEY, 7).commit();  // (a value of a later version: the highest level)
     assertEquals(2, RealtimeShadows.choice(g, false));
@@ -128,12 +128,12 @@ public class RealtimeShadowsTest {
   @Test public void potatoShadowsOffStillTurnsThemOff() {
     String[] why = new String[1];
     g.edit().putBoolean("shadowsLight", false).commit();
-    assertEquals(0, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
+    assertEquals(0, RealtimeShadows.level(g, RETROID, MEASURED, false, why));
     assertTrue(why[0], why[0].startsWith("Potato: Shadows & light off"));
     g.edit().putInt(RealtimeShadows.KEY, 2).commit();
-    assertEquals("also against the menu's choice", 0, RealtimeShadows.level(true, g, RETROID, NONE, false, why));
+    assertEquals("also against the menu's choice", 0, RealtimeShadows.level(g, RETROID, NONE, false, why));
     g.edit().putBoolean("shadowsLight", true).putInt(RealtimeShadows.KEY, 0).commit();
-    assertEquals(0, RealtimeShadows.level(true, g, RETROID, MEASURED, false, why));
+    assertEquals(0, RealtimeShadows.level(g, RETROID, MEASURED, false, why));
     assertEquals("the menu's choice; device check: passed", why[0].substring(0, "the menu's choice; device check: passed".length()));
   }
 
@@ -148,20 +148,23 @@ public class RealtimeShadowsTest {
         });
   }
 
-  /** The Display page's effects (the project owner, 16.11.2026): the row in every debug build, with the value in force
-   *  (a capable device "Characters and objects", any other "Off" with the note why) until the player chooses; each
-   *  press the next level, kept; never on the Performance page; none in a release build. */
+  /** The Display page's effects (the project owner, 16.11.2026): the row in every build, debug and release alike,
+   *  with the value in force (a capable device "Characters and objects", any other "Off" with the note why) until the
+   *  player chooses; each press the next level, kept; never on the Performance page. */
   @GraphicsMode(GraphicsMode.Mode.NATIVE)
-  @Test public void theMenuRowInEveryDebugBuild() throws Exception {
-    // a capable device, a weak one, and a capable one without a benchmark
+  @Test public void theMenuRowInEveryBuild() throws Exception {
+    // a capable device, a weak one, and a capable one without a benchmark; each in a debug and a release build
     PerfProfile.Device[] devices = {RETROID, MALI_G52, RETROID};
     boolean[] benchmark = {true, true, false};
-    for (int k = 0; k < devices.length; k++) {
+    for (int run = 0; run < 2 * devices.length; run++) {
+      final int k = run % devices.length;
+      final boolean debug = run < devices.length;
       final int[] changed = {0};
       try (var controller = Robolectric.buildActivity(Activity.class).create()) {
         Activity activity = controller.get();
-        // a debug build (Android Studio's coreDebug is debuggable)
-        activity.getApplicationInfo().flags |= android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
+        // a debug build (Android Studio's coreDebug is debuggable) or a signed release build (not debuggable)
+        if (debug) activity.getApplicationInfo().flags |= android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
+        else activity.getApplicationInfo().flags &= ~android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
         SharedPreferences graphics = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
         graphics.edit().clear().apply();
         if (benchmark[k]) {
@@ -179,7 +182,7 @@ public class RealtimeShadowsTest {
         show.invoke(menu, 1, false);  // DISPLAY
         View root = (View) rootField.get(menu);
         TextView row = find(root, label);
-        assertNotNull("the row in every debug build (" + k + ")", row);
+        assertNotNull("the row in every build (" + k + (debug ? ", debug" : ", release") + ")", row);
         assertNotNull("its help", find(root, activity.getString(R.string.ingame_rt_shadows_help)));
         boolean capable = k == 0;
         String note = activity.getString(R.string.ingame_rt_shadows_not_recommended,
@@ -200,23 +203,12 @@ public class RealtimeShadowsTest {
           assertEquals(i, changed[0]);
         }
         // the pictures of the row (RE4_MENU_SHOTS): a device without a benchmark and a capable one, at the start
-        if (k != 1) {
+        if (k != 1 && debug) {
           graphics.edit().remove(RealtimeShadows.KEY).apply();
           show.invoke(menu, 1, false);
           picture((View) CoreMenuLayoutTest.field(menu, "body"), label, k == 0 ? "row-capable" : "row-no-benchmark");
         }
       }
-    }
-    // a release build: no row at all
-    try (var controller = Robolectric.buildActivity(Activity.class).create()) {
-      Activity activity = controller.get();
-      activity.getApplicationInfo().flags &= ~android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
-      CoreMenu menu = new CoreMenu(activity, host(RETROID, new int[1]), false, 1920, 1080);
-      Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class);
-      show.setAccessible(true);
-      show.invoke(menu, 1, false);
-      assertNull("no row in a release build",
-          find((View) CoreMenuLayoutTest.field(menu, "root"), activity.getString(R.string.ingame_rt_shadows)));
     }
   }
 

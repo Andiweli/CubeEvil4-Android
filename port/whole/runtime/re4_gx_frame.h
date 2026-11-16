@@ -81,7 +81,7 @@ enum Re4GxOp {
      * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
      * the op skips it by its length. */
     RE4_GX_OP_OWNER = 8,
-    /* real-time shadows (debug builds until after 1.0, port/docs/echtzeit-schatten-studie.md;
+    /* real-time shadows (port/docs/echtzeit-schatten-studie.md;
      * runtime/rt_shadow.cpp, patch 0240): the scene's opaque part is drawn (the game's ordering tables up to
      * 14, its own shadow receivers; before the effects), now the shadows go on it. Since stage 5 (16.11.2026)
      * payload 1 + 5 k words: [0] k (1..3), then for each light that lights the player its direction in view
@@ -97,8 +97,8 @@ enum Re4GxOp {
 /* RE4_GX_OP_OWNER word 2: the object is a figure (Leon, Ashley, Luis, an enemy, the merchant: a work of
  * EmMgr) or a particle attached to one (runtime/gx_owner.cpp); the lens flares take no light from it. */
 #define RE4_GX_OWNER_FIGURE 0x100u
-/* RE4_GX_OP_OWNER word 2, only in a picture with the app's real-time shadows (debug builds; runtime/rt_shadow.cpp,
- * runtime/gx_owner.cpp; never in a release build): the object casts a shadow with the figures (a weapon or shield
+/* RE4_GX_OP_OWNER word 2, only in a picture with the app's real-time shadows (runtime/rt_shadow.cpp,
+ * runtime/gx_owner.cpp): the object casts a shadow with the figures (a weapon or shield
  * a figure holds, a parasite of an enemy: RE4_GX_OWNER_PART) or, with "Characters and objects", one of its own
  * (RE4_GX_OWNER_OBJECT: doors, crates, barrels, racks, rocks, trees, levers, barred gates, the room's turning,
  * swinging or script-moved models such as the windmill's blades, models events leave in the room, cloth such as

@@ -76,8 +76,8 @@
     <string name="ingame_rt_shadows">Real-time shadows</string>
     <string name="ingame_rt_shadows_figures">Characters</string>
     <string name="ingame_rt_shadows_objects">Characters and objects</string>
-    <string name="ingame_rt_shadows_help">Real-time shadows (test builds only): Leon, his companions and the enemies cast real shadows instead of round spots; Characters and objects adds doors, crates, barrels and other moving things. They follow the game’s own lights – torches, lamps, the sky, lightning – and stay faint in the dark. Cut scenes keep the game’s own shadows. On by default only on strong devices after the benchmark; it costs some graphics work.</string>
-    <!-- under the row in a debug build when the device is not capable enough to have them on by default (RealtimeShadows.deviceCheck): the reason -->
+    <string name="ingame_rt_shadows_help">Real-time shadows: Leon, his companions and the enemies cast real shadows instead of round spots; Characters and objects adds doors, crates, barrels and other moving things. They follow the game’s own lights – torches, lamps, the sky, lightning – and stay faint in the dark. Cut scenes keep the game’s own shadows. On by default only on strong devices after the benchmark; it costs some graphics work.</string>
+    <!-- under the row when the device is not capable enough to have them on by default (RealtimeShadows.deviceCheck): the reason -->
     <string name="ingame_rt_shadows_not_recommended">Not recommended for this device (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">graphics chip not known yet</string>
     <string name="ingame_rt_shadows_why_gpu">graphics chip not strong enough</string>

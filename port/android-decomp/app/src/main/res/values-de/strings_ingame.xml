@@ -67,7 +67,7 @@
     <string name="ingame_rt_shadows">Echtzeitschatten</string>
     <string name="ingame_rt_shadows_figures">Figuren</string>
     <string name="ingame_rt_shadows_objects">Figuren und Objekte</string>
-    <string name="ingame_rt_shadows_help">Echtzeitschatten (nur Testversionen): Leon, seine Begleiter und die Gegner werfen echte Schatten statt runder Flecken; „Figuren und Objekte“ nimmt Türen, Kisten, Fässer und anderes Bewegliche dazu. Sie folgen den Lichtern des Spiels – Fackeln, Lampen, Himmel, Blitze – und bleiben im Dunkeln schwach. Zwischensequenzen behalten die Schatten des Spiels. Von sich aus nur auf starken Geräten nach dem Benchmark an; kostet etwas Grafikleistung.</string>
+    <string name="ingame_rt_shadows_help">Echtzeitschatten: Leon, seine Begleiter und die Gegner werfen echte Schatten statt runder Flecken; „Figuren und Objekte“ nimmt Türen, Kisten, Fässer und anderes Bewegliche dazu. Sie folgen den Lichtern des Spiels – Fackeln, Lampen, Himmel, Blitze – und bleiben im Dunkeln schwach. Zwischensequenzen behalten die Schatten des Spiels. Von sich aus nur auf starken Geräten nach dem Benchmark an; kostet etwas Grafikleistung.</string>
     <string name="ingame_rt_shadows_not_recommended">Für dieses Gerät nicht empfohlen (%1$s).</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">Grafikchip noch unbekannt</string>
     <string name="ingame_rt_shadows_why_gpu">Grafikchip zu schwach</string>

@@ -297,8 +297,8 @@ public final class CoreBridge {
    * what the game draws, not the touch controls nor the app's overlays.
    */
   public static native void setCrt(int level);
-  /** Real-time shadows (debug builds only until after 1.0, RealtimeShadows; core_mode.cpp, GxRenderer::SetShadows):
-   *  0 off, 1 the figures, 2 the figures and the objects. Never called in a release build. */
+  /** Real-time shadows (RealtimeShadows; core_mode.cpp, GxRenderer::SetShadows): 0 off, 1 the figures, 2 the
+   *  figures and the objects. */
   public static native void setShadows(int level);
   /** Bit 5 of the Potato mask while the real-time shadows are on, bit 6 with the objects (CoreActivity.checkShadows;
    *  always 0 in a release build): the core marks where they go, tags the objects that cast and leaves its foot

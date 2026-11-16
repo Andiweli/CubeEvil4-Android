@@ -68,7 +68,7 @@
     <string name="ingame_rt_shadows">实时阴影</string>
     <string name="ingame_rt_shadows_figures">角色</string>
     <string name="ingame_rt_shadows_objects">角色和物体</string>
-    <string name="ingame_rt_shadows_help">实时阴影（仅限测试版本）：里昂、他的同伴和敌人会投下真实的阴影，取代圆形阴影；“角色和物体”还会加入门、箱子、木桶等会动的东西。阴影跟随游戏自身的光源（火把、灯、天空、闪电），在黑暗中保持淡淡的。过场动画保留游戏自带的阴影。仅在性能测试后的强劲设备上默认开启；会占用一些图形性能。</string>
+    <string name="ingame_rt_shadows_help">实时阴影：里昂、他的同伴和敌人会投下真实的阴影，取代圆形阴影；“角色和物体”还会加入门、箱子、木桶等会动的东西。阴影跟随游戏自身的光源（火把、灯、天空、闪电），在黑暗中保持淡淡的。过场动画保留游戏自带的阴影。仅在性能测试后的强劲设备上默认开启；会占用一些图形性能。</string>
     <string name="ingame_rt_shadows_not_recommended">不建议在此设备上使用（%1$s）。</string>
     <string name="ingame_rt_shadows_why_gpu_unknown">图形芯片尚未识别</string>
     <string name="ingame_rt_shadows_why_gpu">图形芯片性能不足</string>
