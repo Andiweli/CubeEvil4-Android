@@ -280,6 +280,9 @@ Ein Ersatzbild muss erst aus der Paketdatei gelesen werden. Je nach Stufe sind d
   Buchstaben-Schrift: das HD Project ersetzt nur `font/common_p.fnt` der US- und Debug-Disc (1024×192, englische
   Schrift für Meldungen, Untertitel und Beschreibungen) durch dieselben Buchstaben in 4096×768, schärfer gezeichnet,
   keine andere Schrift; Bild `builds\textures\pics\letter-font-hd-pack.png`. Der Inhaber entscheidet, ob sie bleibt.
+- **„Sharper menu text“ (1.0.0, Entscheidung des Projektinhabers, 16.11.2026):** dieselben Wort-Bilder macht die App
+  selbst schärfer, auch ohne Paket und in jeder Sprache (`word_sharpen.h`, Schalter im Grafik-Menü, an). Das Paket
+  ersetzt sie weiter nicht; mit Paket sind die Wörter die Buchstaben des Spiels in scharf, alles andere HD.
 - **Im PSone-Modus** bleiben die Originalbilder (der Modus will ja den groben Look). Meine Entscheidung; sag Bescheid,
   wenn du es anders willst.
 

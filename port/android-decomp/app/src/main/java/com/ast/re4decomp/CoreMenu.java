@@ -655,6 +655,11 @@ final class CoreMenu extends Dialog {
     if (g.contains(DOF_LEVEL)) return Math.max(0, Math.min(2, g.getInt(DOF_LEVEL, 1)));
     return g.getBoolean("dof", true) ? 1 : 0;
   }
+  /** "Sharper menu text" (1.0.0): the game's own menu words drawn sharper at high resolutions; on by default. */
+  static final String SHARPER_TEXT = "sharperText";
+  static boolean sharperText(SharedPreferences g) {
+    return g.getBoolean(SHARPER_TEXT, true);
+  }
   /** The filter "Sharpen" (0.99.2): 0 off (the default), 1 light, 2 strong. */
   static final String SHARPEN_LEVEL = "sharpenLevel";
   static int sharpenLevel(SharedPreferences g) {
@@ -918,6 +923,12 @@ final class CoreMenu extends Dialog {
     indentedHelp(s(R.string.ingame_fxaa_help));
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
+    // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026: "Bitte baue den Schärfefilter für die
+    // Schrift auch in 1.0.0 ein."): the game's own menu words drawn sharper at high resolutions; on by default
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_sharper_text, sharperText(graphics), on -> {
+      graphics.edit().putBoolean(SHARPER_TEXT, on).apply(); CoreBridge.setSharperText(on);
+    });
+    indentedHelp(s(R.string.ingame_sharper_text_help));
     heading(R.string.ingame_postprocessing);
     LinearLayout effects = labelledOptions(R.string.ingame_effects);
     // each press moves the depth of field on: off, light (as before), strong (wish of the project owner, 05.11.2026)

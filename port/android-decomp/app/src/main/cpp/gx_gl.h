@@ -65,6 +65,12 @@ struct GxStats {
   unsigned hdQueued = 0, hdSwapped = 0, hdStale = 0;
   std::size_t hdWaitingNow = 0;
   std::uint64_t hdLoaderReadUs = 0, hdWaitMaxUs = 0;
+  // "Sharper menu text" (1.0.0, SetWordSharpen): menu words asked for, put in place of the game's picture, dropped
+  // (sent again or gone first), left as they were for the budget; waiting now; their bytes on the GPU now; the
+  // sharpening's time (on its thread, or here with RE4_WORD_SHARPEN_SYNC=1; microseconds, summed)
+  unsigned wordsQueued = 0, wordsSharpened = 0, wordsStale = 0, wordsOverBudget = 0;
+  std::size_t wordsWaitingNow = 0, wordBytesNow = 0;
+  std::uint64_t wordSharpenUs = 0;
   // 0.99.14: the render thread's loading (microseconds, summed): HD textures (UploadHd), shader programs (GL) and
   // shaders and pipelines (Vulkan) made on it. "Dynamic" (gx_auto_level.h) does not judge a window with much of it:
   // pictures late while it loads are not the resolution's doing
@@ -295,6 +301,11 @@ public:
   // to the screen's height, which blurs the textures. Not for a movie's pictures (RE4_GX_CHUNK_MOVIE). Takes
   // effect with the next display copy; costs one pass over the XFB per picture (the in-between pictures too).
   void SetSharpen(int level);
+  // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026; word_sharpen.h): while on, the menus'
+  // word pictures (tex_pack_words.h) are enlarged 2x (small ones 4x from 3x on) with a contour snap on a thread of
+  // their own and shown in place of the game's own picture once ready; nothing below 1.5x or in the PSone demake.
+  // Switching drops the textures (the game core sends them again). Off (the default here): as before.
+  void SetWordSharpen(bool on);
   // Original TV filter (wish of the project owner, 01.11.2026): the display copies take the vertical
   // taps of the game's copy filter (GXSetCopyFilter, BP 0x53/0x54: the line above, the line, the line
   // below; the deflicker filter of the TV picture) one original line apart at any resolution, as the

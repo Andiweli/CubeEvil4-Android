@@ -269,6 +269,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Filter TV GameCube asli</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
+    <string name="ingame_sharper_text">Teks menu lebih tajam</string>
+    <string name="ingame_sharper_text_help">Teks menu lebih tajam menggambar kata-kata menu bawaan game dengan tepi yang tajam pada resolusi tinggi, dalam semua bahasa.</string>
     <string name="ingame_psx">Filter piksel retro</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filter mengubah tampilan seluruh gambar dan dapat digabungkan.</string>

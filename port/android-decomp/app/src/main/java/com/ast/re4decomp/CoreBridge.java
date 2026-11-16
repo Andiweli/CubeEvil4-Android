@@ -293,6 +293,11 @@ public final class CoreBridge {
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
   /**
+   * "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words are enlarged with
+   * clean edges on a thread of their own and drawn sharper at high resolutions (word_sharpen.h); on by default.
+   */
+  public static native void setSharperText(boolean on);
+  /**
    * CRT (0.99.9; 0 off, 1 light, 2 strong): the picture as a tube TV showed it (lines, a curved glass, a glow); only
    * what the game draws, not the touch controls nor the app's overlays.
    */

@@ -474,6 +474,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setVkBandwidth(g.getBoolean("vkBandwidth", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+      CoreBridge.setSharperText(CoreMenu.sharperText(g));
       CoreBridge.setCrt(CoreMenu.crtLevel(g));
       CoreBridge.setBloom(CoreBridge.bloomSent(g));
       CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));
@@ -2544,6 +2545,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     CoreBridge.setCpuSkip(skip == 2);
     CoreBridge.setFxaa(g.getBoolean("fxaa", false));
     CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
+    CoreBridge.setSharperText(CoreMenu.sharperText(g));
     CoreBridge.setCrt(CoreMenu.crtLevel(g));
     CoreBridge.setBloom(CoreBridge.bloomSent(g));
     CoreBridge.setColour(CoreMenu.colourMode(g), CoreMenu.colourLevel(g));

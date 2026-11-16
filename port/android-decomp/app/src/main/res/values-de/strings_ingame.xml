@@ -272,6 +272,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube-TV-Filter</string>
     <string name="ingame_fxaa_help">Glättet Kanten in einem letzten Schritt. Geht mit und ohne MSAA; das Bild wird etwas weicher.</string>
+    <string name="ingame_sharper_text">Schärfere Menüschrift</string>
+    <string name="ingame_sharper_text_help">Schärfere Menüschrift zeichnet die Menüwörter des Spiels bei hohen Auflösungen mit klaren Kanten, in jeder Sprache.</string>
     <string name="ingame_psx">Retro-Pixel-Filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filter verändern das Aussehen des ganzen Bildes und lassen sich kombinieren.</string>

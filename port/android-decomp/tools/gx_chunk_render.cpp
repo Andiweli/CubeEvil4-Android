@@ -256,6 +256,10 @@ int main(int argc, char **argv) {
         renderer->SetTexturePack(pack, half && *half == '1' ? 1u : 0u,
                                  static_cast<std::size_t>(mb ? std::atoi(mb) : 512) << 20);
       }
+      // RE4_WORD_SHARPEN=1: the app's "Sharper menu text" (GxRenderer::SetWordSharpen; RE4_WORD_SHARPEN_SYNC=1 at
+      // once, for single pictures)
+      const char *words = std::getenv("RE4_WORD_SHARPEN");
+      renderer->SetWordSharpen(words && *words == '1');
       // the rows the format shows and its widening, as drawGx sets them before each picture
       if (screenW > 0) {
         if (screenFormat == 5) {
@@ -458,6 +462,14 @@ int main(int argc, char **argv) {
                   "longest wait so far %.1f ms\n",
                   s.hdQueued - before.hdQueued, s.hdSwapped - before.hdSwapped, s.hdStale - before.hdStale,
                   s.hdWaitingNow, (s.hdLoaderReadUs - before.hdLoaderReadUs) / 1000.0, s.hdWaitMaxUs / 1000.0);
+    // "Sharper menu text"
+    if (s.wordsQueued > before.wordsQueued || s.wordsSharpened > before.wordsSharpened ||
+        s.wordsStale > before.wordsStale)
+      std::printf("  words: %u asked for, %u sharper in place, %u dropped, %u over the budget, %zu waiting; "
+                  "sharpening %.1f ms; their GPU bytes now %.2f MB\n",
+                  s.wordsQueued - before.wordsQueued, s.wordsSharpened - before.wordsSharpened,
+                  s.wordsStale - before.wordsStale, s.wordsOverBudget - before.wordsOverBudget, s.wordsWaitingNow,
+                  (s.wordSharpenUs - before.wordSharpenUs) / 1000.0, s.wordBytesNow / 1048576.0);
     if (std::getenv("RE4_GX_WORK"))
       std::printf("  GL-Arbeit: %u Uniform-Uploads (%u KB, %u gleiche ausgelassen), %u Programmwechsel, %u Textur-/Sampler-Bindungen, "
                   "%u Zustandswechsel, %u Attribut-Einrichtungen, %u Uniform-Ringwechsel (%u im Bild), "

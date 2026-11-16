@@ -5,6 +5,7 @@
 #include "etc2.h"
 #include "gx_texture.h"
 #include "tex_pack.h"
+#include "word_sharpen.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1317,6 +1318,27 @@ void GxCore::SetPsx(bool on) {
   this->psxOn = on;
   // the PSone demake keeps the game's own textures: the replacements go or come back
   if (texPack) SetTexturePack(texPack, texPackLevel, texPackBudget);
+  UpdateWordSharpener();
+}
+void GxCore::SetWordSharpen(bool on) {
+  if (on == wordSharpenOn) return;
+  wordSharpenOn = on;
+  UpdateWordSharpener();
+}
+void GxCore::UpdateWordSharpener() {
+  const bool active = wordSharpenOn && !psxOn;
+  if (active == wordActive) return;
+  wordActive = active;
+  // finished and not yet on the GPU at most 16 MB in the 32-bit app, 48 MB in the 64-bit one; on the GPU at most
+  // 32 / 96 MB (a screen's words take a few MB; beyond, the game's own pictures stay)
+  static const bool sync = std::getenv("RE4_WORD_SHARPEN_SYNC") && *std::getenv("RE4_WORD_SHARPEN_SYNC") == '1';
+  wordBudget = (sizeof(void *) == 4 ? 32u : 96u) << 20;
+  wordSharpener.reset();
+  if (active && !sync)
+    wordSharpener = std::make_shared<WordSharpener>((sizeof(void *) == 4 ? 16u : 48u) << 20);
+  // the game core sends its textures again: the words as they should look now
+  DropTextures();
+  texturesDropped = true;
 }
 void GxCore::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes) {
   texPackBudget = budgetBytes;
@@ -1828,6 +1850,15 @@ void GxCore::Run(const Re4GxChunk &chunk) {
       return v && *v ? std::atof(v) : 4.0;
     }();
     m.ApplyHd(m.viBlack ? std::max(applyMs, 50.0) : m.hdWaiting.size() >= 32 ? applyMs * 3 : applyMs);
+  }
+  // "Sharper menu text": the words sharpened since the last chunk take their place (2 ms of uploads a chunk,
+  // RE4_WORD_APPLY_MS; 50 ms while the screen is black)
+  if (!m.interpPass && m.wordSharpener) {
+    static const double wordMs = [] {
+      const char *v = std::getenv("RE4_WORD_APPLY_MS");
+      return v && *v ? std::atof(v) : 2.0;
+    }();
+    m.ApplyWords(m.viBlack ? std::max(wordMs, 50.0) : wordMs);
   }
   const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
   m.uploadedBy = nullptr;
@@ -2622,9 +2653,12 @@ void GxCore::Forget(std::uint64_t key) {
   if (it != textures.end()) {
     hdBytes -= it->second.hdBytes;
     stats.hdBytesNow = hdBytes;
+    wordBytes -= std::min<std::size_t>(wordBytes, it->second.wordBytes);
+    stats.wordBytesNow = wordBytes;
     DeleteTexture(it->second.id);
     textures.erase(it);
   }
+  wordWaiting.erase(key);
   // its replacement, if still being read, is not wanted any more (ApplyHd drops the read)
   auto w = hdWaiting.find(key);
   if (w != hdWaiting.end()) {
@@ -2640,6 +2674,12 @@ void GxCore::DropTextures() {
   textures.clear();
   hdBytes = 0;
   stats.hdBytesNow = 0;
+  wordBytes = 0;
+  stats.wordBytesNow = 0;
+  if (wordSharpener)
+    wordSharpener->Cancel();
+  wordWaiting.clear();
+  stats.wordsWaitingNow = 0;
   for (auto &t : paletted)
     DeleteTexture(t.second.id);
   paletted.clear();
@@ -2699,6 +2739,112 @@ void GxCore::ApplyHd(double budgetMs) {
     stats.hdWaitMaxUs = std::max(stats.hdWaitMaxUs, waited);
   }
   stats.hdWaitingNow = hdWaiting.size();
+}
+
+void GxCore::AskWord(const Re4GxTexture &t, const std::uint8_t *data, std::uint64_t key,
+                     const std::vector<std::uint8_t> &rgba) {
+  const unsigned f = WordSharpenFactor(t.width, t.height, halves);
+  const std::size_t pixels = static_cast<std::size_t>(t.width) * t.height;
+  if (!f || rgba.size() < pixels * 4 || (wordSharpener && wordWaiting.count(key)))
+    return;  // (asked for already: the same key, the same texels)
+  TexKey k;
+  k.format = t.format;
+  k.width = t.width;
+  k.height = t.height;
+  k.tex = Xxh64(data, GxTextureLevelBytes(t.format, t.width, t.height), 0);
+  if (!KeepsGameTexture(k))
+    return;
+  if (!wordSharpener) {
+    // RE4_WORD_SHARPEN_SYNC=1: at once, on this thread (tests)
+    using Clock = std::chrono::steady_clock;
+    const auto t0 = Clock::now();
+    std::vector<std::uint8_t> levels;
+    unsigned count = 0;
+    SharpenWord(rgba.data(), t.width, t.height, f, levels, &count);
+    stats.wordSharpenUs +=
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - t0).count());
+    stats.wordsQueued++;
+    PutWord(key, f, levels, count);
+    return;
+  }
+  WordSharpener::Job job;
+  job.key = key;
+  job.ticket = ++wordTicket;
+  job.width = t.width;
+  job.height = t.height;
+  job.factor = f;
+  job.rgba.assign(rgba.begin(), rgba.begin() + static_cast<std::ptrdiff_t>(pixels * 4));
+  WordWait &w = wordWaiting[key];
+  w.ticket = job.ticket;
+  w.since = std::chrono::steady_clock::now();
+  wordSharpener->Add(std::move(job));
+  stats.wordsQueued++;
+  stats.wordsWaitingNow = wordWaiting.size();
+}
+
+void GxCore::ApplyWords(double budgetMs) {
+  if (!wordSharpener)
+    return;
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start = Clock::now();
+  WordSharpener::Done d;
+  bool any = false;
+  while ((!any || std::chrono::duration<double, std::milli>(Clock::now() - start).count() < budgetMs) &&
+         wordSharpener->Take(d)) {
+    any = true;
+    stats.wordSharpenUs += d.us;
+    auto w = wordWaiting.find(d.job.key);
+    if (w == wordWaiting.end() || w->second.ticket != d.job.ticket) {
+      stats.wordsStale++;  // forgotten, or sent again since
+      continue;
+    }
+    wordWaiting.erase(w);
+    PutWord(d.job.key, d.job.factor, d.levels, d.levelCount);
+  }
+  stats.wordsWaitingNow = wordWaiting.size();
+}
+
+bool GxCore::PutWord(std::uint64_t key, unsigned factor, const std::vector<std::uint8_t> &levels, unsigned levelCount) {
+  auto it = textures.find(key);
+  if (it == textures.end()) {
+    stats.wordsStale++;
+    return false;
+  }
+  const unsigned gameW = it->second.width, gameH = it->second.height;
+  if (wordBytes - std::min<std::size_t>(wordBytes, it->second.wordBytes) + levels.size() > wordBudget) {
+    stats.wordsOverBudget++;  // the game's own picture stays
+    return false;
+  }
+  unsigned lw = gameW * factor, lh = gameH * factor;
+  const unsigned id = BeginTexture(lw, lh, levelCount);
+  if (!id)
+    return false;
+  std::size_t at = 0;
+  for (unsigned l = 0; l < levelCount && at < levels.size(); l++) {
+    TextureLevel(id, l, lw, lh, levels.data() + at);
+    at += static_cast<std::size_t>(lw) * lh * 4;
+    lw = std::max(gameW, lw / 2);
+    lh = std::max(gameH, lh / 2);
+  }
+  EndTexture(id, levelCount);
+  // the game's own picture goes, the sharper one takes its key
+  Touched();
+  wordBytes -= std::min<std::size_t>(wordBytes, it->second.wordBytes);
+  hdBytes -= it->second.hdBytes;
+  DeleteTexture(it->second.id);
+  Texture tex;
+  tex.id = id;
+  tex.width = gameW;
+  tex.height = gameH;
+  tex.levels = levelCount;
+  tex.lodShift = std::log2(static_cast<float>(factor));
+  tex.wordBytes = static_cast<std::uint32_t>(levels.size());
+  it->second = tex;
+  wordBytes += levels.size();
+  stats.wordBytesNow = wordBytes;
+  stats.hdBytesNow = hdBytes;
+  stats.wordsSharpened++;
+  return true;
 }
 
 void GxCore::EfbCopy(std::uint32_t control) {
@@ -3062,6 +3208,8 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
     auto old = textures.find(key);
     if (old != textures.end()) {
       hdBytes -= old->second.hdBytes;
+      wordBytes -= std::min<std::size_t>(wordBytes, old->second.wordBytes);
+      stats.wordBytesNow = wordBytes;
       DeleteTexture(old->second.id);
     }
     hdBytes += tex.hdBytes;
@@ -3102,10 +3250,15 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   if (old != textures.end()) {
     hdBytes -= old->second.hdBytes;
     stats.hdBytesNow = hdBytes;
+    wordBytes -= std::min<std::size_t>(wordBytes, old->second.wordBytes);
+    stats.wordBytesNow = wordBytes;
     DeleteTexture(old->second.id);
   }
   textures[key] = tex;
   stats.textures++;
+  // "Sharper menu text": a menu word (one level, decoded in rgba) asks for its sharper picture
+  if (wordActive && levels == 1 && MaybeMenuWord(t.format, t.width, t.height))
+    AskWord(t, chunk.blob + t.dataOffset, key, rgba);
 }
 
 bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex) {

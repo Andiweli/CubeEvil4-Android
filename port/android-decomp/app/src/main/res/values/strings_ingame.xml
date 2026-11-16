@@ -290,6 +290,8 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube TV filter</string>
     <string name="ingame_fxaa_help">Smooths jagged edges in a last step. Works with or without MSAA; the picture gets slightly softer.</string>
+    <string name="ingame_sharper_text">Sharper menu text</string>
+    <string name="ingame_sharper_text_help">Sharper menu text draws the game’s own menu words with crisp edges at high resolutions, in every language.</string>
     <string name="ingame_psx">Retro pixel filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filters change the look of the whole picture and can be combined.</string>

@@ -158,7 +158,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   Italian, Portuguese, Russian and Spanish so far; on Android 13 and later also per app under
   Settings → Apps → CubeEvil4 → Language); with the European discs also the game language
   (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,
-  anti-aliasing, texture filter, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, real-time shadows, FPS
+  anti-aliasing, texture filter, sharper menu text, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, real-time shadows, FPS
   display, 60 FPS (experimental), Force Performance: Default or Use performance cores, Potato mode: weather and
   special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style RE or GC; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
