@@ -8,8 +8,13 @@ import com.ast.retrotouch.RetroTouchAction;
 import com.ast.retrotouch.RetroTouchButtonShape;
 import com.ast.retrotouch.RetroTouchButtonStyle;
 import com.ast.retrotouch.RetroTouchControl;
+import com.ast.retrotouch.RetroTouchDpadStyle;
 import com.ast.retrotouch.RetroTouchIcon;
+import com.ast.retrotouch.RetroTouchLook;
+import com.ast.retrotouch.RetroTouchSkin;
+import com.ast.retrotouch.RetroTouchStickGate;
 import com.ast.retrotouch.RetroTouchView;
+import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,9 +22,10 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 /**
- * The touch controls' four looks (TouchControls, TouchStyle; 17.11.2026): RE, GC, PS2 and XBOX, all in RetroTouch's
- * ICONS style; the look is the app's own setting, a player of the old GC look (RetroTouch's LABELS) gets the new GC,
- * the editor's style button goes round; the default layout keeps its positions and sizes.
+ * The touch controls' four skins (TouchControls, TouchStyle; RetroTouch 1.0.0-beta.13, 17.11.2026): RE, GC, PS2 and
+ * XBOX; RetroTouch keeps the choice, a player of the old GC style (RetroTouch's LABELS) gets GC, the editor's style
+ * button goes round, the app menu sets it; every skin sets every action's content; the default layout keeps its
+ * positions and sizes.
  */
 @RunWith(org.robolectric.RobolectricTestRunner.class)
 @Config(sdk = 28, application = Application.class)
@@ -28,12 +34,11 @@ public class TouchStyleTest {
 
   @Before public void clean() {
     context = RuntimeEnvironment.getApplication();
-    context.getSharedPreferences(TouchLayoutFile.PREFS, Context.MODE_PRIVATE).edit().clear().commit();
-    input().edit().clear().commit();
+    prefs().edit().clear().commit();
   }
 
-  private android.content.SharedPreferences input() {
-    return context.getSharedPreferences(CoreActivity.INPUT_PREFS, Context.MODE_PRIVATE);
+  private android.content.SharedPreferences prefs() {
+    return context.getSharedPreferences(TouchLayoutFile.PREFS, Context.MODE_PRIVATE);
   }
 
   private TouchControls controls() {
@@ -51,9 +56,9 @@ public class TouchStyleTest {
     throw new AssertionError("no action " + id);
   }
 
-  /** The editor's style button (RetroTouchView.toggleButtonStyle, as a tap on it). */
+  /** The editor's style button (RetroTouchView.cycleSkin, as a tap on it). */
   private static void tapStyleButton(RetroTouchView view) throws Exception {
-    java.lang.reflect.Method m = RetroTouchView.class.getDeclaredMethod("toggleButtonStyle");
+    java.lang.reflect.Method m = RetroTouchView.class.getDeclaredMethod("cycleSkin");
     m.setAccessible(true);
     m.invoke(view);
   }
@@ -61,136 +66,141 @@ public class TouchStyleTest {
   @Test public void newPlayerGetsRe() {
     TouchControls t = controls();
     RetroTouchView view = (RetroTouchView) t.view();
+    assertEquals(Arrays.asList(TouchStyle.IDS), view.getSkins());
+    assertEquals("re", view.getSkin());
     assertEquals(TouchStyle.RE, t.look());
     assertEquals(RetroTouchButtonStyle.ICONS, view.getButtonStyle());
-    assertEquals(2, view.getAvailableButtonStyles().size());
-    assertEquals(TouchStyle.RE, input().getInt(TouchControls.LOOK, -1));
+    // the actions carry RE's icons and labels (the skins set their own on top)
+    assertSame(RetroTouchIcon.HAND, action(view, CoreTouch.A).getIcon());
+    assertNull(action(view, CoreTouch.A).getColors());
+    assertTrue(view.isStickAction(CoreTouch.C_STICK) && view.isStickAction(CoreTouch.AIM_STICK)
+        && view.isStickAction(CoreTouch.KNIFE_STICK));
+    assertEquals(CoreTouch.MAX_STICKS, view.getMaxSticks());
   }
 
-  @Test public void oldGcPlayerGetsTheNewGc() {
-    // RetroTouch's LABELS: the GC look of 0.99.6 .. 1.0
-    context.getSharedPreferences(TouchLayoutFile.PREFS, Context.MODE_PRIVATE).edit()
-        .putString("button_style_" + TouchControls.LAYOUT_ID, "LABELS").commit();
+  @Test public void oldGcPlayerGetsTheGcSkin() {
+    prefs().edit().putString(TouchControls.STYLE_KEY, "LABELS").commit();  // the GC style of 0.99.6 .. 1.0
     TouchControls t = controls();
-    RetroTouchView view = (RetroTouchView) t.view();
+    assertEquals("gc", ((RetroTouchView) t.view()).getSkin());
     assertEquals(TouchStyle.GC, t.look());
-    assertEquals("RetroTouch draws every look in ICONS", RetroTouchButtonStyle.ICONS, view.getButtonStyle());
-    assertEquals(TouchStyle.GC, input().getInt(TouchControls.LOOK, -1));
-    // the next start keeps it, though RetroTouch says ICONS now
+    assertEquals("gc", prefs().getString(TouchControls.SKIN_KEY, null));
     assertEquals(TouchStyle.GC, controls().look());
   }
 
-  @Test public void lookKeptAndReadAgainAfterAnImport() {
-    TouchControls t = controls();
-    t.setLook(TouchStyle.XBOX);
+  @Test public void aChosenSkinWinsOverTheOldStyle() {
+    prefs().edit().putString(TouchControls.STYLE_KEY, "LABELS").putString(TouchControls.SKIN_KEY, "xbox").commit();
     assertEquals(TouchStyle.XBOX, controls().look());
-    input().edit().putInt(TouchControls.LOOK, TouchStyle.PS2).commit();  // a settings import
-    t.reloadSaved();
-    assertEquals(TouchStyle.PS2, t.look());
-    assertEquals("SELECT", action((RetroTouchView) t.view(), CoreTouch.MENU).getLabel());
-    input().edit().putInt(TouchControls.LOOK, 17).commit();  // nonsense: the default
-    t.reloadSaved();
-    assertEquals(TouchStyle.DEFAULT_LOOK, t.look());
+    assertFalse(TouchControls.migrateOldGc(prefs()));
+  }
+
+  @Test public void appMenuSetsTheSkin() {
+    TouchControls t = controls();
+    t.setLook(TouchStyle.PS2);
+    assertEquals("ps2", ((RetroTouchView) t.view()).getSkin());
+    assertEquals(TouchStyle.PS2, controls().look());
+    t.setLook(17);  // nonsense: the default
+    assertEquals(TouchStyle.RE, t.look());
   }
 
   @Test public void editorStyleButtonGoesRound() throws Exception {
     TouchControls t = controls();
     RetroTouchView view = (RetroTouchView) t.view();
-    int[] order = {TouchStyle.GC, TouchStyle.PS2, TouchStyle.XBOX, TouchStyle.RE};
-    for (int want : order) {
+    for (int want : new int[] {TouchStyle.GC, TouchStyle.PS2, TouchStyle.XBOX, TouchStyle.RE}) {
       tapStyleButton(view);
       assertEquals(want, t.look());
-      assertEquals(RetroTouchButtonStyle.ICONS, view.getButtonStyle());
-      assertEquals(want, input().getInt(TouchControls.LOOK, -1));
+      assertEquals(TouchStyle.IDS[want], prefs().getString(TouchControls.SKIN_KEY, null));
     }
   }
 
-  @Test public void reAsBefore() {
+  @Test public void skinReadAgainAfterAnImport() {
     TouchControls t = controls();
-    t.setLook(TouchStyle.PS2);
-    t.setLook(TouchStyle.RE);
-    RetroTouchView view = (RetroTouchView) t.view();
-    assertEquals(TouchStyle.COLOURS, view.getDefaultColors());
-    assertEquals(RetroTouchButtonShape.ROUNDED_RECT, view.getButtonShape(CoreTouch.L));
-    assertEquals(RetroTouchButtonShape.ROUNDED_RECT, view.getButtonShape(CoreTouch.R));
-    assertEquals(RetroTouchButtonShape.CAPSULE, view.getButtonShape(CoreTouch.START));
-    assertEquals(RetroTouchButtonShape.CAPSULE, view.getButtonShape(CoreTouch.MENU));
-    assertEquals(RetroTouchButtonShape.AUTO, view.getButtonShape(CoreTouch.A));
-    assertSame(RetroTouchIcon.HAND, action(view, CoreTouch.A).getIcon());
-    assertSame(RetroTouchIcon.KNIFE_HORIZONTAL, action(view, CoreTouch.L).getIcon());
-    assertSame(RetroTouchIcon.CROSSHAIR, action(view, CoreTouch.R).getIcon());
-    assertNull(action(view, CoreTouch.R3).getIcon());
-    for (int i = 0; i < CoreTouch.ACTIONS.length; i++) {
-      String id = CoreTouch.ACTIONS[i];
-      assertNull(id, action(view, id).getColors());
-      assertEquals(id, CoreTouch.LABELS[i], action(view, id).getLabel());
-    }
-    assertTrue(view.isStickAction(CoreTouch.C_STICK));
-    // the aim and knife sticks with R's and L's icons (RetroTouch 1.0.0-beta.12), the C stick keeps its label
-    assertTrue(view.isStickAction(CoreTouch.AIM_STICK) && view.isStickAction(CoreTouch.KNIFE_STICK));
-    assertSame(RetroTouchIcon.CROSSHAIR, action(view, CoreTouch.AIM_STICK).getIcon());
-    assertSame(RetroTouchIcon.KNIFE_HORIZONTAL, action(view, CoreTouch.KNIFE_STICK).getIcon());
-    assertNull(action(view, CoreTouch.C_STICK).getIcon());
-    assertEquals("AIM", action(view, CoreTouch.AIM_STICK).getLabel());
-    assertEquals(1f, view.getButtonAspect(CoreTouch.Z), 0f);
-    // four sticks in one layout: the move stick, the C stick, the aim and the knife stick
-    assertEquals(CoreTouch.MAX_STICKS, view.getMaxSticks());
-    assertEquals(4, CoreTouch.MAX_STICKS);
-  }
-
-  @Test public void gcLook() {
-    TouchControls t = controls();
-    t.setLook(TouchStyle.GC);
-    RetroTouchView view = (RetroTouchView) t.view();
-    assertEquals(TouchStyle.GC_DARK, view.getDefaultColors());
-    assertEquals(TouchStyle.GC_GREEN, action(view, CoreTouch.A).getColors());
-    assertEquals(TouchStyle.GC_RED, action(view, CoreTouch.B).getColors());
-    assertEquals(TouchStyle.GC_GREY, action(view, CoreTouch.X).getColors());
-    assertEquals(TouchStyle.GC_PURPLE, action(view, CoreTouch.Z).getColors());
-    assertEquals(TouchStyle.GC_YELLOW, action(view, CoreTouch.C_STICK).getColors());
-    assertEquals("A", action(view, CoreTouch.A).getLabel());
-    assertNull(action(view, CoreTouch.A).getIcon());
-    assertSame(RetroTouchIcon.MENU, action(view, CoreTouch.MENU).getIcon());
-    assertSame(TouchStyle.PLUS, action(view, CoreTouch.ZOOM_IN).getIcon());
-    assertEquals("C", action(view, CoreTouch.C_STICK).getLabel());
-    assertEquals(RetroTouchButtonShape.ROUND, view.getButtonShape(CoreTouch.A));
-    assertEquals(RetroTouchButtonShape.ROUNDED_RECT, view.getButtonShape(CoreTouch.Z));
-    assertEquals(TouchStyle.Z_ASPECT, view.getButtonAspect(CoreTouch.Z), 0f);
-    assertTrue(view.isStickAction(CoreTouch.C_STICK) && view.isStickAction(CoreTouch.AIM_STICK));
-  }
-
-  @Test public void ps2Look() {
-    TouchControls t = controls();
-    t.setLook(TouchStyle.PS2);
-    RetroTouchView view = (RetroTouchView) t.view();
-    assertSame(TouchStyle.PS2_CROSS, action(view, CoreTouch.A).getIcon());
-    assertSame(TouchStyle.PS2_CIRCLE, action(view, CoreTouch.B).getIcon());
-    assertSame(TouchStyle.PS2_SQUARE, action(view, CoreTouch.X).getIcon());
-    assertSame(TouchStyle.PS2_TRIANGLE, action(view, CoreTouch.Y).getIcon());
-    assertEquals(TouchStyle.PS2_BLUE, action(view, CoreTouch.A).getColors());
-    assertEquals("R1", action(view, CoreTouch.Z).getLabel());
-    assertEquals("L2", action(view, CoreTouch.L).getLabel());
-    assertEquals("R2", action(view, CoreTouch.R).getLabel());
-    assertEquals("SELECT", action(view, CoreTouch.MENU).getLabel());
-    assertEquals("START", action(view, CoreTouch.START).getLabel());
-    assertEquals("R", action(view, CoreTouch.C_STICK).getLabel());
-    assertEquals(TouchStyle.PS2_DARK, view.getDefaultColors());
-  }
-
-  @Test public void xboxLook() {
-    TouchControls t = controls();
+    prefs().edit().putString(TouchControls.SKIN_KEY, "gc").commit();  // a settings import
+    t.reloadSaved();
+    assertEquals(TouchStyle.GC, t.look());
+    // a backup of before skins: the old GC style
+    prefs().edit().remove(TouchControls.SKIN_KEY).putString(TouchControls.STYLE_KEY, "LABELS").commit();
     t.setLook(TouchStyle.XBOX);
-    RetroTouchView view = (RetroTouchView) t.view();
-    assertEquals(TouchStyle.XBOX_GREEN, action(view, CoreTouch.A).getColors());
-    assertEquals(TouchStyle.XBOX_YELLOW, action(view, CoreTouch.Y).getColors());
-    assertEquals(TouchStyle.XBOX_WHITE, action(view, CoreTouch.L).getColors());
-    assertEquals("LT", action(view, CoreTouch.L).getLabel());
-    assertEquals("RT", action(view, CoreTouch.R).getLabel());
-    assertEquals("RB", action(view, CoreTouch.Z).getLabel());
-    assertEquals("RS", action(view, CoreTouch.C_STICK).getLabel());
-    assertSame(RetroTouchIcon.MENU, action(view, CoreTouch.START).getIcon());
-    assertSame(TouchStyle.XBOX_VIEW, action(view, CoreTouch.MENU).getIcon());
-    assertNull(action(view, CoreTouch.A).getIcon());
+    prefs().edit().remove(TouchControls.SKIN_KEY).commit();
+    t.reloadSaved();
+    assertEquals(TouchStyle.GC, t.look());
+    // neither: RE
+    prefs().edit().clear().commit();
+    t.reloadSaved();
+    assertEquals(TouchStyle.RE, t.look());
+  }
+
+  /** Every skin but RE sets every action's content (a label or an icon) and colours; RE keeps the actions' own. */
+  @Test public void everySkinSetsEveryAction() {
+    RetroTouchSkin[] skins = TouchStyle.skins(TouchStyle.SHOULDER_ASPECT);
+    assertEquals(TouchStyle.LOOKS, skins.length);
+    for (int i = 0; i < skins.length; i++) {
+      assertEquals(TouchStyle.IDS[i], skins[i].getId());
+      assertEquals(TouchStyle.NAMES[i], skins[i].getName());
+      if (i == TouchStyle.RE) continue;
+      for (String id : CoreTouch.ACTIONS) {
+        RetroTouchLook look = skins[i].getLook(id);
+        assertNotNull(skins[i].getName() + " " + id, look);
+        assertTrue(skins[i].getName() + " " + id, look.getLabel() != null || look.getIcon() != null);
+        assertNotNull(skins[i].getName() + " " + id, look.getColors());
+      }
+    }
+    assertNull(skins[TouchStyle.RE].getLook(CoreTouch.A));
+    assertEquals(TouchStyle.COLOURS, skins[TouchStyle.RE].getDefaultColors());
+    assertEquals(RetroTouchButtonShape.ROUNDED_RECT, skins[TouchStyle.RE].getLook(CoreTouch.L).getShape());
+    assertEquals(TouchStyle.SHOULDER_ASPECT, skins[TouchStyle.RE].getLook(CoreTouch.L).getAspect(), 0f);
+    assertEquals(RetroTouchButtonShape.CAPSULE, skins[TouchStyle.RE].getLook(CoreTouch.START).getShape());
+  }
+
+  @Test public void gcSkin() {
+    RetroTouchSkin gc = TouchStyle.gc(1.6f);
+    assertEquals(RetroTouchButtonStyle.LABELS, gc.getBaseStyle());
+    assertEquals(RetroTouchStickGate.OCTAGON, gc.getStickGate());
+    assertEquals(TouchStyle.GC_GREEN, gc.getLook(CoreTouch.A).getColors());
+    assertEquals(TouchStyle.GC_RED, gc.getLook(CoreTouch.B).getColors());
+    assertEquals(RetroTouchButtonShape.KIDNEY, gc.getLook(CoreTouch.X).getShape());
+    assertEquals(TouchStyle.X_TURN, gc.getLook(CoreTouch.X).getRotation(), 0f);
+    assertEquals(RetroTouchButtonShape.KIDNEY, gc.getLook(CoreTouch.Y).getShape());
+    assertEquals(RetroTouchButtonShape.BUMPER, gc.getLook(CoreTouch.L).getShape());
+    assertEquals("the screen's shoulder width", 1.6f, gc.getLook(CoreTouch.R).getAspect(), 0f);
+    assertEquals(TouchStyle.GC_PURPLE, gc.getLook(CoreTouch.Z).getColors());
+    assertEquals(TouchStyle.GC_YELLOW, gc.getLook(CoreTouch.C_STICK).getColors());
+    assertEquals("C", gc.getLook(CoreTouch.C_STICK).getLabel());
+    assertEquals(TouchStyle.GC_PURPLE, gc.getDpadColors());
+  }
+
+  @Test public void ps2Skin() {
+    RetroTouchSkin ps2 = TouchStyle.ps2();
+    assertSame(RetroTouchIcon.SYMBOL_CROSS, ps2.getLook(CoreTouch.A).getIcon());
+    assertSame(RetroTouchIcon.SYMBOL_CIRCLE, ps2.getLook(CoreTouch.B).getIcon());
+    assertSame(RetroTouchIcon.SYMBOL_SQUARE, ps2.getLook(CoreTouch.X).getIcon());
+    assertSame(RetroTouchIcon.SYMBOL_TRIANGLE, ps2.getLook(CoreTouch.Y).getIcon());
+    assertEquals(0xFF6E96E6, ps2.getLook(CoreTouch.A).getColors().getIconColor());
+    assertEquals("R1", ps2.getLook(CoreTouch.Z).getLabel());
+    assertEquals(RetroTouchButtonShape.BUMPER, ps2.getLook(CoreTouch.Z).getShape());
+    assertEquals("L2", ps2.getLook(CoreTouch.L).getLabel());
+    assertEquals(RetroTouchButtonShape.TRIGGER, ps2.getLook(CoreTouch.R).getShape());
+    assertEquals("SELECT", ps2.getLook(CoreTouch.MENU).getLabel());
+    assertEquals(RetroTouchDpadStyle.FOUR_BUTTONS, ps2.getDpadStyle());
+    assertSame(RetroTouchIcon.ARROW_UP, ps2.getDpadIcons()[0]);
+    assertEquals("L3", ps2.getMoveStickLook().getLabel());
+    assertEquals("R3", ps2.getLook(CoreTouch.C_STICK).getLabel());
+  }
+
+  @Test public void xboxSkin() {
+    RetroTouchSkin xbox = TouchStyle.xbox();
+    assertEquals(0xFF6FCB4E, xbox.getLook(CoreTouch.A).getColors().getTextColor());
+    assertEquals(0xFFF0605A, xbox.getLook(CoreTouch.B).getColors().getTextColor());
+    assertEquals(0xFF5B8FF0, xbox.getLook(CoreTouch.X).getColors().getTextColor());
+    assertEquals(0xFFF2C94C, xbox.getLook(CoreTouch.Y).getColors().getTextColor());
+    assertEquals("LT", xbox.getLook(CoreTouch.L).getLabel());
+    assertEquals(RetroTouchButtonShape.TRIGGER, xbox.getLook(CoreTouch.L).getShape());
+    assertEquals("RB", xbox.getLook(CoreTouch.Z).getLabel());
+    assertEquals(RetroTouchButtonShape.BUMPER, xbox.getLook(CoreTouch.Z).getShape());
+    assertSame(TouchStyle.XBOX_VIEW, xbox.getLook(CoreTouch.MENU).getIcon());
+    assertEquals(RetroTouchDpadStyle.CROSS, xbox.getDpadStyle());
+    assertSame(RetroTouchIcon.ARROW_LEFT, xbox.getDpadIcons()[2]);
+    assertEquals("LS", xbox.getMoveStickLook().getLabel());
+    assertEquals("RS", xbox.getLook(CoreTouch.C_STICK).getLabel());
   }
 
   @Test public void layoutKeepsPositionsAndSizes() {
@@ -207,51 +217,16 @@ public class TouchStyleTest {
     }
   }
 
-  /** RetroTouch's aspect of a control as it draws it (RetroTouchView.aspectFor, 1.0.0-beta.10). */
-  private static float drawnAspect(RetroTouchView view, RetroTouchControl control) throws Exception {
-    java.lang.reflect.Method m = RetroTouchView.class.getDeclaredMethod("aspectFor", RetroTouchControl.class);
-    m.setAccessible(true);
-    return (Float) m.invoke(view, control);
-  }
-
-  private static RetroTouchControl defaultButton(RetroTouchView view, String action) {
-    for (RetroTouchControl k : view.getCurrentLayout().getControls()) if (action.equals(k.getActionId())) return k;
-    throw new AssertionError("no button " + action);
-  }
-
-  /** Added buttons (RetroTouch names them button_N, 1:1 of their own) are as wide as the default ones in every look. */
-  @Test public void addedButtonsShapedAsTheDefaultOnes() throws Exception {
-    TouchControls t = controls();
-    RetroTouchView view = (RetroTouchView) t.view();
-    RetroTouchControl added = RetroTouchControl.button("button_1", CoreTouch.L, "L", 0.3f, 0.3f, 0.12f);
-    RetroTouchControl start = RetroTouchControl.button("button_2", CoreTouch.START, "START", 0.5f, 0.3f, 0.085f);
-    RetroTouchControl a = RetroTouchControl.button("button_3", CoreTouch.A, "A", 0.6f, 0.3f, 0.12f);
-    RetroTouchControl z = RetroTouchControl.button("button_4", CoreTouch.Z, "Z", 0.7f, 0.3f, 0.09f);
-    for (int look = 0; look < TouchStyle.LOOKS; look++) {
-      t.setLook(look);
-      String name = TouchStyle.NAMES[look];
-      assertEquals(name, TouchStyle.SHOULDER_ASPECT, drawnAspect(view, added), 0f);
-      assertEquals(name, drawnAspect(view, defaultButton(view, CoreTouch.L)), drawnAspect(view, added), 0f);
-      assertEquals(name, TouchStyle.CAPSULE_ASPECT, drawnAspect(view, start), 0f);
-      assertEquals(name, 1f, drawnAspect(view, a), 0f);
-      float zWant = look == TouchStyle.RE ? 1f : TouchStyle.Z_ASPECT;
-      assertEquals(name, zWant, drawnAspect(view, z), 0f);
-      assertEquals(name + ": the default Z as wide as an added one", zWant, drawnAspect(view, defaultButton(view, CoreTouch.Z)), 0f);
-      assertEquals(name, RetroTouchButtonShape.ROUNDED_RECT, view.getButtonShape(CoreTouch.L));
-    }
-  }
-
   @Test public void ownIconsParse() {
-    for (RetroTouchIcon icon : new RetroTouchIcon[] {TouchStyle.PLUS, TouchStyle.MINUS, TouchStyle.PS2_CROSS,
-        TouchStyle.PS2_CIRCLE, TouchStyle.PS2_SQUARE, TouchStyle.PS2_TRIANGLE, TouchStyle.XBOX_VIEW}) {
+    for (RetroTouchIcon icon : new RetroTouchIcon[] {TouchStyle.PLUS, TouchStyle.MINUS, TouchStyle.XBOX_VIEW}) {
       assertEquals(24f, icon.getViewBoxSize(), 0f);
     }
   }
 
   @Test public void lookNumbers() {
-    assertEquals(TouchStyle.GC, TouchStyle.next(TouchStyle.RE));
-    assertEquals(TouchStyle.RE, TouchStyle.next(TouchStyle.XBOX));
-    assertEquals(TouchStyle.DEFAULT_LOOK, TouchStyle.valid(-1));
+    assertEquals(TouchStyle.GC, TouchStyle.look("gc"));
+    assertEquals(TouchStyle.DEFAULT_LOOK, TouchStyle.look("nonsense"));
+    assertEquals(TouchStyle.DEFAULT_LOOK, TouchStyle.look(null));
     assertEquals(TouchStyle.DEFAULT_LOOK, TouchStyle.valid(4));
     assertEquals(TouchStyle.LOOKS, TouchStyle.NAMES.length);
   }

@@ -3,43 +3,50 @@ package com.ast.re4decomp;
 import com.ast.retrotouch.RetroTouchButtonShape;
 import com.ast.retrotouch.RetroTouchButtonStyle;
 import com.ast.retrotouch.RetroTouchColors;
+import com.ast.retrotouch.RetroTouchDpadStyle;
 import com.ast.retrotouch.RetroTouchIcon;
+import com.ast.retrotouch.RetroTouchLook;
+import com.ast.retrotouch.RetroTouchSkin;
+import com.ast.retrotouch.RetroTouchStickGate;
 
 /**
- * The four looks of the touch controls, all in one place (wish of the project owner, 17.11.2026; designs in
- * builds\retrotouch-styles): RE (symbols for what each button does, the default since 0.99.7), GC (the GameCube's
- * buttons; it replaces the GC look of 0.99.6 and earlier), PS2 and XBOX (those controllers' buttons, mapped as
- * CoreInput maps a controller: Z = R1/RB, L = L2/LT, R = R2/RT, MENU = SELECT/View).
+ * The four skins of the touch controls, all in one place (wish of the project owner, 17.11.2026; RetroTouch
+ * 1.0.0-beta.13, the owner's reference picture builds\retrotouch-styles\owner-reference-beta13.png): RE (symbols for
+ * what each button does, the default since 0.99.7), GC (the GameCube's buttons: bumpers L and R, beans X and Y, a
+ * purple Z, D-pad and START, a yellow C stick, octagonal gates; it replaces the GC style of 0.99.6 .. 1.0, RetroTouch's
+ * LABELS), PS2 (black buttons, the four symbols in their colours, L2/R2 triggers, R1 bumper, a D-pad of four buttons)
+ * and XBOX (dark buttons with coloured letters, LT/RT triggers, RB bumper). Mapped as CoreInput maps a controller and
+ * as the HD texture packs' button sets: Z = R1/RB, L = L2/LT, R = R2/RT, MENU = SELECT/View, the C stick the right stick.
  *
- * All four are drawn in RetroTouch's ICONS style (1.0.0-beta.12): each action's colours (normal, pressed, latched),
- * its icon or, without one, its label, its shape and width over height; the D-pad and the move stick take the
- * default colours. RetroTouch knows two styles only, so TouchControls keeps it in ICONS and the look is the app's own
- * setting (TouchLook); RetroTouch's LABELS style is no longer shown.
- *
- * Centring (the project owner, 17.11.2026: labels centred horizontally and vertically): RetroTouch centres a label
- * of one character by its ink, one of more characters by its width and the font's height (within about a pixel),
- * and an icon by its 24 x 24 box; the own icons below are drawn with their ink centred in that box.
+ * RetroTouch keeps the player's choice (its key button_skin_cubeevil4, in the player's backup); its editor's style
+ * button goes through the skins in this order. Each skin sets every action's content, colours, shape and width over
+ * height, so nothing of one skin shows in another; the actions themselves carry RE's labels and icons (TouchControls).
+ * RetroTouch centres labels and icons on their ink in skins (beta.13).
  *
  * The icons and labels follow what a button does on the touch controls (CoreTouch.gcButton: a GameCube button
- * each); the menu's "Alternate Controls" change the controller's keys only, so the looks stay as they are with them.
+ * each); the menu's "Alternate Controls" change the controller's keys only, so the skins stay as they are with them.
  */
 final class TouchStyle {
   private TouchStyle() {}
 
-  /** RetroTouch's style: always ICONS, which draws all four looks. */
+  /** RetroTouch's style without skins (the base of RE). */
   static final RetroTouchButtonStyle DEFAULT_BUTTON_STYLE = RetroTouchButtonStyle.ICONS;
 
-  /** The looks, in the order of the app menu and of the editor's style button. */
+  /** The skins, in the order of the app menu and of the editor's style button. */
   static final int RE = 0, GC = 1, PS2 = 2, XBOX = 3, LOOKS = 4;
-  /** Their names: the same in every language (the menu's buttons, the editor's style button). */
+  /** Their IDs (RetroTouch saves the chosen one) and names (the menu's buttons, the editor's style button). */
+  static final String[] IDS = {"re", "gc", "ps2", "xbox"};
   static final String[] NAMES = {"RE", "GC", "PS2", "XBOX"};
-  /** A new player's look. */
+  /** A new player's skin. */
   static final int DEFAULT_LOOK = RE;
 
-  /** The look after `look` (the editor's style button goes round). */
-  static int next(int look) { return (look + 1) % LOOKS; }
+  /** The skin number of a skin ID, the default for an unknown one. */
+  static int look(String id) {
+    for (int i = 0; i < LOOKS; i++) if (IDS[i].equals(id)) return i;
+    return DEFAULT_LOOK;
+  }
 
-  /** A look number as it is, else the default (a setting from elsewhere). */
+  /** A skin number as it is, else the default. */
   static int valid(int look) { return look >= 0 && look < LOOKS ? look : DEFAULT_LOOK; }
 
   // ---------------------------------------------------------------- RE (the project owner's start values, 09.11.2026)
@@ -49,9 +56,7 @@ final class TouchStyle {
   // a latched L, R or B: RetroTouch adds the outer ring in the border's colour
   static final int LATCHED_FILL = 0xFF3A3326, LATCHED_BORDER = 0xFFE8C07A, LATCHED_ICON = 0xFFFFF1D0;
 
-  /**
-   * Every button, the D-pad and the sticks of RE. The border is RetroTouch's own width (7 % of the shorter side).
-   */
+  /** Every button, the D-pad and the sticks of RE. The border is RetroTouch's own width (7 % of the shorter side). */
   static final RetroTouchColors COLOURS = colours(FILL, BORDER, ICON, PRESSED_FILL, PRESSED_BORDER, PRESSED_ICON,
       LATCHED_FILL, LATCHED_BORDER, LATCHED_ICON);
 
@@ -62,63 +67,53 @@ final class TouchStyle {
         .withLatchedColors(latchedFill, latchedBorder, latchedText);
   }
 
-  // ---------------------------------------------------------------- GC: the GameCube's colours; light letters on A, B
-  // and Z, dark ones on the grey buttons (dark letters on A and B were hard to read through the controls' transparency
-  // on the emulator, 17.11.2026)
-  static final RetroTouchColors GC_GREEN = colours(0xFF1FAE73, 0xFF0A5A3A, 0xFFF2FFF8, 0xFF49D497, 0xFF0D7A4F, 0xFFFFFFFF,
-      0xFF2DBF82, 0xFF0F8A59, 0xFFFFFFFF);
-  static final RetroTouchColors GC_RED = colours(0xFFE34A3E, 0xFF771A13, 0xFFFFF1EF, 0xFFFF7468, 0xFF9A241B, 0xFFFFFFFF,
-      0xFFF05A4E, 0xFFA8291F, 0xFFFFFFFF);
-  static final RetroTouchColors GC_GREY = colours(0xFFCBCBD3, 0xFF5A5A66, 0xFF32323A, 0xFFEDEDF3, 0xFF74747F, 0xFF26262C,
-      0xFFDCDCE3, 0xFF85858F, 0xFF26262C);
-  static final RetroTouchColors GC_PURPLE = colours(0xFF7B6BC6, 0xFF3B2F78, 0xFFF3F0FF, 0xFF9D8FE6, 0xFF4D3F99, 0xFFFFFFFF,
-      0xFF9D8FE6, 0xFF4D3F99, 0xFFFFFFFF);
-  static final RetroTouchColors GC_DARK = colours(0xFF3C3C44, 0xFFBDBDC6, 0xFFEEEEF4, 0xFF55555F, 0xFFE0E0E8, 0xFFFFFFFF,
-      0xFF484850, 0xFFF0F0F6, 0xFFFFFFFF);
-  static final RetroTouchColors GC_YELLOW = colours(0xFFF2C21B, 0xFF7A5C00, 0xFF4A3800, 0xFFFFD84D, 0xFF9A7400, 0xFF3A2C00,
-      0xFFFFD84D, 0xFF9A7400, 0xFF3A2C00);
+  // ---------------------------------------------------------------- GC
+  static final RetroTouchColors GC_GREY = colours(0xFFB9BCC3, 0xFF6E717A, 0xFF3C3F47, 0xFFDCDEE3, 0xFF8A8D96, 0xFF2A2C32,
+      0xFFC9CBD1, 0xFF9A9DA6, 0xFF2A2C32);
+  static final RetroTouchColors GC_GREEN = colours(0xFF2FA57E, 0xFFCFEFE4, 0xFFF2FFF8, 0xFF4FC79D, 0xFFFFFFFF, 0xFFFFFFFF,
+      0xFF3BB58C, 0xFFFFFFFF, 0xFFFFFFFF);
+  static final RetroTouchColors GC_RED = colours(0xFFC9373A, 0xFF7A1A1C, 0xFFFFECEC, 0xFFE95A5C, 0xFFA42628, 0xFFFFFFFF,
+      0xFFD9474A, 0xFFE8C07A, 0xFFFFFFFF);
+  static final RetroTouchColors GC_PURPLE = colours(0xFF5B4FC0, 0xFF8F84E8, 0xFFEDEBFF, 0xFF7A6FE0, 0xFFB7AEFF, 0xFFFFFFFF,
+      0xFF6A5FD0, 0xFFC9C1FF, 0xFFFFFFFF);
+  static final RetroTouchColors GC_YELLOW = colours(0xFFD9B21C, 0xFF6E5800, 0xFF3A2C00, 0xFFF2CB33, 0xFF8E7200, 0xFF2A2000,
+      0xFFE6BF28, 0xFF9A7C00, 0xFF2A2000);
 
   // ---------------------------------------------------------------- PS2: black buttons, the symbols in their colours
-  private static RetroTouchColors ps2(int symbol, int pressedSymbol) {
-    return colours(0xFF1D1E24, 0xFF737689, symbol, 0xFF33353F, 0xFFA5A8BC, pressedSymbol, 0xFF2A2C34, 0xFFC3C6D8,
-        pressedSymbol);
-  }
-  static final RetroTouchColors PS2_BLUE = ps2(0xFF8DB6FF, 0xFFB9D1FF), PS2_RED = ps2(0xFFFF6E6E, 0xFFFF9E9E),
-      PS2_PINK = ps2(0xFFFF8FD9, 0xFFFFB9E8), PS2_GREEN = ps2(0xFF52D9AA, 0xFF8AE9C8), PS2_TEXT = ps2(0xFFE7E8EF, 0xFFFFFFFF);
-  static final RetroTouchColors PS2_DARK = colours(0xFF24252C, 0xFF737689, 0xFFE7E8EF, 0xFF383A44, 0xFFA5A8BC, 0xFFFFFFFF,
-      0xFF2E3038, 0xFFC3C6D8, 0xFFFFFFFF);
+  static final RetroTouchColors PS2_BLACK = colours(0xFF1D1E24, 0xFF6E717D, 0xFFD0D2DA, 0xFF33353F, 0xFFA5A8BC, 0xFFFFFFFF,
+      0xFF2A2C34, 0xFFC3C6D8, 0xFFFFFFFF);
+  static final RetroTouchColors PS2_BLUE = PS2_BLACK.withIconColors(0xFF6E96E6, 0xFF9DBBFF, 0xFF9DBBFF),
+      PS2_RED = PS2_BLACK.withIconColors(0xFFE2545A, 0xFFFF8A8E, 0xFFFF8A8E),
+      PS2_PINK = PS2_BLACK.withIconColors(0xFFE27AC4, 0xFFFFA8E2, 0xFFFFA8E2),
+      PS2_GREEN = PS2_BLACK.withIconColors(0xFF3FBF96, 0xFF7BE3C0, 0xFF7BE3C0);
 
-  // ---------------------------------------------------------------- XBOX: coloured caps with a dark ring
-  private static RetroTouchColors xbox(int fill, int pressedFill, int letter) {
-    return colours(fill, 0xFF16171B, letter, pressedFill, 0xFF3A3C44, letter, pressedFill, 0xFF5A5D68, letter);
+  // ---------------------------------------------------------------- XBOX: dark buttons, coloured letters
+  static final RetroTouchColors XBOX_DARK = colours(0xFF23262C, 0xFF8A8D96, 0xFFE6E7EC, 0xFF3A3D45, 0xFFC0C3CC, 0xFFFFFFFF,
+      0xFF2E3138, 0xFFD0D3DC, 0xFFFFFFFF);
+  private static RetroTouchColors letter(int colour, int pressed) {
+    return colours(0xFF23262C, 0xFFB8BBC4, colour, 0xFF3A3D45, 0xFFE0E2E8, pressed, 0xFF2E3138, 0xFFE8C07A, pressed);
   }
-  static final RetroTouchColors XBOX_GREEN = xbox(0xFF4DAE2E, 0xFF6FCB4E, 0xFFFFFFFF),
-      XBOX_RED = xbox(0xFFD33B32, 0xFFF05A50, 0xFFFFFFFF), XBOX_BLUE = xbox(0xFF2E6AD8, 0xFF5089F0, 0xFFFFFFFF),
-      XBOX_YELLOW = xbox(0xFFEDB80F, 0xFFFFD03D, 0xFF2B2200);
-  static final RetroTouchColors XBOX_WHITE = colours(0xFFECECEF, 0xFF16171B, 0xFF16171B, 0xFFFFFFFF, 0xFF3A3C44, 0xFF000000,
-      0xFFF6F6F8, 0xFF5A5D68, 0xFF000000);
-  static final RetroTouchColors XBOX_BUMPER = colours(0xFF3A3C44, 0xFF16171B, 0xFFF2F2F5, 0xFF50535D, 0xFF3A3C44, 0xFFFFFFFF,
-      0xFF454852, 0xFF6B6E79, 0xFFFFFFFF);
-  static final RetroTouchColors XBOX_DARK = colours(0xFF2A2C32, 0xFF6B6E79, 0xFFF2F2F5, 0xFF3E414A, 0xFF9A9DA8, 0xFFFFFFFF,
-      0xFF33363D, 0xFFB5B8C2, 0xFFFFFFFF);
+  static final RetroTouchColors XBOX_GREEN = letter(0xFF6FCB4E, 0xFF96E87A), XBOX_RED = letter(0xFFF0605A, 0xFFFF8E88),
+      XBOX_BLUE = letter(0xFF5B8FF0, 0xFF8DB2FF), XBOX_YELLOW = letter(0xFFF2C94C, 0xFFFFDD80);
+  static final RetroTouchColors XBOX_DPAD = colours(0xFF3A3D45, 0xFF8A8D96, 0xFFE6E7EC, 0xFF52555E, 0xFFC0C3CC, 0xFFFFFFFF,
+      0xFF454850, 0xFFD0D3DC, 0xFFFFFFFF);
 
   // ---------------------------------------------------------------- own icons (24 x 24, the ink centred in the box)
   static final RetroTouchIcon PLUS = RetroTouchIcon.fromPaths(24f, "M12 5v14", "M5 12h14");
   static final RetroTouchIcon MINUS = RetroTouchIcon.fromPaths(24f, "M5 12h14");
-  static final RetroTouchIcon PS2_CROSS = RetroTouchIcon.fromPaths(24f, "M6.5 6.5l11 11", "M17.5 6.5l-11 11");
-  static final RetroTouchIcon PS2_CIRCLE = RetroTouchIcon.fromPaths(24f, "M12 5.5a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13Z");
-  static final RetroTouchIcon PS2_SQUARE = RetroTouchIcon.fromPaths(24f, "M6.5 6.5h11v11h-11Z");
-  // the triangle's box (5.74 .. 18.24) centred at 12
-  static final RetroTouchIcon PS2_TRIANGLE = RetroTouchIcon.fromPaths(24f, "M12 5.74l7.2 12.5H4.8Z");
   // the Xbox's "view" key: two overlapping windows (no logo)
   static final RetroTouchIcon XBOX_VIEW = RetroTouchIcon.fromPaths(24f, "M4 9h10v10H4Z", "M8 9V5h12v10h-6");
 
-  /** Width over height of L and R as rounded rectangles (where the screen has room, see shoulderAspect). */
+  /** Width over height of L and R as rounded rectangles and bumpers (where the screen has room, see shoulderAspect). */
   static final float SHOULDER_ASPECT = 1.95f;
   /** Width over height of MENU and START as capsules. */
   static final float CAPSULE_ASPECT = 2.1f;
-  /** Width over height of Z in GC, PS2 and XBOX (a shoulder button there: Z, R1, RB). */
-  static final float Z_ASPECT = 1.5f;
+  /** Width over height of Z in GC, PS2 and XBOX (Z, R1, RB). */
+  static final float Z_ASPECT = 1.6f;
+  /** Width over height of the triggers (L2/R2, LT/RT) and of GC's beans (RetroTouch's defaults). */
+  static final float TRIGGER_ASPECT = 0.8f, KIDNEY_ASPECT = 1.6f;
+  /** GC's beans turned (clockwise, RetroTouch's KIDNEY is hollow on top) so that their hollow faces A. */
+  static final float Y_TURN = 145f, X_TURN = 225f;
 
   /**
    * The icon of an action in RE, null for none (R3 and the C stick keep their labels). A: interact, confirm, fire
@@ -143,129 +138,9 @@ final class TouchStyle {
     }
   }
 
-  /** The icon of an action in a look, null for its label. */
-  static RetroTouchIcon icon(int look, String action) {
-    if (look == RE) return icon(action);
-    switch (action) {
-      case CoreTouch.AIM_STICK: return RetroTouchIcon.CROSSHAIR;
-      case CoreTouch.KNIFE_STICK: return RetroTouchIcon.KNIFE_HORIZONTAL;
-      case CoreTouch.ZOOM_IN: return PLUS;
-      case CoreTouch.ZOOM_OUT: return MINUS;
-      default: break;
-    }
-    if (look == GC) return CoreTouch.MENU.equals(action) ? RetroTouchIcon.MENU : null;
-    if (look == PS2) {
-      switch (action) {
-        case CoreTouch.A: return PS2_CROSS;
-        case CoreTouch.B: return PS2_CIRCLE;
-        case CoreTouch.X: return PS2_SQUARE;
-        case CoreTouch.Y: return PS2_TRIANGLE;
-        default: return null;
-      }
-    }
-    switch (action) {  // XBOX: START is its menu key (three lines), MENU its view key
-      case CoreTouch.START: return RetroTouchIcon.MENU;
-      case CoreTouch.MENU: return XBOX_VIEW;
-      default: return null;
-    }
-  }
-
-  /** The label of an action in a look (drawn where it has no icon, and the editor's ACTION shows it). */
-  static String label(int look, String action) {
-    if (look == PS2) {
-      switch (action) {
-        case CoreTouch.Z: return "R1";
-        case CoreTouch.L: return "L2";
-        case CoreTouch.R: return "R2";
-        case CoreTouch.MENU: return "SELECT";
-        case CoreTouch.C_STICK: return "R";
-        default: break;
-      }
-    } else if (look == XBOX) {
-      switch (action) {
-        case CoreTouch.Z: return "RB";
-        case CoreTouch.L: return "LT";
-        case CoreTouch.R: return "RT";
-        case CoreTouch.C_STICK: return "RS";
-        default: break;
-      }
-    }
-    return CoreTouch.label(action);
-  }
-
-  /** An action's colours in a look; null for the look's default colours (all of RE). */
-  static RetroTouchColors colours(int look, String action) {
-    switch (look) {
-      case GC:
-        switch (action) {
-          case CoreTouch.A: return GC_GREEN;
-          case CoreTouch.B: return GC_RED;
-          case CoreTouch.Z: return GC_PURPLE;
-          case CoreTouch.X: case CoreTouch.Y: case CoreTouch.L: case CoreTouch.R: case CoreTouch.START: return GC_GREY;
-          case CoreTouch.C_STICK: return GC_YELLOW;
-          default: return GC_DARK;
-        }
-      case PS2:
-        switch (action) {
-          case CoreTouch.A: return PS2_BLUE;
-          case CoreTouch.B: return PS2_RED;
-          case CoreTouch.X: return PS2_PINK;
-          case CoreTouch.Y: return PS2_GREEN;
-          case CoreTouch.C_STICK: case CoreTouch.AIM_STICK: case CoreTouch.KNIFE_STICK: return PS2_DARK;
-          default: return PS2_TEXT;
-        }
-      case XBOX:
-        switch (action) {
-          case CoreTouch.A: return XBOX_GREEN;
-          case CoreTouch.B: return XBOX_RED;
-          case CoreTouch.X: return XBOX_BLUE;
-          case CoreTouch.Y: return XBOX_YELLOW;
-          case CoreTouch.L: case CoreTouch.R: return XBOX_WHITE;
-          case CoreTouch.Z: return XBOX_BUMPER;
-          default: return XBOX_DARK;
-        }
-      default:
-        return null;
-    }
-  }
-
-  /** The colours of a look's D-pad, move stick and every action without colours of its own. */
-  static RetroTouchColors defaults(int look) {
-    switch (look) {
-      case GC: return GC_DARK;
-      case PS2: return PS2_DARK;
-      case XBOX: return XBOX_DARK;
-      default: return COLOURS;
-    }
-  }
-
-  /** The shape of an action's buttons in RE; AUTO (RetroTouch's choice by the label: round) for the others. */
-  static RetroTouchButtonShape iconShape(String action) {
-    switch (action) {
-      case CoreTouch.L:
-      case CoreTouch.R: return RetroTouchButtonShape.ROUNDED_RECT;
-      case CoreTouch.START:
-      case CoreTouch.MENU: return RetroTouchButtonShape.CAPSULE;
-      default: return RetroTouchButtonShape.AUTO;
-    }
-  }
-
-  /** The shape of an action's buttons in a look: in GC, PS2 and XBOX also Z a shoulder button, the others round. */
-  static RetroTouchButtonShape shape(int look, String action) {
-    if (look == RE) return iconShape(action);
-    switch (action) {
-      case CoreTouch.L:
-      case CoreTouch.R:
-      case CoreTouch.Z: return RetroTouchButtonShape.ROUNDED_RECT;
-      case CoreTouch.START:
-      case CoreTouch.MENU: return RetroTouchButtonShape.CAPSULE;
-      default: return RetroTouchButtonShape.ROUND;
-    }
-  }
-
   /**
-   * Width over height of an action's button of the default layout (1 where the shape has no aspect; 0 for Z, whose
-   * width comes from its look, zAspect, also on the default layout's Z).
+   * Width over height of an action's button of the default layout (1 where the shape has no aspect; 0 for Z: none
+   * of its own, so its skin's counts).
    */
   static float aspect(String action, float shoulder) {
     switch (action) {
@@ -278,11 +153,113 @@ final class TouchStyle {
     }
   }
 
-  /** Width over height of every button of an action in a look (RetroTouch's setButtonAspect; 1 = round). */
-  static float aspect(int look, String action, float shoulder) {
-    if (CoreTouch.Z.equals(action)) return look == RE ? 1f : Z_ASPECT;
-    float a = aspect(action, shoulder);
-    return a == 0f ? 1f : a;
+  private static RetroTouchLook look() { return new RetroTouchLook(); }
+
+  private static RetroTouchLook label(String text, RetroTouchColors colours) {
+    return look().withLabel(text).withColors(colours).withShape(RetroTouchButtonShape.ROUND);
+  }
+
+  private static RetroTouchLook icon(RetroTouchIcon icon, RetroTouchColors colours) {
+    return look().withIcon(icon).withColors(colours).withShape(RetroTouchButtonShape.ROUND);
+  }
+
+  private static RetroTouchLook capsule(RetroTouchLook look) {
+    return look.withShape(RetroTouchButtonShape.CAPSULE).withAspect(CAPSULE_ASPECT);
+  }
+
+  /** The four skins for L's and R's width over height on this screen (shoulderAspect). */
+  static RetroTouchSkin[] skins(float shoulder) {
+    return new RetroTouchSkin[] {re(shoulder), gc(shoulder), ps2(), xbox()};
+  }
+
+  /** RE: as before (ICONS: the actions' icons and labels, one colour set, L and R and the capsules as wide as before). */
+  static RetroTouchSkin re(float shoulder) {
+    RetroTouchLook shoulderButton = look().withShape(RetroTouchButtonShape.ROUNDED_RECT).withAspect(shoulder);
+    return new RetroTouchSkin(IDS[RE], NAMES[RE], RetroTouchButtonStyle.ICONS)
+        .setDefaultColors(COLOURS)
+        .setLook(CoreTouch.L, shoulderButton)
+        .setLook(CoreTouch.R, shoulderButton)
+        .setLook(CoreTouch.START, capsule(look()))
+        .setLook(CoreTouch.MENU, capsule(look()));
+  }
+
+  /** GC: the GameCube's buttons. */
+  static RetroTouchSkin gc(float shoulder) {
+    RetroTouchLook bumper = look().withShape(RetroTouchButtonShape.BUMPER).withAspect(shoulder).withColors(GC_GREY);
+    RetroTouchLook bean = look().withShape(RetroTouchButtonShape.KIDNEY).withAspect(KIDNEY_ASPECT).withColors(GC_GREY);
+    return new RetroTouchSkin(IDS[GC], NAMES[GC], RetroTouchButtonStyle.LABELS)
+        .setDefaultColors(GC_PURPLE)
+        .setDpadColors(GC_PURPLE)
+        .setStickGate(RetroTouchStickGate.OCTAGON)
+        .setLook(CoreTouch.A, label("A", GC_GREEN))
+        .setLook(CoreTouch.B, label("B", GC_RED))
+        .setLook(CoreTouch.X, bean.withLabel("X").withRotation(X_TURN))
+        .setLook(CoreTouch.Y, bean.withLabel("Y").withRotation(Y_TURN))
+        .setLook(CoreTouch.Z, look().withLabel("Z").withColors(GC_PURPLE).withShape(RetroTouchButtonShape.CAPSULE)
+            .withAspect(Z_ASPECT))
+        .setLook(CoreTouch.L, bumper.withLabel("L"))
+        .setLook(CoreTouch.R, bumper.withLabel("R"))
+        .setLook(CoreTouch.START, capsule(look().withLabel("START").withColors(GC_PURPLE)))
+        .setLook(CoreTouch.MENU, capsule(look().withIcon(RetroTouchIcon.MENU).withColors(GC_PURPLE)))
+        .setLook(CoreTouch.R3, label("R3", GC_GREY))
+        .setLook(CoreTouch.ZOOM_IN, icon(PLUS, GC_GREY))
+        .setLook(CoreTouch.ZOOM_OUT, icon(MINUS, GC_GREY))
+        .setLook(CoreTouch.C_STICK, look().withLabel("C").withColors(GC_YELLOW))
+        .setLook(CoreTouch.AIM_STICK, look().withIcon(RetroTouchIcon.CROSSHAIR).withColors(GC_PURPLE))
+        .setLook(CoreTouch.KNIFE_STICK, look().withIcon(RetroTouchIcon.KNIFE_HORIZONTAL).withColors(GC_PURPLE));
+  }
+
+  /** PS2: black buttons, the symbols in their colours, a D-pad of four buttons. */
+  static RetroTouchSkin ps2() {
+    RetroTouchLook trigger = look().withShape(RetroTouchButtonShape.TRIGGER).withAspect(TRIGGER_ASPECT).withColors(PS2_BLACK);
+    return new RetroTouchSkin(IDS[PS2], NAMES[PS2], RetroTouchButtonStyle.ICONS)
+        .setDefaultColors(PS2_BLACK)
+        .setDpadColors(PS2_BLACK)
+        .setDpadStyle(RetroTouchDpadStyle.FOUR_BUTTONS)
+        .setDpadIcons(RetroTouchIcon.ARROW_UP, RetroTouchIcon.ARROW_DOWN, RetroTouchIcon.ARROW_LEFT, RetroTouchIcon.ARROW_RIGHT)
+        .setMoveStickLook(look().withLabel("L3"))
+        .setLook(CoreTouch.A, icon(RetroTouchIcon.SYMBOL_CROSS, PS2_BLUE))
+        .setLook(CoreTouch.B, icon(RetroTouchIcon.SYMBOL_CIRCLE, PS2_RED))
+        .setLook(CoreTouch.X, icon(RetroTouchIcon.SYMBOL_SQUARE, PS2_PINK))
+        .setLook(CoreTouch.Y, icon(RetroTouchIcon.SYMBOL_TRIANGLE, PS2_GREEN))
+        .setLook(CoreTouch.Z, look().withLabel("R1").withColors(PS2_BLACK).withShape(RetroTouchButtonShape.BUMPER)
+            .withAspect(Z_ASPECT))
+        .setLook(CoreTouch.L, trigger.withLabel("L2"))
+        .setLook(CoreTouch.R, trigger.withLabel("R2"))
+        .setLook(CoreTouch.START, capsule(look().withLabel("START").withColors(PS2_BLACK)))
+        .setLook(CoreTouch.MENU, capsule(look().withLabel("SELECT").withColors(PS2_BLACK)))
+        .setLook(CoreTouch.R3, label("R3", PS2_BLACK))
+        .setLook(CoreTouch.ZOOM_IN, icon(PLUS, PS2_BLACK))
+        .setLook(CoreTouch.ZOOM_OUT, icon(MINUS, PS2_BLACK))
+        .setLook(CoreTouch.C_STICK, look().withLabel("R3").withColors(PS2_BLACK))
+        .setLook(CoreTouch.AIM_STICK, look().withIcon(RetroTouchIcon.CROSSHAIR).withColors(PS2_BLACK))
+        .setLook(CoreTouch.KNIFE_STICK, look().withIcon(RetroTouchIcon.KNIFE_HORIZONTAL).withColors(PS2_BLACK));
+  }
+
+  /** XBOX: dark buttons with coloured letters, triggers and a bumper. */
+  static RetroTouchSkin xbox() {
+    RetroTouchLook trigger = look().withShape(RetroTouchButtonShape.TRIGGER).withAspect(TRIGGER_ASPECT).withColors(XBOX_DARK);
+    return new RetroTouchSkin(IDS[XBOX], NAMES[XBOX], RetroTouchButtonStyle.LABELS)
+        .setDefaultColors(XBOX_DARK)
+        .setDpadColors(XBOX_DPAD)
+        .setDpadIcons(RetroTouchIcon.ARROW_UP, RetroTouchIcon.ARROW_DOWN, RetroTouchIcon.ARROW_LEFT, RetroTouchIcon.ARROW_RIGHT)
+        .setMoveStickLook(look().withLabel("LS"))
+        .setLook(CoreTouch.A, label("A", XBOX_GREEN))
+        .setLook(CoreTouch.B, label("B", XBOX_RED))
+        .setLook(CoreTouch.X, label("X", XBOX_BLUE))
+        .setLook(CoreTouch.Y, label("Y", XBOX_YELLOW))
+        .setLook(CoreTouch.Z, look().withLabel("RB").withColors(XBOX_DARK).withShape(RetroTouchButtonShape.BUMPER)
+            .withAspect(Z_ASPECT))
+        .setLook(CoreTouch.L, trigger.withLabel("LT"))
+        .setLook(CoreTouch.R, trigger.withLabel("RT"))
+        .setLook(CoreTouch.START, capsule(look().withLabel("START").withColors(XBOX_DARK)))
+        .setLook(CoreTouch.MENU, capsule(look().withIcon(XBOX_VIEW).withColors(XBOX_DARK)))
+        .setLook(CoreTouch.R3, label("R3", XBOX_DARK))
+        .setLook(CoreTouch.ZOOM_IN, icon(PLUS, XBOX_DARK))
+        .setLook(CoreTouch.ZOOM_OUT, icon(MINUS, XBOX_DARK))
+        .setLook(CoreTouch.C_STICK, look().withLabel("RS").withColors(XBOX_DARK))
+        .setLook(CoreTouch.AIM_STICK, look().withIcon(RetroTouchIcon.CROSSHAIR).withColors(XBOX_DARK))
+        .setLook(CoreTouch.KNIFE_STICK, look().withIcon(RetroTouchIcon.KNIFE_HORIZONTAL).withColors(XBOX_DARK));
   }
 
   /**
