@@ -1,0 +1,161 @@
+# Port patch, the cheat "Leon's jacket" (patch 0235) in later cutscenes (the project owner's device test of 1.0.0,
+# 17.11.2026: "wird sie in späteren Zwischensequenzen nicht korrekt angezeigt oder fehlt teilweise"; his example:
+# the knife fight with Krauser). Every scene builds Leon's event body (pl0000) with the same parts in the same order;
+# model info 2 is the event file's ev000e (the jacket's front and collar) for costume 0, the small pl000e of his
+# archive for the shirt and the vest (event.cpp ExePacket_SetParts). Scene functions made for the shirt hide model
+# info 2 (with info 6) in some cuts: r10bs20/s21/s22 (the lake, the rope), r20bs00 (cuts 0xD and 0xE), r227s00/s01/s02
+# (the castle's QTE), r317s00 (the knife fight, cut 0). With the cheat where his rule gives the shirt or the vest
+# (runtime/cheats.cpp re4_cheat_leon_jacket_events: also a stand-in in Leon's costume), that hid the jacket's front
+# and collar: the jacket showed only its sleeves. Those hides are skipped then. Without the cheat, before the r106
+# event (his rule gives the jacket anyway), Normal and Special, the extra games: as the game.
+--- a/src/st1/r10b.cpp
++++ b/src/st1/r10b.cpp
+@@ -669,6 +669,10 @@
+     }
+ }
+ 
++/* PORT (patch 0236): the cheat "Leon's jacket" (runtime/cheats.cpp): where his rule gives the shirt or the vest, his
++   event part 2 is the jacket's front and collar (ev000e), not the shirt's small part (pl000e) the scenes hide */
++extern "C" int re4_cheat_leon_jacket_events(void);
++
+ // Event r10bs20 callback (the boss drags the boat: the rope QTE): status 3, cancel cut 9; cut 0 sets the
+ // stand-ins and hides Leon's parts 2/6; cut 9 frame 100 starts the action-button prompt 0x29 that the
+ // count in W->count scores; the outcome selects s21 (escaped) or s22 (pulled under).
+@@ -694,7 +698,9 @@
+                 Evt_R10BSXX_Func_Pl0f(e);
+                 Evt_R10BSXX_Func_Em2f(e);
+                 if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod, 6, 0);
+                 }
+             }
+@@ -740,7 +746,9 @@
+         if (e->GetNowCut() == 0 && e->GetNowFrame() == 0) {
+             Evt_R10BSXX_Func_Pl0f(e);
+             if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                ModelInfoSetTrans((cModel*) mod, 2, 0);
++                if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                }
+                 ModelInfoSetTrans((cModel*) mod, 6, 0);
+             }
+         }
+@@ -777,7 +785,9 @@
+ 
+                 Evt_R10BSXX_Func_Pl0f(e);
+                 if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod, 6, 0);
+                 }
+             }
+--- a/src/st2/r20b.cpp
++++ b/src/st2/r20b.cpp
+@@ -734,6 +734,10 @@
+     }
+ }
+ 
++/* PORT (patch 0236): the cheat "Leon's jacket" (runtime/cheats.cpp): where his rule gives the shirt or the vest, his
++   event part 2 is the jacket's front and collar (ev000e), not the shirt's small part (pl000e) the scenes hide */
++extern "C" int re4_cheat_leon_jacket_events(void);
++
+ // Event r20bs00 (and s99) callback: swaps the ev0202 model's texture palette to the r20b variant for
+ // cuts after 0x21 (and back), the evm9300 palette per cut, feeds the two render-to-texture passes on
+ // cuts 0x21 / 0x24 (TexRenderModSet on the stand-in models, released after), and sets the event models'
+@@ -864,7 +868,9 @@
+         case 0xE:
+             if (e->GetNowFrame() == 0) {
+                 if (e->GetMod(&mod3, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod3, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod3, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod3, 6, 0);
+                 }
+             }
+--- a/src/st2/r227.cpp
++++ b/src/st2/r227.cpp
+@@ -891,6 +891,10 @@
+     pG->Room_flg[0] |= 0x80000000;
+ }
+ 
++/* PORT (patch 0236): the cheat "Leon's jacket" (runtime/cheats.cpp): where his rule gives the shirt or the vest, his
++   event part 2 is the jacket's front and collar (ev000e), not the shirt's small part (pl000e) the scenes hide */
++extern "C" int re4_cheat_leon_jacket_events(void);
++
+ // Event r227s00 callback (the entrance): status 3, cancel cut 10; cut 0 light masks on evm5100 /
+ // evmd900; cut 0xB starts the action-button QTE (0x25, variant by the coin toss) whose success sets
+ // Room_flg[0] bit 31; later cuts set the models' flags.
+@@ -964,7 +968,9 @@
+                 void* mod;
+ 
+                 if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod, 6, 0);
+                 }
+             }
+@@ -1035,7 +1041,9 @@
+                 void* mod3;
+ 
+                 if (e->GetMod(&mod3, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod3, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod3, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod3, 6, 0);
+                 }
+             }
+@@ -1079,7 +1087,9 @@
+         case 0:
+             if (e->GetNowFrame() == 0) {
+                 if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod, 6, 0);
+                 }
+             }
+@@ -1087,7 +1097,9 @@
+         case 1:
+             if (e->GetNowFrame() == 0) {
+                 if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod, 6, 0);
+                 }
+             }
+--- a/src/st3/r317.cpp
++++ b/src/st3/r317.cpp
+@@ -620,6 +620,10 @@
+     SmdSetTrans(0x25, 1);
+ }
+ 
++/* PORT (patch 0236): the cheat "Leon's jacket" (runtime/cheats.cpp): where his rule gives the shirt or the vest, his
++   event part 2 is the jacket's front and collar (ev000e), not the shirt's small part (pl000e) the scenes hide */
++extern "C" int re4_cheat_leon_jacket_events(void);
++
+ // Event r317s00 callback (the fight's first cut): "missed" bit 31 preset, a coin toss (0x00200000) picks
+ // the button variant, status 3 with cancel cut 3; the action-button window on its cut clears the bit
+ // through R317EventS00Action; the Leon / Krauser / knife models' parts per cut.
+@@ -674,7 +678,9 @@
+                 void* mod;
+ 
+                 if (e->GetMod(&mod, "pl0000", 0, 0) == 1) {
+-                    ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    if (!re4_cheat_leon_jacket_events()) { /* PORT (patch 0236) */
++                        ModelInfoSetTrans((cModel*) mod, 2, 0);
++                    }
+                     ModelInfoSetTrans((cModel*) mod, 6, 0);
+                 }
+             }

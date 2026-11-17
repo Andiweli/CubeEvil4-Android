@@ -490,7 +490,7 @@ Version **1.0.0** (versionCode 122; bis zur Umbenennung am 16.11.2026 0.99.19-rc
 aus 0.99.18 übernommen). Release-APKs `CubeEvil4-1.0.0-Android.apk` und `CubeEvil4-1.0.0-Android-sideload.apk`. Die
 Abschnitte unten nennen den Releasetext noch mit seinem alten Namen.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
-nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer weiter 0235.
+nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0237 (0240 gehört den Echtzeit-Schatten).
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
@@ -1086,6 +1086,55 @@ weiter, und der Fehler gehört zu einer Funktion, die es in 0.99.18 nicht gab.
   - Schatten aus zeichnen wie vor allen Schatten: 212 von 212 Aufnahmen Byte für Byte gleich (wie Abschnitt 10);
   - App-Tests 216 je Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
 - **Nicht geprüft:** auf einem Gerät.
+
+### 20. Cheat „Leons Jacke“: die Jacke in späteren Zwischensequenzen (Gerätetest des Projektinhabers, 17.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Wenn man den Cheat aktiviert hat, dass Leon immer seine Jacke anhat,
+wird sie in späteren Zwischensequenzen nicht korrekt angezeigt oder fehlt teilweise.“ Sein Beispiel: die
+Zwischensequenz zum Messerkampf mit Krauser (Raum r317, Ereignis r317s00).
+
+- **Ursache:**
+  - Jede Zwischensequenz baut Leons Körper („pl0000“) mit denselben Teilen in derselben Reihenfolge, gleich zu Beginn
+    (alle 130 Ereignisse mit Leon, Auswertung der Szenendaten mit `rc-measure/jacket_scenes.py` im Notizordner).
+  - Teil 2 ist bei Kostüm 0 das Teil `ev000e` der Zwischensequenz: Vorderseite und Kragen der Jacke. Bei Hemd und
+    Weste tauscht das Spiel es gegen das kleine Teil `pl000e` aus Leons Archiv (`event.cpp ExePacket_SetParts`).
+  - Einige Szenenfunktionen, die für die Zeit mit Hemd gemacht sind, blenden in manchen Schnitten Teil 2 (mit Teil 6)
+    aus: r10bs20, r10bs21, r10bs22 (der See, das Seil), r20bs00 (Schnitte 0xD und 0xE), r227s00, r227s01, r227s02
+    (die QTE in der Burg), r317s00 (der Messerkampf, Schnitt 0). Keine andere Stelle im Spielcode blendet Teil 2 von
+    Leons Körper aus.
+  - Mit dem Cheat ist Teil 2 dort die Jackenvorderseite: Im Messerkampf zeigte die Jacke in Schnitt 0 nur Ärmel und
+    Rücken, ab Schnitt 1 (dort blendet die Szene Teil 2 wieder ein) war sie vollständig.
+- **Behebung (Patch 0236, `r10b.cpp`, `r20b.cpp`, `r227.cpp`, `r317.cpp`; `runtime/cheats.cpp
+  re4_cheat_leon_jacket_events`):**
+  - An den 9 Stellen, die Teil 2 von Leons Körper ausblenden, entfällt das Ausblenden, solange der Cheat die Jacke
+    zeigt, wo Leons Regel Hemd oder Weste gäbe. Teil 6 und alles andere bleibt wie im Spiel.
+  - Das gilt auch für eine Ersatzfigur in Leons Kostüm (ihre Szenen zeigen Leons Archiv, Patch 0203).
+  - Normal, Spezial, vor dem Ereignis in r106 (dort gibt die Regel ohnehin die Jacke), Separate Ways und The
+    Mercenaries: wie das Spiel (die Funktion gibt dort 0).
+  - Ein erster Versuch setzte die Jackenvorderseite gleich beim Entstehen des Körpers an. Das wirkte im Bild, verschob
+    aber die Reihenfolge der Teile, sodass die Szene ein anderes Teil (`ev0003`) ausblendete. Verworfen.
+- **Testschalter** `RE4_TEST_LEON_SHIRT=1`: setzt beim ersten Raum das Flag des Ereignisses in r106 und wählt das
+  Kostüm neu, wie es ein Spielstand eines späteren Kapitels hat. Nötig, weil der Debug-Start nach seiner eigenen
+  Kostümwahl Kostüm 1 erzwingt.
+- **Releasetext:** unverändert. Die Zeile „Cheat "Costumes · Leon's jacket"“ unter New ist neu in 1.0.0, der Fehler
+  gehört zu ihr.
+- **Geprüft am PC** (Kern i686 -O2, Debug-Discs, ohne HD-Paket; Skripte `rc-measure/jacket_events.sh` und
+  `jacket_cmp.sh` im Notizordner; Bilder in `E:\Development\Android\builds\release-candidate\leon-jacket-cutscenes\`):
+  - Messerkampf r317 (Leon an den Auslöser gestellt, QTEs automatisch, 60 Aufnahmen r317s00 und r317s01): Vor dem Fix
+    fehlten in Schnitt 0 Vorderseite und Kragen, mit dem Fix ist die Jacke vollständig (`r317-fix-*.png`, links
+    vorher, rechts nachher). Nur die 5 Aufnahmen aus Schnitt 0 unterscheiden sich (8 Zeichenaufrufe mehr: Vorderseite
+    und Kragen); die 60 Aufnahmen ohne Cheat (Hemd) sind vorher und nachher gleich.
+  - Szenendaten aller 146 Ereignisse der Debug-Discs: 130 mit Leon, alle mit derselben Teile-Folge zu Beginn; die
+    Suche im Spielcode findet nur die 9 Stellen oben, die Teil 2 von Leons Körper ausblenden.
+  - Gegenproben mit dem ersten Versuch (die jetzige Behebung ändert nur die 7 Szenenfunktionen): Startszenen von 22
+    Räumen aus Burg und Insel (r200, r206, r20b, r212–r215, r22a, r300, r30a–r30c, r310, r316, r317, r31c, r325,
+    r329–r333), Hemd und Jacke, je 14 Aufnahmen: Bild für Bild gleich wie vorher. Vor dem Ereignis in r106 (r100,
+    r101, r103 mit den Szenen r100s40–s43, r101s00): Normal und Jacke 42 von 42 Aufnahmen gleich.
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Android-Kern ARM32 und ARM64 0 Fehler. App unverändert
+    (App-Tests 216 je Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund).
+- **Nicht geprüft:** auf einem Gerät; mit HD-Paket; die Szenen am See (r10bs20–s22) und in der Burg (r20bs00 Schnitte
+  0xD/0xE, r227s00–s02) im Bild (am PC nicht ohne Weiteres auszulösen; dieselbe Stelle wie im Messerkampf, nur aus
+  dem Code); die Weste (Regel 2) und Ersatzfiguren im Bild.
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
@@ -18129,6 +18178,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
 | 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
 | 0235 `pl_sub.cpp` | Cheat „Kostüme · Leons Jacke“ (1.0, Projektinhaber 16.11.2026): `PlSetCostume` gibt Leon (und einer Ersatzfigur in seinem Kostüm) Kostüm 0, die braune Jacke aus Kapitel 1, auch wo seine Regel das schwarze Hemd (1, nach dem Ereignis in r106) oder die Weste (2) gäbe, solange `runtime/cheats.cpp re4_cheat_leon_jacket` es sagt (an, Geschichte, nicht am Benchmark-Platz; das Spezialkostüm gewinnt). Der Schutz der Weste hängt im Spiel am Kostüm (`PlIsArmor`: 2 oder 3): mit dem Cheat schützt die Weste selbst (Gegenstand 0xFE), Profi-Modus wie bisher ohne. Separate Ways, The Mercenaries (`PlSetCostume` kehrt vorher zurück) und Ashleys Teil unberührt; ein Spielstand merkt sich nichts davon. Ohne den Cheat: wie das Spiel. |
+| 0236 `r10b.cpp`, `r20b.cpp`, `r227.cpp`, `r317.cpp` | Cheat „Leons Jacke“ in späteren Zwischensequenzen (1.0, Gerätetest des Projektinhabers 17.11.2026): Teil 2 von Leons Körper in Zwischensequenzen („pl0000“) ist bei Kostüm 0 die Jackenvorderseite mit Kragen (`ev000e`), bei Hemd und Weste das kleine `pl000e`. Szenen der Hemd-Zeit blenden Teil 2 in manchen Schnitten aus (r10bs20/s21/s22, r20bs00 Schnitte 0xD/0xE, r227s00/s01/s02, r317s00 Schnitt 0, der Messerkampf); mit dem Cheat fehlten dort Vorderseite und Kragen. Diese 9 Stellen blenden Teil 2 nicht aus, solange `runtime/cheats.cpp re4_cheat_leon_jacket_events` es sagt (Cheat an, Leons Regel gäbe Hemd oder Weste, Leon in Kostüm 0 oder eine Ersatzfigur in seinem Kostüm). Normal, Spezial, vor dem Ereignis in r106, die Extraspiele: wie das Spiel. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

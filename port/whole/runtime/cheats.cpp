@@ -1450,6 +1450,18 @@ void re4_story_char_room(void)
         }
         return;
     }
+    // RE4_TEST_LEON_SHIRT=1 (the PC check of patch 0235): Leon's costume by PlSetCostume at the first room, after the
+    // r106 event (the black shirt) as the save of a later chapter has it. The debug start (title.cpp) sets costume 1
+    // and the flag itself for a room after r106, after PlSetCostume: the cheat's jacket would not show there
+    static bool shirtDone;
+    static const char* shirtTest = getenv("RE4_TEST_LEON_SHIRT");
+    if (shirtTest && *shirtTest == '1' && !shirtDone && pG->pl_type == 0) {
+        shirtDone = true;
+        ScfFlagOn(pG, SCF_R106_EVENT);
+        PlSetCostume();
+        re4_log("run: Leon's costume as after the r106 event (RE4_TEST_LEON_SHIRT): costume %d from r%03x on, the "
+                "jacket %s", pG->pl_costume, (unsigned) pG->room_id, jacketActive() ? "on" : "off");
+    }
     int costume = wantedCostume();
     if (costume >= 0 && costume != pG->game_costume) {
         re4_log("cheat: the %s costume from r%03x on", costume ? "special" : "normal", (unsigned) pG->room_id);
@@ -1655,6 +1667,26 @@ int re4_cheat_leon_jacket(void)
     const bool on = jacketActive();
     gJacketSeen = on ? 1 : 0;
     return on ? 1 : 0;
+}
+
+// Patch 0236 (r10b.cpp, r20b.cpp, r227.cpp, r317.cpp): the cutscenes' Leon wears the jacket where his rule gives the
+// shirt or the vest, so his event part 2 is the jacket's front and collar (ev000e), not the shirt's small part
+// (pl000e) that some of those scenes hide: the cheat, his rule 1 or 2, and the event body from his archive in the
+// jacket (Leon in costume 0, or a stand-in, whose scenes show Leon's archive, loadLeon(leonLook())). Before the r106
+// event (his rule 0), Special (3): 0.
+int re4_cheat_leon_jacket_events(void)
+{
+    if (!pG || !jacketActive() || pG->game_costume == 1) {
+        return 0;
+    }
+    const int rule = leonCostume();
+    if (rule != 1 && rule != 2) {
+        return 0;
+    }
+    if (pG->pl_type == 0) {
+        return pG->pl_costume == 0 ? 1 : 0;
+    }
+    return standIn() ? 1 : 0;
 }
 
 // The app (CoreBridge.setLeonJacket, 1.0): the cheat page's "Costumes · Leon's jacket" (any thread); the story's
