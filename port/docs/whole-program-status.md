@@ -491,6 +491,9 @@ aus 0.99.18 übernommen). Release-APKs `CubeEvil4-1.0.0-Android.apk` und `CubeEv
 Abschnitte unten nennen den Releasetext noch mit seinem alten Namen.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
 nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0237 (0240 gehört den Echtzeit-Schatten).
+Am 17.11.2026 `origin/master` 17749902 hineingemischt (der Inhaber hat auf GitHub drei Zeilen in die README
+geschrieben, einen Hinweis auf einen Fork; Zeilen unverändert übernommen), damit `master` beim Release per
+Fast-Forward nachzieht.
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
