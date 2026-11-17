@@ -1518,73 +1518,87 @@ bool GxCore::ShadowFitParallel(const std::vector<float> &tris, const float D[3],
   return true;
 }
 
-// A point light's map from its place (L.lp, view space): a perspective frustum, kShadowPointHalfAngle wide,
-// kShadowPointNear .. kShadowPointFar deep. A spot whose cone is no wider looks along its own axis; any other light
-// towards the middle of what the camera sees within its reach: points of the view 1 to 20 m deep, each by the light
-// it gets there (LightAt of kShadowMaskFs: the fall-off and a spot's cone), else towards a point 3 m before the camera.
-// Nothing of it follows the casters: a figure's shadow points away from the lamp from where it stands, whoever else
-// moves. (Until the second try of stage 6, 17.11.2026, always towards the point 3 m before the camera: from a lamp in
-// front of the camera the frustum looked back at it and left out all that stood beyond the lamp, the merchant's cave
-// r10E.) Casters outside the frustum cast nothing from this light. False without triangles.
-bool GxCore::ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, const float proj[4], int size,
+// A point light's map from its place (L.lp, view space): a perspective frustum, kShadowPointNear .. kShadowPointFar
+// deep, around the casters within the light's reach (stage 7, 18.11.2026): along the middle of their directions from
+// the light, twice as wide as the widest of them (tangent; at least kShadowPointMinAngle, at most
+// kShadowPointHalfAngle, in steps of a fourth of an octave). A spot whose cone is no wider than that looks along its
+// own axis, as wide as its cone. While the light stays where it was in view space (the camera stands) and every caster
+// within reach still fits, the map stays as it was (shadowCone, per tile): a figure that walks within it moves no
+// other shadow by a texel. (Stage 6 aimed it where the camera looks, at points of the view within the light's reach:
+// it swung with the camera and left figures half outside, their shadows came and went and were cut off at its edge,
+// the owner's device test of 17.11.2026.) Casters outside the widest frustum cast nothing from this light. False
+// without casters within reach.
+bool GxCore::ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, int which, int size,
                             ShadowMapParams *m) {
-  if (tris.size() < 9)
-    return false;
+  ShadowCone &keep = shadowCone[which];
   const float *P = L.lp;
-  float A[3] = {0.0f, 0.0f, 0.0f};
-  const float wide = std::cos(kShadowPointHalfAngle * 3.14159265f / 180.0f);
+  const float reach = L.la[3] > 0.0f ? L.la[3] : 1e30f;
+  const float rad = 3.14159265f / 180.0f;
+  const float maxTan = std::tan(kShadowPointHalfAngle * rad), minTan = std::tan(kShadowPointMinAngle * rad);
+  // the casters' corners within reach: their directions from the light
+  shadowDirs.clear();
+  double sum[3] = {0.0, 0.0, 0.0};
+  for (std::size_t i = 0; i + 2 < tris.size(); i += 3) {
+    const float v[3] = {tris[i] - P[0], tris[i + 1] - P[1], tris[i + 2] - P[2]};
+    const float d = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (!(d > kShadowPointNear) || !(d < reach))
+      continue;
+    for (int c = 0; c < 3; c++) {
+      shadowDirs.push_back(v[c] / d);
+      sum[c] += static_cast<double>(v[c] / d);
+    }
+  }
+  if (shadowDirs.empty()) {
+    keep.valid = false;
+    return false;
+  }
+  // the widest of them from an axis (the tangent of its angle; huge behind the light's plane)
+  auto widest = [&](const float ax[3]) {
+    float w = 0.0f;
+    for (std::size_t i = 0; i + 2 < shadowDirs.size(); i += 3) {
+      const float c = shadowDirs[i] * ax[0] + shadowDirs[i + 1] * ax[1] + shadowDirs[i + 2] * ax[2];
+      if (!(c > 0.05f))
+        return 1e9f;
+      w = std::max(w, std::sqrt(std::max(0.0f, 1.0f - c * c)) / c);
+    }
+    return w;
+  };
+  float A[3] = {static_cast<float>(sum[0]), static_cast<float>(sum[1]), static_cast<float>(sum[2])};
+  float want;
   const float axisLen = std::sqrt(L.lc[0] * L.lc[0] + L.lc[1] * L.lc[1] + L.lc[2] * L.lc[2]);
-  if (L.lp[3] > 1.5f && L.lb[2] >= wide && axisLen > 0.5f) {
+  if (L.lp[3] > 1.5f && L.lb[2] > 0.05f && axisLen > 0.5f &&
+      std::sqrt(std::max(0.0f, 1.0f - L.lb[2] * L.lb[2])) / L.lb[2] <= maxTan) {
     for (int c = 0; c < 3; c++)
-      A[c] = L.lc[c];
-  } else if (proj[0] != 0.0f && proj[2] != 0.0f) {
-    static const float kDepth[9] = {1000.0f, 2000.0f, 3000.0f, 4500.0f, 6000.0f, 8000.0f, 11000.0f, 15000.0f, 20000.0f};
-    double sum[3] = {0.0, 0.0, 0.0}, total = 0.0;
-    for (int iy = 0; iy < 5; iy++) {
-      for (int ix = 0; ix < 5; ix++) {
-        for (const float dist : kDepth) {
-          const float nx = -0.8f + 0.4f * static_cast<float>(ix), ny = -0.8f + 0.4f * static_cast<float>(iy);
-          const float q[3] = {(nx + proj[1]) * dist / proj[0], (ny + proj[3]) * dist / proj[2], -dist};
-          const float v[3] = {q[0] - P[0], q[1] - P[1], q[2] - P[2]};
-          const float d = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-          if (!(d > 1.0f) || d >= L.la[3])
-            continue;
-          float w = d <= L.la[2] ? 1.0f : (L.la[3] - d) / std::max(L.la[3] - L.la[2], 1.0f);
-          w /= 1.0f + L.lb[0] * d + L.lb[1] * d * d;
-          if (L.lp[3] > 1.5f && L.lb[2] > -1.5f) {
-            const float c = (v[0] * L.lc[0] + v[1] * L.lc[1] + v[2] * L.lc[2]) / d;
-            w *= std::min(1.0f, std::max(0.0f, (c - L.lb[2]) / std::max(1.0f - L.lb[2], 1e-4f)));
-          }
-          if (!(w > 0.0f))
-            continue;
-          for (int c = 0; c < 3; c++)
-            sum[c] += static_cast<double>(w) * static_cast<double>(q[c]);
-          total += static_cast<double>(w);
-        }
-      }
+      A[c] = L.lc[c] / axisLen;
+    want = std::sqrt(std::max(0.0f, 1.0f - L.lb[2] * L.lb[2])) / L.lb[2];
+  } else {
+    float al = std::sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
+    if (!(al > 1e-3f)) {
+      A[0] = 0.0f;
+      A[1] = -1.0f;
+      A[2] = 0.0f;
+      al = 1.0f;
     }
-    if (total > 1e-9) {
-      for (int c = 0; c < 3; c++)
-        A[c] = static_cast<float>(sum[c] / total) - P[c];
+    for (float &x : A)
+      x /= al;
+    want = 2.0f * widest(A);
+  }
+  want = std::min(maxTan, std::max(minTan, want));
+  const bool still = keep.valid && std::fabs(P[0] - keep.p[0]) < 0.5f && std::fabs(P[1] - keep.p[1]) < 0.5f &&
+                     std::fabs(P[2] - keep.p[2]) < 0.5f;
+  if (!(still && keep.tan <= 2.0f * want && widest(keep.axis) <= keep.tan)) {
+    keep.valid = true;
+    for (int c = 0; c < 3; c++) {
+      keep.p[c] = P[c];
+      keep.axis[c] = A[c];
     }
+    keep.tan = std::min(maxTan, std::pow(2.0f, std::ceil(std::log2(want) * 4.0f - 1e-4f) / 4.0f));
   }
-  float al = std::sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
-  if (!(al > 1.0f) && !(L.lp[3] > 1.5f && al > 0.5f)) {
-    A[0] = 0.0f - P[0];
-    A[1] = 0.0f - P[1];
-    A[2] = -3000.0f - P[2];
-    al = std::sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
-  }
-  if (!(al > 0.5f)) {
-    A[0] = 0.0f;
-    A[1] = -1.0f;
-    A[2] = 0.0f;
-    al = 1.0f;
-  }
-  for (float &x : A)
-    x /= al;
+  for (int c = 0; c < 3; c++)
+    A[c] = keep.axis[c];
+  const float t = keep.tan;
   float up[3] = {0.0f, 1.0f, 0.0f};
-  if (std::fabs(A[1]) > 0.9f) {
+  if (std::fabs(A[1]) > 0.995f) {
     up[0] = 1.0f;
     up[1] = 0.0f;
   }
@@ -1593,7 +1607,6 @@ bool GxCore::ShadowFitPoint(const std::vector<float> &tris, const ShadowLightPar
   for (float &x : R)
     x /= rl;
   const float U[3] = {A[1] * R[2] - A[2] * R[1], A[2] * R[0] - A[0] * R[2], A[0] * R[1] - A[1] * R[0]};
-  const float t = std::tan(kShadowPointHalfAngle * 3.14159265f / 180.0f);
   const float n = kShadowPointNear, f = kShadowPointFar;
   const float a = (f + n) / (f - n), b = -2.0f * f * n / (f - n);
   auto dot = [&](const float *x) { return x[0] * P[0] + x[1] * P[1] + x[2] * P[2]; };
@@ -1628,6 +1641,7 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
   // then
   float soft[kShadowLights] = {};
   int k = 0;
+  bool lightsOfTheGame = false;
   auto parallel = [&](int i, const std::uint32_t *d, float weight, float sf) {
     float D[3] = {AsFloat(d[0]), AsFloat(d[1]), AsFloat(d[2])};
     const float len = std::sqrt(D[0] * D[0] + D[1] * D[1] + D[2] * D[2]);
@@ -1648,6 +1662,7 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
     k = 1;
   } else if (n >= 17 && (p[0] & 0xF0) == 0x10 && n == 2 + 15 * (p[0] & 0x0F)) {
     k = static_cast<int>(std::min<std::uint32_t>(p[0] & 0x0F, kShadowLights));
+    lightsOfTheGame = true;
     s.amb[0] = AsFloat(p[1]);
     if (!std::isfinite(s.amb[0]) || s.amb[0] < 0.0f)
       s.amb[0] = 0.0f;
@@ -1730,8 +1745,6 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
   }();
   const int tile = sizeEnv >= 256 && sizeEnv <= 2048 ? sizeEnv : kShadowTile;
   s.atlas = 2 * tile;
-  // the scene's projection (XF 0x1020..0x1023), where a point light's map looks (ShadowFitPoint)
-  const float proj[4] = {AsFloat(shadowXf[6]), AsFloat(shadowXf[7]), AsFloat(shadowXf[8]), AsFloat(shadowXf[9])};
   // each light's figures in a tile of their own (0, 2, 3), with "Characters and objects" light 0's objects in tile 1;
   // a tile is drawn only with casters
   for (int i = 0; i < k; i++) {
@@ -1740,7 +1753,8 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
       continue;
     const int fig = i == 0 ? 0 : i + 1;
     auto fit = [&](const std::vector<float> &tris, ShadowMapParams *m) {
-      return L.lp[3] == 0.0f ? ShadowFitParallel(tris, L.lp, tile, m) : ShadowFitPoint(tris, L, proj, tile, m);
+      return L.lp[3] == 0.0f ? ShadowFitParallel(tris, L.lp, tile, m)
+                             : ShadowFitPoint(tris, L, static_cast<int>(m - s.tile), tile, m);
     };
     bool casts = fit(shadowTris, &s.tile[fig]);
     s.tile[fig].bias[3] = soft[i];
@@ -1749,10 +1763,10 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
       s.tile[1].objects = true;
       casts = true;
     }
-    if (!casts) {
-      L = ShadowLightParams{};
+    // a light without casters (none within its reach) still lights: it stays in the mask's sum of light, so that
+    // the others' shadows do not darken when a figure leaves its reach
+    if (!casts)
       continue;
-    }
     s.lights++;
   }
   for (int t = 0; t < kShadowTiles; t++) {
@@ -1787,7 +1801,12 @@ void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
   s.markVp1[3] = static_cast<float>(kEfbHeight);
   // the darkest the mask gets where several lights are blocked (the core shadow), the fade (view units), half an
   // atlas texel (kShadowMaskFs keeps the taps inside a tile)
-  s.look[0] = 0.85f;
+  // Stage 7 (18.11.2026, the owner's device test: "Manche Echtzeitschatten sind zu dunkel"): the game's own lights
+  // darken at most 0.6 each (amb.y) and 0.7 together. In the castle halls a lamp is all the light a figure gets (no
+  // ambient), so its share was the whole and the cap of 0.75 (0.85 for two lamps) made the big shadows of a lamp close
+  // by nearly black, while the walls keep the light the game baked into them.
+  s.amb[1] = 0.6f;
+  s.look[0] = lightsOfTheGame ? 0.7f : 0.85f;
   s.look[1] = 12000.0f;
   s.look[2] = 20000.0f;
   s.look[3] = 0.5f / static_cast<float>(s.atlas);

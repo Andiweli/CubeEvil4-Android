@@ -73,6 +73,19 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 >   `gx_gl_check`).
 > - Stand und Prüfungen: `port/docs/whole-program-status.md`, Stufe 6. Bilder:
 >   `E:\Development\Android\builds\realtime-shadows\stage6\`.
+>
+> **Nachtrag 18.11.2026, Stufe 7: nicht mehr zu dunkel, kein wildes Flackern.** Gerätetest des Inhabers mit Dumps aus
+> der Burg:
+>
+> - Zu dunkel: In den Burgsälen ist eine Lampe das ganze Licht einer Figur (kein Umgebungslicht). Jeder Schatten nahm
+>   deshalb so viel weg, wie es geht, und zwei Lichter einer Lampe gaben zwei Schatten übereinander. Jetzt höchstens
+>   60 % je Licht und 70 % zusammen; Lampen, die weniger als 1 m auseinander hängen, werfen als eine.
+> - Flackern: Die Lampenkarte schaute dorthin, wo die Kamera hinsieht, drehte sich mit ihr und schnitt Figuren ab. Jetzt
+>   liegt sie um die Figuren im Lichtkreis der Lampe und bleibt, solange die Kamera steht.
+> - Riesige Schatten einer Lampe direkt neben einer Figur (sie vergrößerten jedes Atmen) werden blass: eine echte Lampe
+>   ist kein Punkt.
+> - Stand und Prüfungen: `port/docs/whole-program-status.md`, Stufe 7. Bilder:
+>   `E:\Development\Android\builds\realtime-shadows\stage7\`.
 
 ---
 

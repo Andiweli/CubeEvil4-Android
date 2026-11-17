@@ -709,10 +709,16 @@ struct GxCore {
   // shifts no other shadow; the darkening at each place comes from the light's own fall-off there against all the
   // light there (kShadowMaskFs LightAt; the ambient includes the lights that are the same everywhere). A figure that
   // stands still keeps its shadow, whoever else moves.
+  // Stage 7 (18.11.2026, the owner's device test: some shadows too dark, others flickering wildly): a point light's
+  // map is fitted to the casters within the light's reach and kept while the camera stands (ShadowFitPoint); a
+  // light without casters still lights (it stays in the mask's sum); the game's lights darken at most 0.6 each and
+  // 0.7 together; a shadow that falls much larger than its caster fades.
   static constexpr int kShadowLights = 3, kShadowTiles = 4, kShadowTile = 768;
   // a point light's frustum: from its place towards the middle of what the camera sees within its reach (a spot of a
   // cone up to that wide along its own axis), 140 degrees wide, 0.1 .. 30 m (no caster moves it)
   static constexpr float kShadowPointHalfAngle = 70.0f, kShadowPointNear = 100.0f, kShadowPointFar = 30000.0f;
+  // stage 7: the narrowest a point light's map gets (ShadowFitPoint fits it to the casters within the light's reach)
+  static constexpr float kShadowPointMinAngle = 45.0f;
   // one tile's map
   struct ShadowMapParams {
     float row[4][4];                 // view space to the map's clip space (x, y, z, w; GL's depth -w..w): lx, ly, lz, lw
@@ -737,7 +743,7 @@ struct GxCore {
     float tileInfo[kShadowTiles][4];  // corner in the atlas (x, y: 0 or 0.5), reach (view units), 1 when it casts
     ShadowLightParams light[kShadowLights];
     float amb[4];                    // the light the same everywhere (luminance: the ambient and the lights that turn
-                                     // with the camera), 0, 0, 0
+                                     // with the camera), the darkest one light's shadow gets (stage 7: 0.6), 0, 0
     int lights;                      // lights that cast
     int atlas;                       // the atlas' texels each way (2 tiles)
     std::size_t figTriangles, objTriangles;
@@ -764,8 +770,16 @@ struct GxCore {
   // a parallel light's map along D (unit, view space), a point light's or a spot's from its place (L.lp), aimed with
   // the scene's projection `proj` (XF 0x1020..0x1023); false without triangles
   static bool ShadowFitParallel(const std::vector<float> &tris, const float D[3], int size, ShadowMapParams *m);
-  static bool ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, const float proj[4], int size,
-                             ShadowMapParams *m);
+  bool ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, int which, int size,
+                      ShadowMapParams *m);
+  // a point light's map as ShadowFitPoint fitted it last, per tile: kept while the light stays where it was in view
+  // space and every caster still fits
+  struct ShadowCone {
+    bool valid;
+    float p[3], axis[3], tan;
+  };
+  ShadowCone shadowCone[kShadowTiles] = {};
+  std::vector<float> shadowDirs;     // ShadowFitPoint's scratch: the casters' directions from the light
   // the mark's op (stage 5: the lights; stages 1 to 4: one direction and strength): the parameters, then ShadowPass
   void ShadowMark(const std::uint32_t *p, std::uint32_t n);
   virtual void ShadowPass(const ShadowParams &) {}

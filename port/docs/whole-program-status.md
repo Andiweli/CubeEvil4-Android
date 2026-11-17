@@ -71,7 +71,7 @@ Einzelheiten: `port/docs/gegner-randomizer-plan.md` Abschnitt 10; Bericht für d
     für Eintrag 21 (auch ohne Cheat, gleiche Werte; `re-door.sh`): das Prüfprotokoll liest ein Objekt mitten im Laden.
   - **Nicht geprüft:** auf einem Gerät; ganze Kapitel durchgespielt.
 
-## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8, Stufe 7 am 18.11.2026 auf 249dc807)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
 dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
@@ -482,6 +482,73 @@ Gegenstandsschatten darf sich ändern, nur weil Leon geht.
   - Erreichen mehr als drei Lichter die Figuren, kann ein Licht, das nur Leon erreicht, ein anderes verdrängen (mit dem
     Vorsprung von anderthalbfach selten). Gegenstände werfen nur vom ersten Licht.
   - Ein schwaches Licht bei Nacht gibt einen schwachen Schatten: so dunkel wie das Licht auf der Figur, die ihn wirft.
+
+**Stufe 7 (18.11.2026, auf 249dc807): Schatten nicht mehr zu dunkel, kein wildes Flackern.** Fehler für 1.0, gemeldet
+vom Inhaber nach dem Gerätetest mit 249dc807, Wortlaut: „Manche Echtzeitschatten sind zu dunkel oder flackern wild herum.
+Ich habe ein paar GX-Dumps angefügt.“ Dumps: `E:\Development\Android\reports\shadows-flicker-2026-11-18\gx-dumps\`
+(5 Folgen zu je 12 Bildern, 17.11.2026 22:11).
+
+- **Am PC nachgezeichnet:** Der PC zeichnet die Dumps wie das Gerät (GLES und Vulkan gleich; kein Fehler der
+  Grafikgenauigkeit des Geräts). Folgen 00/01: Burghof und Mauer r202 (drei Lichter, zwei davon 0,5 m auseinander,
+  Umgebungslicht 0,059); Folgen 02–04: Burgsaal mit Wandteppich, eine Kerzenlampe, Umgebungslicht 0.
+- **Zu dunkel, Ursachen:**
+  - In den Burgsälen ist eine Lampe das ganze Licht, das eine Figur bekommt (kein Umgebungslicht, auch keine örtlichen
+    Umgebungslichter). Ihr Anteil war damit 1, jeder Schatten so dunkel, wie es geht (0,75), während Wand und Boden das
+    Licht behalten, das das Spiel in sie eingebacken hat.
+  - Zwei Lichter einer Lampe (0,5 m auseinander) warfen zwei Schatten übereinander: zusammen 0,85, fast schwarz.
+  - Eine Lampe dicht neben einer Figur (0,8 m neben Leons Kopf) warf einen riesigen Schatten auf die Wand dahinter.
+- **Flackern, Ursachen:**
+  - Die Karte einer Lampe schaute dorthin, wo die Kamera hinsieht (Stufe 6): Sie drehte sich mit der Kamera um bis zu
+    65° in sieben Bildern, und oft lagen nur 40 % der Figuren darin. Schatten kamen und gingen und wurden an ihrem Rand
+    in einer geraden Linie abgeschnitten.
+  - Ein riesiger Schatten einer nahen Lampe vergrößert jede kleine Bewegung (Atmen, Zielen) um ein Mehrfaches.
+  - Die Stärke nahm das Licht am Werfer nur aus der Mitte der Abtastung: Am Rand sprang sie zwischen dem Licht am
+    Werfer und dem am Boden.
+- **Renderer:**
+  - Die Karte einer Lampe liegt um die Figuren in ihrer Reichweite (`ShadowFitPoint`): entlang der Mitte ihrer
+    Richtungen, doppelt so weit wie die weiteste (45° bis 70°, in Vierteloktaven). Solange die Kamera steht und alle
+    hineinpassen, bleibt sie, wie sie war.
+  - Ein Licht ohne Werfer in seiner Reichweite zählt weiter zum Licht an jeder Stelle (vorher fiel es heraus).
+  - Lichter des Spiels dunkeln je höchstens 0,6 und zusammen 0,7 ab (vorher 0,75 und 0,85). Die Marken der Stufen 1 bis 5
+    behalten ihre Werte.
+  - Fällt ein Lampenschatten mehr als 1,7-mal so groß wie sein Werfer, wird er blasser; ab 3,3-mal ist er weg (eine
+    echte Lampe ist kein Punkt).
+  - Der Abstand des Werfers zur Lampe kommt vom nächsten von fünf Abtastpunkten.
+- **Kern** (`runtime/rt_shadow.cpp`):
+  - Lampen, die weniger als 1 m auseinander hängen, werfen als eine, mit der Stärke beider.
+  - Zum Umgebungslicht zählen wieder die örtlichen Umgebungslichter (Typ 7), wie in Stufe 5 bei Leon, jetzt das Meiste,
+    was eine Figur im Bild bekommt. (In r201, r202, r207 gibt es keine; dort ändert das nichts.)
+- **Geprüft am PC:**
+  - Die fünf Dump-Folgen des Inhabers mit dem Renderer von 249dc807 (wie auf dem Gerät) und dem neuen gezeichnet:
+    - Mauer r202: zwei fast schwarze Schatten übereinander → ein blasser.
+    - Wandteppich: riesiger Kopfschatten → keiner.
+    - Saal mit Säule und Ashley: Schatten in Stücken, die von Bild zu Bild kommen und gehen → ein ruhiger, blasser
+      bzw. keiner.
+    - Hof r202: Leons langer Schatten bleibt, ohne die Schnittkante, weicher.
+    Die Dumps enthalten die Lichter des alten Kerns; die Änderungen im Kern wirken dort nicht.
+  - Im Spiel mit dem neuen Kern (Leon geht, 8 Bilder im Abstand von 15; Pixel mindestens 0,8 % dunkler als ohne
+    Schatten): Kirche r117 Stufe 6 1300–37400 → Stufe 7 1300–5600 (der große Kerzenschatten am Boden fast weg, die
+    anderen gleich); Hütte r11c 0–9960 → 0–4860; r10E, r118 wie vorher (fast keine).
+  - `gx_gl_check` GLES und Vulkan 0 Fehler. Der Lampentest (`TestShadowsStill`) besteht weiter: Die linke Bildhälfte
+    bleibt Byte für Byte gleich, während die rechte Figur geht (die Karte bleibt, solange die Kamera steht und beide
+    hineinpassen). Sein Schatten ist jetzt 113 statt 40 (160 ohne): höchstens 0,6, und er fällt 2,25-mal so groß wie
+    die Figur.
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet; `whole_build_android.sh --abi all`
+    0 Fehler (ARM32 und ARM64, Stubs wie erwartet).
+  - Raum-Rundgang mit eingeschalteten Schatten (`RE4_POTATO=96`, 126 Räume, je 6000 Bilder): **126 von 126 ohne Fehler** (der Zeittest `runtime-test vsync` im Bauschritt schlug unter Volllast einmal fehl, danach im Leerlauf dreimal bestanden).
+  - Schatten aus (jede Stufe) wie vor den Schatten: 21 Aufnahmen ohne Marke in den Stufen 0, 1, 2 und 25 mit Marke in
+    Stufe 0 gegen den Renderer vor den Schatten (c2f5dcda): 88 von 88 Bildern Byte für Byte gleich.
+  - App: `externalNativeBuildCoreDebug` (beide ABIs) gebaut, `testCoreDebugUnitTest` 226 Tests ohne Fehler (zwei übersprungen).
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage7\`: `device-00` bis `device-04` (je fünf Bilder
+  einer Folge: oben das Gerät, darunter die Maske von Stufe 6, Stufe 7 aus denselben Dumps am PC, ihre Maske; dunkel =
+  Schatten), `game-r117.png` und `game-r11c.png` (Stufe 6 gegen 7 im Spiel).
+- **Nicht geprüft:** Gerät (Retroid: das Bild in Bewegung, die Kosten; die Anpassung der Lampenkarte an die Figuren
+  läuft auf dem Prozessor, je Licht einmal über die Ecken der Figuren). Die Räume der Folgen 02–04 nicht mit dem neuen
+  Kern angespielt (Raum nicht sicher bestimmt).
+- **Grenzen:** Lichter hinter Wänden werfen weiter (das Spiel lässt ihr Licht für die Figuren durch Wände; die Karten
+  kennen keine Wände). Steht eine Lampe mitten zwischen Figuren, fasst ihre Karte höchstens 140° (die Mitte ihrer
+  Richtungen); was außerhalb steht, wirft von ihr nichts. Bewegt sich die Kamera, wird die Karte jedes Bild neu
+  angepasst (Ränder können um einen Texel flimmern; kein Schatten wandert).
 
 ## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
 

@@ -815,12 +815,19 @@ constexpr char kShadowMarkFs[] = "#version 300 es\nprecision mediump float;\nuni
   "  lit += texture(shd, vec3(clamp(a + vec2(0.519, 0.767) * r, lo, hi), ref));\n"                                 \
   "  lit += texture(shd, vec3(clamp(a + vec2(0.185, -0.893) * r, lo, hi), ref));\n"                                \
   "  float o = (1.0 - lit * 0.125) * reach;\n"                                                                      \
-  "  if (persp && o > 0.0) rat = min(rat, dCas / max(dRec, 1.0));\n"                                                \
+  "  if (persp && o > 0.0) {\n"                                                                                     \
+  "    float rawNear = min(raw0, min(min(texture(raw, clamp(a + vec2(-0.326, -0.406) * r, lo, hi)).r,"              \
+  "                                   texture(raw, clamp(a + vec2(0.962, -0.195) * r, lo, hi)).r),"                 \
+  "                               min(texture(raw, clamp(a + vec2(-0.203, 0.621) * r, lo, hi)).r,"                  \
+  "                                   texture(raw, clamp(a + vec2(0.473, -0.480) * r, lo, hi)).r)));\n"             \
+  "    rat = min(rat, zn * zf / (zf - rawNear * (zf - zn)) / max(dRec, 1.0));\n"                                    \
+  "  }\n"                                                                                                           \
   "  return o;\n"                                                                                                   \
   "}\n"
 // One light's darkening at e: its weight (W; its light C here, all but the distance fall-off KEEP, the distance
 // DIST, the attenuation LB), its tile(s) where the surface faces it (TOL: towards the light); a point light's or a
-// spot's weight again with its fall-off at the caster (DIST times rat)
+// spot's weight again with its fall-off at the caster (DIST times rat), and less where its shadow falls more than
+// 1.7 times as large as the caster (none from 3.3 times: a real lamp is no point; stage 7)
 #define RE4_SHADOW_LIGHT(W, TOL, C, KEEP, DIST, LB, OCC_EXPR)                                                       \
   "  f = dot(n, " TOL ");\n"                                                                                        \
   "  if ((" W " > 0.0 || " KEEP " > 0.0) && f > 0.0) {\n"                                                           \
@@ -831,8 +838,9 @@ constexpr char kShadowMarkFs[] = "#version 300 es\nprecision mediump float;\nuni
   "      float dc = " DIST " * rat;\n"                                                                              \
   "      float cc = " KEEP " / (1.0 + " LB ".x * dc + " LB ".y * dc * dc);\n"                                       \
   "      float tc = total - max(" C ", 0.0) + cc;\n"                                                                \
-  "      w = min(0.75, cc / max(tc, 1e-4)) * clamp((tc - 0.15) / 0.75, 0.0, 1.0);\n"                                \
+  "      w = min(amb.y, cc / max(tc, 1e-4)) * clamp((tc - 0.15) / 0.75, 0.0, 1.0);\n"                                \
   "    }\n"                                                                                                         \
+  "    if (" DIST " > 0.0) w *= smoothstep(0.3, 0.6, rat);\n"                                                       \
   "    dark += w * occ * smoothstep(0.0, 0.3, f);\n"                                                                \
   "  }\n"
 // The shadow mask, a texel per `grid` EFB texels of the scene's part (region): each texel's surface from the EFB
@@ -850,7 +858,12 @@ constexpr char kShadowMarkFs[] = "#version 300 es\nprecision mediump float;\nuni
 // two lights are blocked the shadow is darker: the core shadow; where one, the half shadow), up to look.x. It fades
 // from look.y to look.z view units away. Where a figure is the visible surface (fig.r) nothing darkens: the game
 // lights its figures with lights of their own, and a figure shading itself striped it (r30f). Where an object is
-// (fig.g) only the figures' shadows fall. 1 where lit; the sky (depth 1) stays lit.
+// (fig.g) only the figures' shadows fall. 1 where lit; the sky (depth 1) stays lit. Stage 7 (18.11.2026, the owner's
+// device test: some shadows too dark, others flickering wildly): the game's lights darken at most amb.y (0.6) each
+// and look.x (0.7) together; a lamp's shadow fades where it falls 1.7 to 3.3 times as large as its caster (a real
+// lamp is no point: a figure beside a candle lamp threw a giant shadow that swam with every breath); the caster's
+// distance is the nearest of five of the map's samples, so that an edge does not switch between the caster's light
+// and the floor's.
 constexpr char kShadowMaskFs[] =
     "#version 300 es\n"
     "precision highp float;\n"
@@ -958,9 +971,9 @@ constexpr char kShadowMaskFs[] =
     "  float c2 = LightAt(lp2, la2, lb2, lc2, e, to2, dl2, kl2);\n"
     "  float total = amb.x + max(c0, 0.0) + max(c1, 0.0) + max(c2, 0.0);\n"
     "  float lit = clamp((total - 0.15) / 0.75, 0.0, 1.0);\n"
-    "  float w0 = la0.x < 0.0 ? -la0.x : min(0.75, c0 / max(total, 1e-4)) * lit;\n"
-    "  float w1 = la1.x < 0.0 ? -la1.x : min(0.75, c1 / max(total, 1e-4)) * lit;\n"
-    "  float w2 = la2.x < 0.0 ? -la2.x : min(0.75, c2 / max(total, 1e-4)) * lit;\n"
+    "  float w0 = la0.x < 0.0 ? -la0.x : min(amb.y, c0 / max(total, 1e-4)) * lit;\n"
+    "  float w1 = la1.x < 0.0 ? -la1.x : min(amb.y, c1 / max(total, 1e-4)) * lit;\n"
+    "  float w2 = la2.x < 0.0 ? -la2.x : min(amb.y, c2 / max(total, 1e-4)) * lit;\n"
     "  float dark = 0.0, f;\n"
     RE4_SHADOW_LIGHT("w0", "to0", "c0", "kl0", "dl0", "lb0",
                      "    if (t0.w > 0.5) occ = Occ0(e, n, s, rat);\n"
