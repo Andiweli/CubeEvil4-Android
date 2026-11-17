@@ -357,6 +357,10 @@ public:
   // or level drops every texture: TakeTexturesDropped then says once that the game core must send them again.
   // Never in the PSone demake (its look wants the game's own textures).
   void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
+  // The Mods page's "Costumes" and "Weapons" (1.0.0, decision of the project owner, 17.11.2026): the pack's groups
+  // whose textures stay the game's own (TextureGroup bits of tex_pack.h; 0: the pack replaces all it has, as before).
+  // A change while a pack is on drops every texture as another pack does (TakeTexturesDropped): at once, no restart.
+  void SetTexturePackKeep(unsigned groups);
   bool TakeTexturesDropped();
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the

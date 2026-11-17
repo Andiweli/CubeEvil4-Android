@@ -484,6 +484,11 @@
     <string name="ingame_hd_full">Total</string>
     <string name="ingame_hd_half">Metade</string>
     <string name="ingame_hd_delete">Excluir pacote de texturas</string>
+    <string name="ingame_hd_costumes">Trajes</string>
+    <string name="ingame_hd_weapons">Armas</string>
+    <string name="ingame_hd_pack">Pacote de texturas</string>
+    <string name="ingame_hd_original">Original</string>
+    <string name="ingame_hd_groups_help">Trajes e Armas: Original mantém as texturas do jogo nos personagens jogáveis (Leon, Ashley, Ada, HUNK, Krauser, Wesker) ou nas armas, mesmo com um pacote de texturas.</string>
     <string name="ingame_hd_delete_yes">Excluir</string>
     <string name="ingame_hd_none">Texturas HD: nenhum pacote de texturas importado.</string>
     <string name="ingame_hd_info">Texturas HD: %1$s · %2$s imagens · %3$s · criado em %4$s</string>

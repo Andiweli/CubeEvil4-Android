@@ -251,6 +251,9 @@ int main(int argc, char **argv) {
           else
             std::fprintf(stderr, "texture pack %s: %s\n", packPath, error.c_str());
         }
+        // RE4_TEX_PACK_KEEP=<bits>: the Mods page's groups kept original (1 costumes, 2 weapons)
+        const char *keep = std::getenv("RE4_TEX_PACK_KEEP");
+        renderer->SetTexturePackKeep(keep && *keep ? static_cast<unsigned>(std::atoi(keep)) : 0u);
         const char *half = std::getenv("RE4_TEX_PACK_HALF");
         const char *mb = std::getenv("RE4_TEX_PACK_MB");
         renderer->SetTexturePack(pack, half && *half == '1' ? 1u : 0u,

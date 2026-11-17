@@ -478,6 +478,11 @@
     <string name="ingame_hd_full">完整</string>
     <string name="ingame_hd_half">一半</string>
     <string name="ingame_hd_delete">删除纹理包</string>
+    <string name="ingame_hd_costumes">服装</string>
+    <string name="ingame_hd_weapons">武器</string>
+    <string name="ingame_hd_pack">纹理包</string>
+    <string name="ingame_hd_original">原版</string>
+    <string name="ingame_hd_groups_help">服装和武器：选择原版时，即使使用纹理包，可操作角色（Leon、Ashley、Ada、HUNK、Krauser、Wesker）或武器仍使用游戏原有的纹理。</string>
     <string name="ingame_hd_delete_yes">删除</string>
     <string name="ingame_hd_none">高清纹理：尚未导入纹理包。</string>
     <string name="ingame_hd_info">高清纹理：%1$s · %2$s 张图片 · %3$s · 创建于 %4$s</string>

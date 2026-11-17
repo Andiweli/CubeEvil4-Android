@@ -480,6 +480,11 @@
     <string name="ingame_hd_full">पूरी</string>
     <string name="ingame_hd_half">आधी</string>
     <string name="ingame_hd_delete">टेक्सचर पैक हटाएँ</string>
+    <string name="ingame_hd_costumes">पोशाकें</string>
+    <string name="ingame_hd_weapons">हथियार</string>
+    <string name="ingame_hd_pack">टेक्सचर पैक</string>
+    <string name="ingame_hd_original">मूल</string>
+    <string name="ingame_hd_groups_help">पोशाकें और हथियार: मूल चुनने पर टेक्सचर पैक के साथ भी खेलने योग्य पात्रों (Leon, Ashley, Ada, HUNK, Krauser, Wesker) या हथियारों पर गेम के अपने टेक्सचर रहते हैं।</string>
     <string name="ingame_hd_delete_yes">हटाएँ</string>
     <string name="ingame_hd_none">HD टेक्सचर: कोई टेक्सचर पैक इम्पोर्ट नहीं हुआ।</string>
     <string name="ingame_hd_info">HD टेक्सचर: %1$s · %2$s इमेज · %3$s · बनाया गया %4$s</string>

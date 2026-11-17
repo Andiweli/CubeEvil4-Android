@@ -245,6 +245,9 @@ struct GxCore {
   bool texPackActive = false, texturesDropped = false;
   std::vector<std::uint8_t> hdData;  // a replacement's texels on their way to the GPU
   void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
+  // the pack's groups kept original (TextureGroup bits, GxRenderer::SetTexturePackKeep); a change drops the textures
+  unsigned texPackKeep = 0;
+  void SetTexturePackKeep(unsigned groups);
   // the replacement of the texture Upload is at (into tex); false: none (or not read yet), keep the game's
   bool UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex);
   // T4 (0.99.18): the replacements read in the background (TexLoader): UploadHd asks for the read and the game's own

@@ -498,6 +498,11 @@
     <string name="ingame_hd_full">Full</string>
     <string name="ingame_hd_half">Half</string>
     <string name="ingame_hd_delete">Delete texture pack</string>
+    <string name="ingame_hd_costumes">Costumes</string>
+    <string name="ingame_hd_weapons">Weapons</string>
+    <string name="ingame_hd_pack">Texture pack</string>
+    <string name="ingame_hd_original">Original</string>
+    <string name="ingame_hd_groups_help">Costumes and Weapons: Original keeps the game’s own textures of the playable characters (Leon, Ashley, Ada, HUNK, Krauser, Wesker) or of the weapons, even with a texture pack.</string>
     <string name="ingame_hd_delete_yes">Delete</string>
     <string name="ingame_hd_none">HD textures: no texture pack imported.</string>
     <string name="ingame_hd_info">HD textures: %1$s · %2$s images · %3$s · made %4$s</string>

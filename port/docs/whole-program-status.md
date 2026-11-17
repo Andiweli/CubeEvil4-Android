@@ -1136,6 +1136,27 @@ Zwischensequenz zum Messerkampf mit Krauser (Raum r317, Ereignis r317s00).
   0xD/0xE, r227s00–s02) im Bild (am PC nicht ohne Weiteres auszulösen; dieselbe Stelle wie im Messerkampf, nur aus
   dem Code); die Weste (Regel 2) und Ersatzfiguren im Bild.
 
+### 21. HD-Texturen: „Kostüme“ und „Waffen“ auf der Mods-Seite (Texturen-Sitzung, Projektinhaber, 17.11.2026)
+
+`origin/textures` 5c071141 („Mods page, "Costumes" and "Weapons" keep the game's own textures on request“, Basis
+c4334717) hineingemischt, nach dem Jacken-Fix (Abschnitt 20). Einzelheiten im Abschnitt des Texture Packers und in
+`port/docs/textur-lader-plan.md`. Kein Kern-Patch. Releasetext: eine Zeile unter New, die die Texturen-Sitzung vorgab.
+
+- Beim Mischen keine Konflikte (die Änderungen in `CoreMenu` liegen nur in der Mods-Seite).
+- README: ein Satz zu „Kostüme · Original“ / „Waffen · Original“ unter den HD-Texturpaketen.
+- **Geprüft hier nach dem Mischen:**
+  - `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler (mit `TestHdGroups`);
+  - `check_translations.py` ohne Befund (478 Texte); App-Tests 218 je Variante (core, classic, sideload, mit
+    `ModsPageTest`); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund;
+  - Jacke und Kostüme zusammen (Hinweis der Texturen-Sitzung: 2 Krauser-Texturen gehören auch zum Jackenmodell):
+    Messerkampf r317s00/s01 mit Cheat „Leons Jacke“ (Aufnahmen aus Abschnitt 20), gezeichnet ohne Paket, mit dem HD
+    Project 512 und mit Paket und „Kostüme · Original“ (`RE4_TEX_PACK_SYNC=1`, `RE4_TEX_PACK_KEEP`): die Jacke in
+    allen drei vollständig, mit Paket 39–51 Ersetzungen je Bild, mit Kostüme Original 32–43 (Leons Texturen bleiben
+    die des Spiels). Bilder `r317-hd-*.png` (links ohne Paket, Mitte Paket, rechts Kostüme Original) im Ordner von
+    Abschnitt 20.
+- **Nicht geprüft:** auf einem Gerät; Krauser selbst mit Paket und Kostüme Original im Bild (in den Aufnahmen des
+  Messerkampfs nicht im Bild).
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
@@ -2356,6 +2377,25 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   GLES und Vulkan 0 Fehler (`TestWordSharpenParts`, `TestWordSharpen`: erst das eigene Bild, dann das schärfere, Reset,
   aus, 1×, PSone; Gegenprobe ohne Schärfen 7 Fehler); Android-Bau beider ABIs, App-Tests je 216 ohne Fehler. Nicht auf dem
   Gerät geprüft.
+- **Kostüme und Waffen auf der Mods-Seite (Wunsch des Projektinhabers 17.11.2026; Basis `release-candidate` c4334717):**
+  „Kostüme · Texturpaket/Original“ und „Waffen · Texturpaket/Original“ (Vorgabe Texturpaket): „Original“ behält mit
+  Paket die Texturen des Spiels für die spielbaren Figuren bzw. die Waffen. `tex_pack_groups.h` (239 Texturen: 188
+  Kostüme, 49 Waffen, 2 beides) aus den Modelldateien aller vier Disc-Arten: Kostüme `em/pl*.drs` der spielerseitigen
+  Figuren (Leon pl00/08/09/10 samt Jacke und Spezialkostüm, Ashley pl01/05/03/11/15/21, Ada pl0b/0c/02/12, HUNK pl06,
+  Krauser pl0a, Wesker pl0d) und `etc/pl010a.tpl`, `pl050a.tpl`; Waffen `em/wep*.drs` (in der Hand) und
+  `ss/Cmn/ss_wep*.dat` (im Koffer). Nicht dabei: Gegner, Saddler (pl04/07), Luis (pl14, Verbündeter, nicht spielbar),
+  pl0e/pl0f (Gegenstände). Geteilte Texturen schalten mit ihrer Gruppe um: 52 Kostüm- und 3 Waffen-Texturen kommen auch
+  in Zwischensequenzen vor (dieselben Figuren), 11 Kostüm- und 6 Waffen-Texturen auch in Gegner-Dateien (vor allem der
+  Krauser-Kampf em39 und zwei kleine Texturen von Leon/HUNK, die viele Gegner-Dateien enthalten), 1 Waffen-Textur in
+  Luis' Modell, 7 in Koffer-/Rätselbildern. Renderer: `TextureGroups`, `GxRenderer::SetTexturePackKeep`, eine Änderung
+  verwirft die Texturen (der Kern schickt sie neu): wirkt sofort, ohne Neustart. App: `TexturePacks.COSTUMES/WEAPONS`,
+  `CoreBridge.setTextureGroups`, `RE4_TEX_PACK_KEEP` (App und `gx_chunk_render`). Mods-Seite neu geordnet: links
+  Importieren, Schärfe, Löschen (im leisen Rot von „Alle Daten löschen“, Rückfrage wie bisher), rechts HD-Texturen,
+  Kostüme, Waffen; 5 Texte in 11 Sprachen. Geprüft am PC: beide auf Texturpaket = Bild für Bild wie `release-candidate`
+  (32 von 32 mit dem HD Project, 32 von 32 mit RE4 Ultimate 512); Dorf mit HD Project 71 → 63 (Kostüme Original) / 69
+  (Waffen Original) Ersetzungen, mit Ultimate 86 → 77 / 84; Bilder `builds\textures\pics\texture-toggles\`.
+  `gx_gl_check` GLES und Vulkan 0 Fehler (`TestHdGroups`; Gegenprobe ohne die Gruppen-Prüfung 3 Fehler), `ModsPageTest`
+  (Anordnung, Umschalten). Nicht auf dem Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 

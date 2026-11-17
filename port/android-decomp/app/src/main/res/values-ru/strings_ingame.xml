@@ -486,6 +486,11 @@
     <string name="ingame_hd_full">Полная</string>
     <string name="ingame_hd_half">Половинная</string>
     <string name="ingame_hd_delete">Удалить пакет текстур</string>
+    <string name="ingame_hd_costumes">Костюмы</string>
+    <string name="ingame_hd_weapons">Оружие</string>
+    <string name="ingame_hd_pack">Пакет текстур</string>
+    <string name="ingame_hd_original">Оригинал</string>
+    <string name="ingame_hd_groups_help">Костюмы и Оружие: Оригинал оставляет текстуры игры для играбельных персонажей (Леон, Эшли, Ада, ХАНК, Краузер, Вескер) или для оружия, даже с пакетом текстур.</string>
     <string name="ingame_hd_delete_yes">Удалить</string>
     <string name="ingame_hd_none">HD-текстуры: пакет текстур не импортирован.</string>
     <string name="ingame_hd_info">HD-текстуры: %1$s · изображений: %2$s · %3$s · создан %4$s</string>

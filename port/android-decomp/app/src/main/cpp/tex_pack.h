@@ -37,6 +37,13 @@ TexKey DolphinKey(unsigned format, unsigned width, unsigned height, bool mip, co
 // a game texture no pack replaces: the menus' words keep the game's own picture (tex_pack_words.h, tex_pack.cpp says
 // why)
 bool KeepsGameTexture(const TexKey &key);
+
+// The HD pack's groups the player can keep original (1.0.0, decision of the project owner, 17.11.2026; the Mods page's
+// "Costumes" and "Weapons"): a game texture's groups (tex_pack_groups.h), 0 for any other texture
+enum TextureGroup : unsigned { kGroupCostumes = 1, kGroupWeapons = 2 };
+unsigned TextureGroups(const TexKey &key);
+// gx_gl_check only: one more texture of a group, as if tex_pack_groups.h listed it
+void AddTestGroupTexture(std::uint64_t tex, unsigned width, unsigned height, unsigned format, unsigned groups);
 // gx_gl_check only: one more word, as if tex_pack_words.h listed it (KeepsGameTexture and MaybeMenuWord see it)
 void AddTestMenuWord(std::uint64_t tex, unsigned width, unsigned height, unsigned format);
 bool IsTestMenuWordSize(unsigned format, unsigned width, unsigned height);

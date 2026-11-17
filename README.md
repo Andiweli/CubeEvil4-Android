@@ -243,7 +243,9 @@ same texture as several files, it takes the DDS, then the PNG, then the JPG.
    packer's button. The app keeps it in a folder of its own; it never touches your discs, saves or memory
    cards. Afterwards you can delete the file in Download or the copy you made.
 3. Switch the HD textures on or off at any time, choose "Sharpness: Half" on weaker devices, or delete the
-   pack. Textures the pack does not have, and pictures the game makes itself, stay as they are.
+   pack. Textures the pack does not have, and pictures the game makes itself, stay as they are. With
+   "Costumes · Original" or "Weapons · Original" the playable characters or the weapons keep the game's own
+   textures.
 
 ## Building the app
 
