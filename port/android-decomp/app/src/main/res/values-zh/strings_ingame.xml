@@ -87,7 +87,9 @@
     <string name="ingame_button_style">按钮样式</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE：按钮显示其功能的图标（默认）；GC：GameCube 的彩色字母。编辑器（右上角的齿轮）里也有同样的开关。</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE：按钮显示其功能的图标（默认）。GC、PS2 和 XBOX：这些手柄的按钮。编辑器（右上角的齿轮）里的样式按钮依次切换这四种。</string>
     <string name="ingame_comfort">便捷操作</string>
     <string name="ingame_gyro">陀螺仪瞄准</string>
     <string name="ingame_gyro_none">陀螺仪瞄准（无陀螺仪）</string>

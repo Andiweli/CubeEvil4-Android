@@ -97,7 +97,9 @@
     <string name="ingame_button_style">Button style</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: symbols for what each button does (the default); GC: the GameCube\'s coloured letters. The editor (the gear at the top right) has the same switch.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: symbols for what each button does (the default). GC, PS2 and XBOX: the buttons of those controllers. The style button in the editor (the gear at the top right) goes through all four.</string>
     <string name="ingame_comfort">Comfort Controls</string>
     <string name="ingame_gyro">Gyro-Aiming</string>
     <string name="ingame_gyro_none">Gyro-Aiming (no gyroscope)</string>

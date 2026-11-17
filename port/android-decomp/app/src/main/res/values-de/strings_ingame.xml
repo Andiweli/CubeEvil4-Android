@@ -86,7 +86,9 @@
     <string name="ingame_button_style">Tastenstil</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: Symbole für das, was jede Taste tut (Standard); GC: die farbigen Buchstaben des GameCube. Der Editor (Zahnrad oben rechts) hat denselben Schalter.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: Symbole für das, was jede Taste tut (Standard). GC, PS2 und XBOX: die Tasten dieser Controller. Der Stil-Knopf im Editor (Zahnrad oben rechts) schaltet durch alle vier.</string>
     <string name="ingame_comfort">Komfortsteuerung</string>
     <string name="ingame_gyro">Gyro-Zielen</string>
     <string name="ingame_gyro_none">Gyro-Zielen (kein Gyroskop)</string>

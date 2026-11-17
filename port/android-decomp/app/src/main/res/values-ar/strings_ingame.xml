@@ -90,7 +90,9 @@
     <string name="ingame_button_style">نمط الأزرار</string>
     <string name="ingame_button_icons">‏RE</string>
     <string name="ingame_button_labels">‏GC</string>
-    <string name="ingame_button_style_help">‏RE: رموز لما يفعله كل زر (الافتراضي)؛ GC: حروف GameCube الملونة. وفي المحرر (الترس أعلى اليمين) الخيار نفسه.</string>
+    <string name="ingame_button_ps2">‏PS2</string>
+    <string name="ingame_button_xbox">‏XBOX</string>
+    <string name="ingame_button_style_help">‏RE: رموز لما يفعله كل زر (الافتراضي). GC وPS2 وXBOX: أزرار وحدات التحكم هذه. وزر النمط في المحرر (الترس أعلى اليمين) يتنقل بين الأربعة.</string>
     <string name="ingame_comfort">تحكم مريح</string>
     <string name="ingame_gyro">التصويب بالجيروسكوب</string>
     <string name="ingame_gyro_none">التصويب بالجيروسكوب (لا يوجد جيروسكوب)</string>

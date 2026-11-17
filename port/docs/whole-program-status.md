@@ -1160,6 +1160,37 @@ c4334717) hineingemischt, nach dem Jacken-Fix (Abschnitt 20). Einzelheiten im Ab
 - **Nicht geprüft:** auf einem Gerät; Krauser selbst mit Paket und Kostüme Original im Bild (in den Aufnahmen des
   Messerkampfs nicht im Bild).
 
+### 22. Touch-Tastenstile: RE, GC (neu), PS2 und XBOX (für 1.0, Projektinhaber, 17.11.2026)
+
+Branch `touch-styles` (Worktree `E:\Development\Android\RE4-touch-styles`, Basis 0f74f471). Entwürfe und Bilder:
+`E:\Development\Android\builds\retrotouch-styles\` (Blätter je Stil, `app\` mit Bildern der echten App). Kein
+Kern-Patch, RetroTouch bleibt 1.0.0-beta.12.
+
+- **Vier Stile** (`TouchStyle`): RE wie bisher; GC neu (GameCube-Farben im Aufbau von RE: A grün, B rot, X/Y/L/R/START
+  grau, Z lila und breit, C-Stick gelb), ersetzt den alten GC-Stil; PS2 (schwarze Tasten, Kreuz blau, Kreis rot,
+  Quadrat rosa, Dreieck grün, Z = R1, L = L2, R = R2, MENU = SELECT, C-Stick „R“); XBOX (A grün, B rot, X blau, Y gelb,
+  LT/RT weiß, Z = RB, START mit drei Strichen, MENU mit zwei Fenstern, C-Stick „RS“). Belegung wie `CoreInput` einen
+  Controller abbildet. Eigene Symbole als RetroTouch-Linien (`RetroTouchIcon.fromPaths`), Tinte mittig im 24er-Rahmen.
+- **Alle vier zeichnet RetroTouch im Stil ICONS.** RetroTouch kennt nur zwei Stile; der Stil ist deshalb eine
+  Einstellung der App (`core_input`, `touchLook`, mit der Sicherung). Der Stil-Knopf im Editor schaltet weiter
+  (RetroTouch geht auf LABELS, die App nimmt den nächsten Stil und stellt ICONS zurück) und zeigt den Namen. Im
+  App-Menü (Steuerung → Tastenstil) vier Knöpfe; Hilfetext in 11 Sprachen neu, zwei neue Texte (PS2, XBOX).
+- **Alte Einstellung:** wer den alten GC-Stil hatte (RetroTouch LABELS), bekommt das neue GC; neue Spieler RE.
+- Abweichung vom Entwurf: A und B im GC-Stil mit hellen Buchstaben (dunkle waren durch die Transparenz kaum lesbar).
+- **Zentrierung** (Wunsch des Inhabers): RetroTouch setzt ein einzelnes Zeichen und die Symbole genau mittig, Texte
+  aus mehreren Zeichen nach Breite und Schrifthöhe. Gemessen im Emulator (`app\measure_app.py`, 4 Größen
+  2400×1080/420, 1920×1080/320, 1280×720/240, 1600×1200/280 × 4 Stile, 144 Tasten, dazu R3, Zoom und die drei
+  Sticks): alle höchstens 1 Bildpunkt neben der Mitte, außer PS2 „R1“ (2 px) und „R2“ (1,5 px) seitlich. Genau geht
+  das erst mit der gewünschten neuen RetroTouch-Version (Wunsch „Beschriftung nach der Tinte mitteln“).
+- **Geprüft:** App-Tests 225 je Variante (core, classic; `TouchStyleTest` neu gefasst: vier Stile, alter GC → neues GC,
+  Editor-Knopf im Kreis, Einstellung nach Import); `check_translations.py` ohne Befund (480 Texte);
+  `assembleCoreRelease` (arm64-v8a und armeabi-v7a); `lintCoreRelease`: 7 Fehler, alle schon vorher in anderen Dateien
+  (`CoreActivity`, `Cutout`, `PlayerBackup`), keiner in den geänderten. Emulator (x86_64-Telefon, Debug-Hülle ohne
+  Kern, Bauvariante ohne die Meldung „Kern fehlt“, nicht committet): alle vier Stile im Spiel und im Editor, Wechsel
+  per Editor-Knopf, Zusatztasten (R3, Zoom, C-, Ziel-, Messer-Stick) in allen Stilen; das App-Menü als Bild aus
+  `CoreMenuShotTest` (de, en, ar).
+- **Nicht geprüft:** auf einem Gerät; das App-Menü im Emulator (ohne Kern öffnet es nicht).
+
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 
 Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom

@@ -87,7 +87,9 @@
     <string name="ingame_button_style">Estilo dos botões</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: símbolos do que cada botão faz (padrão); GC: as letras coloridas do GameCube. O editor (a engrenagem no canto superior direito) tem a mesma opção.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: símbolos do que cada botão faz (padrão). GC, PS2 e XBOX: os botões desses controles. O botão de estilo do editor (a engrenagem no canto superior direito) alterna entre os quatro.</string>
     <string name="ingame_comfort">Controles de conforto</string>
     <string name="ingame_gyro">Mirar com giroscópio</string>
     <string name="ingame_gyro_none">Mirar com giroscópio (sem giroscópio)</string>

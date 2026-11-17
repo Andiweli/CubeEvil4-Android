@@ -107,7 +107,8 @@ public class CoreMenuLayoutTest {
         // gameLanguages: the home page with the European discs' "Game language" too
         (proxy, method, args) -> method.getName().equals("perfDevice") ? retroid
             : method.getReturnType() == boolean.class ? Boolean.TRUE
-            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0
+            : method.getReturnType() == int.class ? (Object) 0 : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {
@@ -381,14 +382,19 @@ public class CoreMenuLayoutTest {
       Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
       assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
-      // "Button style" (RetroTouch 1.0.0-beta.10, 09.11.2026): Icons and Labels under the touch choices and their help,
-      // Icons chosen without a host (a new player's style, TouchStyle.DEFAULT_BUTTON_STYLE)
+      // "Button style" (09.11.2026; four looks since 17.11.2026): RE, GC, PS2 and XBOX side by side under the touch
+      // choices and their help, RE chosen without a host (a new player's look, TouchStyle.DEFAULT_LOOK)
       Button icons = findButton(body, activity.getString(R.string.ingame_button_icons));
       Button labels = findButton(body, activity.getString(R.string.ingame_button_labels));
-      assertNotNull(icons); assertNotNull(labels);
+      Button ps2 = findButton(body, activity.getString(R.string.ingame_button_ps2));
+      Button xbox = findButton(body, activity.getString(R.string.ingame_button_xbox));
+      assertNotNull(icons); assertNotNull(labels); assertNotNull(ps2); assertNotNull(xbox);
       assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
-      assertEquals("icons and labels side by side", icons.getParent(), labels.getParent());
-      assertTrue(icons.isSelected()); assertFalse(labels.isSelected());
+      assertEquals("RE and GC side by side", icons.getParent(), labels.getParent());
+      assertEquals("PS2 and XBOX with them", icons.getParent(), ps2.getParent());
+      assertEquals(icons.getParent(), xbox.getParent());
+      assertEquals(4, ((ViewGroup) icons.getParent()).getChildCount());
+      assertTrue(icons.isSelected()); assertFalse(labels.isSelected()); assertFalse(ps2.isSelected()); assertFalse(xbox.isSelected());
       assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));

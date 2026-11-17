@@ -88,7 +88,9 @@
     <string name="ingame_button_style">Style des boutons</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE\u00A0: des symboles de ce que fait chaque bouton (par défaut)\u00A0; GC\u00A0: les lettres colorées de la GameCube. L’éditeur (la roue dentée en haut à droite) a le même choix.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE\u00A0: des symboles de ce que fait chaque bouton (par défaut). GC, PS2 et XBOX\u00A0: les boutons de ces manettes. Le bouton de style de l’éditeur (la roue dentée en haut à droite) passe par les quatre.</string>
     <string name="ingame_comfort">Commandes de confort</string>
     <string name="ingame_gyro">Visée gyroscopique</string>
     <string name="ingame_gyro_none">Visée gyroscopique (pas de gyroscope)</string>

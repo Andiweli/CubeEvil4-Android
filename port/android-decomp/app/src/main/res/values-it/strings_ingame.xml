@@ -86,7 +86,9 @@
     <string name="ingame_button_style">Stile pulsanti</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: simboli di ciò che fa ogni pulsante (predefinito); GC: le lettere colorate del GameCube. L’editor (l’ingranaggio in alto a destra) ha la stessa scelta.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: simboli di ciò che fa ogni pulsante (predefinito). GC, PS2 e XBOX: i pulsanti di quei controller. Il pulsante dello stile nell’editor (l’ingranaggio in alto a destra) passa per tutti e quattro.</string>
     <string name="ingame_comfort">Comandi comfort</string>
     <string name="ingame_gyro">Mira con il giroscopio</string>
     <string name="ingame_gyro_none">Mira con il giroscopio (nessun giroscopio)</string>

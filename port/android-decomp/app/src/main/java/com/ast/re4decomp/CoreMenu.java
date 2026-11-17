@@ -68,10 +68,10 @@ final class CoreMenu extends Dialog {
     void fpsChanged(int place);  // CoreActivity.FPS_PLACE: 0 off, 1..4 where
     /** The setting "Touch Controls": TouchShowRule.AUTO, FORCE or SUPPRESS (the preferences hold it). */
     void touchModeChanged(int mode);
-    /** The touch controls show icons (RetroTouch's button style ICONS, else LABELS; RetroTouch keeps it). */
-    boolean touchIcons();
-    /** The choice "Button style": icons (true) or labels, at once. */
-    void touchIconsChanged(boolean icons);
+    /** The touch controls' look: TouchStyle.RE, GC, PS2 or XBOX (TouchControls keeps it). */
+    int touchLook();
+    /** The choice "Button style": a look, at once. */
+    void touchLookChanged(int look);
     /** The switch "Use Gyro-Aiming" (the preferences hold it). */
     void gyroChanged(boolean on);
     /** The switch "Alternate Controls" (the preferences hold it). */
@@ -1129,10 +1129,12 @@ final class CoreMenu extends Dialog {
         new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), 3,
         mode -> host.touchModeChanged(mode));
     help(R.string.ingame_touch_help);
-    // the touch buttons' look (RetroTouch 1.0.0-beta.10, wish of the project owner, 09.11.2026): the same choice as
-    // the editor's style button, read from RetroTouch each time the page opens
-    choices(R.string.ingame_button_style, new String[] {s(R.string.ingame_button_icons), s(R.string.ingame_button_labels)},
-        new int[] {1, 0}, host == null || host.touchIcons() ? 1 : 0, Integer.MAX_VALUE, value -> host.touchIconsChanged(value == 1));
+    // the touch buttons' look (wishes of the project owner, 09.11.2026 and 17.11.2026): RE, GC, PS2 and XBOX, the same
+    // choice as the editor's style button, read each time the page opens
+    choices(R.string.ingame_button_style, new String[] {s(R.string.ingame_button_icons), s(R.string.ingame_button_labels),
+        s(R.string.ingame_button_ps2), s(R.string.ingame_button_xbox)},
+        new int[] {TouchStyle.RE, TouchStyle.GC, TouchStyle.PS2, TouchStyle.XBOX},
+        host == null ? TouchStyle.DEFAULT_LOOK : host.touchLook(), Integer.MAX_VALUE, look -> host.touchLookChanged(look));
     help(R.string.ingame_button_style_help);
     // the gyro in a section of its own, above the comfort controls (wishes of the project owner, 30.10.2026)
     heading(R.string.ingame_motion);

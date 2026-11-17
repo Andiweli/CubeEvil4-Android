@@ -86,7 +86,9 @@
     <string name="ingame_button_style">Стиль кнопок</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: значки того, что делает каждая кнопка (по умолчанию); GC: цветные буквы GameCube. В редакторе (шестерёнка справа вверху) тот же переключатель.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: значки того, что делает каждая кнопка (по умолчанию). GC, PS2 и XBOX: кнопки этих контроллеров. Кнопка стиля в редакторе (шестерёнка справа вверху) переключает все четыре по очереди.</string>
     <string name="ingame_comfort">Удобное управление</string>
     <string name="ingame_gyro">Прицеливание гироскопом</string>
     <string name="ingame_gyro_none">Прицеливание гироскопом (нет гироскопа)</string>
