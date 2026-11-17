@@ -14,6 +14,9 @@
 
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
+> [!NOTE]
+> There is also a fork that is more focused on modding the hell out of the game.  
+> [Manuk Bulan's fork of CubeEvil4](https://github.com/manuk-bulan/Manuk-CubeEvil4-Android) is for you in case you want to mod the game more than my port.
 
 **CubeEvil4** is a non-commercial hobby project: an unofficial fan port that lets you play your own
 copy of the GameCube version of Resident Evil 4 natively on Android. It does not recreate the game;
