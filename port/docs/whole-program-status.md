@@ -493,7 +493,8 @@ Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen
 nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0237 (0240 gehört den Echtzeit-Schatten).
 Am 17.11.2026 `origin/master` 17749902 hineingemischt (der Inhaber hat auf GitHub drei Zeilen in die README
 geschrieben, einen Hinweis auf einen Fork; Zeilen unverändert übernommen), damit `master` beim Release per
-Fast-Forward nachzieht.
+Fast-Forward nachzieht. Am selben Abend `origin/touch-styles` da0e4ff8 hineingemischt (Touch-Stile RE, GC, PS2, XBOX
+mit RetroTouch 1.0.0-beta.13, Abschnitt 22).
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
@@ -1159,6 +1160,52 @@ c4334717) hineingemischt, nach dem Jacken-Fix (Abschnitt 20). Einzelheiten im Ab
     Abschnitt 20.
 - **Nicht geprüft:** auf einem Gerät; Krauser selbst mit Paket und Kostüme Original im Bild (in den Aufnahmen des
   Messerkampfs nicht im Bild).
+
+### 22. Touch-Tastenstile RE, GC (neu), PS2 und XBOX mit RetroTouch 1.0.0-beta.13 (für 1.0, Projektinhaber, 17.11.2026)
+
+Branch `touch-styles` (Worktree `E:\Development\Android\RE4-touch-styles`, Basis 0f74f471). Entwürfe, Vorgabe des
+Inhabers (`owner-reference-beta13.png`) und Bilder der echten App: `E:\Development\Android\builds\retrotouch-styles\`
+(`app\`). Kein Kern-Patch.
+
+- **RetroTouch 1.0.0-beta.13** (AAR des Inhabers, `app/libs/retrotouch.aar`, sha256 af38675f...db; Notiz in
+  `app/build.gradle`): Skins (`RetroTouchSkin`, beliebig viele, der Stil-Knopf im Editor geht durch alle), Formen
+  KIDNEY/BUMPER/TRIGGER mit Drehung, Achteck-Gate, eigene Symbolfarbe, gefüllte und PlayStation-Symbole, Beschriftung
+  auf dem Stick-Knopf, Steuerkreuz aus vier Tasten, Beschriftung genau nach der Tinte mittig. Ohne Skins wie beta.12;
+  Layoutformat 2 unverändert, Hinweisdatei unverändert.
+- **Vier Skins** (`TouchStyle.skins`): RE wie bisher; GC (graue Bumper L/R, graue Bohnen X/Y um A gedreht, A grün,
+  B rot, Z, START, Menü, Steuerkreuz und Bewegungs-Stick lila, C-Stick gelb, Achteck-Gates); PS2 (schwarz, Kreuz blau,
+  Kreis rot, Quadrat rosa, Dreieck grün, L2/R2 als Trigger, R1 als Bumper, Steuerkreuz aus vier Tasten mit gefüllten
+  Pfeilen, „L3“/„R3“ auf den Sticks, SELECT); XBOX (dunkle Tasten mit farbigen Buchstaben, LT/RT Trigger, RB Bumper,
+  Steuerkreuz mit gefüllten Pfeilen, „LS“/„RS“, Ansicht-Taste als Menü). Belegung wie `CoreInput` und die HD-Tasten.
+  Jede Aktion hat in jedem Skin Inhalt und Farben (auch R3, Zoom, Ziel- und Messer-Stick).
+- **Wahl:** RetroTouch speichert den Skin (`button_skin_cubeevil4`, mit der Sicherung). Editor-Knopf RE → GC → PS2 →
+  XBOX; App-Menü (Steuerung → Tastenstil) vier Knöpfe, liest den Skin beim Öffnen. Alter GC-Stil (RetroTouch
+  `button_style_cubeevil4` = LABELS, ohne Skin): GC-Skin (`TouchControls.migrateOldGc`, auch nach einem Import).
+  Neue Spieler RE. Zwei neue Texte (PS2, XBOX) und der Hilfetext in 11 Sprachen.
+- **Zentrierung** (Emulator, `app\measure_app.py`, 4 Größen 2400×1080/420, 1920×1080/320, 1280×720/240,
+  1600×1200/280 × 4 Skins): alle Tasten höchstens 1 Bildpunkt neben der Mitte, auch L2/R1/LT/START/SELECT (mit
+  beta.12 bis 2 px). Trigger und Bohnen: RetroTouch setzt die Beschriftung auf die Mitte der Form (beim Trigger 5–6 px
+  unter der Mitte des Rahmens, sieht mittig aus).
+- **Geprüft:** App-Tests 226 je Variante (core, classic; `TouchStyleTest` neu: Skins, alter GC → GC, Editor-Knopf im
+  Kreis, App-Menü, Import, Inhalt jedes Skins); `check_translations.py` ohne Befund (480 Texte); `assembleCoreRelease`
+  (arm64-v8a und armeabi-v7a); `lintCoreRelease` nur die 7 alten Fehler in `CoreActivity`, `Cutout`, `PlayerBackup`.
+  Emulator (x86_64-Telefon, Debug-Hülle ohne Kern, Bauvariante ohne die Meldung „Kern fehlt“, nicht committet): vier
+  Skins im Spiel und im Editor, Zusatztasten in allen vier, Wechsel per Editor-Knopf.
+- **Nicht geprüft:** auf einem Gerät; das App-Menü im Emulator (öffnet ohne Kern nicht; Menübild aus
+  `CoreMenuShotTest` beim ersten Stand).
+- **In `release-candidate`** (17.11.2026, Merge von da0e4ff8, ohne Konflikt): Releasetext v1.0.0 eine Zeile unter
+  New (die Stile) und eine unter Changed (RetroTouch 1.0.0-beta.13), README (App-Menü-Liste und Abschnitt Touch
+  controls: vier Stile). Geprüft: App-Tests 226 je Variante (core, classic, sideload; 0 Fehler);
+  `check_translations.py` ohne Befund (480 Texte); `assembleCoreRelease` und `assembleSideloadRelease` (arm64-v8a und
+  armeabi-v7a), `lintVitalCoreRelease` und `lintVitalSideloadRelease` ohne Befund. **Emulator mit Kern**
+  (CubeEvil4_Phone36, Play-Abbild mit ARM-Übersetzung: der echte arm64-Kern läuft dort; Release-Hülle mit den
+  Kern-Bibliotheken von 0f74f471, Wegwerf-Schlüssel; von Disc 1 nur `sys/`, alle Dateien unter 1 MB und `files/ss/`,
+  137 MB, danach mit der App gelöscht; mit reinen Platzhalter-Discs stürzt der Kern in
+  `MessageControl::loadSystemFont` ab): Spiel bis zum Titel, App-Menü → Controls → Button style zeigt RE, GC, PS2,
+  XBOX (RE vorgewählt); PS2 gewählt → sofort im Spiel; Editor-Knopf zeigt „PS2“ und geht PS2 → XBOX → RE → GC → PS2;
+  XBOX im Editor gespeichert → das Menü zeigt XBOX; nach Neustart der App weiter XBOX. Bilder:
+  `E:\Development\Android\builds\release-candidate\touch-styles-core\` (`sheet-editor-cycle.jpg`). Nicht geprüft: auf
+  einem Gerät; der Wechsel vom alten GC-Stil auf einem echten Altbestand (nur in `TouchStyleTest`).
 
 ## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
 

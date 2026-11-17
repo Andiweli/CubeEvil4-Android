@@ -9,7 +9,6 @@ import android.view.View;
 import com.ast.retrotouch.RetroTouchAdapter;
 import com.ast.retrotouch.RetroTouchButtonShape;
 import com.ast.retrotouch.RetroTouchButtonStyle;
-import com.ast.retrotouch.RetroTouchColors;
 import com.ast.retrotouch.RetroTouchControl;
 import com.ast.retrotouch.RetroTouchLayout;
 import com.ast.retrotouch.RetroTouchMode;
@@ -30,10 +29,10 @@ import java.util.Locale;
  * RetroTouch's gear at the top right opens its editor (move, resize, save the
  * layout); the game stands meanwhile. Everything here runs on the UI thread.
  *
- * Two button styles (RetroTouch 1.0.0-beta.10, wish of the project owner, 09.11.2026): LABELS, the
- * look of 0.99.6 and earlier, and ICONS (TouchStyle: icons, shapes, colours, the style a new player
- * gets). The player switches in the editor (its style button) or in the app menu (Controls -> Button
- * style); RetroTouch keeps the choice, the menu reads it from there (icons(), setIcons).
+ * Four skins (TouchStyle: RE, GC, PS2, XBOX; wish of the project owner, 17.11.2026; RetroTouch 1.0.0-beta.13's
+ * RetroTouchSkin): the editor's style button goes through them and shows their names, the app menu (Controls ->
+ * Button style) offers all four (look(), setLook); RetroTouch keeps the choice (button_skin_cubeevil4, in the player's
+ * backup). A player of the old GC style (RetroTouch's LABELS, 0.99.6 .. 1.0) gets the GC skin, a new player RE.
  */
 final class TouchControls implements CoreTouch.Host {
   interface Host {
@@ -51,6 +50,8 @@ final class TouchControls implements CoreTouch.Host {
 
   /** The key of the saved layout (RetroTouch keeps the player's layout under it). */
   static final String LAYOUT_ID = "cubeevil4";
+  /** RetroTouch's keys of the style (before skins) and of the skin chosen, in TouchLayoutFile.PREFS. */
+  static final String STYLE_KEY = "button_style_" + LAYOUT_ID, SKIN_KEY = "button_skin_" + LAYOUT_ID;
 
   private final RetroTouchView view;
   private final CoreTouch touch;
@@ -79,23 +80,26 @@ final class TouchControls implements CoreTouch.Host {
     view.setFocusable(false);
     // shown by the controllers present, not hidden for a while by their keys
     view.setAutoHideOnController(false);
-    // both styles; the editor shows its style button, the names in the phone's language (upper case as its other tools)
-    view.setAvailableButtonStyles(RetroTouchButtonStyle.LABELS, RetroTouchButtonStyle.ICONS);
+    // RE's style without skins (the base of the RE skin)
+    view.setAvailableButtonStyles(RetroTouchButtonStyle.ICONS);
     view.setDefaultButtonStyle(TouchStyle.DEFAULT_BUTTON_STYLE);
     // the move stick, the C stick, the aim and the knife stick in one layout (RetroTouch 1.0.0-beta.12; before it two)
     view.setMaxSticks(CoreTouch.MAX_STICKS);
-    Locale language = context.getResources().getConfiguration().locale;
-    view.setStyleToggleLabels(context.getString(R.string.ingame_button_labels).toUpperCase(language),
-        context.getString(R.string.ingame_button_icons).toUpperCase(language));
-    // the layout first: RetroTouch reads the player's saved style with it
+    // the actions with RE's labels and icons (every skin sets its own content on top), the C, aim and knife sticks as
+    // analog sticks of their own (RetroTouch's stick action)
+    for (int i = 0; i < CoreTouch.ACTIONS.length; i++) {
+      String action = CoreTouch.ACTIONS[i];
+      if (CoreTouch.isStick(action)) view.registerStickAction(action, CoreTouch.LABELS[i], null, TouchStyle.icon(action));
+      else view.registerAction(action, CoreTouch.LABELS[i], null, TouchStyle.icon(action));
+    }
+    view.setDefaultColors(TouchStyle.COLOURS);
+    registerSkins();
+    view.setDefaultSkin(TouchStyle.IDS[TouchStyle.DEFAULT_LOOK]);
+    // the old GC style becomes the GC skin (before the layout: RetroTouch reads the saved skin with it)
+    migrateOldGc(prefs());
     view.setGameplayLayout(layout(shoulder));
-    applyStyle(view.getButtonStyle());
-    Log.i(CoreActivity.TAG, "touch controls: button style " + view.getButtonStyle());
-    // the player switched in the editor (RetroTouch saved the choice)
-    view.setStyleListener(style -> {
-      applyStyle(style);
-      Log.i(CoreActivity.TAG, "touch controls: button style " + style + " (editor)");
-    });
+    Log.i(CoreActivity.TAG, "touch controls: skin " + view.getSkin());
+    view.setSkinListener(skin -> Log.i(CoreActivity.TAG, "touch controls: skin " + skin + " (editor)"));
     // L and R as wide as the screen has room for next to the gear (4:3); the layouts for the view's size (TouchFrame)
     view.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
       float aspect = TouchStyle.shoulderAspect(right - left, bottom - top, v.getResources().getDisplayMetrics().density);
@@ -163,52 +167,29 @@ final class TouchControls implements CoreTouch.Host {
   private abstract static class Listener extends RetroTouchAdapter
       implements RetroTouchStickListener, RetroTouchStickTouchListener {}
 
-  /**
-   * The look of a button style (TouchStyle): the actions' labels, icons and colours, the shapes of L, R,
-   * START and MENU and the colours of the D-pad and the sticks. LABELS as before: the GameCube's colours, the
-   * shapes RetroTouch chooses by the labels, its grey D-pad and sticks.
-   */
-  private void applyStyle(RetroTouchButtonStyle style) {
-    boolean icons = style == RetroTouchButtonStyle.ICONS;
-    for (int i = 0; i < CoreTouch.ACTIONS.length; i++) {
-      String action = CoreTouch.ACTIONS[i];
-      // the border of every button #3e3c29 (wish of the project owner, 03.11.2026; RetroTouch 1.0.0-beta.8)
-      RetroTouchColors colours = icons || CoreTouch.COLOURS[i] == 0 ? null
-          : RetroTouchColors.of(CoreTouch.COLOURS[i]).withBorderColor(CoreTouch.BORDER);
-      // the C, aim and knife sticks: analog sticks of their own (RetroTouch 1.0.0-beta.7's stick action), since
-      // 1.0.0-beta.12 with an icon in the ICONS style (the aim and knife sticks; the C stick keeps none)
-      if (CoreTouch.isStick(action)) view.registerStickAction(action, CoreTouch.LABELS[i], colours, TouchStyle.icon(action));
-      else view.registerAction(action, CoreTouch.LABELS[i], colours, TouchStyle.icon(action));
-      view.setButtonShape(action, icons ? TouchStyle.iconShape(action) : RetroTouchButtonShape.AUTO);
-    }
-    applyAspects(icons);
-    // ICONS: every button without colours of its own (all of them then), the D-pad and the sticks
-    view.setDefaultColors(icons ? TouchStyle.COLOURS : null);
+  /** The four skins for L's and R's width on this screen (the same IDs again: RetroTouch replaces them in place). */
+  private void registerSkins() {
+    for (com.ast.retrotouch.RetroTouchSkin skin : TouchStyle.skins(shoulder)) view.registerSkin(skin);
   }
 
   /**
-   * The width over height of every button of an action in the ICONS style (RetroTouch 1.0.0-beta.10 with
-   * setButtonAspect, the project owner's AAR of 10.11.2026): the buttons of the default layout keep their own
-   * (layout), the others of L, R, START and MENU (added with ADD in the editor, or given the action with
-   * ACTION) get the same; without it RetroTouch drew them 1:1, an L as a small rounded square. Taken back for
-   * LABELS (0: RetroTouch's 1:1), so the GC style draws as before.
+   * A player of the old GC style (RetroTouch's style LABELS, saved before skins) without a skin chosen yet: the GC skin
+   * (written before RetroTouch reads its key, or set at once when the layout is already loaded). True when it did.
    */
-  private void applyAspects(boolean icons) {
-    for (String action : CoreTouch.ACTIONS) {
-      float aspect = icons ? TouchStyle.aspect(action, shoulder) : 1f;
-      view.setButtonAspect(action, aspect == 1f ? 0f : aspect);
-    }
+  static boolean migrateOldGc(android.content.SharedPreferences p) {
+    if (p.contains(SKIN_KEY) || !"LABELS".equals(p.getString(STYLE_KEY, null))) return false;
+    p.edit().putString(SKIN_KEY, TouchStyle.IDS[TouchStyle.GC]).apply();
+    Log.i(CoreActivity.TAG, "touch controls: the old GC style becomes the GC skin");
+    return true;
   }
 
-  /** The button style shown is ICONS (the app menu's "Button style"). */
-  boolean icons() { return view.getButtonStyle() == RetroTouchButtonStyle.ICONS; }
+  /** The skin shown (TouchStyle.RE .. XBOX; the app menu's "Button style"). */
+  int look() { return TouchStyle.look(view.getSkin()); }
 
-  /** The app menu's "Button style": ICONS (on) or LABELS, at once; RetroTouch keeps the choice. */
-  void setIcons(boolean on) {
-    RetroTouchButtonStyle style = on ? RetroTouchButtonStyle.ICONS : RetroTouchButtonStyle.LABELS;
-    view.setButtonStyle(style);
-    applyStyle(style);
-    Log.i(CoreActivity.TAG, "touch controls: button style " + style + " (app menu)");
+  /** The app menu's "Button style": a skin at once (RetroTouch saves the choice). */
+  void setLook(int which) {
+    view.setSkin(TouchStyle.IDS[TouchStyle.valid(which)]);
+    Log.i(CoreActivity.TAG, "touch controls: skin " + view.getSkin() + " (app menu)");
   }
 
   /** The default layout again with L's and R's aspect for this screen (the saved layout read again with it). */
@@ -216,9 +197,9 @@ final class TouchControls implements CoreTouch.Host {
     reshape = false;
     frame();
     quietly(() -> view.setGameplayLayout(layout(shoulder, width, height, safe)));
-    applyAspects(icons());
+    registerSkins();
     touch.reset();
-    Log.i(CoreActivity.TAG, "touch controls: L and R " + shoulder + " times as wide as high in the icon style");
+    Log.i(CoreActivity.TAG, "touch controls: L and R " + shoulder + " times as wide as high (RE, GC)");
   }
 
   /**
@@ -282,8 +263,8 @@ final class TouchControls implements CoreTouch.Host {
   }
 
   /**
-   * The default layout. L, R, START and MENU carry their width over height for the ICONS style's shapes
-   * (applyStyle); RetroTouch's shapes by the labels (LABELS) do not use it. Shape and aspect are not part of
+   * The default layout. L, R, START and MENU carry their width over height (the skins' looks set their own), Z none
+   * (its skin's counts). Shape and aspect are not part of
    * a saved layout: RetroTouch takes them from here by the control's id at every load.
    */
   private static RetroTouchLayout layout(float shoulder) {
@@ -318,6 +299,10 @@ final class TouchControls implements CoreTouch.Host {
   void reloadSaved() {
     frame();
     quietly(() -> view.setGameplayLayout(layout(shoulder, width, height, safe)));
+    // the skin again too (a settings import brings the player's skin, or the style of a backup of before skins)
+    final android.content.SharedPreferences p = prefs();
+    migrateOldGc(p);
+    view.setSkin(p.getString(SKIN_KEY, TouchStyle.IDS[TouchStyle.DEFAULT_LOOK]));
     touch.reset();
     Log.i(CoreActivity.TAG, "touch controls: the saved layout read again (" + (shown ? "shown" : "hidden") + ")");
   }

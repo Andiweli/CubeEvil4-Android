@@ -163,7 +163,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,
   anti-aliasing, texture filter, sharper menu text, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, real-time shadows, FPS
   display, 60 FPS (experimental), Force Performance: Default or Use performance cores, Potato mode: weather and
-  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style RE or GC; comfort
+  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style RE, GC, PS2 or XBOX; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
   Latch L and R, Latch B, Auto aim, Always run; Controller Configuration), cheats (infinite health, infinite ammo,
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
@@ -200,9 +200,10 @@ controller is connected). In the inventory you can tap items, files and the map,
 right to change the tab. When a quick-time prompt flashes up (L+R, A+B, mash A …), a tap on it (or
 anywhere on the picture) presses its buttons; tap again and again to mash. The editor (gear) can
 add an **R3** button (graphics capture for error reports, as on a controller).
-Button style (app menu → Controls → Button style, or the style button in the editor): **RE**
-(the default: a symbol for what each button does, in dark brown and gold) or **GC** (the letters
-in the GameCube's colours, as before); the switch takes effect at once and keeps your layout.
+Button style (app menu → Controls → Button style, or the style button in the editor, which goes
+through all four): **RE** (the default: a symbol for what each button does, in dark brown and
+gold), **GC** (the GameCube's shapes and colours), **PS2** or **XBOX** (the buttons of those
+controllers); the switch takes effect at once and keeps your layout.
 
 **Comfort controls** (app menu → Controls)
 

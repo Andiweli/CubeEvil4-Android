@@ -211,5 +211,10 @@ dependencies {
     // (RetroTouchLayout.MAX_STICKS, RetroTouchView.setMaxSticks; the app allows 4: move, C, aim, knife), an icon for
     // added sticks (registerStickAction with a RetroTouchIcon) and RetroTouchStickTouchListener (onStickDown / onStickUp
     // on the listener, CoreTouch.stickDown / stickUp). The layout format (2) and its reader are as before; notices unchanged.
+    // Now 1.0.0-beta.13 (17.11.2026, the project owner's AAR, sha256 af38675f...db): skins (RetroTouchSkin, any number of
+    // named looks the editor's style button goes through; TouchStyle builds RE, GC, PS2 and XBOX), the shapes KIDNEY,
+    // BUMPER and TRIGGER with rotation, octagonal stick gates, icon colours apart from the label, filled and symbol
+    // icons, labels on stick knobs, a D-pad of four buttons and labels centred on their ink. Drop-in: the beta.12
+    // API and layout format 2 unchanged; notices unchanged (its own symbols and arrows are RetroTouch's, MIT).
     implementation files('libs/retrotouch.aar')
 }

@@ -86,7 +86,9 @@
     <string name="ingame_button_style">बटन शैली</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: हर बटन के काम के आइकन (डिफ़ॉल्ट); GC: GameCube के रंगीन अक्षर। एडिटर (ऊपर दाईं ओर गियर) में भी यही स्विच है।</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: हर बटन के काम के आइकन (डिफ़ॉल्ट)। GC, PS2 और XBOX: उन कंट्रोलरों के बटन। एडिटर (ऊपर दाईं ओर गियर) का शैली बटन चारों को बारी-बारी से बदलता है।</string>
     <string name="ingame_comfort">आसान नियंत्रण</string>
     <string name="ingame_gyro">जाइरो से निशाना लगाएँ</string>
     <string name="ingame_gyro_none">जाइरो से निशाना लगाएँ (जाइरोस्कोप नहीं है)</string>

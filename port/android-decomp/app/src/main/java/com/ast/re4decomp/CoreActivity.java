@@ -1038,9 +1038,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       touchControls.setMode(mode);
     }
 
-    @Override public boolean touchIcons() { return touchControls.icons(); }
+    @Override public int touchLook() { return touchControls.look(); }
 
-    @Override public void touchIconsChanged(boolean icons) { touchControls.setIcons(icons); }
+    @Override public void touchLookChanged(int look) { touchControls.setLook(look); }
 
     @Override public void gyroChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(GYRO_AIM, on).apply();
