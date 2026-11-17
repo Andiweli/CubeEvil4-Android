@@ -561,7 +561,10 @@ nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0237 (0240 g
 Am 17.11.2026 `origin/master` 17749902 hineingemischt (der Inhaber hat auf GitHub drei Zeilen in die README
 geschrieben, einen Hinweis auf einen Fork; Zeilen unverändert übernommen), damit `master` beim Release per
 Fast-Forward nachzieht. Am selben Abend `origin/touch-styles` da0e4ff8 hineingemischt (Touch-Stile RE, GC, PS2, XBOX
-mit RetroTouch 1.0.0-beta.13, Abschnitt 22).
+mit RetroTouch 1.0.0-beta.13, Abschnitt 22), danach e6d4e388 (GC-Skin grau, 249dc807). Am 18.11.2026 Echtzeit-Schatten
+Stufe 7 (`origin/realtime-shadows` 4653a5f2, Abschnitt „Stufe 7“ beim Branch `realtime-shadows` oben) per
+Fast-Forward übernommen; die Zeile „Real-time shadows“ im Releasetext um zwei Sätze ergänzt (nicht mehr zu dunkel
+unter Lampen, kein Flackern beim Drehen der Kamera, riesige Schatten einer Lampe direkt neben einer Figur blenden aus).
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
