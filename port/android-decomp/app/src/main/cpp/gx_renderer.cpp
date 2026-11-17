@@ -56,6 +56,7 @@ void GxRenderer::SetFlareHalos(bool on) { impl_->SetFlareHalos(on); }
 void GxRenderer::SetBloom(int level) { impl_->SetBloom(level); }
 void GxRenderer::SetShadows(int level) { impl_->SetShadows(level); }
 void GxRenderer::SetDofStrong(bool on) { impl_->SetDofStrong(on); }
+void GxRenderer::SetTexturePackKeep(unsigned groups) { impl_->SetTexturePackKeep(groups); }
 void GxRenderer::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes) {
   impl_->SetTexturePack(std::move(pack), firstLevel, budgetBytes);
 }

@@ -283,6 +283,10 @@ Ein Ersatzbild muss erst aus der Paketdatei gelesen werden. Je nach Stufe sind d
 - **„Sharper menu text“ (1.0.0, Entscheidung des Projektinhabers, 16.11.2026):** dieselben Wort-Bilder macht die App
   selbst schärfer, auch ohne Paket und in jeder Sprache (`word_sharpen.h`, Schalter im Grafik-Menü, an). Das Paket
   ersetzt sie weiter nicht; mit Paket sind die Wörter die Buchstaben des Spiels in scharf, alles andere HD.
+- **Kostüme und Waffen nach Wahl (1.0.0, Wunsch des Projektinhabers, 17.11.2026):** auf der Mods-Seite „Kostüme ·
+  Original“ und „Waffen · Original“ (Vorgabe: Texturpaket). Dann bleiben die Texturen der spielbaren Figuren bzw. der
+  Waffen original, alles andere kommt aus dem Paket (`tex_pack_groups.h`, aus den Modelldateien aller Discs). Texturen,
+  die dieselbe Figur oder Waffe auch in Zwischensequenzen oder beim Krauser-Kampf trägt, schalten mit um.
 - **Im PSone-Modus** bleiben die Originalbilder (der Modus will ja den groben Look). Meine Entscheidung; sag Bescheid,
   wenn du es anders willst.
 

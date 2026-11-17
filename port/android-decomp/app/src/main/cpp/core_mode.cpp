@@ -732,6 +732,8 @@ unsigned texPackLevel = 0;
 std::size_t texPackBudget = 256u << 20;
 std::atomic<unsigned> texPackReplaced{0}, texPackLooked{0};
 std::atomic<std::uint64_t> texPackBytes{0};
+// the Mods page's "Costumes" / "Weapons" at "Original" (CoreBridge.setTextureGroups; re4gx::TextureGroup bits)
+std::atomic<unsigned> texPackKeep{0};
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
@@ -2332,6 +2334,9 @@ bool drawGx() {
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
   {
+    // RE4_TEX_PACK_KEEP=<bits> wins over the Mods page (1 costumes, 2 weapons original)
+    static const char *keepEnv = getenv("RE4_TEX_PACK_KEEP");
+    gx->SetTexturePackKeep(keepEnv && *keepEnv ? static_cast<unsigned>(atoi(keepEnv)) : texPackKeep.load());
     std::lock_guard<std::mutex> lock(texPackLock);
     gx->SetTexturePack(texPack, texPackLevel, texPackBudget);
   }
@@ -3716,6 +3721,18 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_setTextur
     texPackBudget = static_cast<std::size_t>(std::max(16, std::min(4096, static_cast<int>(budgetMb)))) << 20;
   }
   return env->NewStringUTF(error.c_str());
+}
+
+// The Mods page's "Costumes" and "Weapons" (1.0.0, decision of the project owner, 17.11.2026): false keeps that
+// group's textures the game's own while a pack is on (GxRenderer::SetTexturePackKeep; at once, the textures are sent
+// again).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTextureGroups(JNIEnv *, jclass,
+                                                                                    jboolean costumesPack,
+                                                                                    jboolean weaponsPack) {
+  const unsigned keep = (costumesPack ? 0u : re4gx::kGroupCostumes) | (weaponsPack ? 0u : re4gx::kGroupWeapons);
+  if (texPackKeep.exchange(keep) != keep)
+    LOG("HD textures: costumes %s, weapons %s", costumesPack ? "texture pack" : "original",
+        weaponsPack ? "texture pack" : "original");
 }
 
 // what the renderer did with the HD textures so far: replaced, looked up, the replacements' bytes on the GPU now

@@ -1814,15 +1814,20 @@ final class CoreMenu extends Dialog {
 
   /** "Delete All Data" in a quiet red (the Benchmark button's way, in red). */
   private Button wipeButton() {
-    Button wipe = button(s(R.string.ingame_wipe), v -> askWipe());
+    Button wipe = quietRed(button(s(R.string.ingame_wipe), v -> askWipe()));
+    wipe.setEnabled(host != null);
+    return wipe;
+  }
+
+  /** The quiet red of "Delete All Data" (also "Delete texture pack", wish of the project owner, 17.11.2026). */
+  private Button quietRed(Button b) {
     StateListDrawable quiet = new StateListDrawable();
     quiet.addState(new int[] {android.R.attr.state_focused}, focused());
     quiet.addState(new int[] {android.R.attr.state_pressed}, shape(WIPE_RED, UPDATE_RED_EDGE, 6));
     quiet.addState(new int[0], shape(WIPE_RED, WIPE_RED_EDGE, 6));
-    wipe.setBackground(quiet);
-    wipe.setTextColor(FocusLook.text(ColorStateList.valueOf(WIPE_TEXT)));
-    wipe.setEnabled(host != null);
-    return wipe;
+    b.setBackground(quiet);
+    b.setTextColor(FocusLook.text(ColorStateList.valueOf(WIPE_TEXT)));
+    return b;
   }
 
   /**
@@ -1986,7 +1991,9 @@ final class CoreMenu extends Dialog {
     hdStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
     hdStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
     body.addView(hdStatus);
-    MenuLayout.Buttons first = cheatRow(2), second = cheatRow(2);
+    // the layout (wish of the project owner, 17.11.2026): left Import, Sharpness, Delete (in the quiet red of "Delete All
+    // Data"); right the switch and under it "Costumes" and "Weapons"
+    MenuLayout.Buttons first = cheatRow(2), second = cheatRow(2), third = cheatRow(2);
     hdImport = cellAction(first, s(TexturePacks.importing ? R.string.ingame_hd_cancel : R.string.ingame_hd_import), v -> {
       if (host == null) return;
       if (TexturePacks.importing) host.cancelTexturePackImport();
@@ -2007,12 +2014,33 @@ final class CoreMenu extends Dialog {
       main.postDelayed(this::refreshHd, 500);
     });
     valueLabel(sharpness, R.string.ingame_hd_sharpness, half ? R.string.ingame_hd_half : R.string.ingame_hd_full, half);
-    Button delete = cellAction(second, s(R.string.ingame_hd_delete), v -> askDeletePack());
+    // "Costumes" and "Weapons" (1.0.0, wish of the project owner, 17.11.2026): each press moves it between "Texture
+    // pack" (the default) and "Original", the playable characters' (or the weapons') own textures with a pack on
+    Button costumes = groupSwitch(second, R.string.ingame_hd_costumes, TexturePacks.COSTUMES);
+    Button delete = quietRed(cellAction(third, s(R.string.ingame_hd_delete), v -> askDeletePack()));
+    Button weapons = groupSwitch(third, R.string.ingame_hd_weapons, TexturePacks.WEAPONS);
     onOff.setEnabled(info != null);
     sharpness.setEnabled(info != null);
+    costumes.setEnabled(info != null);
+    weapons.setEnabled(info != null);
     delete.setEnabled(info != null && !TexturePacks.importing);
     if (TexturePacks.importing && host != null) host.textureListener(textureListener);
     help(R.string.ingame_hd_help);
+    help(R.string.ingame_hd_groups_help);
+  }
+
+  /** "Costumes" / "Weapons" on the Mods page: "Texture pack" (true, the default) or "Original", sent at once. */
+  private Button groupSwitch(MenuLayout.Buttons row, int label, String key) {
+    Button b = cellAction(row, "", v -> {
+      boolean pack = !graphics.getBoolean(key, true);
+      graphics.edit().putBoolean(key, pack).apply();
+      valueLabel((Button) v, label, pack ? R.string.ingame_hd_pack : R.string.ingame_hd_original, pack);
+      if (host != null) host.graphicsChanged();
+      main.postDelayed(this::refreshHd, 500);
+    });
+    boolean pack = graphics.getBoolean(key, true);
+    valueLabel(b, label, pack ? R.string.ingame_hd_pack : R.string.ingame_hd_original, pack);
+    return b;
   }
 
   /** The HD textures' line: the import's progress, the pack (and what the renderer replaced so far), or none. */

@@ -497,6 +497,11 @@
     <string name="ingame_hd_full">كاملة</string>
     <string name="ingame_hd_half">نصف</string>
     <string name="ingame_hd_delete">حذف حزمة الأنسجة</string>
+    <string name="ingame_hd_costumes">الأزياء</string>
+    <string name="ingame_hd_weapons">الأسلحة</string>
+    <string name="ingame_hd_pack">حزمة الأنسجة</string>
+    <string name="ingame_hd_original">الأصلي</string>
+    <string name="ingame_hd_groups_help">الأزياء والأسلحة: الأصلي يُبقي أنسجة اللعبة للشخصيات القابلة للعب (ليون، آشلي، آدا، هانك، كراوزر، ويسكر) أو للأسلحة، حتى مع حزمة الأنسجة.</string>
     <string name="ingame_hd_delete_yes">حذف</string>
     <string name="ingame_hd_none">الأنسجة عالية الدقة: لم تُستورد أي حزمة أنسجة.</string>
     <string name="ingame_hd_info">الأنسجة عالية الدقة: %1$s · %2$s صورة · %3$s · أُنشئت %4$s</string>

@@ -34,6 +34,8 @@ final class TexturePacks {
   private static final String TAG = "RE4Textures";
   static final String FOLDER = "textures", FILE = "pack.c4tex", PART = "pack.c4tex.part";
   static final String ON = "hdTextures", HALF = "hdHalf";
+  /** The Mods page's "Costumes" and "Weapons" (1.0.0): true the pack's textures (the default), false the game's own. */
+  static final String COSTUMES = "hdCostumes", WEAPONS = "hdWeapons";
   /** Free space kept besides the pack. */
   static final long RESERVE = 100L << 20;
   static final int HEADER = 128, ENTRY = 48, VERSION = 1;
@@ -176,6 +178,7 @@ final class TexturePacks {
   static void apply(Context c, SharedPreferences g) {
     File f = file(c);
     boolean on = g.getBoolean(ON, true) && f.isFile();
+    CoreBridge.setTextureGroups(g.getBoolean(COSTUMES, true), g.getBoolean(WEAPONS, true));
     String error = CoreBridge.setTexturePack(on ? f.getAbsolutePath() : "", g.getBoolean(HALF, false), budgetMb(c));
     if (error != null && !error.isEmpty()) Log.w(TAG, "the pack cannot be used: " + error);
   }

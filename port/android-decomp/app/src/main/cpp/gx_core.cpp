@@ -1320,6 +1320,15 @@ void GxCore::SetPsx(bool on) {
   if (texPack) SetTexturePack(texPack, texPackLevel, texPackBudget);
   UpdateWordSharpener();
 }
+void GxCore::SetTexturePackKeep(unsigned groups) {
+  if (groups == texPackKeep) return;
+  texPackKeep = groups;
+  // the game core sends its textures again: the groups as they should look now
+  if (texPackActive) {
+    DropTextures();
+    texturesDropped = true;
+  }
+}
 void GxCore::SetWordSharpen(bool on) {
   if (on == wordSharpenOn) return;
   wordSharpenOn = on;
@@ -3431,6 +3440,9 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   // Dolphin names a texture the game binds with mip levels with "_m"
   const TexKey k = DolphinKey(t.format, t.width, t.height, t.levels > 1, data, level0, palette, paletteBytes);
   const c4tex::Entry *e = texPack->Find(k);
+  // the Mods page's "Costumes · Original" / "Weapons · Original": that group's textures stay the game's own
+  if (e && texPackKeep && (TextureGroups(k) & texPackKeep))
+    e = nullptr;
   // RE4_TEX_PACK_LOG=1: every texture's Dolphin name, whether the pack has it; RE4_TEX_PACK_ONLY=<hex>: only this
   // replacement (tests: which one changes a picture)
   static const bool logKeys = std::getenv("RE4_TEX_PACK_LOG") && *std::getenv("RE4_TEX_PACK_LOG") == '1';

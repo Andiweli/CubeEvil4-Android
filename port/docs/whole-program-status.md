@@ -2307,6 +2307,25 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   GLES und Vulkan 0 Fehler (`TestWordSharpenParts`, `TestWordSharpen`: erst das eigene Bild, dann das schärfere, Reset,
   aus, 1×, PSone; Gegenprobe ohne Schärfen 7 Fehler); Android-Bau beider ABIs, App-Tests je 216 ohne Fehler. Nicht auf dem
   Gerät geprüft.
+- **Kostüme und Waffen auf der Mods-Seite (Wunsch des Projektinhabers 17.11.2026; Basis `release-candidate` c4334717):**
+  „Kostüme · Texturpaket/Original“ und „Waffen · Texturpaket/Original“ (Vorgabe Texturpaket): „Original“ behält mit
+  Paket die Texturen des Spiels für die spielbaren Figuren bzw. die Waffen. `tex_pack_groups.h` (239 Texturen: 188
+  Kostüme, 49 Waffen, 2 beides) aus den Modelldateien aller vier Disc-Arten: Kostüme `em/pl*.drs` der spielerseitigen
+  Figuren (Leon pl00/08/09/10 samt Jacke und Spezialkostüm, Ashley pl01/05/03/11/15/21, Ada pl0b/0c/02/12, HUNK pl06,
+  Krauser pl0a, Wesker pl0d) und `etc/pl010a.tpl`, `pl050a.tpl`; Waffen `em/wep*.drs` (in der Hand) und
+  `ss/Cmn/ss_wep*.dat` (im Koffer). Nicht dabei: Gegner, Saddler (pl04/07), Luis (pl14, Verbündeter, nicht spielbar),
+  pl0e/pl0f (Gegenstände). Geteilte Texturen schalten mit ihrer Gruppe um: 52 Kostüm- und 3 Waffen-Texturen kommen auch
+  in Zwischensequenzen vor (dieselben Figuren), 11 Kostüm- und 6 Waffen-Texturen auch in Gegner-Dateien (vor allem der
+  Krauser-Kampf em39 und zwei kleine Texturen von Leon/HUNK, die viele Gegner-Dateien enthalten), 1 Waffen-Textur in
+  Luis' Modell, 7 in Koffer-/Rätselbildern. Renderer: `TextureGroups`, `GxRenderer::SetTexturePackKeep`, eine Änderung
+  verwirft die Texturen (der Kern schickt sie neu): wirkt sofort, ohne Neustart. App: `TexturePacks.COSTUMES/WEAPONS`,
+  `CoreBridge.setTextureGroups`, `RE4_TEX_PACK_KEEP` (App und `gx_chunk_render`). Mods-Seite neu geordnet: links
+  Importieren, Schärfe, Löschen (im leisen Rot von „Alle Daten löschen“, Rückfrage wie bisher), rechts HD-Texturen,
+  Kostüme, Waffen; 5 Texte in 11 Sprachen. Geprüft am PC: beide auf Texturpaket = Bild für Bild wie `release-candidate`
+  (32 von 32 mit dem HD Project, 32 von 32 mit RE4 Ultimate 512); Dorf mit HD Project 71 → 63 (Kostüme Original) / 69
+  (Waffen Original) Ersetzungen, mit Ultimate 86 → 77 / 84; Bilder `builds\textures\pics\texture-toggles\`.
+  `gx_gl_check` GLES und Vulkan 0 Fehler (`TestHdGroups`; Gegenprobe ohne die Gruppen-Prüfung 3 Fehler), `ModsPageTest`
+  (Anordnung, Umschalten). Nicht auf dem Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 

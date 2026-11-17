@@ -298,6 +298,11 @@ public final class CoreBridge {
    */
   public static native void setSharperText(boolean on);
   /**
+   * The Mods page's "Costumes" and "Weapons" (1.0.0): false keeps the playable characters' (or the weapons') own
+   * textures while a texture pack is on; takes effect at once.
+   */
+  public static native void setTextureGroups(boolean costumesPack, boolean weaponsPack);
+  /**
    * CRT (0.99.9; 0 off, 1 light, 2 strong): the picture as a tube TV showed it (lines, a curved glass, a glow); only
    * what the game draws, not the touch controls nor the app's overlays.
    */

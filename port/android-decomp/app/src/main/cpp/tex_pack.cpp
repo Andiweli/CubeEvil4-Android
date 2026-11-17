@@ -1,6 +1,7 @@
 // HD texture packs (see tex_pack.h).
 #include "tex_pack.h"
 
+#include "tex_pack_groups.h"
 #include "tex_pack_words.h"
 
 #include <algorithm>
@@ -171,6 +172,11 @@ std::vector<KeptTexture> &TestWords() {
   static std::vector<KeptTexture> words;
   return words;
 }
+// gx_gl_check's group textures (AddTestGroupTexture); empty in the app
+std::vector<GroupTexture> &TestGroups() {
+  static std::vector<GroupTexture> groups;
+  return groups;
+}
 }  // namespace
 
 bool KeepsGameTexture(const TexKey &key) {
@@ -187,6 +193,24 @@ bool KeepsGameTexture(const TexKey &key) {
 void AddTestMenuWord(std::uint64_t tex, unsigned width, unsigned height, unsigned format) {
   TestWords().push_back({tex, static_cast<std::uint16_t>(width), static_cast<std::uint16_t>(height),
                          static_cast<std::uint8_t>(format)});
+}
+
+// the costumes' and weapons' textures (tex_pack_groups.h, sorted like kMenuWords): their groups, any palette
+unsigned TextureGroups(const TexKey &key) {
+  const auto *end = std::end(kGroupTextures);
+  auto it = std::lower_bound(std::begin(kGroupTextures), end, key.tex,
+                             [](const GroupTexture &g, std::uint64_t tex) { return g.tex < tex; });
+  unsigned groups = 0;
+  for (; it != end && it->tex == key.tex; ++it)
+    if (it->width == key.width && it->height == key.height && it->format == key.format) groups |= it->groups;
+  for (const GroupTexture &g : TestGroups())
+    if (g.tex == key.tex && g.width == key.width && g.height == key.height && g.format == key.format) groups |= g.groups;
+  return groups;
+}
+
+void AddTestGroupTexture(std::uint64_t tex, unsigned width, unsigned height, unsigned format, unsigned groups) {
+  TestGroups().push_back({tex, static_cast<std::uint16_t>(width), static_cast<std::uint16_t>(height),
+                          static_cast<std::uint8_t>(format), static_cast<std::uint8_t>(groups)});
 }
 
 bool IsTestMenuWordSize(unsigned format, unsigned width, unsigned height) {

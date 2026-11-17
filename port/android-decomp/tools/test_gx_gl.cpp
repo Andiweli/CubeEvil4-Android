@@ -27,6 +27,7 @@
 #include "c4tex.h"
 #include "etc2.h"
 #include "tex_pack.h"
+#include "tex_pack_groups.h"
 #include "tex_pack_words.h"
 #include "word_sharpen.h"
 #include "texture.h"
@@ -5547,6 +5548,102 @@ void TestHdBackground(re4gx::GxApi api, const char *name) {
   std::remove(path.c_str());
 }
 
+// The Mods page's "Costumes" and "Weapons" (1.0.0, GxRenderer::SetTexturePackKeep, tex_pack_groups.h): the list's own
+// entries say their groups; a 4x4 RGBA8 game texture, magenta, registered as a costume (AddTestGroupTexture), has a red
+// replacement in the pack. With nothing kept the replacement shows; "Costumes · Original" drops the textures (the game
+// core sends them again) and the game's own picture stays, nothing asked of the pack; "Weapons · Original" alone does
+// not touch it. GL looks at the pixels, Vulkan at the counts.
+void TestHdGroups(re4gx::GxApi api, const char *name) {
+  const std::string what = std::string("HD groups (") + name + "): ";
+  const bool gl = api == re4gx::GxApi::kGl;
+  if (gl) {
+    re4gx::TexKey k;
+    k.tex = re4gx::kGroupTextures[0].tex;
+    k.width = re4gx::kGroupTextures[0].width;
+    k.height = re4gx::kGroupTextures[0].height;
+    k.format = re4gx::kGroupTextures[0].format;
+    Check(re4gx::TextureGroups(k) == re4gx::kGroupTextures[0].groups, "HD groups: an entry of the list has its group");
+    k.format ^= 1;
+    Check(re4gx::TextureGroups(k) == 0, "HD groups: the same texels in another format belong to none");
+    bool sorted = true;
+    for (std::size_t i = 1; i < std::size(re4gx::kGroupTextures); i++) {
+      const re4gx::GroupTexture &a = re4gx::kGroupTextures[i - 1], &b = re4gx::kGroupTextures[i];
+      sorted &= std::tie(a.tex, a.width, a.height, a.format) < std::tie(b.tex, b.width, b.height, b.format);
+    }
+    Check(sorted, "HD groups: the list is sorted, no texture twice");
+  }
+  std::vector<std::uint8_t> game(64);
+  for (int i = 0; i < 16; i++) {
+    game[i * 2] = 255, game[i * 2 + 1] = 255;       // A, R
+    game[32 + i * 2] = 0, game[32 + i * 2 + 1] = 255;  // G, B: magenta
+  }
+  re4gx::TexKey key;
+  const std::string path = MakeHdPack(game, 6, 4, 4, 255, 0, 0, &key);
+  re4gx::AddTestGroupTexture(key.tex, 4, 4, 6, re4gx::kGroupCostumes);
+  auto pack = std::make_shared<re4gx::TexPack>();
+  std::string error;
+  Require(pack->Open(path, &error), ("HD groups: the test pack opens: " + error).c_str());
+  {
+    re4gx::GxRenderer r(api);
+    Require(r.Init(1, &error), error.c_str());
+    r.SetTexturePack(pack, 0, 64u << 20);
+    r.TakeTexturesDropped();
+    auto run = [&](bool reset, bool withData) {
+      Builder b;
+      Baseline(b);
+      if (!reset)
+        b.flags = 0;
+      DisplayCopy(b, true, kBlack);
+      b.Bp(0x00, 1u | 1u << 4);
+      b.Xf(0x103F, {1});
+      b.Xf(0x1040, {5u << 7});
+      b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+      b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);  // colour = texture
+      b.Bp(0x80, 0);
+      b.Bp(0x84, 0);
+      b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+      b.Bp(0x30, 3);
+      b.Bp(0x31, 3);
+      b.Texture(0, 0x6789, 0, 0x100000, 4, 4, 6, withData ? game : std::vector<std::uint8_t>{});
+      std::vector<std::uint8_t> v;
+      VT(v, 100, 100, 0, kWhite, 0, 0);
+      VT(v, 164, 100, 0, kWhite, 1, 0);
+      VT(v, 164, 164, 0, kWhite, 1, 1);
+      VT(v, 100, 164, 0, kWhite, 0, 1);
+      b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+      r.Run(b.Chunk());
+    };
+    auto settle = [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); };
+    auto show = [&] {
+      run(true, true);
+      settle();
+      run(false, false);
+    };
+    show();
+    Check(r.Stats().hdSwapped == 1, (what + "nothing kept: the pack's replacement").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "red from the pack").c_str());
+    r.SetTexturePackKeep(re4gx::kGroupCostumes);
+    Check(r.TakeTexturesDropped(), (what + "Costumes Original drops the textures: the game core sends them again").c_str());
+    show();
+    Check(r.Stats().hdQueued == 1 && r.Stats().hdSwapped == 1,
+          (what + "Costumes Original: nothing asked of the pack").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 255, 8), (what + "the game's own picture (magenta)").c_str());
+    r.SetTexturePackKeep(re4gx::kGroupWeapons);
+    Check(r.TakeTexturesDropped(), (what + "Weapons Original drops the textures too").c_str());
+    show();
+    Check(r.Stats().hdQueued == 2 && r.Stats().hdSwapped == 2,
+          (what + "Weapons Original alone: the costume replaced again").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "red again").c_str());
+    r.SetTexturePackKeep(re4gx::kGroupWeapons);
+    Check(!r.TakeTexturesDropped(), (what + "the same setting again drops nothing").c_str());
+    r.Release();
+  }
+  std::remove(path.c_str());
+}
+
 int main() {
   // the rules alone, without a GPU (RE4_CHECK_RULES=1: Dynamic and the benchmark's steps, quick to run)
   if (const char *rules = std::getenv("RE4_CHECK_RULES")) {
@@ -5596,10 +5693,12 @@ int main() {
   TestHdKeptWords();
   TestWordSharpenParts();
   TestHdBackground(re4gx::GxApi::kGl, "GL");
+  TestHdGroups(re4gx::GxApi::kGl, "GL");
   TestWordSharpen(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN
   if (VulkanStarts()) {
     TestHdBackground(re4gx::GxApi::kVulkan, "Vulkan");
+    TestHdGroups(re4gx::GxApi::kVulkan, "Vulkan");
     TestWordSharpen(re4gx::GxApi::kVulkan, "Vulkan");
     TestVkRescale();
     TestVkHandOverCopies();

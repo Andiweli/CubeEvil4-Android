@@ -476,6 +476,11 @@
     <string name="ingame_hd_full">Penuh</string>
     <string name="ingame_hd_half">Setengah</string>
     <string name="ingame_hd_delete">Hapus paket tekstur</string>
+    <string name="ingame_hd_costumes">Kostum</string>
+    <string name="ingame_hd_weapons">Senjata</string>
+    <string name="ingame_hd_pack">Paket tekstur</string>
+    <string name="ingame_hd_original">Asli</string>
+    <string name="ingame_hd_groups_help">Kostum dan Senjata: Asli mempertahankan tekstur bawaan game untuk karakter yang dapat dimainkan (Leon, Ashley, Ada, HUNK, Krauser, Wesker) atau untuk senjata, meski dengan paket tekstur.</string>
     <string name="ingame_hd_delete_yes">Hapus</string>
     <string name="ingame_hd_none">Tekstur HD: belum ada paket tekstur yang diimpor.</string>
     <string name="ingame_hd_info">Tekstur HD: %1$s · %2$s gambar · %3$s · dibuat %4$s</string>

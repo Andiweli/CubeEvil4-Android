@@ -480,6 +480,11 @@
     <string name="ingame_hd_full">Voll</string>
     <string name="ingame_hd_half">Halb</string>
     <string name="ingame_hd_delete">Texturpaket löschen</string>
+    <string name="ingame_hd_costumes">Kostüme</string>
+    <string name="ingame_hd_weapons">Waffen</string>
+    <string name="ingame_hd_pack">Texturpaket</string>
+    <string name="ingame_hd_original">Original</string>
+    <string name="ingame_hd_groups_help">Kostüme und Waffen: Original behält die Texturen des Spiels für die spielbaren Figuren (Leon, Ashley, Ada, HUNK, Krauser, Wesker) oder für die Waffen, auch mit Texturpaket.</string>
     <string name="ingame_hd_delete_yes">Löschen</string>
     <string name="ingame_hd_none">HD-Texturen: kein Texturpaket importiert.</string>
     <string name="ingame_hd_info">HD-Texturen: %1$s · %2$s Bilder · %3$s · erstellt %4$s</string>
