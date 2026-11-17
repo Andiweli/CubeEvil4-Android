@@ -165,7 +165,11 @@ public class TouchStyleTest {
     assertEquals(TouchStyle.GC_PURPLE, gc.getLook(CoreTouch.Z).getColors());
     assertEquals(TouchStyle.GC_YELLOW, gc.getLook(CoreTouch.C_STICK).getColors());
     assertEquals("C", gc.getLook(CoreTouch.C_STICK).getLabel());
-    assertEquals(TouchStyle.GC_PURPLE, gc.getDpadColors());
+    // the D-pad, START and MENU grey (the project owner, 17.11.2026), the sticks purple
+    assertEquals(TouchStyle.GC_GREY, gc.getDpadColors());
+    assertEquals(TouchStyle.GC_GREY, gc.getLook(CoreTouch.START).getColors());
+    assertEquals(TouchStyle.GC_GREY, gc.getLook(CoreTouch.MENU).getColors());
+    assertEquals(TouchStyle.GC_PURPLE, gc.getDefaultColors());
   }
 
   @Test public void ps2Skin() {

@@ -13,7 +13,7 @@ import com.ast.retrotouch.RetroTouchStickGate;
  * The four skins of the touch controls, all in one place (wish of the project owner, 17.11.2026; RetroTouch
  * 1.0.0-beta.13, the owner's reference picture builds\retrotouch-styles\owner-reference-beta13.png): RE (symbols for
  * what each button does, the default since 0.99.7), GC (the GameCube's buttons: bumpers L and R, beans X and Y, a
- * purple Z, D-pad and START, a yellow C stick, octagonal gates; it replaces the GC style of 0.99.6 .. 1.0, RetroTouch's
+ * purple Z, a grey D-pad, START and MENU, a yellow C stick, octagonal gates; it replaces the GC style of 0.99.6 .. 1.0, RetroTouch's
  * LABELS), PS2 (black buttons, the four symbols in their colours, L2/R2 triggers, R1 bumper, a D-pad of four buttons)
  * and XBOX (dark buttons with coloured letters, LT/RT triggers, RB bumper). Mapped as CoreInput maps a controller and
  * as the HD texture packs' button sets: Z = R1/RB, L = L2/LT, R = R2/RT, MENU = SELECT/View, the C stick the right stick.
@@ -183,13 +183,16 @@ final class TouchStyle {
         .setLook(CoreTouch.MENU, capsule(look()));
   }
 
-  /** GC: the GameCube's buttons. */
+  /**
+   * GC: the GameCube's buttons; the D-pad, START and MENU grey like L, R, X and Y (the project owner, 17.11.2026),
+   * Z and the sticks purple.
+   */
   static RetroTouchSkin gc(float shoulder) {
     RetroTouchLook bumper = look().withShape(RetroTouchButtonShape.BUMPER).withAspect(shoulder).withColors(GC_GREY);
     RetroTouchLook bean = look().withShape(RetroTouchButtonShape.KIDNEY).withAspect(KIDNEY_ASPECT).withColors(GC_GREY);
     return new RetroTouchSkin(IDS[GC], NAMES[GC], RetroTouchButtonStyle.LABELS)
         .setDefaultColors(GC_PURPLE)
-        .setDpadColors(GC_PURPLE)
+        .setDpadColors(GC_GREY)
         .setStickGate(RetroTouchStickGate.OCTAGON)
         .setLook(CoreTouch.A, label("A", GC_GREEN))
         .setLook(CoreTouch.B, label("B", GC_RED))
@@ -199,8 +202,8 @@ final class TouchStyle {
             .withAspect(Z_ASPECT))
         .setLook(CoreTouch.L, bumper.withLabel("L"))
         .setLook(CoreTouch.R, bumper.withLabel("R"))
-        .setLook(CoreTouch.START, capsule(look().withLabel("START").withColors(GC_PURPLE)))
-        .setLook(CoreTouch.MENU, capsule(look().withIcon(RetroTouchIcon.MENU).withColors(GC_PURPLE)))
+        .setLook(CoreTouch.START, capsule(look().withLabel("START").withColors(GC_GREY)))
+        .setLook(CoreTouch.MENU, capsule(look().withIcon(RetroTouchIcon.MENU).withColors(GC_GREY)))
         .setLook(CoreTouch.R3, label("R3", GC_GREY))
         .setLook(CoreTouch.ZOOM_IN, icon(PLUS, GC_GREY))
         .setLook(CoreTouch.ZOOM_OUT, icon(MINUS, GC_GREY))

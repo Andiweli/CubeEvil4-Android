@@ -1193,6 +1193,9 @@ Inhabers (`owner-reference-beta13.png`) und Bilder der echten App: `E:\Developme
   Skins im Spiel und im Editor, Zusatztasten in allen vier, Wechsel per Editor-Knopf.
 - **Nicht geprüft:** auf einem Gerät; das App-Menü im Emulator (öffnet ohne Kern nicht; Menübild aus
   `CoreMenuShotTest` beim ersten Stand).
+- **Nachtrag (Rückmeldung des Inhabers zum GC-Skin, 17.11.2026 abends):** Steuerkreuz, START und Menü-Taste grau wie
+  L/R/X/Y statt lila; Z und die Sticks bleiben lila. Pfeile und Beschriftung lesbar und höchstens 1 px neben der Mitte
+  (Emulator, 2400×1080); App-Tests 226 je Variante. Bilder `app-*-GC.png`, `5-zusatz-GC.png`, `6-editor-zusatz-GC.png`.
 - **In `release-candidate`** (17.11.2026, Merge von da0e4ff8, ohne Konflikt): Releasetext v1.0.0 eine Zeile unter
   New (die Stile) und eine unter Changed (RetroTouch 1.0.0-beta.13), README (App-Menü-Liste und Abschnitt Touch
   controls: vier Stile). Geprüft: App-Tests 226 je Variante (core, classic, sideload; 0 Fehler);
