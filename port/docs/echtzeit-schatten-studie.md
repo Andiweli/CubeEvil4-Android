@@ -86,6 +86,12 @@ Versuch gab es nur im PC-Zeichenwerkzeug `gx_chunk_render`, in einem eigenen WSL
 >   ist kein Punkt.
 > - Stand und Prüfungen: `port/docs/whole-program-status.md`, Stufe 7. Bilder:
 >   `E:\Development\Android\builds\realtime-shadows\stage7\`.
+>
+> **Nachtrag 18.11.2026, Stufe 8: kein Schatten von unten.** Gerätetest des Inhabers in r10e: Leons Schatten lag
+> umgedreht an Wänden und neben der Leiter. Ursache: parallele Fülllichter des Spiels, die von unten scheinen. Ein
+> paralleles Licht wirft jetzt nur, wenn es von oben kommt (mindestens etwa 14° über dem Horizont); betroffen waren
+> neun Räume. Stand und Prüfungen: `port/docs/whole-program-status.md`, Stufe 8. Bilder:
+> `E:\Development\Android\builds\realtime-shadows\stage8\`.
 
 ---
 
