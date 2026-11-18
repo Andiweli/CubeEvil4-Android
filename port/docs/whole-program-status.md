@@ -637,6 +637,20 @@ vorher mit `RE4_CHEATS=512` s33, s34, s35, s40 „hidden“ und nie wieder gezei
 ihn zu; 53 m vom Wächter s40 entfernt verschwindet s40 wie im Spiel; ohne Cheat Zeile für Zeile wie vorher. Rundgang
 `--rooms set` mit `RE4_CHEATS=513` (Unsichtbarkeit und Leben): 27 von 27 Räumen ohne Fehler. Nicht geprüft: auf einem
 Gerät, die ARM-Kerne (baut der Inhaber mit `whole_build_android.sh`), EU- und US-Discs.
+Am 18.11.2026 spät die Lizenz für 1.0.0 (Entscheidung des Projektinhabers über die Hauptsitzung: „GPL-3.0 mit
+Ausnahme“; nur Text, kein Code): Der eigene Code und die Dokumente des Ports in `port/` stehen ab 1.0.0 unter der
+GPL-3.0-or-later mit einer zusätzlichen Erlaubnis nach Abschnitt 7 (verbinden und weitergeben mit dem Spielcode
+`src/`, `include/` und dem SDK/CRI-Code `src/lib/`, auch gepatcht, ohne dass diese Teile unter die GPL fallen).
+`port/LICENSE`: Kopf (Umfang, Ausnahmen, Copyright „Andiweli“) und der GPL-Text, unverändert von gnu.org
+(gpl-3.0.txt, sha256 3972dc97…6986). Neu im Wurzelordner `LICENSE-GPL`: nur der GPL-Text, damit GitHub die Lizenz
+erkennen kann. Die Wurzel-`LICENSE` behält den CC0-Text für die Teile des Upstream-Projekts (configure.py, tools/,
+config/, docs/), oben eine kurze Übersicht. Nicht unter der GPL: der Spielcode, SDK und CRI, Spieldaten, Code
+anderer in `port/` (third_party, Gradle Wrapper, Lucide) und RetroTouch (MIT, verträgt sich mit der GPL, darum nicht
+in der Ausnahme; die Zeile in `app/build.gradle` unverändert). Was `port/android-decomp/LICENSE-PLATFORM.txt` unter
+MIT gestellt hat, bleibt auch unter MIT, die Datei unverändert. Versionen bis 0.99.18-rc bleiben CC0. README:
+Abschnitt „License“ mit Tabelle, der Punkt „Our own work“ unter „Legal“ angepasst; Releasetext eine Zeile unter
+Changed. Die App zeigt keinen Lizenztext, darum keine neuen Texte. Der Branch `ouya-discarded` ist unberührt; er
+bekommt die Lizenz, wenn 1.0.0 dort hineingemischt wird.
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst

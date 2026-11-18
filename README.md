@@ -374,6 +374,22 @@ purpose. Constants use the PS2 build's enums. `docs/naming.md` has the details.
 See `CONTRIBUTING.md` for the build, the three checks a change has to pass and the rules. The main rule
 is that the output bytes never change.
 
+## License
+
+| What | Whose | License |
+|---|---|---|
+| The Android port CubeEvil4 in `port/`: the app, the renderer, the runtime, the patches, the Texture Packer, the tools and the documents | Andiweli | GPL-3.0-or-later, with an additional permission for the game code: [port/LICENSE](port/LICENSE) |
+| The decompilation's own tools, configuration and documentation (`configure.py`, `tools/`, `config/`, `docs/`) | the decompilation's authors | CC0 1.0: [LICENSE](LICENSE) |
+| The game code (`src/`, `include/`) | Capcom | none of these: Capcom's property |
+| The GameCube SDK and the CRI middleware (`src/lib/`) | Nintendo, CRI Middleware | none of these: their property |
+| Libraries and icons from others in `port/` (RetroTouch, zstd, glslang, Boost.Context, Lucide) | their authors | their own licenses (RetroTouch: MIT), see their notices |
+| Game data | Capcom | not included: you need your own copy of the game |
+
+The license covers only this project's own code. It does not cover Capcom's game, which you must
+own. In short: whoever shares a modified build of CubeEvil4 must share its source code too, under
+the same license; the additional permission lets that build contain the game code. CubeEvil4
+releases up to 0.99.18-rc were published under CC0 1.0 and stay so.
+
 ## Legal
 
 - **Unofficial fan project.** CubeEvil4 is a non-commercial fan project. It is not affiliated with,
@@ -395,8 +411,9 @@ is that the output bytes never change.
   and the CubeEvil4 Texture Packer only read packs you converted yourself from material you obtained
   yourself, as in Dolphin. Texture packs are the work of their authors; they are not part of this project.
 - **No warranty.** The app is provided "as is", without any warranty. Use it at your own risk.
-- **Our own work.** The build scripts, tools, Android app shell, configuration and documentation
-  written for this project are released under CC0, see `LICENSE`. This does not extend to any
-  Capcom, Nintendo or CRI material.
+- **Our own work.** The Android port's own code and documents in `port/` are released under the
+  GPL-3.0-or-later with an additional permission for the game code (`port/LICENSE`); the
+  decompilation's own build scripts, tools, configuration and documentation are released under CC0
+  (`LICENSE`). Neither extends to any Capcom, Nintendo or CRI material.
 - **Rights holders.** If you represent Capcom, Nintendo or CRI Middleware and have concerns about this
   project, please open an issue or contact the maintainer; we will respond promptly.
