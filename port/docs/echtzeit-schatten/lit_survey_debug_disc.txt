@@ -1,0 +1,174 @@
+r100.das cuts 16 | foot-shadow lights 16 t1(21,324)c225 t1(21,324)c225 t1(21,324)c225 t1(21,324)c225 t1(21,324)c225 t1(21,324)c225 t1(21,324)c225 t1(21,324)c225 | cast 0 | shadow-texture lights 2 | parallel world 31 camera 30 | point 45 spot 36
+r101.das cuts 20 | foot-shadow lights 20 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 | cast 0 | shadow-texture lights 0 | parallel world 60 camera 42 | point 20 spot 40
+r102.das cuts 5 | foot-shadow lights 5 t1(32,12)c255 t1(32,12)c255 t1(32,12)c255 t1(32,12)c255 t1(32,12)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 5 | point 105 spot 35
+r103.das cuts 12 | foot-shadow lights 12 t1(28,297)c177 t1(28,297)c177 t1(28,297)c177 t1(28,297)c177 t1(28,297)c177 t1(28,297)c177 t1(28,297)c177 t1(28,297)c177 | cast 0 | shadow-texture lights 0 | parallel world 36 camera 12 | point 24 spot 48
+r104.das cuts 15 | foot-shadow lights 13 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 t1(357,0)c135 | cast 0 | shadow-texture lights 0 | parallel world 105 camera 30 | point 3 spot 33
+r105.das cuts 16 | foot-shadow lights 16 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 t1(0,0)c198 | cast 0 | shadow-texture lights 0 | parallel world 32 camera 16 | point 132 spot 128
+r106.das cuts 8 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 13 camera 9 | point 1 spot 30
+r107.das cuts 16 | foot-shadow lights 11 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 80 camera 0 | point 34 spot 48
+r108.das cuts 12 | foot-shadow lights 12 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 | cast 0 | shadow-texture lights 0 | parallel world 24 camera 0 | point 169 spot 36
+r109.das cuts 3 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 3 camera 3 | point 13 spot 18
+r10a.das cuts 8 | foot-shadow lights 8 t1(6,27)c125 t1(6,27)c125 t1(6,27)c125 t1(6,27)c125 t1(6,27)c125 t1(6,27)c125 t1(6,27)c125 t1(6,27)c125 | cast 0 | shadow-texture lights 0 | parallel world 40 camera 8 | point 24 spot 8
+r10b.das cuts 6 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 12 camera 12 | point 37 spot 0
+r10c.das cuts 16 | foot-shadow lights 16 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 t1(3,13)c118 | cast 0 | shadow-texture lights 0 | parallel world 3 camera 32 | point 75 spot 155
+r10d.das cuts 2 | foot-shadow lights 2 t1(0,0)c249 t1(0,0)c249 | cast 0 | shadow-texture lights 0 | parallel world 2 camera 0 | point 8 spot 10
+r10e.das cuts 4 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 4 camera 0 | point 28 spot 34
+r10f.das cuts 18 | foot-shadow lights 3 t1(9,16)c152 t1(9,16)c152 t1(9,16)c152 | cast 0 | shadow-texture lights 0 | parallel world 18 camera 32 | point 224 spot 33
+r111.das cuts 12 | foot-shadow lights 12 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 | cast 0 | shadow-texture lights 0 | parallel world 12 camera 36 | point 146 spot 25
+r112.das cuts 2 | foot-shadow lights 2 t1(32,12)c255 t1(32,12)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 2 | point 25 spot 15
+r113.das cuts 14 | foot-shadow lights 28 t1(34,57)c199 t1(5,16)c120 t1(34,57)c199 t1(5,16)c120 t1(34,57)c199 t1(5,16)c120 t1(34,57)c199 t1(5,16)c120 t1(34,57)c199 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 56 | point 148 spot 28
+r117.das cuts 10 | foot-shadow lights 3 t1(0,0)c188 t1(0,0)c188 t1(0,0)c188 | cast 0 | shadow-texture lights 0 | parallel world 39 camera 4 | point 57 spot 85
+r118.das cuts 12 | foot-shadow lights 12 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 t1(41,23)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 36 | point 193 spot 49
+r119.das cuts 2 | foot-shadow lights 1 t0(0,0)c195 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 3 | point 24 spot 3
+r11a.das cuts 5 | foot-shadow lights 5 t1(12,9)c175 t1(12,9)c175 t1(12,9)c175 t1(12,9)c175 t1(12,9)c175 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 10 | point 50 spot 25
+r11b.das cuts 8 | foot-shadow lights 6 t1(24,0)c128 t1(24,0)c128 t1(24,0)c128 t1(24,0)c128 t1(24,0)c128 t1(24,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 13 | point 114 spot 18
+r11c.das cuts 8 | foot-shadow lights 8 t1(352,224)c255 t1(352,224)c255 t1(352,224)c255 t1(352,224)c255 t1(352,224)c255 t1(352,224)c255 t1(352,224)c255 t1(352,224)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 24 | point 110 spot 40
+r11d.das cuts 11 | foot-shadow lights 11 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 t1(2,0)c207 | cast 0 | shadow-texture lights 0 | parallel world 14 camera 11 | point 32 spot 90
+r11e.das cuts 5 | foot-shadow lights 5 t1(0,0)c188 t1(0,0)c188 t1(0,0)c188 t1(0,0)c188 t1(0,0)c188 | cast 0 | shadow-texture lights 0 | parallel world 25 camera 12 | point 47 spot 9
+r11f.das cuts 11 | foot-shadow lights 9 t1(35,324)c213 t0(50,39)c181 t0(50,39)c181 t0(50,39)c181 t1(35,324)c213 t0(50,39)c181 t0(50,39)c181 t0(50,39)c181 t1(35,324)c213 | cast 0 | shadow-texture lights 0 | parallel world 8 camera 26 | point 44 spot 32
+r120.das cuts 4 | foot-shadow lights 0 | cast 0 | shadow-texture lights 4 | parallel world 5 camera 0 | point 0 spot 3
+r200.das cuts 7 | foot-shadow lights 6 t1(14,246)c148 t1(14,246)c148 t1(14,246)c148 t1(9,6)c128 t1(9,6)c128 t1(14,246)c148 | cast 0 | shadow-texture lights 0 | parallel world 7 camera 9 | point 44 spot 27
+r201.das cuts 15 | foot-shadow lights 15 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 t1(25,52)c130 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 30 | point 420 spot 60
+r202.das cuts 8 | foot-shadow lights 8 t1(0,0)c132 t1(0,0)c132 t1(0,0)c132 t1(0,0)c132 t1(0,0)c132 t1(0,0)c132 t1(0,0)c132 t1(0,0)c132 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 16 | point 120 spot 88
+r203.das cuts 6 | foot-shadow lights 6 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 18 | point 114 spot 12
+r204.das cuts 19 | foot-shadow lights 18 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 t1(26,49)c134 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 19 | point 456 spot 209
+r205.das cuts 16 | foot-shadow lights 7 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 15 | point 796 spot 62
+r206.das cuts 9 | foot-shadow lights 9 t1(348,14)c117 t1(348,14)c117 t1(348,14)c117 t1(348,14)c117 t1(348,14)c117 t1(348,14)c117 t1(348,14)c117 t1(348,14)c117 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 18 | point 162 spot 9
+r207.das cuts 8 | foot-shadow lights 8 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 t1(24,22)c146 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 16 | point 56 spot 0
+r208.das cuts 18 | foot-shadow lights 18 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 t1(0,0)c185 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 72 | point 396 spot 162
+r209.das cuts 1 | foot-shadow lights 1 t1(25,8)c185 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 2 | point 34 spot 7
+r20a.das cuts 8 | foot-shadow lights 8 t1(0,0)c254 t1(0,0)c254 t1(0,0)c254 t1(0,0)c254 t1(0,0)c254 t1(0,0)c254 t1(0,0)c254 t1(0,0)c254 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 24 | point 88 spot 98
+r20b.das cuts 12 | foot-shadow lights 1 t1(0,0)c122 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 12 | point 152 spot 35
+r20c.das cuts 11 | foot-shadow lights 11 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 | cast 0 | shadow-texture lights 0 | parallel world 11 camera 11 | point 123 spot 33
+r20d.das cuts 64 | foot-shadow lights 59 t1(42,348)c188 t1(42,348)c188 t1(42,348)c188 t1(42,348)c188 t1(42,348)c188 t1(42,348)c188 t1(42,348)c188 t1(42,348)c122 | cast 0 | shadow-texture lights 0 | parallel world 2 camera 132 | point 1494 spot 583
+r20e.das cuts 43 | foot-shadow lights 42 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 t1(51,10)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 66 | point 394 spot 123
+r20f.das cuts 9 | foot-shadow lights 9 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 18 | point 81 spot 45
+r210.das cuts 8 | foot-shadow lights 8 t1(0,0)c150 t1(0,0)c150 t1(0,0)c150 t1(0,0)c150 t1(0,0)c150 t1(0,0)c150 t1(0,0)c150 t1(0,0)c150 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 8 | point 154 spot 8
+r211.das cuts 11 | foot-shadow lights 4 t1(35,74)c128 t1(35,74)c128 t1(35,74)c128 t1(35,74)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 25 | point 165 spot 154
+r212.das cuts 10 | foot-shadow lights 5 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 30 | point 163 spot 20
+r213.das cuts 12 | foot-shadow lights 12 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 27 | point 132 spot 84
+r214.das cuts 13 | foot-shadow lights 10 t1(348,134)c128 t1(348,134)c128 t1(348,134)c128 t1(348,134)c128 t1(348,134)c128 t1(348,134)c128 t1(348,134)c128 t1(348,134)c186 | cast 0 | shadow-texture lights 0 | parallel world 12 camera 2 | point 242 spot 190
+r215.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 1 | point 27 spot 0
+r216.das cuts 14 | foot-shadow lights 14 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 t1(0,0)c167 | cast 14 | shadow-texture lights 0 | parallel world 0 camera 28 | point 324 spot 70
+r217.das cuts 11 | foot-shadow lights 5 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 22 camera 0 | point 176 spot 44
+r218.das cuts 4 | foot-shadow lights 4 t1(12,5)c255 t1(12,5)c255 t1(12,5)c255 t1(12,5)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 4 | point 60 spot 0
+r219.das cuts 6 | foot-shadow lights 6 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 t1(0,0)c255 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 12 | point 60 spot 6
+r21a.das cuts 10 | foot-shadow lights 10 t1(22,205)c149 t1(22,205)c149 t1(22,205)c149 t1(22,205)c149 t1(22,205)c149 t1(22,205)c149 t1(22,205)c149 t1(22,205)c149 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 10 | point 180 spot 20
+r21b.das cuts 2 | foot-shadow lights 2 t1(351,0)c167 t1(351,0)c167 | cast 0 | shadow-texture lights 0 | parallel world 12 camera 2 | point 51 spot 26
+r21d.das cuts 28 | foot-shadow lights 28 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 t1(23,20)c195 | cast 56 | shadow-texture lights 0 | parallel world 0 camera 84 | point 504 spot 476
+r220.das cuts 2 | foot-shadow lights 1 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 2 | point 6 spot 4
+r221.das cuts 10 | foot-shadow lights 9 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 t1(10,63)c195 | cast 1 | shadow-texture lights 0 | parallel world 1 camera 19 | point 84 spot 128
+r222.das cuts 16 | foot-shadow lights 16 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 t0(0,0)c195 | cast 0 | shadow-texture lights 0 | parallel world 48 camera 96 | point 208 spot 64
+r223.das cuts 21 | foot-shadow lights 20 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 t1(8,14)c199 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 42 | point 105 spot 357
+r224.das cuts 7 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 28 camera 35 | point 49 spot 49
+r225.das cuts 11 | foot-shadow lights 11 t1(3,200)c135 t1(3,200)c135 t1(3,200)c135 t1(3,200)c135 t1(3,200)c135 t1(0,0)c228 t1(0,0)c228 t1(0,0)c228 t1(0,0)c228 t1(0,0)c228 | cast 0 | shadow-texture lights 0 | parallel world 22 camera 22 | point 77 spot 142
+r226.das cuts 16 | foot-shadow lights 14 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 t1(0,0)c180 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 32 | point 382 spot 64
+r227.das cuts 13 | foot-shadow lights 3 t1(0,72)c210 t1(0,72)c210 t1(0,72)c210 | cast 0 | shadow-texture lights 0 | parallel world 52 camera 3 | point 398 spot 3
+r228.das cuts 4 | foot-shadow lights 3 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 4 camera 12 | point 39 spot 12
+r229.das cuts 9 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 4 | point 54 spot 19
+r22a.das cuts 4 | foot-shadow lights 2 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 6 camera 0 | point 54 spot 0
+r22b.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 2 camera 0 | point 4 spot 8
+r22c.das cuts 7 | foot-shadow lights 7 t1(0,0)c170 t1(0,0)c170 t1(0,0)c170 t1(0,0)c170 t1(0,0)c170 t1(0,0)c170 t1(0,0)c170 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 7 | point 21 spot 21
+r300.das cuts 6 | foot-shadow lights 6 t1(326,110)c116 t1(326,110)c200 t1(326,110)c200 t1(326,110)c200 t1(326,110)c200 t1(326,110)c200 | cast 6 | shadow-texture lights 1 | parallel world 0 camera 7 | point 148 spot 27
+r301.das cuts 1 | foot-shadow lights 1 t1(357,0)c128 | cast 1 | shadow-texture lights 0 | parallel world 0 camera 1 | point 29 spot 4
+r303.das cuts 2 | foot-shadow lights 2 t1(0,0)c178 t1(0,0)c178 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 2 | point 23 spot 8
+r304.das cuts 1 | foot-shadow lights 1 t1(4,18)c164 | cast 0 | shadow-texture lights 0 | parallel world 2 camera 0 | point 13 spot 9
+r305.das cuts 1 | foot-shadow lights 1 t1(33,333)c153 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 0 | point 10 spot 5
+r306.das cuts 4 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 4 camera 0 | point 52 spot 36
+r307.das cuts 1 | foot-shadow lights 1 t1(0,0)c166 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 0 | point 13 spot 1
+r308.das cuts 4 | foot-shadow lights 8 t1(0,0)c128 t1(0,0)c174 t1(0,0)c128 t1(0,0)c174 t1(0,0)c128 t1(0,0)c174 t1(0,0)c128 t1(0,0)c174 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 4 | point 35 spot 8
+r309.das cuts 4 | foot-shadow lights 1 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 4 | point 96 spot 16
+r30a.das cuts 3 | foot-shadow lights 2 t1(45,354)c88 t1(45,354)c88 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 6 | point 27 spot 18
+r30b.das cuts 6 | foot-shadow lights 5 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 | cast 0 | shadow-texture lights 2 | parallel world 6 camera 0 | point 126 spot 12
+r30c.das cuts 3 | foot-shadow lights 1 t1(9,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 6 camera 4 | point 25 spot 9
+r30d.das cuts 5 | foot-shadow lights 3 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 5 | point 118 spot 5
+r30e.das cuts 1 | foot-shadow lights 1 t1(11,14)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 1 | point 9 spot 4
+r30f.das cuts 19 | foot-shadow lights 13 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 5 camera 30 | point 110 spot 133
+r310.das cuts 2 | foot-shadow lights 2 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 6 | point 12 spot 16
+r311.das cuts 3 | foot-shadow lights 3 t1(0,0)c145 t1(0,0)c145 t1(0,0)c145 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 6 | point 45 spot 18
+r312.das cuts 5 | foot-shadow lights 3 t1(0,0)c128 t1(0,0)c128 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 5 | point 98 spot 4
+r313.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 0 | point 0 spot 0
+r314.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 0 | point 0 spot 0
+r315.das cuts 5 | foot-shadow lights 5 t1(351,339)c105 t1(351,339)c105 t1(351,339)c105 t1(351,339)c105 t1(351,339)c105 | cast 10 | shadow-texture lights 0 | parallel world 0 camera 5 | point 10 spot 25
+r316.das cuts 4 | foot-shadow lights 4 t1(338,39)c143 t1(338,39)c143 t1(338,39)c143 t1(338,39)c143 | cast 8 | shadow-texture lights 0 | parallel world 0 camera 4 | point 68 spot 46
+r317.das cuts 3 | foot-shadow lights 3 t1(23,0)c150 t1(23,0)c150 t1(23,0)c150 | cast 6 | shadow-texture lights 0 | parallel world 3 camera 0 | point 17 spot 12
+r318.das cuts 1 | foot-shadow lights 1 t1(339,330)c143 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 4 | point 22 spot 5
+r31a.das cuts 1 | foot-shadow lights 1 t1(21,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 0 | point 10 spot 0
+r31b.das cuts 29 | foot-shadow lights 9 t1(22,0)c128 t1(22,0)c128 t1(22,0)c128 t1(22,0)c128 t1(25,210)c100 t1(25,210)c100 t1(22,0)c128 t1(22,0)c128 t1(25,210)c100 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 67 | point 658 spot 82
+r31c.das cuts 9 | foot-shadow lights 9 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 t1(61,33)c232 | cast 0 | shadow-texture lights 0 | parallel world 32 camera 20 | point 176 spot 94
+r31d.das cuts 1 | foot-shadow lights 1 t1(58,95)c183 | cast 1 | shadow-texture lights 0 | parallel world 1 camera 1 | point 14 spot 4
+r320.das cuts 8 | foot-shadow lights 8 t1(354,2)c145 t1(354,2)c145 t1(354,2)c145 t1(354,2)c145 t1(354,2)c145 t1(354,2)c145 t1(354,2)c145 t1(354,2)c145 | cast 0 | shadow-texture lights 0 | parallel world 16 camera 16 | point 15 spot 67
+r321.das cuts 2 | foot-shadow lights 2 t1(26,60)c102 t1(26,60)c102 | cast 0 | shadow-texture lights 0 | parallel world 2 camera 2 | point 16 spot 6
+r322.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 0 | point 5 spot 0
+r323.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 0 | point 1 spot 0
+r324.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 1 | point 13 spot 4
+r325.das cuts 4 | foot-shadow lights 3 t1(13,2)c138 t1(13,2)c138 t1(13,2)c138 | cast 0 | shadow-texture lights 0 | parallel world 4 camera 0 | point 20 spot 20
+r326.das cuts 6 | foot-shadow lights 3 t1(17,23)c138 t1(17,23)c138 t1(17,23)c138 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 9 | point 28 spot 54
+r327.das cuts 9 | foot-shadow lights 9 t1(17,317)c144 t1(17,317)c144 t1(17,317)c144 t1(17,317)c144 t1(17,317)c144 t1(17,317)c144 t1(17,317)c144 t1(17,317)c144 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 13 | point 181 spot 1
+r328.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 0 | point 2 spot 0
+r329.das cuts 2 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 3 | point 41 spot 0
+r330.das cuts 1 | foot-shadow lights 1 t1(11,106)c179 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 0 | point 12 spot 2
+r331.das cuts 8 | foot-shadow lights 11 t1(0,0)c120 t1(47,295)c184 t1(0,0)c120 t1(47,295)c184 t1(0,0)c120 t1(47,295)c184 t1(0,0)c120 t1(0,0)c120 t1(0,0)c120 t1(0,0)c120 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 16 | point 54 spot 83
+r332.das cuts 6 | foot-shadow lights 6 t1(0,0)c120 t1(0,0)c120 t1(0,0)c120 t1(0,0)c120 t1(0,0)c120 t1(0,0)c120 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 12 | point 48 spot 66
+r333.das cuts 13 | foot-shadow lights 3 t1(0,0)c83 t1(0,0)c83 t1(0,0)c83 | cast 0 | shadow-texture lights 0 | parallel world 14 camera 12 | point 180 spot 0
+r400.das cuts 20 | foot-shadow lights 20 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 t1(33,5)c179 | cast 0 | shadow-texture lights 0 | parallel world 60 camera 42 | point 20 spot 40
+r402.das cuts 1 | foot-shadow lights 1 t1(37,60)c153 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 2 | point 21 spot 10
+r403.das cuts 7 | foot-shadow lights 7 t1(27,87)c145 t1(27,87)c145 t1(27,87)c145 t1(27,87)c145 t1(27,87)c145 t1(27,87)c145 t1(27,87)c145 | cast 0 | shadow-texture lights 0 | parallel world 14 camera 14 | point 28 spot 0
+r404.das cuts 11 | foot-shadow lights 11 t1(17,319)c220 t1(17,319)c220 t1(17,319)c220 t1(17,319)c220 t1(17,319)c220 t1(17,319)c220 t1(17,319)c220 t1(17,319)c220 | cast 0 | shadow-texture lights 0 | parallel world 44 camera 0 | point 33 spot 44
+r405.das cuts 6 | foot-shadow lights 6 t1(326,110)c116 t1(326,110)c200 t1(326,110)c200 t1(326,110)c200 t1(326,110)c200 t1(326,110)c200 | cast 6 | shadow-texture lights 1 | parallel world 0 camera 7 | point 148 spot 27
+r406.das cuts 1 | foot-shadow lights 1 t1(357,0)c128 | cast 1 | shadow-texture lights 0 | parallel world 0 camera 1 | point 29 spot 6
+r40a.das cuts 2 | foot-shadow lights 2 t1(345,28)c128 t1(345,28)c128 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 2 | point 28 spot 18
+r40b.das cuts 1 | foot-shadow lights 1 t1(0,0)c166 | cast 0 | shadow-texture lights 0 | parallel world 1 camera 0 | point 13 spot 1
+r40c.das cuts 4 | foot-shadow lights 8 t1(0,0)c128 t1(0,0)c174 t1(0,0)c128 t1(0,0)c174 t1(0,0)c128 t1(0,0)c174 t1(0,0)c128 t1(0,0)c174 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 4 | point 35 spot 8
+r40d.das cuts 4 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 4 | point 96 spot 16
+r40e.das cuts 3 | foot-shadow lights 1 t1(30,331)c83 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 3 | point 17 spot 18
+r40f.das cuts 6 | foot-shadow lights 6 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 t1(10,350)c167 | cast 0 | shadow-texture lights 0 | parallel world 6 camera 1 | point 127 spot 12
+r410.das cuts 3 | foot-shadow lights 1 t1(0,0)c128 | cast 0 | shadow-texture lights 0 | parallel world 6 camera 3 | point 27 spot 9
+r411.das cuts 1 | foot-shadow lights 0 | cast 0 | shadow-texture lights 0 | parallel world 0 camera 1 | point 9 spot 4
+rooms 127 (failed 0): foot-shadow lights in 108, cast lights in 11, shadow-texture lights in 5, world parallel lights in 61, camera parallel lights in 103, point/spot lights in 125, any world source in 125
+foot light type 0 ax 0: 17
+foot light type 0 ax 50: 6
+foot light type 1 ax 0: 248
+foot light type 1 ax 10: 20
+foot light type 1 ax 11: 2
+foot light type 1 ax 12: 9
+foot light type 1 ax 13: 3
+foot light type 1 ax 14: 4
+foot light type 1 ax 17: 23
+foot light type 1 ax 2: 11
+foot light type 1 ax 21: 17
+foot light type 1 ax 22: 16
+foot light type 1 ax 23: 31
+foot light type 1 ax 24: 20
+foot light type 1 ax 25: 19
+foot light type 1 ax 26: 20
+foot light type 1 ax 27: 7
+foot light type 1 ax 28: 12
+foot light type 1 ax 3: 21
+foot light type 1 ax 30: 1
+foot light type 1 ax 32: 7
+foot light type 1 ax 326: 12
+foot light type 1 ax 33: 53
+foot light type 1 ax 338: 4
+foot light type 1 ax 339: 1
+foot light type 1 ax 34: 14
+foot light type 1 ax 345: 2
+foot light type 1 ax 348: 19
+foot light type 1 ax 35: 7
+foot light type 1 ax 351: 7
+foot light type 1 ax 352: 8
+foot light type 1 ax 354: 8
+foot light type 1 ax 357: 15
+foot light type 1 ax 37: 1
+foot light type 1 ax 4: 1
+foot light type 1 ax 41: 24
+foot light type 1 ax 42: 59
+foot light type 1 ax 45: 2
+foot light type 1 ax 47: 3
+foot light type 1 ax 5: 14
+foot light type 1 ax 51: 42
+foot light type 1 ax 58: 1
+foot light type 1 ax 6: 8
+foot light type 1 ax 61: 9
+foot light type 1 ax 8: 20
+foot light type 1 ax 9: 6

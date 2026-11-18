@@ -1042,6 +1042,13 @@ void re4ipc_aim_turn(float yaw, float pitch)
     post(kAimTurn, a, b, 0);
 }
 
+void re4ipc_body_turn(float yaw)
+{
+    int32_t a;
+    memcpy(&a, &yaw, 4);
+    post(kBodyTurn, a, 0, 0);
+}
+
 void re4ipc_zoom(int notches)
 {
     post(kZoom, notches, 0, 0);
@@ -1052,9 +1059,22 @@ void re4ipc_set_enemy_random(int seed)
     post(kSetEnemyRandom, seed, 0, 0);
 }
 
+// The cheat "Leon's jacket" (1.0): to the core process, no reply
+void re4ipc_set_leon_jacket(int on)
+{
+    post(kLeonJacket, on ? 1 : 0, 0, 0);
+}
+
 void re4ipc_set_gentle_qte(int on)
 {
     post(kSetGentleQte, on ? 1 : 0, 0, 0);
+}
+
+int re4ipc_rt_shadows(void)
+{
+    Reply r;
+    // (an older core process answers "unknown command" with -1: none)
+    return call(kRtShadows, 0, 0, 0, nullptr, 0, 3000, &r) && r.header.a > 0 ? r.header.a : 0;
 }
 
 void re4ipc_touch(float u, float v)

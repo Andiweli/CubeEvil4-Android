@@ -3,4 +3,14 @@
     <!-- the app's theme: Android's dark Material without an action bar; from Android 10 on without force dark
          (values-v29, FocusLook: a phone's dark mode for apps darkened the menu's focus frame, 0.99.11) -->
     <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar" />
+    <!-- the in-game menu's window slides up from the bottom and back down (CoreMenu, 0.99.17); without animations
+         (Android's animator duration scale 0) it appears and goes at once -->
+    <style name="CoreMenuSlide">
+        <item name="android:windowEnterAnimation">@anim/menu_slide_in</item>
+        <item name="android:windowExitAnimation">@anim/menu_slide_out</item>
+    </style>
+    <style name="CoreMenuNoAnimation">
+        <item name="android:windowEnterAnimation">@null</item>
+        <item name="android:windowExitAnimation">@null</item>
+    </style>
 </resources>

@@ -1,5 +1,5 @@
 {
-  "_comment": "The OUYA menu's own texts of MANAGEMENT (wish of the project owner, 14.11.2026): Android 4.1 has no file dialog, the exports go to a folder, the import lists files; no RetroTouch. Read by menu_strings.py. Also the Potato switch \"Detailed lighting\" (OUYA improvement 3, 15.11.2026).",
+  "_comment": "The OUYA menu's own texts of MANAGEMENT (wish of the project owner, 14.11.2026): Android 4.1 has no file dialog, the exports go to a folder, the import lists files; no RetroTouch. Read by menu_strings.py. Also the Potato switch \"Detailed lighting\" (OUYA improvement 3, 15.11.2026). Since 1.0.0 (merged 18.11.2026) also the help of \"Invert vertical\" and of keyboard and mouse.",
   "values": {
     "ouya_card_help": "Export Player Data: your saves as .gci (for Dolphin or GameCube), or everything in one .zip (saves and instant save; CubeEvil4 on a phone reads it too). The files go to the folder CubeEvil4-Potato on the drive with the game data; the import lists the .gci and .zip files there and in the Download folder. Delete All Data empties the memory card.",
     "ouya_exported_to": "Saved in %1$s",
@@ -9,7 +9,9 @@
     "ouya_no_browser": "No web browser on this device. The address: %1$s",
     "ouya_light_detail": "Detailed lighting",
     "ouya_light_help": "Detailed lighting: off lights the surroundings once per object instead of at every point (figures keep theirs); clearly faster on the OUYA, the ground and the trees look a little flatter. It takes effect at once.",
-    "ouya_source_only": "This version and the full Android version of CubeEvil4 are only available here.\\nAvoid downloads from other sites or game platforms."
+    "ouya_source_only": "This version and the full Android version of CubeEvil4 are only available here.\\nAvoid downloads from other sites or game platforms.",
+    "ouya_invert_help": "Invert vertical: aiming up and down the other way round, with the controller, the keyboard and the touch controls (the game’s own option).",
+    "ouya_keyboard_help": "Keyboard and mouse: W A S D move (and aim), Shift runs, E acts, the right mouse button aims, the left one fires, R reloads while aiming, C readies the knife, Q calls Ashley, Tab opens the case, M the map, Esc the options, F1 this menu. I J K L turn the camera, the mouse wheel zooms the scope. Arrows, Enter and Backspace work in the game’s menus. The mouse pointer does not aim."
   },
   "values-de": {
     "ouya_card_help": "Spieldaten exportieren: die Spielstände als .gci (für Dolphin oder GameCube) oder alles in einer .zip (Spielstände und Instant-Spielstand; CubeEvil4 auf dem Handy liest sie auch). Die Dateien kommen in den Ordner CubeEvil4-Potato auf dem Laufwerk mit den Spieldaten; der Import zeigt die .gci- und .zip-Dateien dort und im Download-Ordner. „Alle Daten löschen“ leert die Speicherkarte.",
@@ -20,7 +22,9 @@
     "ouya_no_browser": "Kein Webbrowser auf diesem Gerät. Die Adresse: %1$s",
     "ouya_light_detail": "Detailliertes Licht",
     "ouya_light_help": "Detailliertes Licht: aus beleuchtet die Umgebung einmal je Objekt statt an jedem Punkt (Figuren behalten ihres); auf der OUYA deutlich schneller, Boden und Bäume wirken etwas flacher. Wirkt sofort.",
-    "ouya_source_only": "Diese Version und auch die Android-Vollversion zu CubeEvil4 ist nur hier verfügbar.\\nVermeide den Download von Fremdseiten oder Spieleplattformen."
+    "ouya_source_only": "Diese Version und auch die Android-Vollversion zu CubeEvil4 ist nur hier verfügbar.\\nVermeide den Download von Fremdseiten oder Spieleplattformen.",
+    "ouya_invert_help": "Vertikal umkehren: Zielen nach oben und unten andersherum, mit Controller, Tastatur und Touch-Steuerung (die Option des Spiels selbst).",
+    "ouya_keyboard_help": "Tastatur und Maus: W A S D laufen (und zielen), Umschalt rennt, E für Aktionen, die rechte Maustaste zielt, die linke schießt, R lädt beim Zielen nach, C zückt das Messer, Q ruft Ashley, Tab öffnet den Koffer, M die Karte, Esc die Optionen, F1 dieses Menü. I J K L drehen die Kamera, das Mausrad zoomt das Zielfernrohr. Pfeiltasten, Enter und Rücktaste gehen in den Menüs des Spiels. Der Mauszeiger zielt nicht."
   },
   "values-fr": {
     "ouya_card_help": "Exporter les données de jeu : les sauvegardes au format .gci (pour Dolphin ou GameCube), ou tout dans un .zip (sauvegardes et sauvegarde instantanée ; CubeEvil4 sur un téléphone le lit aussi). Les fichiers vont dans le dossier CubeEvil4-Potato sur le support des données du jeu ; l’importation liste les fichiers .gci et .zip qui s’y trouvent et dans le dossier Download. Supprimer toutes les données vide la carte mémoire.",
@@ -31,7 +35,9 @@
     "ouya_no_browser": "Aucun navigateur web sur cet appareil. L’adresse : %1$s",
     "ouya_light_detail": "Éclairage détaillé",
     "ouya_light_help": "Éclairage détaillé : désactivé, l’environnement est éclairé une fois par objet au lieu de chaque point (les personnages gardent le leur) ; nettement plus rapide sur l’OUYA, le sol et les arbres paraissent un peu plus plats. S’applique aussitôt.",
-    "ouya_source_only": "Cette version et la version Android complète de CubeEvil4 ne sont disponibles qu’ici.\\nÉvitez les téléchargements depuis d’autres sites ou plateformes de jeux."
+    "ouya_source_only": "Cette version et la version Android complète de CubeEvil4 ne sont disponibles qu’ici.\\nÉvitez les téléchargements depuis d’autres sites ou plateformes de jeux.",
+    "ouya_invert_help": "Inverser l’axe vertical : viser vers le haut et vers le bas dans l’autre sens, avec la manette, le clavier et les commandes tactiles (l’option du jeu lui-même).",
+    "ouya_keyboard_help": "Clavier et souris : W A S D pour se déplacer (et viser), Maj pour courir, E pour agir, le bouton droit de la souris vise, le gauche tire, R recharge en visant, C sort le couteau, Q appelle Ashley, Tab ouvre la mallette, M la carte, Échap les options, F1 ce menu. I J K L tournent la caméra, la molette zoome la lunette. Flèches, Entrée et Retour arrière servent dans les menus du jeu. Le pointeur de la souris ne vise pas."
   },
   "values-es": {
     "ouya_card_help": "Exportar datos del juego: las partidas como .gci (para Dolphin o GameCube), o todo en un .zip (partidas y guardado instantáneo; CubeEvil4 en un móvil también lo lee). Los archivos van a la carpeta CubeEvil4-Potato de la unidad con los datos del juego; la importación muestra los archivos .gci y .zip de allí y de la carpeta Download. Borrar todos los datos vacía la tarjeta de memoria.",
@@ -42,7 +48,9 @@
     "ouya_no_browser": "No hay navegador web en este dispositivo. La dirección: %1$s",
     "ouya_light_detail": "Iluminación detallada",
     "ouya_light_help": "Iluminación detallada: desactivada, el entorno se ilumina una vez por objeto en lugar de en cada punto (los personajes mantienen la suya); bastante más rápido en la OUYA, el suelo y los árboles se ven algo más planos. Se aplica al instante.",
-    "ouya_source_only": "Esta versión y la versión completa para Android de CubeEvil4 solo están disponibles aquí.\\nEvita las descargas desde otros sitios o plataformas de juegos."
+    "ouya_source_only": "Esta versión y la versión completa para Android de CubeEvil4 solo están disponibles aquí.\\nEvita las descargas desde otros sitios o plataformas de juegos.",
+    "ouya_invert_help": "Invertir vertical: apuntar arriba y abajo al revés, con el mando, el teclado y los controles táctiles (la opción del propio juego).",
+    "ouya_keyboard_help": "Teclado y ratón: W A S D mueven (y apuntan), Mayús corre, E actúa, el botón derecho del ratón apunta, el izquierdo dispara, R recarga mientras apuntas, C saca el cuchillo, Q llama a Ashley, Tab abre el maletín, M el mapa, Esc las opciones, F1 este menú. I J K L giran la cámara, la rueda del ratón hace zoom en la mira. Las flechas, Intro y Retroceso sirven en los menús del juego. El puntero del ratón no apunta."
   },
   "values-it": {
     "ouya_card_help": "Esporta dati di gioco: i salvataggi come .gci (per Dolphin o GameCube), oppure tutto in un .zip (salvataggi e salvataggio istantaneo; anche CubeEvil4 sul telefono lo legge). I file vanno nella cartella CubeEvil4-Potato dell’unità con i dati di gioco; l’importazione elenca i file .gci e .zip lì e nella cartella Download. Elimina tutti i dati svuota la Memory Card.",
@@ -53,7 +61,9 @@
     "ouya_no_browser": "Nessun browser web su questo dispositivo. L’indirizzo: %1$s",
     "ouya_light_detail": "Illuminazione dettagliata",
     "ouya_light_help": "Illuminazione dettagliata: disattivata, l’ambiente viene illuminato una volta per oggetto invece che in ogni punto (i personaggi mantengono la loro); molto più veloce sulla OUYA, terreno e alberi sembrano un po’ più piatti. Vale subito.",
-    "ouya_source_only": "Questa versione e la versione Android completa di CubeEvil4 sono disponibili solo qui.\\nEvita i download da altri siti o piattaforme di giochi."
+    "ouya_source_only": "Questa versione e la versione Android completa di CubeEvil4 sono disponibili solo qui.\\nEvita i download da altri siti o piattaforme di giochi.",
+    "ouya_invert_help": "Inverti verticale: mirare in alto e in basso al contrario, con il controller, la tastiera e i controlli touch (l’opzione del gioco stesso).",
+    "ouya_keyboard_help": "Tastiera e mouse: W A S D muovono (e mirano), Maiusc corre, E agisce, il tasto destro del mouse mira, il sinistro spara, R ricarica mentre miri, C estrae il coltello, Q chiama Ashley, Tab apre la valigetta, M la mappa, Esc le opzioni, F1 questo menu. I J K L ruotano la visuale, la rotellina zooma il mirino. Frecce, Invio e Backspace funzionano nei menu del gioco. Il puntatore del mouse non mira."
   },
   "values-pt": {
     "ouya_card_help": "Exportar dados do jogo: os jogos salvos como .gci (para Dolphin ou GameCube), ou tudo em um .zip (jogos salvos e salvamento instantâneo; o CubeEvil4 no celular também o lê). Os arquivos vão para a pasta CubeEvil4-Potato na unidade com os dados do jogo; a importação lista os arquivos .gci e .zip ali e na pasta Download. Apagar todos os dados esvazia o cartão de memória.",
@@ -64,7 +74,9 @@
     "ouya_no_browser": "Nenhum navegador neste aparelho. O endereço: %1$s",
     "ouya_light_detail": "Iluminação detalhada",
     "ouya_light_help": "Iluminação detalhada: desligada, o ambiente é iluminado uma vez por objeto em vez de em cada ponto (os personagens mantêm a sua); bem mais rápido no OUYA, o chão e as árvores ficam um pouco mais planos. Vale de imediato.",
-    "ouya_source_only": "Esta versão e a versão Android completa do CubeEvil4 só estão disponíveis aqui.\\nEvite downloads de outros sites ou plataformas de jogos."
+    "ouya_source_only": "Esta versão e a versão Android completa do CubeEvil4 só estão disponíveis aqui.\\nEvite downloads de outros sites ou plataformas de jogos.",
+    "ouya_invert_help": "Inverter vertical: mirar para cima e para baixo ao contrário, com o controle, o teclado e os controles de toque (a opção do próprio jogo).",
+    "ouya_keyboard_help": "Teclado e mouse: W A S D movem (e miram), Shift corre, E age, o botão direito do mouse mira, o esquerdo atira, R recarrega enquanto mira, C saca a faca, Q chama a Ashley, Tab abre a maleta, M o mapa, Esc as opções, F1 este menu. I J K L giram a câmera, a roda do mouse dá zoom na mira. Setas, Enter e Backspace funcionam nos menus do jogo. O ponteiro do mouse não mira."
   },
   "values-ru": {
     "ouya_card_help": "Экспорт игровых данных: сохранения в формате .gci (для Dolphin или GameCube) или всё в одном .zip (сохранения и мгновенное сохранение; CubeEvil4 на телефоне тоже его читает). Файлы попадают в папку CubeEvil4-Potato на накопителе с данными игры; импорт показывает файлы .gci и .zip оттуда и из папки Download. «Удалить все данные» очищает карту памяти.",
@@ -75,7 +87,9 @@
     "ouya_no_browser": "На этом устройстве нет веб-браузера. Адрес: %1$s",
     "ouya_light_detail": "Детальное освещение",
     "ouya_light_help": "Детальное освещение: если выключено, окружение освещается один раз на объект, а не в каждой точке (персонажи сохраняют своё); на OUYA заметно быстрее, земля и деревья выглядят немного более плоскими. Действует сразу.",
-    "ouya_source_only": "Эта версия и полная Android-версия CubeEvil4 доступны только здесь.\\nНе скачивайте их с других сайтов или игровых платформ."
+    "ouya_source_only": "Эта версия и полная Android-версия CubeEvil4 доступны только здесь.\\nНе скачивайте их с других сайтов или игровых платформ.",
+    "ouya_invert_help": "Инвертировать по вертикали: прицеливание вверх и вниз наоборот — с контроллером, клавиатурой и сенсорным управлением (собственная настройка игры).",
+    "ouya_keyboard_help": "Клавиатура и мышь: W A S D — ходьба (и прицеливание), Shift — бег, E — действие, правая кнопка мыши — прицел, левая — выстрел, R при прицеливании — перезарядка, C — нож, Q — позвать Эшли, Tab — кейс, M — карта, Esc — настройки, F1 — это меню. I J K L поворачивают камеру, колесо мыши приближает прицел. Стрелки, Enter и Backspace работают в меню игры. Указатель мыши не прицеливается."
   },
   "values-ar": {
     "ouya_card_help": "تصدير بيانات اللعبة: ملفات الحفظ بصيغة &#x200E;.gci (لـ Dolphin أو GameCube)، أو كل شيء في ملف &#x200E;.zip واحد (ملفات الحفظ والحفظ الفوري، ويقرؤه CubeEvil4 على الهاتف أيضًا). تُحفظ الملفات في المجلد &#x200E;CubeEvil4-Potato على وحدة التخزين التي عليها بيانات اللعبة، ويعرض الاستيراد ملفات &#x200E;.gci و&#x200E;.zip الموجودة هناك وفي مجلد Download. يفرغ «حذف كل البيانات» بطاقة الذاكرة.",
@@ -86,7 +100,9 @@
     "ouya_no_browser": "لا يوجد متصفح ويب على هذا الجهاز. العنوان: %1$s",
     "ouya_light_detail": "إضاءة مفصلة",
     "ouya_light_help": "إضاءة مفصلة: عند إيقافها تُضاء البيئة مرة واحدة لكل جسم بدل كل نقطة (تحتفظ الشخصيات بإضاءتها)؛ أسرع بوضوح على OUYA، وتبدو الأرض والأشجار أكثر تسطحًا قليلًا. يسري فورًا.",
-    "ouya_source_only": "هذا الإصدار والإصدار الكامل لـ CubeEvil4 على Android متاحان هنا فقط.\\nتجنّب التنزيل من مواقع أخرى أو منصات ألعاب."
+    "ouya_source_only": "هذا الإصدار والإصدار الكامل لـ CubeEvil4 على Android متاحان هنا فقط.\\nتجنّب التنزيل من مواقع أخرى أو منصات ألعاب.",
+    "ouya_invert_help": "عكس الاتجاه العمودي: التصويب للأعلى وللأسفل بالعكس، مع وحدة التحكم ولوحة المفاتيح وأزرار اللمس (خيار اللعبة نفسها).",
+    "ouya_keyboard_help": "لوحة المفاتيح والفأرة: W A S D للحركة (وللتصويب)، Shift للجري، E للتفاعل، زر الفأرة الأيمن للتصويب والأيسر لإطلاق النار، R لإعادة التعبئة أثناء التصويب، C للسكين، Q لمناداة آشلي، Tab للحقيبة، M للخريطة، Esc للخيارات، F1 لهذه القائمة. I J K L لتدوير الكاميرا، وعجلة الفأرة لتقريب المنظار. الأسهم وEnter وBackspace تعمل في قوائم اللعبة. مؤشر الفأرة لا يصوّب."
   },
   "values-hi": {
     "ouya_card_help": "गेम डेटा एक्सपोर्ट करें: सेव गेम .gci के रूप में (Dolphin या GameCube के लिए), या सब कुछ एक .zip में (सेव और तुरंत सेव; फ़ोन पर CubeEvil4 भी इसे पढ़ता है)। फ़ाइलें गेम डेटा वाली ड्राइव के CubeEvil4-Potato फ़ोल्डर में जाती हैं; इम्पोर्ट वहाँ और Download फ़ोल्डर की .gci और .zip फ़ाइलें दिखाता है। सारा डेटा हटाएँ मेमोरी कार्ड खाली कर देता है।",
@@ -97,7 +113,9 @@
     "ouya_no_browser": "इस डिवाइस पर कोई वेब ब्राउज़र नहीं है। पता: %1$s",
     "ouya_light_detail": "विस्तृत रोशनी",
     "ouya_light_help": "विस्तृत रोशनी: बंद होने पर आसपास का हिस्सा हर बिंदु के बजाय हर वस्तु पर एक बार रोशन होता है (किरदारों की रोशनी वैसी ही रहती है); OUYA पर साफ़ तौर पर तेज़, ज़मीन और पेड़ थोड़े सपाट दिखते हैं। यह तुरंत लागू होती है।",
-    "ouya_source_only": "यह संस्करण और CubeEvil4 का पूरा Android संस्करण केवल यहीं उपलब्ध है।\\nदूसरी साइटों या गेम प्लेटफ़ॉर्म से डाउनलोड करने से बचें।"
+    "ouya_source_only": "यह संस्करण और CubeEvil4 का पूरा Android संस्करण केवल यहीं उपलब्ध है।\\nदूसरी साइटों या गेम प्लेटफ़ॉर्म से डाउनलोड करने से बचें।",
+    "ouya_invert_help": "वर्टिकल उल्टा करें: ऊपर-नीचे निशाना उल्टी दिशा में, कंट्रोलर, कीबोर्ड और टच कंट्रोल के साथ (गेम का अपना विकल्प)।",
+    "ouya_keyboard_help": "कीबोर्ड और माउस: W A S D चलना (और निशाना), Shift दौड़ना, E एक्शन, माउस का दायां बटन निशाना लगाता है, बायां गोली चलाता है, निशाना लगाते समय R रीलोड करता है, C चाकू, Q एशली को बुलाता है, Tab ब्रीफ़केस, M नक्शा, Esc विकल्प, F1 यह मेनू। I J K L कैमरा घुमाते हैं, माउस व्हील स्कोप में ज़ूम करता है। तीर, Enter और Backspace गेम के मेनू में काम करते हैं। माउस पॉइंटर निशाना नहीं लगाता।"
   },
   "values-in": {
     "ouya_card_help": "Ekspor data game: data simpanan sebagai .gci (untuk Dolphin atau GameCube), atau semuanya dalam satu .zip (data simpanan dan simpan cepat; CubeEvil4 di ponsel juga bisa membacanya). File masuk ke folder CubeEvil4-Potato di drive tempat data game; impor menampilkan file .gci dan .zip di sana dan di folder Download. Hapus Semua Data mengosongkan kartu memori.",
@@ -108,7 +126,9 @@
     "ouya_no_browser": "Tidak ada peramban web di perangkat ini. Alamatnya: %1$s",
     "ouya_light_detail": "Pencahayaan detail",
     "ouya_light_help": "Pencahayaan detail: jika mati, lingkungan diterangi sekali per objek, bukan di setiap titik (karakter tetap memakai pencahayaannya); jauh lebih cepat di OUYA, tanah dan pohon tampak sedikit lebih datar. Langsung berlaku.",
-    "ouya_source_only": "Versi ini dan versi Android lengkap CubeEvil4 hanya tersedia di sini.\\nHindari unduhan dari situs lain atau platform game."
+    "ouya_source_only": "Versi ini dan versi Android lengkap CubeEvil4 hanya tersedia di sini.\\nHindari unduhan dari situs lain atau platform game.",
+    "ouya_invert_help": "Balik vertikal: membidik ke atas dan ke bawah terbalik, dengan controller, keyboard, dan kontrol sentuh (opsi milik game itu sendiri).",
+    "ouya_keyboard_help": "Keyboard dan mouse: W A S D bergerak (dan membidik), Shift berlari, E beraksi, tombol kanan mouse membidik, tombol kiri menembak, R mengisi ulang saat membidik, C menyiapkan pisau, Q memanggil Ashley, Tab membuka koper, M peta, Esc opsi, F1 menu ini. I J K L memutar kamera, roda mouse memperbesar teropong senapan. Panah, Enter, dan Backspace berfungsi di menu game. Penunjuk mouse tidak membidik."
   },
   "values-zh": {
     "ouya_card_help": "导出游戏数据：存档为 .gci 格式（用于 Dolphin 或 GameCube），或将全部内容放进一个 .zip（存档和即时存档；手机上的 CubeEvil4 也能读取）。文件保存在游戏数据所在驱动器的 CubeEvil4-Potato 文件夹中；导入时会列出那里和 Download 文件夹中的 .gci 与 .zip 文件。“删除所有数据”会清空记忆卡。",
@@ -119,6 +139,8 @@
     "ouya_no_browser": "此设备上没有网页浏览器。地址：%1$s",
     "ouya_light_detail": "精细光照",
     "ouya_light_help": "精细光照：关闭后，环境按每个物体计算一次光照，而不是逐点计算（角色保持原样）；在 OUYA 上明显更快，地面和树木看起来略平。立即生效。",
-    "ouya_source_only": "此版本以及 CubeEvil4 的完整 Android 版本仅在此处提供。\\n请勿从其他网站或游戏平台下载。"
+    "ouya_source_only": "此版本以及 CubeEvil4 的完整 Android 版本仅在此处提供。\\n请勿从其他网站或游戏平台下载。",
+    "ouya_invert_help": "垂直反转：上下瞄准方向相反，适用于手柄、键盘和触屏操作（游戏自身的选项）。",
+    "ouya_keyboard_help": "键盘和鼠标：W A S D 移动（并瞄准），Shift 奔跑，E 互动，鼠标右键瞄准，左键射击，瞄准时按 R 装弹，C 拿出小刀，Q 呼叫阿什莉，Tab 打开手提箱，M 地图，Esc 选项，F1 本菜单。I J K L 转动镜头，鼠标滚轮缩放瞄准镜。方向键、Enter 和退格键可在游戏菜单中使用。鼠标指针不能瞄准。"
   }
 }

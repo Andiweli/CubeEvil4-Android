@@ -59,10 +59,10 @@ final class OuyaMenu extends Dialog {
         void gameLanguageChanged(int language, boolean restart);
         /** The device has a touch screen (the section "Touch Controls" shows only then). */
         boolean touchAvailable();
-        /** RetroTouch's button style is "RE" (icons), not "GC" (labels). */
-        boolean touchIcons();
-        /** The touch settings changed (Settings), `icons` the button style chosen. */
-        void touchSettingsChanged(boolean icons);
+        /** RetroTouch's skin shown (TouchStyle.RE, GC, PS2, XBOX). */
+        int touchLook();
+        /** The touch settings changed (Settings), `look` the skin chosen (TouchStyle). */
+        void touchSettingsChanged(int look);
     }
 
     /** The preferences and their defaults: the light OUYA version (port/docs/ouya-machbarkeit.md). */
@@ -76,7 +76,10 @@ final class OuyaMenu extends Dialog {
                 GENTLE_QTE = "gentleQte", PARTICLES_ON = "particleEffects",
                 // "Detailed lighting" (OUYA improvement 3, 15.11.2026): off (the default) lights the room's geometry
                 // once per draw (gx_gl2 GxOptions::levelLight), about 19 % less GPU time in the village
-                DETAILED_LIGHT = "detailedLight";
+                DETAILED_LIGHT = "detailedLight",
+                // 1.0.0 (wish of the project owner, 17.11.2026): "Invert vertical" (the game's own option, also with
+                // the keyboard), "Use performance cores" (old phones with fast and slow cores; the OUYA's are alike)
+                INVERT = "invertVertical", FAST_CORES = "fastCores";
         // the first start's settings (wish of the project owner, 14.11.2026): resolution 75 %, view distance 35 %,
         // colours simplified, every Potato effect off, frame skip Normal
         static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 35;
@@ -114,6 +117,18 @@ final class OuyaMenu extends Dialog {
             bits &= ~(RANDOM_ITEMS_BIT | SEED_BITS);
             return on ? bits | RANDOM_ITEMS_BIT | ((seed << SEED_SHIFT) & SEED_BITS) : bits;
         }
+        /** "Steady aim" (1.0.0, patch 0233; the main app's CoreMenu.STEADY_AIM_BIT): the laser and the scope still. */
+        static final int STEADY_AIM_BIT = 1 << 31;
+        /** The special costumes of Leon and Ashley (runtime/cheats.cpp; the main app's CoreMenu.COSTUME_BIT). */
+        static final int COSTUME_BIT = 256;
+        /** "Costumes · Leon's jacket" (1.0.0, patches 0235/0236; the main app's CoreActivity.LEON_JACKET). */
+        static final String LEON_JACKET = "leonJacket";
+        static final int COSTUME_NORMAL = 0, COSTUME_JACKET = 1, COSTUME_SPECIAL = 2;
+        static boolean leonJacket(SharedPreferences p) { return p.getBoolean(LEON_JACKET, false); }
+        /** The costume in force (the main app's CoreMenu.costumeChoice): Special with its bit, else the jacket. */
+        static int costume(SharedPreferences p) {
+            return (cheats(p) & COSTUME_BIT) != 0 ? COSTUME_SPECIAL : leonJacket(p) ? COSTUME_JACKET : COSTUME_NORMAL;
+        }
         static int view(SharedPreferences p) { return p.getInt(VIEW, VIEW_DEFAULT); }
         /** runtime/potato.cpp: bit 0 weather, bit 1 special effects left out (both by default on the OUYA),
          *  bits 2..3 the particle effects (0 normal, 1 less, 2 none), bit 4 shadows and light effects left out. */
@@ -121,11 +136,13 @@ final class OuyaMenu extends Dialog {
             return (p.getBoolean(WEATHER, false) ? 0 : 1) | (p.getBoolean(SPECIAL, false) ? 0 : 2)
                     | (particles(p) << 2) | (p.getBoolean(SHADOWS, false) ? 0 : 16);
         }
-        /** re4_core_set_aim: speed 100 % << 8, bit 1 auto aim, bit 2 always run, bit 3 far camera. */
+        /** re4_core_set_aim: speed 100 % << 8, bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bit 3 far
+         *  camera. */
         static int aim(SharedPreferences p) {
-            return 100 << 8 | (p.getBoolean(AUTO_AIM, false) ? 2 : 0) | (p.getBoolean(ALWAYS_RUN, false) ? 4 : 0)
-                    | (p.getBoolean(FAR_CAMERA, false) ? 8 : 0);
+            return 100 << 8 | (p.getBoolean(INVERT, false) ? 1 : 0) | (p.getBoolean(AUTO_AIM, false) ? 2 : 0)
+                    | (p.getBoolean(ALWAYS_RUN, false) ? 4 : 0) | (p.getBoolean(FAR_CAMERA, false) ? 8 : 0);
         }
+        static boolean fastCores(SharedPreferences p) { return p.getBoolean(FAST_CORES, false); }
     }
 
     // the main app's colours (CoreMenu)
@@ -249,8 +266,13 @@ final class OuyaMenu extends Dialog {
         choices(s(R.string.ingame_frame_skip), new String[] {s(R.string.ingame_off), s(R.string.ingame_skip_normal),
                 s(R.string.ingame_skip_aggressive)}, new int[] {0, 1, 2}, Settings.frameSkip(prefs),
                 Settings.FRAME_SKIP_LEVEL);
+        // "Use performance cores" (1.0.0, wish of the project owner, 17.11.2026; off by default)
+        LinearLayout cores = buttonsRow();
+        toggle(cores, R.string.ingame_perf_cores, Settings.FAST_CORES);
+        cores.addView(new View(getContext()), cell());
         help(R.string.ingame_skip_normal_help);
         help(R.string.ingame_skip_aggressive_help);
+        help(R.string.ingame_perf_help);
         heading(R.string.ingame_comfort);
         LinearLayout comfort = buttonsRow();
         toggle(comfort, R.string.ingame_auto_aim, Settings.AUTO_AIM);
@@ -258,10 +280,17 @@ final class OuyaMenu extends Dialog {
         LinearLayout camera = buttonsRow();
         toggle(camera, R.string.ingame_far_camera, Settings.FAR_CAMERA);
         toggle(camera, R.string.ingame_gentle_qte, Settings.GENTLE_QTE, true);
+        LinearLayout invert = buttonsRow();
+        toggle(invert, R.string.ingame_aim_invert_v, Settings.INVERT);
+        invert.addView(new View(getContext()), cell());
         help(R.string.ingame_auto_aim_help);
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
         help(R.string.ouya_gentle_qte_help);
+        help(R.string.ouya_invert_help);
+        // keyboard and mouse (1.0.0): the main app's default keys (OuyaKeyboard)
+        subheading(R.string.ingame_map_keyboard);
+        help(R.string.ouya_keyboard_help);
         if (host.touchAvailable())
             touch();
         cheats();
@@ -284,19 +313,21 @@ final class OuyaMenu extends Dialog {
                 public void onClick(View v) {
                     select(mode, index);
                     prefs.edit().putInt(Settings.TOUCH_MODE, value).apply();
-                    host.touchSettingsChanged(host.touchIcons());
+                    host.touchSettingsChanged(host.touchLook());
                 }
             });
         }
-        final Button[] style = choices(s(R.string.ingame_button_style), new String[] {s(R.string.ingame_button_icons),
-                s(R.string.ingame_button_labels)}, new int[] {1, 0}, host.touchIcons() ? 1 : 0, null, false);
+        // the four skins of 1.0.0 across the row (RE, GC, PS2, XBOX; wish of the project owner, 17.11.2026)
+        final Button[] style = choices(s(R.string.ingame_button_style), TouchStyle.NAMES,
+                new int[] {TouchStyle.RE, TouchStyle.GC, TouchStyle.PS2, TouchStyle.XBOX}, host.touchLook(), null,
+                false);
         for (int i = 0; i < style.length; i++) {
             final int index = i;
             style[i].setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     select(style, index);
-                    host.touchSettingsChanged(index == 0);
+                    host.touchSettingsChanged(index);
                 }
             });
         }
@@ -318,7 +349,7 @@ final class OuyaMenu extends Dialog {
                 boolean next = !b.isSelected();
                 toggleLabel(b, label, next);
                 prefs.edit().putBoolean(key, next).apply();
-                host.touchSettingsChanged(host.touchIcons());
+                host.touchSettingsChanged(host.touchLook());
             }
         });
         toggleLabel(b, label, prefs.getBoolean(key, false));
@@ -334,10 +365,12 @@ final class OuyaMenu extends Dialog {
         cheatSwitch(player, R.string.ingame_cheat_health, 1);
         cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
         cheatSwitch(player, R.string.ingame_cheat_invisible, 512);
-        LinearLayout inventory = buttonsRow();
-        cheatSwitch(inventory, R.string.ingame_cheat_onehit, 4);
-        cheatButton(inventory, 2, R.string.ingame_cheat_case);
-        cheatButton(inventory, 3, R.string.ingame_cheat_money);
+        // the second row as in the main app's 1.0.0: one-hit kill, steady aim, the costumes (wish of the project
+        // owner, 17.11.2026)
+        LinearLayout player2 = buttonsRow();
+        cheatSwitch(player2, R.string.ingame_cheat_onehit, 4);
+        cheatSwitch(player2, R.string.ingame_cheat_steady, Settings.STEADY_AIM_BIT);
+        costumeSwitch(player2);
         subheading(R.string.ingame_cheat_section_weapons);
         LinearLayout weapons = buttonsRow();
         cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
@@ -374,6 +407,10 @@ final class OuyaMenu extends Dialog {
             }
         });
         game.addView(extras, cell());
+        // the case and the money under them (the main app's GENERAL & INVENTORY)
+        LinearLayout inventory = buttonsRow();
+        cheatButton(inventory, 2, R.string.ingame_cheat_case);
+        cheatButton(inventory, 3, R.string.ingame_cheat_money);
         cheatStatus = text("", 15, false);
         cheatStatus.setTextColor(GOLD);
         cheatStatus.setPadding(dp(GAP), dp(6), dp(GAP), dp(2));
@@ -381,6 +418,35 @@ final class OuyaMenu extends Dialog {
         body.addView(cheatStatus);
         help(R.string.ingame_cheats_help);
         help(R.string.ingame_cheat_random_items_help);
+    }
+
+    /** "Costumes · Normal / Leon's jacket / Special" (the main app's CoreMenu.costumeSwitch, 1.0.0): each press the
+     *  next. Normal: the game's own. Leon's jacket: Leon keeps his brown jacket for the whole story (patches 0235,
+     *  0236). Special: the special costumes of Leon and Ashley (COSTUME_BIT). */
+    private void costumeSwitch(LinearLayout parent) {
+        final int[] labels = {R.string.ingame_cheat_costume_normal, R.string.ingame_cheat_costume_jacket,
+                R.string.ingame_cheat_costume_special};
+        final Button b = button("", null);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int next = (Settings.costume(prefs) + 1) % 3;
+                int bits = Settings.cheats(prefs);
+                bits = next == Settings.COSTUME_SPECIAL ? bits | Settings.COSTUME_BIT : bits & ~Settings.COSTUME_BIT;
+                prefs.edit().putInt(Settings.CHEATS, bits)
+                        .putBoolean(Settings.LEON_JACKET, next == Settings.COSTUME_JACKET).apply();
+                costumeLabel(b, labels[next], next != Settings.COSTUME_NORMAL);
+                host.settingsChanged();
+            }
+        });
+        int now = Settings.costume(prefs);
+        costumeLabel(b, labels[now], now != Settings.COSTUME_NORMAL);
+        parent.addView(b, cell());
+    }
+
+    private void costumeLabel(Button b, int value, boolean lit) {
+        b.setSelected(lit);
+        b.setText(getContext().getString(R.string.ingame_toggle_value, s(R.string.ingame_cheat_costume), s(value)));
     }
 
     private void flash(final Button b) {
@@ -1329,10 +1395,11 @@ final class OuyaMenu extends Dialog {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         final int key = event.getKeyCode();
-        // A (KEYCODE_BUTTON_B), L3, SELECT, the OUYA button (only its release arrives: KEYCODE_MENU), START: back
+        // A (KEYCODE_BUTTON_B), L3, SELECT, the OUYA button (only its release arrives: KEYCODE_MENU), START: back;
+        // the keyboard's F1 and Esc too (1.0.0, OuyaKeyboard)
         if (key == KeyEvent.KEYCODE_BUTTON_B || key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_THUMBL
                 || key == KeyEvent.KEYCODE_BUTTON_SELECT || key == KeyEvent.KEYCODE_BUTTON_START
-                || key == KeyEvent.KEYCODE_MENU) {
+                || key == KeyEvent.KEYCODE_MENU || key == OuyaKeyboard.KEY_F1 || key == OuyaKeyboard.KEY_ESCAPE) {
             if (event.getRepeatCount() == 0 && (event.getAction() == KeyEvent.ACTION_DOWN || key == KeyEvent.KEYCODE_MENU))
                 dismiss();
             return true;

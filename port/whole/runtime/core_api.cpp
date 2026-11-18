@@ -806,6 +806,11 @@ void re4_core_set_potato(int mask)
     re4_potato_set(mask);
 }
 
+int re4_core_rt_shadows(void)
+{
+    return 2;  // the figures (15.11.2026), also the objects (16.11.2026)
+}
+
 extern "C" void re4_aim_set(int bits);
 
 void re4_core_set_aim(int bits)

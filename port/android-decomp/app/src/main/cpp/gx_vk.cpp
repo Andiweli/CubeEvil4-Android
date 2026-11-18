@@ -1920,7 +1920,7 @@ struct VkRenderer final : GxCore {
     ms.rasterizationSamples =
         renderPass == efbPass && samples > 1 ? static_cast<VkSampleCountFlagBits>(samples) : VK_SAMPLE_COUNT_1_BIT;
     auto cb = Make<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
-    cb.attachmentCount = renderPass == depthResolvePass ? 0 : 1;
+    cb.attachmentCount = renderPass == depthResolvePass || renderPass == shadowMapPass ? 0 : 1;
     cb.pAttachments = &cba;
     VkDynamicState dyn[3] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_LINE_WIDTH};
     auto dy = Make<VkPipelineDynamicStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
@@ -2019,6 +2019,13 @@ struct VkRenderer final : GxCore {
       cba.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
       cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
       cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_ADD;
+    } else if (blend == 4) {  // what is there times the source's colour (the real-time shadows' mask)
+      cba.blendEnable = VK_TRUE;
+      cba.srcColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+      cba.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+      cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+      cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
       cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_ADD;
     } else if (blend == 2) {  // over what is there by the source's alpha (the autofocus's mix)
       cba.blendEnable = VK_TRUE;
@@ -2464,6 +2471,408 @@ struct VkRenderer final : GxCore {
     vkCmdDraw(cb, 4, 1, 0, 0);
     stats.bloomPasses++;
   }
+  // ---- real-time shadows of the figures and objects (GxCore::ShadowMark; as
+  // GlRenderer::ShadowPass, the same shaders) ----
+  Fixed shadowDepthFx, shadowMarkFx, shadowMaskFx, shadowApplyFx;
+  // the depth maps (the figures', the objects'), the casters' marks (the EFB's size; red the figures, green the
+  // objects), the mask (a texel per GameCube pixel of the scene's part)
+  Image shadowAtlas, shadowMarks, shadowMask;
+  // the depth map's pass (its depth only), the marks' pass (their colour, the EFB's depth loaded and kept)
+  VkRenderPass shadowMapPass = VK_NULL_HANDLE, shadowMarkPass = VK_NULL_HANDLE;
+  VkFramebuffer shadowMarkFb = VK_NULL_HANDLE;
+  VkImageView shadowMarkFbDepth = VK_NULL_HANDLE;  // the EFB depth view shadowMarkFb was made with
+  VkSampler shadowCompare = VK_NULL_HANDLE;        // the map compared (sampler2DShadow), linear where it can
+  VkFormat shadowFormat = VK_FORMAT_UNDEFINED;
+
+  // a pipeline of the casters' triangles (three floats a corner at location 0): the depth maps' (test LESS, written,
+  // pushed back) or the marks' (test LEQUAL against the EFB's depth, not written, pulled forward; blended by the
+  // larger, so that a figure's red and an object's green both stay)
+  bool MakeShadowPipe(Fixed &f, const char *vsEs, const char *fsEs, VkRenderPass renderPass, bool map,
+                      std::string *error) {
+    std::string vs, fs;
+    f.constants = VulkanFixedProgram(vsEs, fsEs, &vs, &fs);
+    std::string log;
+    VkShaderModule v = Module(vs, true, &log), m = v ? Module(fs, false, &log) : VK_NULL_HANDLE;
+    if (!v || !m) {
+      *error = "a shadow shader: " + log + "\n" + (v ? fs : vs);
+      if (v)
+        vkDestroyShaderModule(dev, v, nullptr);
+      return false;
+    }
+    auto dl = Make<VkDescriptorSetLayoutCreateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
+    vkCreateDescriptorSetLayout(dev, &dl, nullptr, &f.setLayout);
+    VkPushConstantRange range{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                              std::max(16u, f.constants.bytes)};
+    auto pl = Make<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
+    pl.setLayoutCount = 1;
+    pl.pSetLayouts = &f.setLayout;
+    pl.pushConstantRangeCount = 1;
+    pl.pPushConstantRanges = &range;
+    vkCreatePipelineLayout(dev, &pl, nullptr, &f.layout);
+    std::vector<VkPipelineShaderStageCreateInfo> stages(2);
+    for (auto &s : stages)
+      s = Make<VkPipelineShaderStageCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[0].module = v;
+    stages[0].pName = "main";
+    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[1].module = m;
+    stages[1].pName = "main";
+    const VkVertexInputBindingDescription bind{0, 12, VK_VERTEX_INPUT_RATE_VERTEX};
+    const VkVertexInputAttributeDescription attr{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0};
+    auto vin = Make<VkPipelineVertexInputStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
+    vin.vertexBindingDescriptionCount = 1;
+    vin.pVertexBindingDescriptions = &bind;
+    vin.vertexAttributeDescriptionCount = 1;
+    vin.pVertexAttributeDescriptions = &attr;
+    auto ia = Make<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
+    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    auto rs = Make<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
+    rs.polygonMode = VK_POLYGON_MODE_FILL;
+    rs.cullMode = VK_CULL_MODE_NONE;
+    rs.lineWidth = 1.0f;
+    rs.depthBiasEnable = VK_TRUE;
+    rs.depthBiasConstantFactor = map ? 2.0f : -4.0f;
+    rs.depthBiasSlopeFactor = map ? 1.5f : -1.0f;
+    auto ds = Make<VkPipelineDepthStencilStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
+    ds.depthTestEnable = VK_TRUE;
+    ds.depthWriteEnable = map ? VK_TRUE : VK_FALSE;
+    ds.depthCompareOp = map ? VK_COMPARE_OP_LESS : VK_COMPARE_OP_LESS_OR_EQUAL;
+    VkPipelineColorBlendAttachmentState cba{};
+    cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                         VK_COLOR_COMPONENT_A_BIT;
+    if (!map) {
+      cba.blendEnable = VK_TRUE;
+      cba.srcColorBlendFactor = cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+      cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_MAX;
+    }
+    f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false);
+    vkDestroyShaderModule(dev, v, nullptr);
+    vkDestroyShaderModule(dev, m, nullptr);
+    if (!f.pipeline)
+      *error = "a shadow pipeline";
+    return f.pipeline != VK_NULL_HANDLE;
+  }
+
+  bool MakeShadow() {
+    // the map's format: 16 bits are plenty (its depth spans a few metres), drawn into and sampled; linear filtering
+    // for the comparison where the format allows it
+    const VkFormat formats[] = {VK_FORMAT_D16_UNORM, VK_FORMAT_D32_SFLOAT, depthFormat};
+    shadowFormat = vk.PickFormat(formats, 3, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                                                 VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
+    if (shadowFormat == VK_FORMAT_UNDEFINED) {
+      GXLOG("real-time shadows (Vulkan): no depth format for the map");
+      return false;
+    }
+    VkFormatProperties fp{};
+    vkGetPhysicalDeviceFormatProperties(vk.physical, shadowFormat, &fp);
+    const bool linear = (fp.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) != 0;
+    {
+      VkAttachmentDescription a{};
+      a.format = shadowFormat;
+      a.samples = VK_SAMPLE_COUNT_1_BIT;
+      a.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      a.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      a.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      a.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      a.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      a.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      VkAttachmentReference dref{0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+      VkSubpassDescription sub{};
+      sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+      sub.pDepthStencilAttachment = &dref;
+      VkSubpassDependency dep[2]{};
+      PassDependencies(dep);
+      auto rci = Make<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
+      rci.attachmentCount = 1;
+      rci.pAttachments = &a;
+      rci.subpassCount = 1;
+      rci.pSubpasses = &sub;
+      rci.dependencyCount = 2;
+      rci.pDependencies = dep;
+      if (!Check(vkCreateRenderPass(dev, &rci, nullptr, &shadowMapPass), "vkCreateRenderPass (shadow map)"))
+        return false;
+    }
+    // the marks: their colour cleared, the EFB's depth (single-sampled: with MSAA the resolved copy) loaded and kept
+    shadowMarkPass = MakePass(VK_FORMAT_R8G8B8A8_UNORM, depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR,
+                              VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                              VK_ATTACHMENT_LOAD_OP_LOAD);
+    auto sci = Make<VkSamplerCreateInfo>(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO);
+    sci.magFilter = sci.minFilter = linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    sci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    sci.addressModeU = sci.addressModeV = sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sci.compareEnable = VK_TRUE;
+    sci.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    sci.maxLod = 0.25f;
+    if (!shadowMarkPass || !Check(vkCreateSampler(dev, &sci, nullptr, &shadowCompare), "vkCreateSampler (shadow)"))
+      return false;
+    std::string error;
+    const VkColorComponentFlags rgb = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+    const VkColorComponentFlags all = rgb | VK_COLOR_COMPONENT_A_BIT;
+    if (!MakeShadowPipe(shadowDepthFx, fixed::kShadowDepthVs, fixed::kShadowDepthFs, shadowMapPass, true, &error) ||
+        !MakeShadowPipe(shadowMarkFx, fixed::kShadowMarkVs, fixed::kShadowMarkFs, shadowMarkPass, false, &error) ||
+        !MakeFixed(shadowMaskFx, fixed::kQuadVs, fixed::kShadowMaskFs, copyPass, all, false, &error) ||
+        !MakeFixed(shadowApplyFx, fixed::kQuadVs, fixed::kShadowApplyFs, efbPass, rgb, false, &error, false, nullptr,
+                   4)) {
+      GXLOG("real-time shadows (Vulkan): %s", error.c_str());
+      return false;
+    }
+    return true;
+  }
+
+  // the depth atlas (2 x 2 tiles, stage 5) at its size
+  bool ShadowAtlasImage(int size) {
+    Image &m = shadowAtlas;
+    if (m.image && m.width != static_cast<unsigned>(size))
+      Trash(m);
+    if (!m.image) {
+      if (!MakeImage(m, static_cast<unsigned>(size), static_cast<unsigned>(size), 1, shadowFormat,
+                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_DEPTH_BIT))
+        return false;
+      m.fb = MakeFb(shadowMapPass, {m.view}, m.width, m.height);
+    }
+    return m.fb != VK_NULL_HANDLE;
+  }
+
+  // the atlas, the marks (the EFB's size) and the mask at their sizes
+  bool ShadowImages(const ShadowParams &s) {
+    if (!ShadowAtlasImage(s.atlas))
+      return false;
+    if (shadowMarks.image && (shadowMarks.width != efbColor.width || shadowMarks.height != efbColor.height)) {
+      Trash(shadowMarks);
+      if (shadowMarkFb) {
+        const VkDevice d = dev;
+        const VkFramebuffer fb = shadowMarkFb;
+        F().trash.push_back([d, fb]() { vkDestroyFramebuffer(d, fb, nullptr); });
+      }
+      shadowMarkFb = VK_NULL_HANDLE;
+    }
+    if (!shadowMarks.image &&
+        !MakeImage(shadowMarks, efbColor.width, efbColor.height, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                   VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT))
+      return false;
+    const VkImageView depthView = efbDepth.attach ? efbDepth.attach : efbDepth.view;
+    if (!shadowMarkFb || shadowMarkFbDepth != depthView) {
+      if (shadowMarkFb) {
+        const VkDevice d = dev;
+        const VkFramebuffer fb = shadowMarkFb;
+        F().trash.push_back([d, fb]() { vkDestroyFramebuffer(d, fb, nullptr); });
+      }
+      shadowMarkFb = MakeFb(shadowMarkPass, {shadowMarks.view, depthView}, efbColor.width, efbColor.height);
+      shadowMarkFbDepth = depthView;
+    }
+    return shadowMarkFb && FilterImage(shadowMask, s.maskW, s.maskH);
+  }
+
+  void ShadowPass(const ShadowParams &s) override {
+    FlushClear();
+    if (shadowFailed)
+      return;
+    static const bool timed = std::getenv("RE4_GX_SHADOW_TIME") && *std::getenv("RE4_GX_SHADOW_TIME") == '1';
+    const auto from = std::chrono::steady_clock::now();
+    if ((!shadowApplyFx.pipeline && !MakeShadow()) || !ShadowImages(s)) {
+      shadowFailed = true;  // off for good on this driver (the menu's choice stays)
+      GXLOG("real-time shadows (Vulkan): could not be set up; left out from now on");
+      return;
+    }
+    ResolveDepth();  // MSAA: the depth into efbDepth
+    Begin();
+    EndPass();
+    VkCommandBuffer cb = F().draw;
+    // the casters' corners in the frame's vertex stream: the figures', then the objects' (when tile 1 casts)
+    Frame &fr = F();
+    std::size_t blk = 0;
+    VkDeviceSize at = 0;
+    const std::size_t figTris = s.figTriangles, objTris = s.objTriangles;
+    const std::size_t figBytes = figTris * 9 * sizeof(float), bytes = figBytes + objTris * 9 * sizeof(float);
+    if (!Alloc(fr.vertex, bytes, 64, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &blk, &at))
+      return;
+    if (figTris)
+      std::memcpy(fr.vertex[blk].map + at, shadowTris.data(), figBytes);
+    if (objTris)
+      std::memcpy(fr.vertex[blk].map + at + figBytes, objectTris.data(), bytes - figBytes);
+    const VkBuffer vb = fr.vertex[blk].buffer;
+    const std::uint32_t figCorners = static_cast<std::uint32_t>(figTris * 3);
+    const std::uint32_t objCorners = static_cast<std::uint32_t>(objTris * 3);
+    const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs, kShadowMarkVs)
+    // 1. the depth atlas: each casting tile's casters from its light (one pass, a viewport per tile; the pass covers
+    // and clears only the casting tiles' rectangle: one light without objects a quarter of it)
+    {
+      Image &map = shadowAtlas;
+      const std::uint32_t half = map.width / 2;
+      std::uint32_t ax0 = map.width, ay0 = map.height, ax1 = 0, ay1 = 0;
+      for (int t = 0; t < kShadowTiles; t++)
+        if (s.tile[t].casts) {
+          ax0 = std::min<std::uint32_t>(ax0, (t & 1) * half);
+          ay0 = std::min<std::uint32_t>(ay0, (t >> 1) * half);
+          ax1 = std::max<std::uint32_t>(ax1, (t & 1) * half + half);
+          ay1 = std::max<std::uint32_t>(ay1, (t >> 1) * half + half);
+        }
+      if (ax1 <= ax0 || ay1 <= ay0) {
+        ax0 = ay0 = 0;
+        ax1 = map.width;
+        ay1 = map.height;
+      }
+      auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+      rbi.renderPass = shadowMapPass;
+      rbi.framebuffer = map.fb;
+      rbi.renderArea = {{static_cast<std::int32_t>(ax0), static_cast<std::int32_t>(ay0)}, {ax1 - ax0, ay1 - ay0}};
+      VkClearValue clear{};
+      clear.depthStencil = {1.0f, 0};
+      rbi.clearValueCount = 1;
+      rbi.pClearValues = &clear;
+      vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+      pass = kOtherPass;
+      const std::uint32_t tile = map.width / 2;
+      for (int t = 0; t < kShadowTiles; t++) {
+        const ShadowMapParams &m = s.tile[t];
+        if (!m.casts)
+          continue;
+        const VkViewport vp{float((t & 1) * tile), float((t >> 1) * tile), float(tile), float(tile), 0.0f, 1.0f};
+        const VkRect2D sc{{static_cast<std::int32_t>((t & 1) * tile), static_cast<std::int32_t>((t >> 1) * tile)},
+                          {tile, tile}};
+        vkCmdSetViewport(cb, 0, 1, &vp);
+        vkCmdSetScissor(cb, 0, 1, &sc);
+        std::vector<std::uint8_t> pc(shadowDepthFx.constants.bytes, 0);
+        Put(pc, shadowDepthFx, "lx", m.row[0]);
+        Put(pc, shadowDepthFx, "ly", m.row[1]);
+        Put(pc, shadowDepthFx, "lz", m.row[2]);
+        Put(pc, shadowDepthFx, "lw", m.row[3]);
+        Put(pc, shadowDepthFx, "glz", glz);
+        BindFixed(shadowDepthFx, nullptr, nullptr, 0, pc);
+        const VkDeviceSize offset = at + (m.objects ? figBytes : 0);
+        vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
+        vkCmdDraw(cb, m.objects ? objCorners : figCorners, 1, 0, 0);
+      }
+      EndPass();
+      map.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
+    }
+    // 2. the casters' marks: where a figure (red) or an object (green) is the visible surface (the EFB's depth)
+    {
+      Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+      rbi.renderPass = shadowMarkPass;
+      rbi.framebuffer = shadowMarkFb;
+      rbi.renderArea = {{0, 0}, {shadowMarks.width, shadowMarks.height}};
+      VkClearValue clear[2]{};
+      clear[0].color = {{0.0f, 0.0f, 0.0f, 0.0f}};
+      clear[1].depthStencil = {1.0f, 0};
+      rbi.clearValueCount = 2;
+      rbi.pClearValues = clear;
+      vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+      pass = kOtherPass;
+      const VkViewport vp{0.0f, 0.0f, float(shadowMarks.width), float(shadowMarks.height), 0.0f, 1.0f};
+      const VkRect2D sc{{s.region[0], s.region[1]},
+                        {static_cast<std::uint32_t>(s.region[2]), static_cast<std::uint32_t>(s.region[3])}};
+      vkCmdSetViewport(cb, 0, 1, &vp);
+      vkCmdSetScissor(cb, 0, 1, &sc);
+      for (int i = 0; i < 2; i++) {
+        const std::uint32_t corners = i ? objCorners : figCorners;
+        if (!corners)
+          continue;
+        const float mark[4] = {i ? 0.0f : 1.0f, i ? 1.0f : 0.0f, 0.0f, 1.0f};
+        std::vector<std::uint8_t> pc(shadowMarkFx.constants.bytes, 0);
+        Put(pc, shadowMarkFx, "vp0", s.vp0);
+        Put(pc, shadowMarkFx, "vp1", s.markVp1);
+        Put(pc, shadowMarkFx, "pr0", s.pr0);
+        Put(pc, shadowMarkFx, "pr1", s.pr1);
+        Put(pc, shadowMarkFx, "glz", glz);
+        Put(pc, shadowMarkFx, "mark", mark);
+        BindFixed(shadowMarkFx, nullptr, nullptr, 0, pc);
+        const VkDeviceSize offset = at + (i ? figBytes : 0);
+        vkCmdBindVertexBuffers(cb, 0, 1, &vb, &offset);
+        vkCmdDraw(cb, corners, 1, 0, 0);
+      }
+      EndPass();
+      shadowMarks.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+    boundVb = VK_NULL_HANDLE;
+    scissorValid = false;
+    // 3. the mask from the EFB's depth, the atlas (compared, and read as it is) and the marks
+    {
+      Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      BeginTargetPass(copyPass, shadowMask);
+      shadowMask.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+      const VkViewport vp{0.0f, 0.0f, float(s.maskW), float(s.maskH), 0.0f, 1.0f};
+      const VkRect2D sc{{0, 0}, {static_cast<std::uint32_t>(s.maskW), static_cast<std::uint32_t>(s.maskH)}};
+      vkCmdSetViewport(cb, 0, 1, &vp);
+      vkCmdSetScissor(cb, 0, 1, &sc);
+      std::vector<std::uint8_t> pc(shadowMaskFx.constants.bytes, 0);
+      const float region[4] = {float(s.region[0]), float(s.region[1]), float(s.region[2]), float(s.region[3])};
+      Put(pc, shadowMaskFx, "region", region);
+      Put(pc, shadowMaskFx, "grid", s.grid);
+      Put(pc, shadowMaskFx, "vp0", s.vp0);
+      Put(pc, shadowMaskFx, "vp1", s.vp1);
+      Put(pc, shadowMaskFx, "pr0", s.pr0);
+      Put(pc, shadowMaskFx, "pr1", s.pr1);
+      Put(pc, shadowMaskFx, "look", s.look);
+      for (int t = 0; t < kShadowTiles; t++) {
+        const std::string n = std::to_string(t);
+        Put(pc, shadowMaskFx, ("lx" + n).c_str(), s.tile[t].row[0]);
+        Put(pc, shadowMaskFx, ("ly" + n).c_str(), s.tile[t].row[1]);
+        Put(pc, shadowMaskFx, ("lz" + n).c_str(), s.tile[t].row[2]);
+        Put(pc, shadowMaskFx, ("b" + n).c_str(), s.tile[t].bias);
+        Put(pc, shadowMaskFx, ("t" + n).c_str(), s.tileInfo[t]);
+        Put(pc, shadowMaskFx, ("lw" + n).c_str(), s.tile[t].row[3]);
+        Put(pc, shadowMaskFx, ("tp" + n).c_str(), s.tile[t].tp);
+      }
+      for (int i = 0; i < kShadowLights; i++) {
+        const std::string n = std::to_string(i);
+        Put(pc, shadowMaskFx, ("lp" + n).c_str(), s.light[i].lp);
+        Put(pc, shadowMaskFx, ("la" + n).c_str(), s.light[i].la);
+        Put(pc, shadowMaskFx, ("lb" + n).c_str(), s.light[i].lb);
+        Put(pc, shadowMaskFx, ("lc" + n).c_str(), s.light[i].lc);
+      }
+      Put(pc, shadowMaskFx, "amb", s.amb);
+      BindFixedNamed(shadowMaskFx,
+                     {{"src", efbDepth.view, nearestClamp},
+                      {"shd", shadowAtlas.view, shadowCompare},
+                      {"fig", shadowMarks.view, nearestClamp},
+                      {"raw", shadowAtlas.view, nearestClamp}},
+                     pc);
+      vkCmdDraw(cb, 4, 1, 0, 0);
+      EndPass();
+    }
+    // 4. the mask times the EFB's colour over the scene's part (the EFB pass goes on, as after the bloom)
+    {
+      BeginEfbPass();
+      const VkRect2D sc{{s.region[0], s.region[1]},
+                        {static_cast<std::uint32_t>(s.region[2]), static_cast<std::uint32_t>(s.region[3])}};
+      vkCmdSetScissor(cb, 0, 1, &sc);
+      scissorValid = false;
+      std::vector<std::uint8_t> pa(shadowApplyFx.constants.bytes, 0);
+      const float region[4] = {float(s.region[0]), float(s.region[1]), float(s.region[2]), float(s.region[3])};
+      Put(pa, shadowApplyFx, "region", region);
+      BindFixedNamed(shadowApplyFx, {{"mask", shadowMask.view, linearClamp}}, pa);
+      vkCmdDraw(cb, 4, 1, 0, 0);
+    }
+    stats.shadowPasses++;
+    if (timed)
+      GXLOG("real-time shadows (Vulkan): %.2f ms recorded (CPU), %zu + %zu triangles (figures + objects), %d light(s), "
+            "atlas %d, mask %d x %d",
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count(), figTris,
+            objTris, s.lights, s.atlas, s.maskW, s.maskH);
+  }
+
+  void ShadowRelease() {
+    for (Fixed *f : {&shadowDepthFx, &shadowMarkFx, &shadowMaskFx, &shadowApplyFx})
+      FreeFixed(*f);
+    for (Image *img : {&shadowAtlas, &shadowMarks, &shadowMask})
+      Destroy(*img);
+    if (shadowMarkFb)
+      vkDestroyFramebuffer(dev, shadowMarkFb, nullptr);
+    shadowMarkFb = VK_NULL_HANDLE;
+    shadowMarkFbDepth = VK_NULL_HANDLE;
+    for (VkRenderPass *p : {&shadowMapPass, &shadowMarkPass})
+      if (*p)
+        vkDestroyRenderPass(dev, *p, nullptr);
+    shadowMapPass = shadowMarkPass = VK_NULL_HANDLE;
+    if (shadowCompare)
+      vkDestroySampler(dev, shadowCompare, nullptr);
+    shadowCompare = VK_NULL_HANDLE;
+  }
+
   // ---- the gameplay autofocus (E5, as GlRenderer::Autofocus; the comment there says what it does) ----
   bool MakeAutofocus() {
     std::string error;
@@ -4531,6 +4940,7 @@ struct VkRenderer final : GxCore {
       FreeFixed(*f);
     for (Fixed *f : {&bloomKeyFx, &bloomPickFx, &bloomBlurFx, &bloomAddFx})
       FreeFixed(*f);
+    ShadowRelease();
     for (Image &b : bloomImg)
       Destroy(b);
     Destroy(bloomKeyImg);

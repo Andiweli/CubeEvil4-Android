@@ -35,3 +35,5 @@ Their original provenance and upstream license scope apply.
 The namespaced newlib 1.8.2 FDlibm files preserve their original Sun/Cygnus
 permission and attribution notices within each source file.
 The Gradle Wrapper retains its embedded Apache License 2.0 notice.
+The icons app/src/main/res/drawable/ic_eye.xml and ic_eye_off.xml contain path data of the Lucide
+icons "eye" and "eye-off" under the ISC License: app/THIRD_PARTY_NOTICES.md.

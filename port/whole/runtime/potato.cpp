@@ -55,6 +55,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C" void re4_rt_shadow_set(int on);  // runtime/rt_shadow.cpp
+
 void EspCommonTrans(cEsp* esp);
 extern EspTransFunc EspTransTbl[0xFF];  // game/esp.cpp
 
@@ -102,6 +104,11 @@ void readEnv()
     }
     const char* on = getenv("RE4_POTATO");
     gMask = on && *on ? (int) (strtoul(on, 0, 0) & kAll) : 0;
+    // (bits 5 and 6: the app's real-time shadows for the PC checks, RE4_POTATO=32 the figures, 96 also the objects;
+    // runtime/rt_shadow.cpp)
+    if (on && *on && (strtoul(on, 0, 0) & 0x60)) {
+        re4_rt_shadow_set((int) (strtoul(on, 0, 0) & 0x60));
+    }
     if (const char* census = getenv("RE4_ESP_CENSUS")) {
         gCensusEvery = (unsigned) strtoul(census, 0, 0);
     }
@@ -306,10 +313,13 @@ int re4_potato_no_shadows(void)
 }
 
 // The app's switches (core_api.cpp re4_core_set_potato): bit 0 weather effects off, bit 1 special effects off,
-// bits 2..3 the effects level (1 less, 2 none), bit 4 shadows and light effects off.
+// bits 2..3 the effects level (1 less, 2 none), bit 4 shadows and light effects off. Bits 5 and 6 are no Potato
+// switches: the app's real-time shadows (runtime/rt_shadow.cpp; 5 on, 6 also the
+// objects), kept apart from the mask so that the Potato switches work exactly as before.
 void re4_potato_set(int mask)
 {
     readEnv();
+    re4_rt_shadow_set(mask & 0x60);
     mask &= kAll;
     if (gMask != mask) {
         logMask(mask, "");

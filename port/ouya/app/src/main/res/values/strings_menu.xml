@@ -13,14 +13,14 @@
     <string name="ingame_potato">Potato mode</string>
     <string name="ingame_potato_weather">Weather effects</string>
     <string name="ingame_potato_special">Special effects</string>
-    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Particle effects: blood, dust, smoke, splashes, sparks and fire; Less draws half of them, None leaves out all but fire and explosions, which stay at half as a warning. Shadows &amp; light: off leaves out shadows (also in cut scenes), lens glows and light shafts; the rooms keep their lighting. Each saves graphics work on weaker devices; the spot where a shot hits, hints, the laser and every effect in cut scenes stay.</string>
+    <string name="ingame_potato_help">Each switch saves graphics work on weaker devices. Particles: Less draws half of them, None keeps only fire and explosions. Shadows &amp; light off removes shadows, lens glows and light shafts; the rooms keep their lighting. Hits, hints and the laser always stay.</string>
     <string name="ingame_comfort">Comfort Controls</string>
     <string name="ingame_auto_aim">Auto aim</string>
     <string name="ingame_always_run">Always run</string>
     <string name="ingame_far_camera">Far camera</string>
     <string name="ingame_auto_aim_help">Auto aim: when you raise your weapon, the aim jumps to the nearest enemy in front of you and follows it for a moment (the game\'s own lock-on).</string>
     <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
-    <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon while walking and standing. Aiming and tight spots bring it close as before; it moves smoothly in between.</string>
+    <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon; when aiming and in tight spots it comes close as before.</string>
     <string name="ingame_perf_section">Performance</string>
     <string name="ingame_potato_particles">Particle effects</string>
     <string name="ingame_particles_normal">Normal</string>
@@ -31,11 +31,11 @@
     <string name="ingame_skip_normal">Normal</string>
     <string name="ingame_skip_aggressive">Aggressive</string>
     <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
-    <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out at most every second picture while it falls behind; this also saves processor time and is much faster on phones with a slow processor.</string>
+    <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out up to every second picture while it falls behind; much faster on phones with a slow processor.</string>
     <string name="ingame_gentle_qte">Gentler QTEs (Professional)</string>
-    <string name="ingame_cheat_section_player">Player &amp; Inventory</string>
+    <string name="ingame_cheat_section_player">Player</string>
     <string name="ingame_cheat_section_weapons">Weapons</string>
-    <string name="ingame_cheat_section_game">Game</string>
+    <string name="ingame_cheat_section_game">General &amp; inventory</string>
     <string name="ingame_cheat_health">Infinite health</string>
     <string name="ingame_cheat_ammo">Infinite ammo</string>
     <string name="ingame_cheat_invisible">Invisibility</string>
@@ -49,7 +49,7 @@
     <string name="ingame_cheat_mine">Mine Thrower</string>
     <string name="ingame_cheat_rocket">Rocket Launcher</string>
     <string name="ingame_cheat_qte">Automatic QTEs</string>
-    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save. Automatic QTEs presses the buttons of every quick-time prompt for you. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu, as after finishing the game; your next save keeps them. Invisibility: enemies take no notice of you and do not attack; bosses and scripted scenes still can.</string>
+    <string name="ingame_cheats_help">The switches stay on until you switch them off; saves do not keep them. Some attacks still kill Leon at once (chainsaw, grab, boulder). Invisibility: enemies ignore you, bosses and scripted scenes do not. Steady aim: the laser and the scope do not sway. Costumes: Leon\'s jacket keeps Leon in his brown jacket for the whole game; Special dresses Leon and Ashley in their special outfits. The buttons change your game: weapons, the case and the money stay in your next save. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s already owned: now at its highest levels.</string>
@@ -82,8 +82,17 @@
     <string name="ingame_instant_load_warning">Unsaved progress will be lost. Load the instant save?</string>
     <string name="ingame_replace">Replace</string>
     <string name="ingame_cheat_random_items">Random items</string>
-    <string name="ingame_cheat_random_items_help">Random items: the items lying in the story\'s rooms (ammo, herbs and other recovery items, grenades, pesetas, treasures) are dealt anew in every room you enter from then on, and a room always gives the same items until you switch this off and on again. Keys, weapons, files and other story items stay as they are, so the game can always be finished. Items you already picked up stay picked up; enemies, barrels and boxes keep their own drops. Not in Assignment Ada and The Mercenaries.</string>
+    <string name="ingame_cheat_random_items_help">Random items: ammo, herbs, grenades, pesetas and treasures lying in the story\'s rooms are dealt anew; a room keeps its items until you switch this off and on again. Keys, weapons and other story items stay, so the game can always be finished. Not in Assignment Ada and The Mercenaries.</string>
     <string name="ingame_cheat_extras">Unlock extra games</string>
+    <string name="ingame_cheat_steady">Steady aim</string>
+    <string name="ingame_cheat_costume">Costumes</string>
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Leon\'s jacket</string>
+    <string name="ingame_cheat_costume_special">Special</string>
+    <string name="ingame_aim_invert_v">Invert vertical</string>
+    <string name="ingame_perf_cores">Use performance cores</string>
+    <string name="ingame_perf_help">Performance cores: the game runs on the device\'s fastest cores at higher clocks. Smoother on many phones, but the device gets warmer. Default: Android decides.</string>
+    <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
     <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>
@@ -118,7 +127,7 @@
     <string name="ingame_button_style">Button style</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: a symbol for what each button does (the default); GC: the letters in the GameCube\'s colours, as before. The editor (the gear at the top right) has the same switch.</string>
+    <string name="ingame_button_style_help">RE: symbols for what each button does (the default). GC, PS2 and XBOX: the buttons of those controllers. The style button in the editor (the gear at the top right) goes through all four.</string>
     <string name="ingame_touch_help">Auto: shown without a controller, a tap shows them, a button hides them. Force: always shown. Suppress: hidden while a controller is connected. MENU = SELECT.</string>
     <string name="ingame_latch">Latch L and R</string>
     <string name="ingame_latch_b">Latch B</string>
@@ -145,5 +154,7 @@
     <string name="ouya_light_detail">Detailed lighting</string>
     <string name="ouya_light_help">Detailed lighting: off lights the surroundings once per object instead of at every point (figures keep theirs); clearly faster on the OUYA, the ground and the trees look a little flatter. It takes effect at once.</string>
     <string name="ouya_source_only">This version and the full Android version of CubeEvil4 are only available here.\nAvoid downloads from other sites or game platforms.</string>
-    <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events (dodging, the knife fight, pressing a button fast) give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
+    <string name="ouya_invert_help">Invert vertical: aiming up and down the other way round, with the controller, the keyboard and the touch controls (the game’s own option).</string>
+    <string name="ouya_keyboard_help">Keyboard and mouse: W A S D move (and aim), Shift runs, E acts, the right mouse button aims, the left one fires, R reloads while aiming, C readies the knife, Q calls Ashley, Tab opens the case, M the map, Esc the options, F1 this menu. I J K L turn the camera, the mouse wheel zooms the scope. Arrows, Enter and Backspace work in the game’s menus. The mouse pointer does not aim.</string>
+    <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
 </resources>

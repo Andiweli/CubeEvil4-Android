@@ -128,9 +128,12 @@ struct Core {
     void (*setHudLayout)(int, int, int);
     void (*touch)(float, float);
     void (*aimTurn)(float, float);
+    void (*bodyTurn)(float);      // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
     void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
     void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
     void (*setGentleQte)(int);    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+    void (*setLeonJacket)(int);   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
+    int (*rtShadows)(void);       // optional (cores since 16.11.2026): the real-time shadows it knows
     void (*swipe)(int);
     void (*slash)(float);
     void (*gyro)(float, float);
@@ -812,8 +815,11 @@ bool loadCore(std::string& problem)
     bind(core.touch, "re4_core_touch");
     bind(core.aimTurn, "re4_core_aim_turn");
     bind(core.zoom, "re4_core_zoom", false);
+    bind(core.bodyTurn, "re4_core_body_turn", false);
     bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
     bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
+    bind(core.setLeonJacket, "re4_core_set_leon_jacket", false);
+    bind(core.rtShadows, "re4_core_rt_shadows", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
     bind(core.gyro, "re4_core_gyro");
@@ -992,11 +998,23 @@ void serve()
         case kZoom:
             if (core.zoom) core.zoom(h.a);
             break;
+        case kBodyTurn: {
+            float yaw;
+            memcpy(&yaw, &h.a, 4);
+            if (core.bodyTurn) core.bodyTurn(yaw);
+            break;
+        }
         case kSetEnemyRandom:
             if (core.setEnemyRandom) core.setEnemyRandom(h.a);
             break;
         case kSetGentleQte:
             if (core.setGentleQte) core.setGentleQte(h.a);
+            break;
+        case kLeonJacket:
+            if (core.setLeonJacket) core.setLeonJacket(h.a);
+            break;
+        case kRtShadows:
+            reply(h.id, core.rtShadows ? core.rtShadows() : 0, "");
             break;
         case kTouch: {
             float u, v;

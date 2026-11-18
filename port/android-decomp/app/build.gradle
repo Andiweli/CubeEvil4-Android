@@ -41,7 +41,7 @@ android {
         applicationId 'com.ast.re4decomp'
         minSdk 21
         targetSdk 35
-        versionCode 117
+        versionCode 122
         // with the release's name: the app menu shows it ("(v0.41.0-alpha)", without the flavour's
         // suffix), the error report and the start screen as it is ("0.41.0-alpha-core"). Numbering
         // since 0.40.0 (decision of the project owner, 20.10.2026): each alpha raises the middle
@@ -80,10 +80,12 @@ android {
         // (the reports and wishes after 0.99.2), then 0.99.4 (the reports after 0.99.3), then 0.99.5 (the project owner's
         // Vulkan reports after 0.99.4), then 0.99.6 (the users' reports and the owner's wishes after 0.99.5), up to 0.99.9, then 0.99.10 (the
         // owner's wishes of 11.11.2026, first: no system bars over the app menu and its questions), then 0.99.11 (the
-        // reports after 0.99.10: the menu's controller focus, the Information HUD, Ada's TMP), up to 0.99.15. Since 0.99.1 the name
-        // is exactly the release's tag on GitHub (AppUpdate compares the two): a suffix until 1.0 ("-rc"), none from 1.0
-        // on (the project owner, 07.11.2026)
-        versionName '0.99.15-rc'
+        // reports after 0.99.10: the menu's controller focus, the Information HUD, Ada's TMP), up to 0.99.15, then bug
+        // fixes only up to 1.0 (the feature freeze, 14.11.2026), from 0.99.18 on on the branch release-candidate, then
+        // 1.0.0 (the project owner, 16.11.2026: the 1.0 is named 1.0.0, versionName, tag and release text; it was to be
+        // 0.99.19-rc). Since 0.99.1 the name is exactly the release's tag on GitHub (AppUpdate compares the two): a
+        // suffix until 1.0 ("-rc"), none from 1.0 on (the project owner, 07.11.2026)
+        versionName '1.0.0'
         // a branch's test APK names itself with -Pre4.versionName (the Vulkan branch: "0.99.2-vulkan1"; AppUpdate
         // takes a different suffix word for the same version)
         if (project.hasProperty('re4.versionName')) versionName project.property('re4.versionName')
@@ -91,7 +93,11 @@ android {
         // by hand too)
         if (project.hasProperty('re4.versionCode')) versionCode Integer.parseInt(project.property('re4.versionCode').toString())
         externalNativeBuild { cmake { cppFlags '-std=c++17 -Wall -Wextra' } }
+        // a data folder of the player's choice (DataFolder): only the flavour "sideload" (1.0, the project owner's
+        // wish of 16.11.2026); every other flavour keeps the app's own folder, with no menu entry and no permission
+        buildConfigField 'boolean', 'CUSTOM_DATA_FOLDER', 'false'
     }
+    buildFeatures { buildConfig true }
     // classic: the app's own game modules (arm64-v8a), as before; since
     //   17.10.2026 app id "com.ast.re4decomp.classic" (installable next to the core app).
     // core: the original game core (port/whole) runs the whole game
@@ -139,10 +145,35 @@ android {
             ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
             externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
         }
+        // sideload: "core" with a data folder of the player's choice (1.0, the project owner's wish of 16.11.2026: "Daten
+        //   sollen auf Userwunsch auch außerhalb des /android/data/* Ordners eingelesen werden können"). Everything as
+        //   "core" (app id, so it installs over it and back, the signing in Android Studio, SDKs, ABIs, CMake, its
+        //   resources, libraries and assets from src/core), versionName with "-sideload" (AppUpdate leaves it out as
+        //   "-core"); src/sideload holds only the manifest with the storage permissions (all files access, the legacy
+        //   storage of Android 6..10), so no other flavour carries them. Built as sideloadRelease.
+        sideload {
+            dimension 'engine'
+            applicationId 'com.ast.cubeevil4'
+            versionNameSuffix '-sideload'
+            minSdk 24
+            ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
+            externalNativeBuild { cmake { arguments '-DRE4_CORE_MODE=ON' } }
+            buildConfigField 'boolean', 'CUSTOM_DATA_FOLDER', 'true'
+            // (the x86_64 emulator's test build of the shell, as core's)
+            if (project.hasProperty('re4.emulatorAbi')) {
+                ndk { abiFilters project.property('re4.emulatorAbi') }
+                externalNativeBuild { cmake { arguments '-DRE4_EMULATOR_SHELL=ON' } }
+            }
+        }
     }
     sourceSets {
         car {
             res.srcDirs = ['src/core/res', 'src/car/res']
+            jniLibs.srcDirs = ['src/core/jniLibs']
+            assets.srcDirs = ['src/core/assets']
+        }
+        sideload {
+            res.srcDirs = ['src/core/res']
             jniLibs.srcDirs = ['src/core/jniLibs']
             assets.srcDirs = ['src/core/assets']
         }
@@ -172,5 +203,18 @@ dependencies {
     // Now 1.0.0-beta.10 (09.11.2026, the AAR as the project owner built it): the ICONS button style next to
     // LABELS, icons, ROUNDED_RECT and CAPSULE shapes, pressed and latched colours (TouchStyle). The icons'
     // licence (Lucide, ISC): libs/retrotouch-THIRD_PARTY_NOTICES.md, RetroTouch's own notice file.
+    // Now 1.0.0-beta.11 (15.11.2026, the AAR as the project owner's RetroTouch session built it): beta.10 and
+    // RetroTouchView.setSafeInsets(left, top, right, bottom), the camera cutout's insets for the editor's bar, its
+    // "DRAG / Selected" line, their touch areas and the gear's default place (TouchControls.setSafeInsets, 0.99.17);
+    // the controls and their saved places as before. Nothing else of the public API changed; notices unchanged.
+    // Now 1.0.0-beta.12 (16.11.2026, the project owner's AAR, sha256 323c32e2...ee): up to 8 sticks per layout
+    // (RetroTouchLayout.MAX_STICKS, RetroTouchView.setMaxSticks; the app allows 4: move, C, aim, knife), an icon for
+    // added sticks (registerStickAction with a RetroTouchIcon) and RetroTouchStickTouchListener (onStickDown / onStickUp
+    // on the listener, CoreTouch.stickDown / stickUp). The layout format (2) and its reader are as before; notices unchanged.
+    // Now 1.0.0-beta.13 (17.11.2026, the project owner's AAR, sha256 af38675f...db): skins (RetroTouchSkin, any number of
+    // named looks the editor's style button goes through; TouchStyle builds RE, GC, PS2 and XBOX), the shapes KIDNEY,
+    // BUMPER and TRIGGER with rotation, octagonal stick gates, icon colours apart from the label, filled and symbol
+    // icons, labels on stick knobs, a D-pad of four buttons and labels centred on their ink. Drop-in: the beta.12
+    // API and layout format 2 unchanged; notices unchanged (its own symbols and arrows are RetroTouch's, MIT).
     implementation files('libs/retrotouch.aar')
 }

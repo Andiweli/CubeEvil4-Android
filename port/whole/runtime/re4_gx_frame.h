@@ -81,15 +81,41 @@ enum Re4GxOp {
      * thing, whatever its draws look like (a flame's next texture). A renderer that does not know
      * the op skips it by its length. */
     RE4_GX_OP_OWNER = 8,
+    /* real-time shadows (port/docs/echtzeit-schatten-studie.md;
+     * runtime/rt_shadow.cpp, patch 0240): the scene's opaque part is drawn (the game's ordering tables up to
+     * 14, its own shadow receivers; before the effects), now the shadows go on it. Since stage 5 (16.11.2026)
+     * payload 1 + 5 k words: [0] k (1..3), then for each light that lights the player its direction in view
+     * space (x, y, z), its weight (how much of the light there a shadow takes away) and its softness (the
+     * filter's radius in map texels), floats as their bits (gx_fifo.cpp re4_gx_put_shadow_lights, port command
+     * 0x04). Since stage 6 (16.11.2026) payload 2 + 15 k words: [0] 0x10 | k, [1] the ambient (luminance), then for
+     * each light kind (0 parallel, 1 point, 2 spot), its direction (parallel) or place in view space, its colour's
+     * luminance, strength, full and gone distances, GX attenuation k1, k2, a spot's cut-off cosine (-2 none) and
+     * axis, the softness (gx_fifo.cpp re4_gx_put_shadow_lights2, port command 0x05): the renderer draws a point
+     * light's shadows from its place and works out the darkening at each place from the fall-off. Until stage 5
+     * 4 words (port command 0x03, still read): [0..2] the foot shadow light's direction in
+     * view space, [3] bits 0-7 its strength (0..255). Sent only while the app switched the shadows on, in play
+     * (no event, no sub screen, no death or continue screen) and with a light that casts; the core then draws
+     * no foot shadow blobs. A renderer that does not know the op skips it by its length. */
+    RE4_GX_OP_SHADOW = 9,
     /* payload RE4_GX_COMPACT_ATTRS words: the vertex format of the draws with
      * RE4_GX_V_COMPACT that follow, until the next such op (only with
-     * RE4_GX_COMPACT=1, the OUYA branch; see Re4GxCompactAttrIndex). */
-    RE4_GX_OP_COMPACT_FORMAT = 9
+     * RE4_GX_COMPACT=1, the OUYA branch; see Re4GxCompactAttrIndex). 0x40, far above
+     * master's numbers: it was 9 until master gave 9 to RE4_GX_OP_SHADOW, 1.0.0). */
+    RE4_GX_OP_COMPACT_FORMAT = 0x40
 };
 
 /* RE4_GX_OP_OWNER word 2: the object is a figure (Leon, Ashley, Luis, an enemy, the merchant: a work of
  * EmMgr) or a particle attached to one (runtime/gx_owner.cpp); the lens flares take no light from it. */
 #define RE4_GX_OWNER_FIGURE 0x100u
+/* RE4_GX_OP_OWNER word 2, only in a picture with the app's real-time shadows (runtime/rt_shadow.cpp,
+ * runtime/gx_owner.cpp): the object casts a shadow with the figures (a weapon or shield
+ * a figure holds, a parasite of an enemy: RE4_GX_OWNER_PART) or, with "Characters and objects", one of its own
+ * (RE4_GX_OWNER_OBJECT: doors, crates, barrels, racks, rocks, trees, levers, barred gates, the room's turning,
+ * swinging or script-moved models such as the windmill's blades, models events leave in the room, cloth such as
+ * flags, ladders, bells, carts and other machinery; not one the game shadows itself). The room's static scenery is
+ * never marked: its light and shadows are pre-lit. */
+#define RE4_GX_OWNER_OBJECT 0x200u
+#define RE4_GX_OWNER_PART 0x400u
 
 /* Primitive classes (Re4GxDraw.primitive bits 0-7). Quads, strips and fans
  * arrive as triangle lists with GX's winding kept (strips: every second

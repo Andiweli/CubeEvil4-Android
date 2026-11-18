@@ -149,11 +149,42 @@ public final class CoreBridge {
     return g.getBoolean("flares", false) ? 2 : 0;
   }
   /** The Potato mode's "View distance" (0.99.6, wish of the project owner, 09.11.2026, from the OUYA branch): 0 Normal
-   *  (the default, the game's), 1 Medium, 2 Short (the OUYA's setting); in percent of the room's view VIEW_PERCENT. */
+   *  (the default, the game's), 1 Medium, 2 Short; since 0.99.18 (the project owner, 15.11.2026) also 3 Very short
+   *  (the OUYA's setting; the menu calls it "None", ingame_view_very_short) and 4 Far, so a value saved before stays
+   *  what it was; in percent of the room's view
+   *  VIEW_PERCENT (the room's fog end times it, runtime/view_distance.cpp; since 1.0.0, the project owner's choice
+   *  after the analysis: Medium 65 instead of 75, Far 160 instead of 150 with the fog itself further out). The menu
+   *  shows them in VIEW_ORDER, from the farthest to the nearest. */
   static final String VIEW_DISTANCE = "viewDistance";
-  static final int[] VIEW_PERCENT = {100, 75, 50};
+  static final int VIEW_NORMAL = 0, VIEW_SHORT = 2, VIEW_VERY_SHORT = 3, VIEW_FAR = 4;
+  static final int[] VIEW_PERCENT = {100, 65, 50, 35, 160};
+  static final int[] VIEW_ORDER = {VIEW_FAR, VIEW_NORMAL, 1, VIEW_SHORT, VIEW_VERY_SHORT};
+  static final int[] VIEW_LABEL = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short,
+      R.string.ingame_view_very_short, R.string.ingame_view_far};
   static int viewDistance(android.content.SharedPreferences g) {
-    return Math.max(0, Math.min(2, g.getInt(VIEW_DISTANCE, 0)));
+    return viewLevel(g.getInt(VIEW_DISTANCE, 0));
+  }
+  /** A saved or profile value as a level (anything unknown: Normal). */
+  static int viewLevel(int v) {
+    return v >= 0 && v < VIEW_PERCENT.length ? v : VIEW_NORMAL;
+  }
+  /** The level after `level` when the menu's button is pressed: Normal, Medium, Short, Very short, Far, Normal ...
+   *  (VIEW_ORDER from the far end round again). */
+  static int nextView(int level) {
+    for (int i = 0; i < VIEW_ORDER.length; i++) {
+      if (VIEW_ORDER[i] == level) return VIEW_ORDER[(i + 1) % VIEW_ORDER.length];
+    }
+    return VIEW_NORMAL;
+  }
+  /** The level the menu shows unlit (the project owner, 15.11.2026: "nur hier nicht gehighlighted"): Very short,
+   *  shown as "None" since then (35 % with thick fog, as before); Far, Normal, Medium and Short are lit. */
+  static boolean viewOff(int level) {
+    return level == VIEW_VERY_SHORT;
+  }
+  /** The eyes after the menu button's text (the project owner, 15.11.2026): 4 Far, 3 Normal, 2 Medium, 1 Short, 0 None
+   *  (a crossed-out eye instead). */
+  static int viewEyes(int level) {
+    return new int[] {3, 2, 1, 0, 4}[viewLevel(level)];
   }
   /** The Potato mode's "Particle effects" (0.99.3): 0 normal (the default), 1 less, 2 none. */
   static int particleEffects(android.content.SharedPreferences g) {
@@ -262,15 +293,38 @@ public final class CoreBridge {
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
   /**
+   * "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words are enlarged with
+   * clean edges on a thread of their own and drawn sharper at high resolutions (word_sharpen.h); on by default.
+   */
+  public static native void setSharperText(boolean on);
+  /**
+   * The Mods page's "Costumes" and "Weapons" (1.0.0): false keeps the playable characters' (or the weapons') own
+   * textures while a texture pack is on; takes effect at once.
+   */
+  public static native void setTextureGroups(boolean costumesPack, boolean weaponsPack);
+  /**
    * CRT (0.99.9; 0 off, 1 light, 2 strong): the picture as a tube TV showed it (lines, a curved glass, a glow); only
    * what the game draws, not the touch controls nor the app's overlays.
    */
   public static native void setCrt(int level);
+  /** Real-time shadows (RealtimeShadows; core_mode.cpp, GxRenderer::SetShadows): 0 off, 1 the figures, 2 the
+   *  figures and the objects. */
+  public static native void setShadows(int level);
+  /** Bit 5 of the Potato mask while the real-time shadows are on, bit 6 with the objects (CoreActivity.checkShadows;
+   *  always 0 in a release build): the core marks where they go, tags the objects that cast and leaves its foot
+   *  shadow blobs out there (runtime/rt_shadow.cpp, runtime/gx_owner.cpp). */
+  static volatile int shadowBit;
+  /** The Potato mask the core gets: the menu's switches (potatoMask), and bits 5 and 6 of the real-time shadows. */
+  static int potatoSent(android.content.SharedPreferences g) {
+    return potatoMask(g) | shadowBit;
+  }
   /** Bloom (0.99.13; core_mode.cpp, GxRenderer::SetBloom): 0 off, 1 light, 2 strong. */
   public static native void setBloom(int level);
   /** The bloom the renderer gets: the menu's, off while a Potato mode switch is on (0.99.13). */
   static int bloomSent(android.content.SharedPreferences g) {
-    return potatoMask(g) == 0 && viewDistance(g) == 0 ? CoreMenu.bloomLevel(g) : 0;
+    // (Far is no Potato setting: the bloom stays, as at Normal)
+    int view = viewDistance(g);
+    return potatoMask(g) == 0 && (view == VIEW_NORMAL || view == VIEW_FAR) ? CoreMenu.bloomLevel(g) : 0;
   }
   /** Colour (0.99.9): mode 0 off, 1 warm film, 2 survival horror; level 1 light, 2 strong. */
   public static native void setColour(int mode, int level);
@@ -286,6 +340,12 @@ public final class CoreBridge {
    */
   public static native void aimTurn(float yaw, float pitch);
   /**
+   * "Turn Leon with mouse / look area" (1.0): the mouse's or the look zone's movement sideways as Leon's turn in
+   * radians (positive left); the core adds it to his facing at the next game frame while he stands, walks or runs, and
+   * drops it while he aims, climbs, in an event and so on. Cores before 16.11.2026 ignore it.
+   */
+  public static native void bodyTurn(float yaw);
+  /**
    * The mouse wheel (CoreActivity, 0.99.12): whole notches, up positive. While the scope or the binoculars are up
    * the core zooms by them (an eighth of the zoom a notch, up zooms in, as the C stick does); elsewhere it drops
    * them. Cores before 12.11.2026 ignore it.
@@ -296,6 +356,9 @@ public final class CoreBridge {
   /** "Gentler QTEs" (CoreMenu, comfort controls, 0.99.15): Professional's quick-time events as Normal's
    *  (runtime/qte_touch.cpp re4_qte_level, patch 0232); cores before 0.99.15 leave it out. */
   public static native void setGentleQte(boolean on);
+  /** The cheat "Costumes · Leon's jacket" (1.0, runtime/cheats.cpp, patch 0235): Leon keeps the brown jacket of chapter
+   *  1 for the whole story; the story's Leon changes at once (his room starts again where he stands). */
+  public static native void setLeonJacket(boolean on);
   /**
    * A tap on the picture at (x, y) pixels of the surface (CoreActivity): the core uses it in the
    * game's sub screens (runtime/menu_touch.cpp: tabs, the attache case, its command menu); cores

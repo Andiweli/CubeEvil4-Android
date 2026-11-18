@@ -122,6 +122,81 @@ public class TouchLayoutFileTest {
     assertTrue((1 - n.getDouble("x")) * 1440 >= dn * 0.5 - 0.01);
   }
 
+  /** The default layout with the sticks the editor adds (RetroTouch writes them as the move stick with an action). */
+  private static String withSticks(String... actions) throws JSONException {
+    JSONObject root = new JSONObject(defaults());
+    JSONArray c = root.getJSONArray("controls");
+    JSONObject move = null;
+    for (int i = 0; i < c.length(); i++) if (c.getJSONObject(i).getString("id").equals("stick")) move = c.getJSONObject(i);
+    assertNotNull(move);
+    for (int k = 0; k < actions.length; k++) {
+      JSONObject s = new JSONObject(move.toString());
+      s.put("id", "button_" + (20 + k)).put("action", actions[k]).put("label", CoreTouch.label(actions[k]))
+          .put("x", 0.40 + 0.12 * k).put("y", 0.45);
+      c.put(s);
+    }
+    return root.toString();
+  }
+
+  private static int sticks(com.ast.retrotouch.RetroTouchLayout layout, String action) {
+    int n = 0;
+    for (com.ast.retrotouch.RetroTouchControl k : layout.getControls()) {
+      if (k.getType() == com.ast.retrotouch.RetroTouchControl.Type.MOVE_STICK
+          && (action == null ? k.getActionId() == null || k.getActionId().isEmpty() : action.equals(k.getActionId()))) n++;
+    }
+    return n;
+  }
+
+  /** RetroTouch 1.0.0-beta.12 (16.11.2026): the move stick, the C stick, the aim and the knife stick in one layout, out
+   *  with the exported saves and back, and RetroTouch shows all four (CoreTouch.MAX_STICKS). */
+  @Test public void fourSticksOutAndBack() throws JSONException {
+    String own = withSticks(CoreTouch.C_STICK, CoreTouch.AIM_STICK, CoreTouch.KNIFE_STICK);
+    com.ast.retrotouch.RetroTouchLayout parsed = com.ast.retrotouch.RetroTouchLayout.fromJson(own);
+    assertEquals(1, sticks(parsed, CoreTouch.AIM_STICK));
+    prefs.edit().putString(TouchLayoutFile.KEY, own).commit();
+    byte[] file = TouchLayoutFile.export(prefs, TouchControls.defaultLayout(), 1920, 1080, "1.0.0");
+    assertNotNull(file);
+    prefs.edit().clear().commit();
+    assertEquals(0, TouchLayoutFile.apply(prefs, TouchLayoutFile.parse(file), 1920, 1080, 2.0f));
+    assertTrue(TouchLayoutFile.same(TouchLayoutFile.saved(prefs), own));
+    com.ast.retrotouch.RetroTouchView view = shown();
+    assertEquals(CoreTouch.MAX_STICKS, view.getMaxSticks());
+    com.ast.retrotouch.RetroTouchLayout layout = view.getCurrentLayout();
+    for (String action : new String[] {null, CoreTouch.C_STICK, CoreTouch.AIM_STICK, CoreTouch.KNIFE_STICK}) {
+      assertEquals("one stick " + action, 1, sticks(layout, action));
+    }
+  }
+
+  /** A layout saved before beta.12 (RetroTouch's reader and writer are the same, format 2; there were at most two sticks
+   *  then: the move stick and one added one) loads as before. */
+  @Test public void anOldLayoutStillLoads() throws JSONException {
+    String old = withSticks(CoreTouch.AIM_STICK);
+    assertEquals(2, new JSONObject(old).getInt("format"));
+    prefs.edit().putString(TouchLayoutFile.KEY, old).commit();
+    com.ast.retrotouch.RetroTouchLayout layout = shown().getCurrentLayout();
+    assertEquals(1, sticks(layout, null));
+    assertEquals(1, sticks(layout, CoreTouch.AIM_STICK));
+    assertEquals(TouchControls.LAYOUT_ID, layout.getGameId());
+    // a layout file exported by 0.99.18 (the same JSON in the file): read and taken
+    String file = "{\"" + TouchLayoutFile.MARK + "\":1,\"version\":\"0.99.18-rc\",\"layout\":" + withSticks(CoreTouch.C_STICK) + "}";
+    prefs.edit().clear().commit();
+    assertEquals(0, TouchLayoutFile.apply(prefs, TouchLayoutFile.parse(file.getBytes(StandardCharsets.UTF_8)), 1920, 1080, 2.0f));
+    assertEquals(1, sticks(shown().getCurrentLayout(), CoreTouch.C_STICK));
+  }
+
+  /** The touch controls as the game shows them (Force), reading the saved layout. */
+  private static com.ast.retrotouch.RetroTouchView shown() {
+    TouchControls t = new TouchControls(RuntimeEnvironment.getApplication(), new CoreInput(), TouchShowRule.FORCE,
+        new TouchControls.Host() {
+          @Override public void select(boolean down, boolean finger) {}
+          @Override public void editing(boolean on) {}
+          @Override public void send() {}
+          @Override public void r3(boolean down) {}
+          @Override public void zoom(int direction, boolean down) {}
+        });
+    return (com.ast.retrotouch.RetroTouchView) t.view();
+  }
+
   @Test public void filesThatAreNoUse() {
     assertFalse(TouchLayoutFile.is("{\"format\":2}".getBytes(StandardCharsets.UTF_8)));
     assertFalse(TouchLayoutFile.is(new byte[] {'P', 'K', 3, 4}));

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lucide "eye-off" (https://lucide.dev, icons/eye-off.svg; ISC License, see app/THIRD_PARTY_NOTICES.md): the view
+     distance "None" in the app menu (CoreMenu.Eyes, 0.99.18). The SVG's paths with each arc written out; the stroke is
+     tinted in the text's colour. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path
+        android:pathData="M10.733,5.076 a10.744,10.744 0 0,1 11.205,6.575 a1,1 0 0,1 0,0.696 a10.747,10.747 0 0,1 -1.444,2.49"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path
+        android:pathData="M14.084,14.158 a3,3 0 0,1 -4.242,-4.242"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path
+        android:pathData="M17.479,17.499 a10.75,10.75 0 0,1 -15.417,-5.151 a1,1 0 0,1 0,-0.696 a10.75,10.75 0 0,1 4.446,-5.143"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path
+        android:pathData="M2,2 l20,20"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

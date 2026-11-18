@@ -13,14 +13,14 @@
     <string name="ingame_potato">Режим Potato</string>
     <string name="ingame_potato_weather">Погодные эффекты</string>
     <string name="ingame_potato_special">Спецэффекты</string>
-    <string name="ingame_potato_help">Погодные эффекты: клубы тумана, дождь, брызги воды. Спецэффекты: пар, марево, вода. Эффекты частиц: кровь, пыль, дым, брызги, искры и огонь; «Меньше» рисует половину, «Нет» убирает всё, кроме огня и взрывов, которые остаются наполовину как предупреждение. Тени и свет: выключение убирает тени (и в роликах), блики и лучи света; освещение комнат остаётся. Каждая настройка снижает нагрузку на графику на слабых устройствах; место попадания, подсказки, лазер и все эффекты в роликах остаются.</string>
+    <string name="ingame_potato_help">Каждый переключатель снижает нагрузку на графику на слабых устройствах. Частицы: «Меньше» рисует половину, «Нет» оставляет только огонь и взрывы. Выключение «Тени и свет» убирает тени, блики и лучи света; освещение комнат остаётся. Попадания, подсказки и лазер остаются всегда.</string>
     <string name="ingame_comfort">Удобное управление</string>
     <string name="ingame_auto_aim">Автоприцел</string>
     <string name="ingame_always_run">Всегда бежать</string>
     <string name="ingame_far_camera">Дальняя камера</string>
     <string name="ingame_auto_aim_help">Автоприцел: когда вы поднимаете оружие, прицел перескакивает на ближайшего врага впереди и ненадолго следует за ним (встроенная помощь прицеливания игры).</string>
     <string name="ingame_always_run_help">Всегда бежать: Леон бежит, как только вы двигаетесь; удерживайте кнопку бега (например, B), чтобы идти шагом.</string>
-    <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона при ходьбе и на месте. При прицеливании и в тесных местах она приближается, как раньше; переходы плавные.</string>
+    <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона; при прицеливании и в тесных местах она приближается, как раньше.</string>
     <string name="ingame_perf_section">Производительность</string>
     <string name="ingame_potato_particles">Эффекты частиц</string>
     <string name="ingame_particles_normal">Обычно</string>
@@ -31,11 +31,11 @@
     <string name="ingame_skip_normal">Обычный</string>
     <string name="ingame_skip_aggressive">Агрессивный</string>
     <string name="ingame_skip_normal_help">Пропуск кадров «Обычный»: если графический чип не успевает, готовый кадр пропускается, чтобы игра шла с обычной скоростью.</string>
-    <string name="ingame_skip_aggressive_help">Пропуск кадров «Агрессивный»: игра сама пропускает не больше одного кадра из двух, когда отстаёт; это экономит и время процессора и намного быстрее на телефонах с медленным процессором.</string>
+    <string name="ingame_skip_aggressive_help">Пропуск кадров «Агрессивный»: игра сама пропускает не больше одного кадра из двух, когда отстаёт; намного быстрее на телефонах с медленным процессором.</string>
     <string name="ingame_gentle_qte">Мягкие QTE (Professional)</string>
-    <string name="ingame_cheat_section_player">Игрок и инвентарь</string>
+    <string name="ingame_cheat_section_player">Игрок</string>
     <string name="ingame_cheat_section_weapons">Оружие</string>
-    <string name="ingame_cheat_section_game">Игра</string>
+    <string name="ingame_cheat_section_game">Общее и инвентарь</string>
     <string name="ingame_cheat_health">Бесконечное здоровье</string>
     <string name="ingame_cheat_ammo">Бесконечные патроны</string>
     <string name="ingame_cheat_invisible">Невидимость</string>
@@ -49,7 +49,7 @@
     <string name="ingame_cheat_mine">Миномёт</string>
     <string name="ingame_cheat_rocket">Ракетомёт</string>
     <string name="ingame_cheat_qte">Автоматические QTE</string>
-    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранение их не запоминает. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Автоматические QTE» сами нажимают кнопки при каждой подсказке быстрого действия. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню, как после прохождения игры; следующее сохранение их запомнит. «Невидимость»: враги вас не замечают и не нападают; боссы и постановочные сцены всё ещё могут.</string>
+    <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранения их не запоминают. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). «Невидимость»: враги вас игнорируют, а боссы и постановочные сцены — нет. «Устойчивый прицел»: лазер и оптический прицел не качаются. «Костюмы»: «Куртка Леона» оставляет Леона в коричневой куртке всю игру; «Особый» одевает Леона и Эшли в их особые костюмы. Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню.</string>
     <string name="ingame_cheat_done">Готово: %1$s.</string>
     <string name="ingame_cheat_already">Уже есть: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s уже есть: теперь на максимальных уровнях.</string>
@@ -82,8 +82,17 @@
     <string name="ingame_instant_load_warning">Несохранённый прогресс будет потерян. Загрузить мгновенное сохранение?</string>
     <string name="ingame_replace">Заменить</string>
     <string name="ingame_cheat_random_items">Случайные предметы</string>
-    <string name="ingame_cheat_random_items_help">Случайные предметы: предметы, лежащие в комнатах сюжета (патроны, травы и другие лечебные предметы, гранаты, песеты, сокровища), заново распределяются в каждой комнате, в которую вы входите с этого момента, и комната всегда даёт одни и те же предметы, пока вы не выключите и снова не включите эту функцию. Ключи, оружие, документы и другие сюжетные предметы остаются как есть, поэтому игру всегда можно пройти. Уже подобранное остаётся подобранным; враги, бочки и ящики сохраняют свою добычу. Не в Assignment Ada и The Mercenaries.</string>
+    <string name="ingame_cheat_random_items_help">Случайные предметы: патроны, травы, гранаты, песеты и сокровища, лежащие в комнатах сюжета, распределяются заново; комната сохраняет свои предметы, пока вы не выключите и снова не включите эту функцию. Ключи, оружие и другие сюжетные предметы остаются, поэтому игру всегда можно пройти. Не в Assignment Ada и The Mercenaries.</string>
     <string name="ingame_cheat_extras">Открыть доп. игры</string>
+    <string name="ingame_cheat_steady">Устойчивый прицел</string>
+    <string name="ingame_cheat_costume">Костюмы</string>
+    <string name="ingame_cheat_costume_normal">Обычный</string>
+    <string name="ingame_cheat_costume_jacket">Куртка Леона</string>
+    <string name="ingame_cheat_costume_special">Особый</string>
+    <string name="ingame_aim_invert_v">Инвертировать по вертикали</string>
+    <string name="ingame_perf_cores">Производительные ядра</string>
+    <string name="ingame_perf_help">Производительные ядра: игра работает на самых быстрых ядрах устройства на повышенных частотах. На многих телефонах плавнее, но устройство сильнее нагревается. По умолчанию: решает Android.</string>
+    <string name="ingame_map_keyboard">Клавиатура и мышь</string>
     <string name="ingame_cheat_extras_text">Assignment Ada и The Mercenaries открыты (а также Professional, как после прохождения игры). Главное меню покажет их после перезапуска. Прогресс с последнего сохранения будет потерян.</string>
     <string name="ingame_cheat_extras_later">Открыто: Assignment Ada и The Mercenaries появятся в главном меню после следующего перезапуска.</string>
     <string name="ingame_cheat_extras_already">Уже открыто: Assignment Ada и The Mercenaries есть в главном меню.</string>
@@ -120,7 +129,7 @@
     <string name="ingame_button_style">Стиль кнопок</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: значок того, что делает кнопка (по умолчанию); GC: буквы в цветах GameCube, как раньше. В редакторе (шестерёнка справа вверху) тот же переключатель.</string>
+    <string name="ingame_button_style_help">RE: значки того, что делает каждая кнопка (по умолчанию). GC, PS2 и XBOX: кнопки этих контроллеров. Кнопка стиля в редакторе (шестерёнка справа вверху) переключает все четыре по очереди.</string>
     <string name="ingame_touch_help">Авто: кнопки видны без контроллера, касание экрана показывает их, нажатие кнопки скрывает. Всегда: кнопки видны всегда. Скрывать: кнопки скрыты, пока подключён контроллер. MENU = SELECT.</string>
     <string name="ingame_latch">Фиксация L и R</string>
     <string name="ingame_latch_b">Фиксация B</string>
@@ -147,5 +156,7 @@
     <string name="ouya_light_detail">Детальное освещение</string>
     <string name="ouya_light_help">Детальное освещение: если выключено, окружение освещается один раз на объект, а не в каждой точке (персонажи сохраняют своё); на OUYA заметно быстрее, земля и деревья выглядят немного более плоскими. Действует сразу.</string>
     <string name="ouya_source_only">Эта версия и полная Android-версия CubeEvil4 доступны только здесь.\nНе скачивайте их с других сайтов или игровых платформ.</string>
-    <string name="ouya_gentle_qte_help">Мягкие QTE: в Professional события с кнопками (уклонение, бой на ножах, быстрое нажатие) дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional.</string>
+    <string name="ouya_invert_help">Инвертировать по вертикали: прицеливание вверх и вниз наоборот — с контроллером, клавиатурой и сенсорным управлением (собственная настройка игры).</string>
+    <string name="ouya_keyboard_help">Клавиатура и мышь: W A S D — ходьба (и прицеливание), Shift — бег, E — действие, правая кнопка мыши — прицел, левая — выстрел, R при прицеливании — перезарядка, C — нож, Q — позвать Эшли, Tab — кейс, M — карта, Esc — настройки, F1 — это меню. I J K L поворачивают камеру, колесо мыши приближает прицел. Стрелки, Enter и Backspace работают в меню игры. Указатель мыши не прицеливается.</string>
+    <string name="ouya_gentle_qte_help">Мягкие QTE: в Professional события с кнопками дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional.</string>
 </resources>

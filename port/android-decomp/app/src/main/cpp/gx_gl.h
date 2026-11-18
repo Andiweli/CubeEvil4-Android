@@ -44,6 +44,8 @@ struct GxStats {
   unsigned colourPasses = 0;     // display copies graded (SetColour)
   unsigned crtPasses = 0;        // display copies made into the CRT's lines and glow (SetCrt)
   unsigned bloomPasses = 0;      // pictures whose scene's bright parts glow (SetBloom)
+  unsigned shadowPasses = 0;     // pictures with the real-time shadows (SetShadows)
+  unsigned shadowTriangles = 0;  // the casters' triangles of the last of them (figures and objects)
   unsigned depthSnapshots = 0;   // depth maps taken for the game's GXPeekZ (BP 0x5B, the core's marker)
   unsigned depthDelivered = 0;   // of them handed to the core
   unsigned handedCopies = 0;     // EFB copies the renderer before handed over (HandOverCopies)
@@ -57,6 +59,18 @@ struct GxStats {
   std::size_t hdBytesNow = 0;
   // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
   std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
+  // T4 (0.99.18), the reads in the background: asked for, put in place of the game's texture, dropped (the texture or
+  // the pack went first); waiting now; the loader thread's reading (not the render thread's) and the longest wait
+  // from the request to the replacement on the screen (microseconds)
+  unsigned hdQueued = 0, hdSwapped = 0, hdStale = 0;
+  std::size_t hdWaitingNow = 0;
+  std::uint64_t hdLoaderReadUs = 0, hdWaitMaxUs = 0;
+  // "Sharper menu text" (1.0.0, SetWordSharpen): menu words asked for, put in place of the game's picture, dropped
+  // (sent again or gone first), left as they were for the budget; waiting now; their bytes on the GPU now; the
+  // sharpening's time (on its thread, or here with RE4_WORD_SHARPEN_SYNC=1; microseconds, summed)
+  unsigned wordsQueued = 0, wordsSharpened = 0, wordsStale = 0, wordsOverBudget = 0;
+  std::size_t wordsWaitingNow = 0, wordBytesNow = 0;
+  std::uint64_t wordSharpenUs = 0;
   // 0.99.14: the render thread's loading (microseconds, summed): HD textures (UploadHd), shader programs (GL) and
   // shaders and pipelines (Vulkan) made on it. "Dynamic" (gx_auto_level.h) does not judge a window with much of it:
   // pictures late while it loads are not the resolution's doing
@@ -204,7 +218,7 @@ struct GxOptions {
 };
 
 // The graphics API a renderer draws with (port/docs/vulkan-bauplan.md): GLES 3 (the default and the fallback) or
-// Vulkan (experimental, later).
+// Vulkan (the menu's choice; GLES stays the default, port/docs/vulkan-bauplan.md).
 enum class GxApi { kGl, kVulkan };
 
 struct GxCore;
@@ -287,6 +301,11 @@ public:
   // to the screen's height, which blurs the textures. Not for a movie's pictures (RE4_GX_CHUNK_MOVIE). Takes
   // effect with the next display copy; costs one pass over the XFB per picture (the in-between pictures too).
   void SetSharpen(int level);
+  // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026; word_sharpen.h): while on, the menus'
+  // word pictures (tex_pack_words.h) are enlarged 2x (small ones 4x from 3x on) with a contour snap on a thread of
+  // their own and shown in place of the game's own picture once ready; nothing below 1.5x or in the PSone demake.
+  // Switching drops the textures (the game core sends them again). Off (the default here): as before.
+  void SetWordSharpen(bool on);
   // Original TV filter (wish of the project owner, 01.11.2026): the display copies take the vertical
   // taps of the game's copy filter (GXSetCopyFilter, BP 0x53/0x54: the line above, the line, the line
   // below; the deflicker filter of the TV picture) one original line apart at any resolution, as the
@@ -325,6 +344,12 @@ public:
   // picture of one texel per 4 x 4 game pixels, blurred, added into the EFB); not where "Halos + lens flares" draw
   // their halo, not on the game's menu screens. Takes effect with the next chunk.
   void SetBloom(int level);
+  // Real-time shadows (every build since 16.11.2026, until then debug builds only, decisions of the project owner;
+  // port/docs/echtzeit-schatten-studie.md): 0 off (the default), 1 the figures, 2 the figures and the objects (the
+  // owner tag's RE4_GX_OWNER_OBJECT: doors, crates, barrels, the windmill's blades, flags, ...). Where the game core
+  // marks the place (RE4_GX_OP_SHADOW: in play, with the room's foot shadow light), they cast their shadows on the
+  // scene. Off, nothing of it runs. Takes effect with the next chunk.
+  void SetShadows(int level);
   // the menu's depth of field "Strong" (0.98.4): the gameplay autofocus blurs more and wider than "Light"
   void SetDofStrong(bool on);
   // HD textures (port/docs/textur-lader-plan.md): the player's texture pack (null: none), the first of each
@@ -332,6 +357,10 @@ public:
   // or level drops every texture: TakeTexturesDropped then says once that the game core must send them again.
   // Never in the PSone demake (its look wants the game's own textures).
   void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
+  // The Mods page's "Costumes" and "Weapons" (1.0.0, decision of the project owner, 17.11.2026): the pack's groups
+  // whose textures stay the game's own (TextureGroup bits of tex_pack.h; 0: the pack replaces all it has, as before).
+  // A change while a pack is on drops every texture as another pack does (TakeTexturesDropped): at once, no restart.
+  void SetTexturePackKeep(unsigned groups);
   bool TakeTexturesDropped();
   // The EFB rows the app shows (0..448 of the game's picture: all, or 56..392 in the 16:9 formats,
   // whose crop leaves the letterbox bars out). Full-width texture copies repeat the edge rows of the

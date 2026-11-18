@@ -24,17 +24,19 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
 /**
- * The packer's screen with real text widths (Robolectric's native graphics) on a phone (360 dp wide), in every
- * language, with the system font at 100 % and 130 %, while a pack is ready, being converted and done (wish of the
- * project owner, 13.11.2026: larger text, the buttons side by side on one half each): no text cut off or shortened
- * ("…"), nothing outside the screen, each pair of buttons the same width, side by side, not overlapping. With the
- * environment variable PACKER_SHOTS set to a folder, pictures of English and German go there (packer-*.png).
+ * The packer's screen with real text widths (Robolectric's native graphics) on a phone (360 dp wide), with the system
+ * font at 100 % and 130 %, while a pack is ready, being converted and done (wish of the project owner, 13.11.2026:
+ * larger text, the buttons side by side on one half each): no text cut off or shortened ("…"), nothing outside the
+ * screen, each pair of buttons the same width, side by side, not overlapping. The app is English only (project owner,
+ * 14.11.2026): a phone set to German or Arabic shows the same English texts, left to right. With the environment
+ * variable PACKER_SHOTS set to a folder, pictures go there (packer-*.png).
  */
 @RunWith(org.robolectric.RobolectricTestRunner.class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = 33, qualifiers = "w360dp-h780dp-port-xhdpi")
 public class PackerScreenTest {
-  static final String[] LANGUAGES = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"};
+  /** the phone's language: the texts stay English in each */
+  static final String[] PHONES = {"en", "de", "ar"};
   static final String SUMMARY = "name\tResident Evil 4 HD Project\nimages\t5916\nbytes\t11929097886\nskipped\t11\n"
       + "group\tAttache case variations\t0\nvariant\tBlack Attache Case\t0\nvariant\tGold Attache Case\t0\n"
       + "variant\tOriginal Attache Case\t1\n"
@@ -61,11 +63,9 @@ public class PackerScreenTest {
     Job.reportName = "CubeEvil4-textures-512.txt";
   }
 
-  private static List<MainActivity.Volume> volumes(String language) {
+  private static List<MainActivity.Volume> volumes() {
     List<MainActivity.Volume> out = new ArrayList<>();
-    boolean de = language.equals("de");
-    String[][] v = {{"external_primary", de ? "Interner gemeinsamer Speicher" : "Internal shared storage"},
-        {"1234-abcd", de ? "SD-Karte von SanDisk" : "SanDisk SD card"}};
+    String[][] v = {{"external_primary", "Internal shared storage"}, {"1234-abcd", "SanDisk SD card"}};
     long[] free = {23_400_000_000L, 112_800_000_000L};
     for (int i = 0; i < v.length; i++) {
       MainActivity.Volume vol = new MainActivity.Volume();
@@ -132,14 +132,15 @@ public class PackerScreenTest {
     return checks;
   }
 
-  @Test public void everyLanguageFitsAPhone() throws Exception {
+  @Test public void fitsAPhoneInEnglishOnly() throws Exception {
     String shots = System.getenv("PACKER_SHOTS");
     if (shots != null && !shots.isEmpty()) new File(shots).mkdirs();
     StringBuilder problems = new StringBuilder();
     int checks = 0;
     String[] names = {"ready", "converting", "done"};
     int[] states = {Job.READY, Job.CONVERTING, Job.DONE};
-    for (String language : LANGUAGES)
+    String intro = null;
+    for (String language : PHONES)
       for (float scale : new float[] {1f, 1.3f})
         for (int s = 0; s < states.length; s++) {
           RuntimeEnvironment.setQualifiers("+" + language);
@@ -147,17 +148,21 @@ public class PackerScreenTest {
           state(states[s]);
           try (var controller = Robolectric.buildActivity(MainActivity.class).setup()) {
             MainActivity activity = controller.get();
-            activity.useVolumes(volumes(language));
+            activity.useVolumes(volumes());
             ScrollView scroll = (ScrollView) ((ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
             View page = scroll.getChildAt(0);
-            page.setLayoutDirection(activity.getResources().getConfiguration().getLayoutDirection());
+            // English on every phone, and never right to left
+            if (intro == null) intro = activity.getString(R.string.packer_intro);
+            assertEquals(language, intro, activity.getString(R.string.packer_intro));
+            assertTrue(language, intro.startsWith("This app turns"));
+            assertEquals(language, View.LAYOUT_DIRECTION_LTR, page.getLayoutDirection());
             int width = Math.round(360 * activity.getResources().getDisplayMetrics().density);
             page.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
             page.layout(0, 0, width, page.getMeasuredHeight());
             String where = language + " " + Math.round(scale * 100) + " % " + names[s];
             checks += check(page, where, problems);
-            if (shots != null && !shots.isEmpty() && (language.equals("en") || language.equals("de"))) {
+            if (shots != null && !shots.isEmpty() && language.equals("en")) {
               Bitmap picture = Bitmap.createBitmap(width, page.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
               Canvas canvas = new Canvas(picture);
               canvas.drawColor(MainActivity.BACKGROUND);
@@ -170,6 +175,6 @@ public class PackerScreenTest {
           }
         }
     assertEquals("", problems.toString());
-    assertTrue("texts and button pairs were checked: " + checks, checks > 11 * 2 * 3 * 20);
+    assertTrue("texts and button pairs were checked: " + checks, checks > PHONES.length * 2 * 3 * 20);
   }
 }

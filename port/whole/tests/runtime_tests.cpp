@@ -1317,6 +1317,9 @@ int re4probe_snd_bank(void);
 int re4probe_frame_sections(void);
 int re4probe_path_entry(void);
 int re4_log_tail(char* out, int size);
+void re4_view_fog_at(float f, int dense, int farMode, float farDensity, int type, float farRatio, float* start,
+                     float* end, float* farPlane);
+float re4_view_fog_reach(int type, float start, float end, float density);
 }
 
 static unsigned bitsOf(float f)
@@ -2182,6 +2185,84 @@ static void testQteLevel()
     report("qtelevel", bad == 0 && logged);
 }
 
+// The menu's view distance (runtime/view_distance.cpp, patch 0223; 0.99.18): Normal leaves the game's fog and far plane
+// as they are; the shorter levels scale the fog (the end not below 6 m) and end the GPU's fog dense at the far plane;
+// Far leaves the fog and moves the far plane out to where it is 95 % dense, never past the fog's end nor nearer than
+// the game's own; rooms without fog stay. The village's fog (type 2, -7.1 .. 175 m, far_play_ratio 0.6) and others.
+static void testViewFog()
+{
+    int bad = 0;
+    auto near = [](float a, float b) { return fabsf(a - b) <= 1.0f + fabsf(b) * 1e-5f; };
+    auto run = [](float f, int dense, int type, float ratio, float s, float e, float out[3]) {
+        out[0] = s;
+        out[1] = e;
+        out[2] = e * (1.0f - ratio) + 1.0f;
+        re4_view_fog_at(f, dense, 0, 0.95f, type, ratio, &out[0], &out[1], &out[2]);
+    };
+    float o[3];
+    // Normal: the game's values, bit for bit
+    run(1.0f, 1, 2, 0.6f, -7075.0f, 175030.0f, o);
+    if (o[0] != -7075.0f || o[1] != 175030.0f || o[2] != 175030.0f * (1.0f - 0.6f) + 1.0f) bad |= 1 << 0;
+    // no fog: any level leaves it
+    run(0.35f, 1, 0, 0.0f, 0.0f, 0.0f, o);
+    if (o[0] != 0.0f || o[1] != 0.0f) bad |= 1 << 1;
+    run(1.5f, 1, 0, 0.6f, 100.0f, 1000.0f, o);
+    if (o[0] != 100.0f || o[1] != 1000.0f || o[2] != 1000.0f * (1.0f - 0.6f) + 1.0f) bad |= 1 << 2;
+    // Short: the room's end halved, the far plane from it, the GPU's fog ends there
+    run(0.5f, 1, 2, 0.6f, -7075.0f, 175030.0f, o);
+    if (!near(o[2], 87515.0f * 0.4f + 1.0f) || !near(o[1], o[2]) || !near(o[0], -7075.0f * 0.5f * (o[1] / 87515.0f)))
+        bad |= 1 << 3;
+    // ... without the dense fog (measurements): the scaled room fog itself
+    run(0.5f, 0, 2, 0.6f, -7075.0f, 175030.0f, o);
+    if (!near(o[1], 87515.0f) || !near(o[2], 87515.0f * 0.4f + 1.0f)) bad |= 1 << 4;
+    // Very short: an event's short fog (6 m, far plane at 2.4 m) keeps 6 m, its far plane stays
+    run(0.35f, 1, 5, 0.6f, -50.0f, 6000.0f, o);
+    if (!near(o[1], 6000.0f) || !near(o[2], 2401.0f)) bad |= 1 << 5;
+    // ... a 20 m fog (7 m at 35 %): dense at 6 m, not at its far plane of 2.8 m
+    run(0.35f, 1, 5, 0.6f, 0.0f, 20000.0f, o);
+    if (!near(o[1], 6000.0f) || !near(o[2], 7000.0f * 0.4f + 1.0f)) bad |= 1 << 6;
+    // Far (since 1.0.0, 160 %): the fog's end times 1.6, its start the room's, the far plane where that linear fog
+    // is 95 % dense (the village)
+    run(1.6f, 1, 2, 0.6f, -7075.0f, 175030.0f, o);
+    if (o[0] != -7075.0f || !near(o[1], 175030.0f * 1.6f) ||
+        !near(o[2], -7075.0f + 0.95f * (175030.0f * 1.6f + 7075.0f) + 1.0f)) bad |= 1 << 7;
+    // ... an exp2 fog (type 5, the forest): 95 % at sqrt(log2(20) / 8) of the way
+    run(1.6f, 1, 5, 0.6f, -1100.0f, 106900.0f, o);
+    if (!near(o[2], -1100.0f + sqrtf(log2f(20.0f) / 8.0f) * (106900.0f * 1.6f + 1100.0f) + 1.0f) ||
+        !near(o[1], 106900.0f * 1.6f) || o[0] != -1100.0f) bad |= 1 << 8;
+    // ... a room that already drew to its fog's end (far_play_ratio 0, the castle): an exp fog is 95 % dense at 54 %
+    // of the longer way, short of the game's far plane, which stays; the fog ends further out
+    run(1.6f, 1, 4, 0.0f, -1700.0f, 508600.0f, o);
+    if (o[2] != 508600.0f + 1.0f || !near(o[1], 508600.0f * 1.6f)) bad |= 1 << 9;
+    // ... a reverse exp fog (dense only near its end; ratio 0.1): out to 95 % of the longer fog, short of its end
+    run(1.6f, 1, 6, 0.1f, 0.0f, 100000.0f, o);
+    if (!near(o[2], (1.0f + log2f(0.95f) / 8.0f) * 160000.0f + 1.0f) || o[2] > 160001.0f) bad |= 1 << 10;
+    // ... 0.99.18's Far (farMode 2, measurements): the room's fog, only the far plane out
+    o[0] = -7075.0f; o[1] = 175030.0f; o[2] = 175030.0f * 0.4f + 1.0f;
+    re4_view_fog_at(1.5f, 1, 2, 0.95f, 2, 0.6f, &o[0], &o[1], &o[2]);
+    if (o[1] != 175030.0f || !near(o[2], -7075.0f + 0.95f * 182105.0f + 1.0f)) bad |= 1 << 13;
+    // the curves: no fog at the start, all at the end, 95 % for each type where GX's formula says
+    const int types[] = {2, 4, 5, 6, 7};
+    for (int t : types) {
+        if (!near(re4_view_fog_reach(t, 1000.0f, 101000.0f, 0.0f), 1000.0f) ||
+            !near(re4_view_fog_reach(t, 1000.0f, 101000.0f, 1.0f), 101000.0f)) bad |= 1 << 11;
+        const float x = (re4_view_fog_reach(t, 1000.0f, 101000.0f, 0.95f) - 1000.0f) / 100000.0f;
+        float d = 0.0f;
+        switch (t) {
+        case 2: d = x; break;
+        case 4: d = 1.0f - exp2f(-8.0f * x); break;
+        case 5: d = 1.0f - exp2f(-8.0f * x * x); break;
+        case 6: d = exp2f(-8.0f * (1.0f - x)); break;
+        case 7: d = exp2f(-8.0f * (1.0f - x) * (1.0f - x)); break;
+        }
+        if (fabsf(d - 0.95f) > 0.001f) bad |= 1 << 12;
+    }
+    if (bad) {
+        re4_log("  viewfog: failed checks 0x%x", bad);
+    }
+    report("viewfog", bad == 0);
+}
+
 // Quick-time events by a tap (runtime/qte_touch.cpp; game_probe.cpp re4probe_qte_touch): the
 // prompt's buttons for two frames, nothing for doors, in sub screens or without a prompt; the log line
 static void testQteTouch()
@@ -2648,6 +2729,7 @@ int re4_runtime_tests()
     testSndBank();
     testFrameSections();
     testPathEntry();
+    testViewFog();
     testVsync();
     testWatch();
     re4_log("runtime-test: %d failed", gFailures);

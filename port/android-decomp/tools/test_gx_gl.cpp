@@ -17,12 +17,19 @@
 #include "gx_bench_steps.h"
 #include "gx_auto_level.h"
 #include "picture_cadence.h"
+#include "potato_bits.h"
 #include "gx_chunk_builder.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
 #include "gx_selfcheck.h"
 #include "gx_texture.h"
 #include "re4_gx_frame.h"
+#include "c4tex.h"
+#include "etc2.h"
+#include "tex_pack.h"
+#include "tex_pack_groups.h"
+#include "tex_pack_words.h"
+#include "word_sharpen.h"
 #include "texture.h"
 
 #include <EGL/egl.h>
@@ -31,6 +38,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -39,7 +47,9 @@
 #include <random>
 #include <string>
 #include <array>
+#include <iterator>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -1692,8 +1702,9 @@ void TestRescale() {
 // so its first vsync is 2 or 3 after the frame's start and the screen shows 1, 2 and 3 vsyncs a picture. The render
 // thread draws at every vsync: without the hold the newest picture at once; with it a picture one vsync after the
 // last waits one more (and is never held twice). Returns the line of PictureCadence and the pictures held.
-static std::string HoldRun(bool hold, double from, double to, unsigned *held, unsigned *shownOut, double *lagOut) {
-  const long long period = 16638935;  // 60.1 Hz
+// 1.0.0: `period` and `per` (vsyncs a game picture is) for the 90 Hz screen (11098779 ns, 3).
+static std::string HoldRun(bool hold, double from, double to, unsigned *held, unsigned *shownOut, double *lagOut,
+                           long long period = 16638935 /* 60.1 Hz */, int per = 2) {
   const long long start = 1000000000LL;
   re4gx::PictureCadence cadence;
   re4gx::PictureHold steady;
@@ -1703,12 +1714,12 @@ static std::string HoldRun(bool hold, double from, double to, unsigned *held, un
   for (int k = 0; k < 330; k++) {
     seed = seed * 1103515245u + 12345u;
     const double r = from + (to - from) * ((seed >> 8) & 0xFFFF) / 65535.0;
-    ready.push_back(start + 2LL * k * period + static_cast<long long>(r * period));
+    ready.push_back(start + static_cast<long long>(per) * k * period + static_cast<long long>(r * period));
   }
   std::size_t next = 0;
   bool pending = false;  // a picture held back, drawn at the next vsync
   std::string line, last;
-  for (long long v = start; v < start + 680LL * period && next < ready.size(); v += period) {
+  for (long long v = start; v < start + (340LL * per + 20) * period && next < ready.size(); v += period) {
     bool draw = false;
     if (pending) {
       draw = true;
@@ -1724,7 +1735,7 @@ static std::string HoldRun(bool hold, double from, double to, unsigned *held, un
       next++;
       shown++;
       steady.Shown(v);
-      if (cadence.Note(v, period, 60.1, &line)) last = line;
+      if (cadence.Note(v, period, 1e9 / static_cast<double>(period), &line)) last = line;
     }
   }
   *held = steady.held;
@@ -1759,6 +1770,84 @@ void TestPictureHold() {
   Check(!h.Wait(1000000000LL + 16666667LL, 0), "picture hold: not without the screen's period");
   Check(!h.Wait(1000000000LL + 2 * 16666667LL, 16666667LL), "picture hold: two vsyncs after the last: drawn");
   Check(h.Wait(1000000000LL + 16666667LL, 16666667LL), "picture hold: one vsync after the last: waits");
+  // 1.0.0: a 90 Hz screen (the user's Samsung SM-A175F, no 60 Hz mode): a game picture is three vsyncs; ready 2.6 ..
+  // 3.4 vsyncs after its frame began (the game's thread near its limit), without the hold 2, 3 and 4 in turn
+  const long long p90 = 11098779;  // 90.1 Hz
+  const std::string before90 = HoldRun(false, 2.6, 3.4, &held, &shown, &lag, p90, 3);
+  std::fprintf(stderr, "  90 Hz, hold off: %s (%u shown)\n", before90.c_str(), shown);
+  Check(before90.find("2: 0,") == std::string::npos && before90.find("4: 0,") == std::string::npos,
+        "picture hold 90 Hz: without it pictures show 2, 3 and 4 vsyncs (the report's pattern)");
+  const unsigned shown90 = shown;
+  const std::string after90 = HoldRun(true, 2.6, 3.4, &held, &shown, &lag, p90, 3);
+  std::fprintf(stderr, "  90 Hz, hold on:  %s (%u shown, %u held one vsync, waited %.2f vsyncs on average)\n",
+               after90.c_str(), shown, held, lag);
+  Check(after90.find("1: 0, 2: 0,") != std::string::npos, "picture hold 90 Hz: no picture shows for one or two vsyncs");
+  Check(shown == shown90, "picture hold 90 Hz: every game picture is shown (30 a second as before)");
+  Check(held > 0 && lag < 1.0, "picture hold 90 Hz: some pictures wait one vsync, on average less than a vsync");
+  const std::string even90 = HoldRun(true, 2.2, 2.5, &held, &shown, &lag, p90, 3);
+  Check(held == 0 && even90.find("0 % more than 2 ms") != std::string::npos,
+        "picture hold 90 Hz: a steady device: nothing held");
+  re4gx::PictureHold h90;
+  h90.Shown(1000000000LL);
+  Check(h90.Wait(1000000000LL + p90, p90) && h90.Wait(1000000000LL + 2 * p90, p90),
+        "picture hold 90 Hz: one or two vsyncs after the last: waits");
+  Check(!h90.Wait(1000000000LL + 3 * p90, p90), "picture hold 90 Hz: three vsyncs after the last: drawn");
+  Check(re4gx::PictureHold::Target(8333333LL) == 0 && re4gx::PictureHold::Target(13888889LL) == 0,
+        "picture hold: not at 120 or 72 Hz");
+}
+
+// 1.0.0: the display's vsync period (picture_cadence.h VsyncPeriod) from the vsyncs as the user's Xiaomi reported
+// them: 120 Hz, now and then one a fraction of a vsync after the one before (2.2 ms), and late callbacks (two vsyncs
+// and more). Until 1.0.0 the period fell to 2.2 ms ("448 Hz") and stayed there; the median stays at 120 Hz and
+// follows a screen that changes its rate (120 -> 60 -> 90 Hz).
+void TestVsyncPeriod() {
+  re4gx::VsyncPeriod v;
+  const long long p120 = 8333333;
+  long long t = 1000000000LL, got = 0;
+  for (int i = 0; i < 600; i++) {
+    t += p120;
+    if (i % 2 == 0 && i % 37 == 0)
+      got = v.Note(t - p120 + 2200000LL);  // the off-grid vsync
+    if (i % 53 == 0)
+      t += 2 * p120;  // a late callback: three vsyncs in one interval
+    got = v.Note(t);
+  }
+  std::fprintf(stderr, "  vsync period: %.3f ms at 120 Hz with off-grid and late vsyncs\n", got / 1e6);
+  Check(std::llabs(got - p120) < 100000, "vsync period: 120 Hz with off-grid and late vsyncs (not 448 Hz)");
+  // the old rule (a sixteenth, anew at an interval under half): the report's 448 Hz
+  {
+    long long p = 0, last = 0, tt = 1000000000LL;
+    auto old = [&](long long ns) {
+      if (last > 0 && ns > last) {
+        const long long d = ns - last;
+        if (p <= 0 || d < p / 2) p = d;
+        else if (d < p * 3 / 2) p = p + (d - p) / 16;
+      }
+      last = ns;
+    };
+    for (int i = 0; i < 600; i++) {
+      tt += p120;
+      if (i % 2 == 0 && i % 37 == 0) old(tt - p120 + 2200000LL);
+      old(tt);
+    }
+    Check(p < 3000000, "vsync period: the rule before 1.0.0 falls to the off-grid interval (the report)");
+  }
+  // the screen changes its rate: the median follows within 16 intervals
+  for (int i = 0; i < 20; i++)
+    got = v.Note(t += 16666667);
+  Check(std::llabs(got - 16666667) < 100000, "vsync period: follows 120 -> 60 Hz");
+  for (int i = 0; i < 20; i++)
+    got = v.Note(t += 11111111);
+  Check(std::llabs(got - 11111111) < 100000, "vsync period: follows 60 -> 90 Hz");
+  // a pause (a second and more) is no interval; the same or an older vsync changes nothing
+  got = v.Note(t += 3000000000LL);
+  Check(std::llabs(got - 11111111) < 100000, "vsync period: a pause is no interval");
+  got = v.Note(t);
+  got = v.Note(t - 5000000);
+  Check(std::llabs(got - 11111111) < 100000, "vsync period: the same or an older vsync: nothing");
+  re4gx::VsyncPeriod first;
+  Check(first.Note(1000000000LL) == 0 && first.Note(1000000000LL + p120) == p120,
+        "vsync period: known from the first interval on");
 }
 
 // 0.99.13: the steady rhythm of 60 pictures a second on a screen that stays at 120 Hz (picture_cadence.h
@@ -2024,6 +2113,20 @@ re4gx::BenchSteps RunBench(const char *name, Game game, Shown shown, double tick
                b.Held(0) ? "stable" : "not stable", re4gx::BenchSteps::Name(b.Result(1)).c_str(),
                b.Held(1) ? "stable" : "not stable", t);
   return b;
+}
+
+// The Potato mask the app hands the core (core_mode.cpp CoreBridge_setPotato, re4::PotatoForCore): the Potato
+// switches (bits 0..4) and the real-time shadows (bit 5 on, bit 6 also the objects) both reach the core; until
+// 16.11.2026 the app kept only bits 0..4 ("& 31") and the shadows never reached a device's core. The GPU bench and the
+// log's names take the switches alone (re4::PotatoSwitches).
+void TestPotatoBits() {
+  Check(re4::PotatoForCore(32) == 32, "potato: the real-time shadows' bit 5 reaches the core");
+  Check(re4::PotatoForCore(96) == 96, "potato: bit 6 (also the objects) reaches the core");
+  Check(re4::PotatoForCore(16 | 32) == (16 | 32), "potato: a Potato switch and the shadows together");
+  Check(re4::PotatoForCore(31) == 31, "potato: the Potato switches as before");
+  Check(re4::PotatoForCore(128 | 256) == 0, "potato: nothing above bit 6");
+  Check(re4::PotatoSwitches(96 | 5) == 5 && re4::PotatoSwitches(32) == 0,
+        "potato: the switches alone (bench, log) without the shadows");
 }
 
 void TestBenchSteps() {
@@ -3013,6 +3116,258 @@ void TestBloom(re4gx::GxRenderer &r, const char *tag) {
     Check(sky > 0 && sky <= lamp + 4, what);
   }
   r.SetBloom(0);
+}
+
+// Stage 6 (16.11.2026; the project owner: a standing figure's shadow "wandered" when Leon walked): a lamp 1.2 m before
+// the camera, a grey wall 3 m away, two figures 2 m away, one left of the lamp (x 200 .. 260), one right of it; the
+// core's mark of stage 6 (a point light from its place). Each figure's shadow falls away from the lamp from where that
+// figure stands: the left one's further left on the wall, the right one's further right. The right figure walks (x 380
+// .. 440, then 460 .. 520): the left figure's shadow and everything left of the middle stay byte for byte the same, the
+// right one's shadow moves with it.
+void TestShadowsStill(re4gx::GxRenderer &r, const char *tag) {
+  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255};
+  auto scene = [&](int right, bool stage5) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    b.Owner(0x80001000u, 0x80002000u, 0x0B);  // the room
+    QuadAt(b, 0, 0, 640, 528, 3000.0f, kWall);
+    b.Owner(0x80001100u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // the one who stands
+    QuadAt(b, 200, 200, 260, 330, 2000.0f, kFigure);
+    b.Owner(0x80001200u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // the one who walks
+    QuadAt(b, right, 200, right + 60, 330, 2000.0f, kFigure);
+    b.Owner(0, 0, 0xFF);
+    // 0x10 | 1 light, the ambient 0.2, then the lamp: point, at (0, 0, -1200), luminance 1, strength 1, no fall-off,
+    // no spot, softness 2
+    const float v[16] = {0.2f, 1.0f, 0.0f, 0.0f, -1200.0f, 1.0f, 1.0f, 1e9f, 1e9f, 0.0f, 0.0f, -2.0f,
+                         0.0f, 0.0f, 0.0f, 2.0f};
+    std::uint32_t p[17];
+    p[0] = 0x11;
+    std::memcpy(&p[1], v, sizeof(v));
+    if (stage5) {
+      // stage 5's mark for the pictures: one direction for every figure, from the lamp to the one who walks (as
+      // stage 5 took it from the lamp to the player), weight 0.75, softness 2
+      float d[3] = {(static_cast<float>(right) + 30.0f - 320.0f) / 320.0f * 2000.0f, 0.0f, -2000.0f + 1200.0f};
+      const float len = std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+      const float m[5] = {d[0] / len, d[1] / len, d[2] / len, 0.75f, 2.0f};
+      p[0] = 1;
+      std::memcpy(&p[1], m, sizeof(m));
+      b.Op(RE4_GX_OP_SHADOW, p, 6);
+    } else {
+      b.Op(RE4_GX_OP_SHADOW, p, 17);
+    }
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&rgba, &w, &h), "shadows (lamp): the display copy read back");
+    return rgba;
+  };
+  const int s = r.Scale();
+  auto px = [&](const std::vector<std::uint8_t> &p, int x, int y) {
+    const std::size_t at = (static_cast<std::size_t>(y * s) * static_cast<std::size_t>(640 * s) +
+                            static_cast<std::size_t>(x * s)) * 4;
+    return at + 2 < p.size() ? std::array<int, 3>{p[at], p[at + 1], p[at + 2]} : std::array<int, 3>{-1, -1, -1};
+  };
+  // the left half of the picture (x 0 .. 319), every row
+  auto leftHalf = [&](const std::vector<std::uint8_t> &p) {
+    std::vector<std::uint8_t> out;
+    const std::size_t row = static_cast<std::size_t>(640 * s) * 4, half = static_cast<std::size_t>(320 * s) * 4;
+    for (std::size_t y = 0; y + row <= p.size(); y += row)
+      out.insert(out.end(), p.begin() + static_cast<std::ptrdiff_t>(y),
+                 p.begin() + static_cast<std::ptrdiff_t>(y + half));
+    return out;
+  };
+  char what[200];
+  r.SetShadows(0);
+  const auto plain = scene(380, false);
+  r.SetShadows(1);
+  const unsigned before = r.Stats().shadowPasses;
+  const auto a = scene(380, false), b = scene(460, false);
+  // the left figure's shadow on the wall: x about 140 .. 230 (behind the figure from 200 on), the right one's about
+  // 410 .. 500 when it stands at 380, about 500 .. 590 at 460
+  const auto leftShadow = px(a, 170, 264), leftOff = px(plain, 170, 264);
+  const auto rightA = px(a, 470, 264), rightB = px(b, 470, 264), farRightB = px(b, 560, 264);
+  std::fprintf(stderr, "  shadows (%s, lamp): left shadow %d (off %d), right one at 470: %d, then %d; at 560 then %d\n",
+               tag, leftShadow[0], leftOff[0], rightA[0], rightB[0], farRightB[0]);
+  std::snprintf(what, sizeof(what), "shadows (%s, lamp): each figure's shadow away from the lamp", tag);
+  Check(r.Stats().shadowPasses == before + 2 && leftShadow[0] < leftOff[0] - 20 && rightA[0] < leftOff[0] - 20 &&
+            px(a, 320, 264) == px(plain, 320, 264),
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s, lamp): the standing figure's half byte for byte the same while the "
+                "other walks", tag);
+  Check(leftHalf(a) == leftHalf(b), what);
+  std::snprintf(what, sizeof(what), "shadows (%s, lamp): the walking figure's shadow goes with it", tag);
+  Check(rightB[0] > rightA[0] + 20 && farRightB[0] < leftOff[0] - 20, what);
+  // RE4_GX_CHECK_PICTURES=DIR (for a report, no check): these two pictures as PPM, and the same two with stage 5's
+  // mark, where the standing figure's shadow turns when the other walks
+  if (const char *dir = std::getenv("RE4_GX_CHECK_PICTURES")) {
+    auto save = [&](const std::vector<std::uint8_t> &pic, const char *name) {
+      std::string file = std::string(dir) + "/lamp-";
+      for (const char *t = tag; *t; t++)
+        file += std::isalnum(static_cast<unsigned char>(*t)) ? *t : '_';
+      file += std::string("-") + name + ".ppm";
+      FILE *f = std::fopen(file.c_str(), "wb");
+      if (!f)
+        return;
+      const std::size_t pw = static_cast<std::size_t>(640 * s), ph = pic.size() / 4 / pw;
+      std::fprintf(f, "P6\n%zu %zu\n255\n", pw, ph);
+      for (std::size_t i = 0; i + 3 < pic.size(); i += 4)
+        std::fwrite(&pic[i], 1, 3, f);
+      std::fclose(f);
+    };
+    save(a, "stage6-380");
+    save(b, "stage6-460");
+    save(scene(380, true), "stage5-380");
+    save(scene(460, true), "stage5-460");
+  }
+  r.SetShadows(0);
+}
+
+// Real-time shadows (GxCore::ShadowMark): a grey wall 3 m away, a figure (owner
+// tag with RE4_GX_OWNER_FIGURE) and an object (RE4_GX_OWNER_OBJECT: a crate, a barrel) 2 m away in front of it, the
+// core's mark after them with a light shining into the picture and a little to the right. Level 1 (Characters): the
+// figure's shadow on the wall to its right, the object casts none; the figure, the object and the wall away from them
+// as drawn. Level 2 (Characters and objects): the object's shadow too, the figure's as before, the object itself as
+// drawn (no self-shadow). Off (every release build) or without the core's mark: the picture byte for byte as without
+// the mark, no pass. None on a menu screen of the game (RE4_GX_CHUNK_STILL).
+void TestShadows(re4gx::GxRenderer &r, const char *tag) {
+  const std::uint8_t kWall[4] = {160, 160, 160, 255}, kFigure[4] = {200, 60, 60, 255}, kObject[4] = {60, 160, 60, 255};
+  // (`lights`: stage 5's mark, k lights of direction x, y, z, weight, softness each; else the mark of stages 1 to 4)
+  auto scene = [&](bool mark, bool still, const std::vector<float> *lights = nullptr) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    const float n = 100.0f, f = 1000000.0f;
+    b.XfF(0x1020, {1.0f, 0.0f, 1.0f, 0.0f, -n / (f - n), -f * n / (f - n)});
+    b.Xf(0x1026, {0});
+    b.Owner(0x80001000u, 0x80002000u, 0x0B);  // the room
+    QuadAt(b, 0, 0, 640, 528, 3000.0f, kWall);
+    b.Owner(0x80001100u, 0x80002000u, 0x0B | RE4_GX_OWNER_FIGURE);  // a figure
+    QuadAt(b, 280, 200, 360, 330, 2000.0f, kFigure);
+    b.Owner(0x80001200u, 0x80002100u, 0x0B | RE4_GX_OWNER_OBJECT);  // an object (its shadow at x 205 .. 245)
+    QuadAt(b, 100, 200, 160, 330, 2000.0f, kObject);
+    b.Owner(0, 0, 0xFF);
+    if (mark && lights) {
+      std::vector<std::uint32_t> p(1 + lights->size());
+      p[0] = static_cast<std::uint32_t>(lights->size() / 5);
+      std::memcpy(&p[1], lights->data(), lights->size() * 4);
+      b.Op(RE4_GX_OP_SHADOW, p.data(), static_cast<std::uint32_t>(p.size()));
+    } else if (mark) {
+      // the light along (0.3, 0, -1) in view space, the strength of a bright foot shadow light (200 of 255)
+      const float l = std::sqrt(0.3f * 0.3f + 1.0f);
+      const float d[3] = {0.3f / l, 0.0f, -1.0f / l};
+      std::uint32_t p[4];
+      std::memcpy(&p[0], &d[0], 4);
+      std::memcpy(&p[1], &d[1], 4);
+      std::memcpy(&p[2], &d[2], 4);
+      p[3] = 200;
+      b.Op(RE4_GX_OP_SHADOW, p, 4);
+    }
+    // the HUD after the mark: orthographic, untouched
+    b.XfF(0x1020, {1.0f / 320.0f, -1.0f, -2.0f / 528.0f, 1.0f, -1.0f, -1.0f});
+    b.Xf(0x1026, {1});
+    b.Bp(0x40, 0);
+    Quad(b, 560, 40, 600, 80, 0, kWhite);
+    if (still)
+      b.flags |= RE4_GX_CHUNK_STILL;
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&rgba, &w, &h), "shadows: the display copy read back");
+    return rgba;
+  };
+  const int s = r.Scale();
+  auto px = [&](const std::vector<std::uint8_t> &p, int x, int y) {
+    const std::size_t at = (static_cast<std::size_t>(y * s) * static_cast<std::size_t>(640 * s) +
+                            static_cast<std::size_t>(x * s)) * 4;
+    return at + 2 < p.size() ? std::array<int, 3>{p[at], p[at + 1], p[at + 2]} : std::array<int, 3>{-1, -1, -1};
+  };
+  char what[200];
+  r.SetShadows(0);
+  const auto plain = scene(false, false);
+  const unsigned before = r.Stats().shadowPasses;
+  const auto offMarked = scene(true, false);
+  std::snprintf(what, sizeof(what), "shadows (%s): off (release builds), the core's mark changes no byte, no pass", tag);
+  Check(offMarked == plain && r.Stats().shadowPasses == before, what);
+  r.SetShadows(1);
+  const auto onUnmarked = scene(false, false);
+  std::snprintf(what, sizeof(what), "shadows (%s): on without the core's mark (no foot shadow light, not in play): no "
+                "byte changed, no pass", tag);
+  Check(onUnmarked == plain && r.Stats().shadowPasses == before, what);
+  const auto on = scene(true, false);
+  // the shadow: the figure's right edge (x 360) seen 2 m away, its shadow on the wall 1 m behind moves 0.3 m right,
+  // about 32 game pixels at 3 m
+  const auto wallBeside = px(on, 375, 264), wallBesideOff = px(plain, 375, 264);
+  const auto wallFar = px(on, 100, 100), figure = px(on, 320, 264), hud = px(on, 580, 60);
+  std::fprintf(stderr, "  shadows (%s): wall beside the figure %d (off %d), far wall %d, figure %d, HUD %d\n", tag,
+               wallBeside[0], wallBesideOff[0], wallFar[0], figure[0], hud[0]);
+  std::snprintf(what, sizeof(what), "shadows (%s): on, one pass, the figure's shadow on the wall beside it", tag);
+  Check(r.Stats().shadowPasses == before + 1 && wallBeside[0] < wallBesideOff[0] - 30 &&
+            wallBeside[0] > wallBesideOff[0] / 4,
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s): on, the wall away from it, the figure itself and the HUD as drawn",
+                tag);
+  Check(wallFar == px(plain, 100, 100) && figure == px(plain, 320, 264) && hud == px(plain, 580, 60) &&
+            px(on, 250, 264) == px(plain, 250, 264),
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters, the object casts none and takes none", tag);
+  Check(px(on, 225, 264) == px(plain, 225, 264) && px(on, 130, 264) == px(plain, 130, 264), what);
+  // Characters and objects
+  r.SetShadows(2);
+  const unsigned beforeObjects = r.Stats().shadowPasses;
+  const auto objects = scene(true, false);
+  const auto objShadow = px(objects, 225, 264), objShadowOff = px(plain, 225, 264);
+  std::fprintf(stderr, "  shadows (%s): Characters and objects: wall beside the object %d (off %d), beside the figure "
+               "%d, object %d (off %d)\n", tag, objShadow[0], objShadowOff[0], px(objects, 375, 264)[0],
+               px(objects, 130, 264)[1], px(plain, 130, 264)[1]);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters and objects, one pass, the object's shadow on the wall", tag);
+  Check(r.Stats().shadowPasses == beforeObjects + 1 && objShadow[0] < objShadowOff[0] - 30 &&
+            objShadow[0] > objShadowOff[0] / 4,
+        what);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters and objects, the figure's shadow as with Characters", tag);
+  Check(std::abs(px(objects, 375, 264)[0] - wallBeside[0]) <= 3, what);
+  std::snprintf(what, sizeof(what), "shadows (%s): Characters and objects, the object and the figure themselves, the "
+                "wall between them and away from them as drawn", tag);
+  Check(px(objects, 130, 264) == px(plain, 130, 264) && px(objects, 320, 264) == px(plain, 320, 264) &&
+            px(objects, 270, 264) == px(plain, 270, 264) && px(objects, 100, 100) == px(plain, 100, 100) &&
+            px(objects, 580, 60) == px(plain, 580, 60),
+        what);
+  // stage 5: two lights, one from each side (weight 0.4 each): a lighter half shadow on each side of the figure; a
+  // light of weight 0 casts nothing (no pass, the picture as without the mark)
+  r.SetShadows(1);
+  {
+    const float l = std::sqrt(0.3f * 0.3f + 1.0f);
+    const std::vector<float> two = {0.3f / l, 0.0f, -1.0f / l, 0.4f, 2.0f, -0.3f / l, 0.0f, -1.0f / l, 0.4f, 2.0f};
+    const unsigned beforeTwo = r.Stats().shadowPasses;
+    const auto both = scene(true, false, &two);
+    const auto right = px(both, 375, 264), left = px(both, 270, 264), off = px(plain, 270, 264);
+    std::fprintf(stderr, "  shadows (%s): two lights: wall right of the figure %d, left %d (off %d, one light %d)\n",
+                 tag, right[0], left[0], off[0], wallBeside[0]);
+    std::snprintf(what, sizeof(what), "shadows (%s): two lights, one pass, a half shadow on each side", tag);
+    Check(r.Stats().shadowPasses == beforeTwo + 1 && right[0] < wallBesideOff[0] - 20 && right[0] > wallBeside[0] &&
+              left[0] < off[0] - 20 && left[0] > wallBeside[0] && std::abs(left[0] - right[0]) <= 6 &&
+              px(both, 320, 264) == px(plain, 320, 264),
+          what);
+    const std::vector<float> none = {0.3f / l, 0.0f, -1.0f / l, 0.0f, 2.0f};
+    const unsigned beforeNone = r.Stats().shadowPasses;
+    const auto zero = scene(true, false, &none);
+    std::snprintf(what, sizeof(what), "shadows (%s): a light of weight 0 casts nothing", tag);
+    Check(zero == plain && r.Stats().shadowPasses == beforeNone, what);
+  }
+  const unsigned beforeStill = r.Stats().shadowPasses;
+  const auto still = scene(true, true);
+  std::snprintf(what, sizeof(what), "shadows (%s): none on a menu screen of the game", tag);
+  Check(r.Stats().shadowPasses == beforeStill && px(still, 375, 264) == wallBesideOff, what);
+  r.SetShadows(0);
+  const auto offAgain = scene(true, false);
+  std::snprintf(what, sizeof(what), "shadows (%s): off again, as drawn", tag);
+  Check(offAgain == plain, what);
+  TestShadowsStill(r, tag);
 }
 
 void TestAutofocus(re4gx::GxRenderer &r, bool multisampled = false) {
@@ -4867,6 +5222,428 @@ void TestPrewarm() {
   rmdir(folder);
 }
 
+// T4 (0.99.18): HD replacements read in the background (GxCore::UploadHd, re4gx::TexLoader, GxCore::ApplyHd). A pack
+// made here holds one replacement, 8x8 ETC2 red, for a 4x4 RGBA8 game texture that is blue. The first picture shows
+// the game's own texture and asks for the read, a later one the replacement; a reset while a read waits drops it and
+// the next picture asks again; the loader keeps at most its limit read and not taken, and Cancel empties it. GL looks
+// at the pixels, Vulkan (lavapipe takes no ETC2: the decoded levels) at the counts.
+// keyGiven: the entry takes *key as it is (a texture known by its Dolphin name only), `game` is not used
+std::string MakeHdPack(const std::vector<std::uint8_t> &game, unsigned format, unsigned w, unsigned h,
+                       std::uint8_t red, std::uint8_t green, std::uint8_t blue, re4gx::TexKey *key,
+                       bool keyGiven = false) {
+  if (!keyGiven)
+    *key = re4gx::DolphinKey(format, w, h, false, game.data(), re4gx::GxTextureLevelBytes(format, w, h), nullptr, 0);
+  std::vector<std::uint8_t> rgba(8 * 8 * 4);
+  for (int i = 0; i < 64; i++) {
+    rgba[i * 4] = red;
+    rgba[i * 4 + 1] = green;
+    rgba[i * 4 + 2] = blue;
+    rgba[i * 4 + 3] = 255;
+  }
+  std::vector<std::uint8_t> data;
+  etc2::EncodeLevel(etc2::kRgb, rgba.data(), 8, 8, 0, data);
+  const std::string info = "name=gx_gl_check\n";
+  c4tex::Header head{};
+  std::memcpy(head.magic, c4tex::kMagic, 8);
+  head.version = c4tex::kVersion;
+  head.headerBytes = c4tex::kHeaderBytes;
+  head.entryCount = 1;
+  head.entryBytes = c4tex::kEntryBytes;
+  head.infoOffset = c4tex::kHeaderBytes;
+  head.infoBytes = static_cast<std::uint32_t>(info.size());
+  head.dataOffset = (c4tex::kHeaderBytes + info.size() + 15) / 16 * 16;
+  head.indexOffset = (head.dataOffset + data.size() + 15) / 16 * 16;
+  head.fileBytes = head.indexOffset + c4tex::kEntryBytes;
+  head.maxSide = 512;
+  c4tex::Entry e{};
+  e.texHash = key->tex;
+  if (key->hasTlut) {
+    e.tlutHash = key->tlut;
+    e.flags |= c4tex::kFlagTlut;
+  }
+  e.origWidth = static_cast<std::uint16_t>(w);
+  e.origHeight = static_cast<std::uint16_t>(h);
+  e.gxFormat = static_cast<std::uint8_t>(format);
+  e.encoding = c4tex::kEtc2Rgb;
+  e.levels = 1;
+  e.width = 8;
+  e.height = 8;
+  e.dataCrc = c4tex::Crc32(data.data(), data.size());
+  e.dataOffset = head.dataOffset;
+  e.dataBytes = static_cast<std::uint32_t>(data.size());
+  head.indexCrc = c4tex::Crc32(&e, sizeof(e));
+  head.headerCrc = c4tex::HeaderCrc(head);
+  std::vector<std::uint8_t> file(head.fileBytes, 0);
+  std::memcpy(file.data(), &head, sizeof(head));
+  std::memcpy(file.data() + head.infoOffset, info.data(), info.size());
+  std::memcpy(file.data() + head.dataOffset, data.data(), data.size());
+  std::memcpy(file.data() + head.indexOffset, &e, sizeof(e));
+  const std::string path = "/tmp/re4-gx-hd-check-" + std::to_string(getpid()) + ".c4tex";
+  FILE *f = std::fopen(path.c_str(), "wb");
+  Require(f && std::fwrite(file.data(), 1, file.size(), f) == file.size(), "HD background: the test pack written");
+  std::fclose(f);
+  return path;
+}
+
+// The menus' words keep the game's picture (re4gx::KeepsGameTexture, tex_pack_words.h, 16.11.2026): a pack with START
+// (US, as the HD Project names it) or another menu word does not replace it; the same texels at another size or in
+// another format, another 66x14 4-bit texture and the menus' signs, bars and icons still get replaced. Every word of
+// the list is kept, whatever its palette; the list is sorted (the lookup needs it) and has no word twice.
+void TestHdKeptWords() {
+  struct Case {
+    unsigned format, w, h;
+    std::uint64_t tex;
+    bool kept;
+    const char *what;
+  };
+  const Case cases[] = {
+      {8, 66, 14, 0xe45b61626fb865f4ull, true, "START (tex1_66x14_e45b61626fb865f4_a2f12b9001ef7ea9_8) is kept"},
+      {8, 67, 14, 0xe45b61626fb865f4ull, false, "the same hash at another size is replaced"},
+      {8, 66, 14, 0x0123456789abcdefull, false, "another 66x14 4-bit texture is replaced"},
+      {9, 66, 14, 0xe45b61626fb865f4ull, false, "the same hash in another format is replaced"},
+      {8, 61, 20, 0x03fd2573f41831b9ull, true, "the Spanish FACIL (61x20) is kept"},
+      {2, 92, 25, 0xd45601f463f2cb85ull, true, "RUMBLE of the options menu is kept"},
+      {2, 21, 20, 0xfa3a3d795c91ba85ull, false, "the options menu's plus sign is replaced"},
+      {8, 187, 30, 0x9d55c627235f5640ull, true, "Move selection with its X button (attache case) is kept"},
+      {8, 399, 24, 0xc99dc329ca3c457aull, false, "the attache case's bar is replaced"},
+      {8, 152, 20, 0x2252bc20c2d67696ull, true, "Enemise Killed (chapter end) is kept"},
+      {8, 64, 64, 0x8a87a69f00898f87ull, true, "EMPTY on the HUD is kept"},
+  };
+  bool sorted = true;
+  for (std::size_t i = 1; i < std::size(re4gx::kMenuWords); i++) {
+    const re4gx::KeptTexture &a = re4gx::kMenuWords[i - 1], &b = re4gx::kMenuWords[i];
+    sorted &= std::tie(a.tex, a.width, a.height, a.format) < std::tie(b.tex, b.width, b.height, b.format);
+  }
+  Check(sorted, "HD kept words: the list is sorted, no word twice");
+  for (const Case &c : cases) {
+    re4gx::TexKey key;
+    key.format = c.format;
+    key.width = c.w;
+    key.height = c.h;
+    key.tex = c.tex;
+    key.tlut = 0xa2f12b9001ef7ea9ull;
+    key.hasTlut = c.format == 8 || c.format == 9 || c.format == 10;
+    const std::string path = MakeHdPack({}, c.format, c.w, c.h, 255, 0, 0, &key, true);
+    re4gx::TexPack pack;
+    std::string error;
+    Require(pack.Open(path, &error), ("HD kept words: the test pack opens: " + error).c_str());
+    Check((pack.Find(key) == nullptr) == c.kept, (std::string("HD kept words: ") + c.what).c_str());
+    key.tlut ^= 1;
+    key.hasTlut = !key.hasTlut;
+    Check(re4gx::KeepsGameTexture(key) == c.kept, (std::string("HD kept words, any palette: ") + c.what).c_str());
+    pack.Close();
+    std::remove(path.c_str());
+  }
+}
+
+// "Sharper menu text" (1.0.0, word_sharpen.h), the pieces without a GPU: the enlargement by the scale and the word's
+// size, the size test, and the contour snap on a white bar: inside opaque, outside clear, its edges at most two pixels
+// wide (the smooth enlargement alone spreads them over four), the smaller levels down to the game's size.
+void TestWordSharpenParts() {
+  Check(re4gx::WordSharpenFactor(66, 14, 2) == 0 && re4gx::WordSharpenFactor(66, 14, 3) == 2 &&
+            re4gx::WordSharpenFactor(66, 14, 5) == 2 && re4gx::WordSharpenFactor(66, 14, 6) == 4 &&
+            re4gx::WordSharpenFactor(640, 336, 8) == 2 && re4gx::WordSharpenFactor(600, 101, 6) == 2,
+        "sharper words: none below 1.5x, 2x, 4x for small words from 3x, large pages 2x");
+  Check(re4gx::MaybeMenuWord(8, 66, 14) && !re4gx::MaybeMenuWord(8, 67, 14) && !re4gx::MaybeMenuWord(9, 66, 14),
+        "sharper words: the size test knows START's size and format only");
+  std::vector<std::uint8_t> src(16 * 8 * 4, 0);
+  for (unsigned y = 2; y < 6; y++)
+    for (unsigned x = 4; x < 12; x++)
+      for (int c = 0; c < 4; c++) src[(y * 16 + x) * 4 + c] = 255;
+  std::vector<std::uint8_t> levels;
+  unsigned count = 0;
+  re4gx::SharpenWord(src.data(), 16, 8, 2, levels, &count);
+  Check(count == 2 && levels.size() == (32 * 16 + 16 * 8) * 4u, "sharper words: 2x gives two levels");
+  auto alpha = [&](unsigned x, unsigned y) { return levels[(y * 32 + x) * 4 + 3]; };
+  unsigned soft = 0;
+  for (unsigned y = 0; y < 16; y++) soft += alpha(16, y) > 8 && alpha(16, y) < 247;
+  Check(alpha(16, 8) == 255 && alpha(0, 0) == 0 && alpha(16, 1) == 0 && soft <= 4,
+        "sharper words: inside opaque, outside clear, two sharp edges");
+  const std::uint8_t *mid = &levels[(8 * 32 + 16) * 4];
+  Check(mid[0] == 255 && mid[1] == 255 && mid[2] == 255,
+        "sharper words: the bar stays white");
+  re4gx::SharpenWord(src.data(), 16, 8, 4, levels, &count);
+  Check(count == 3 && levels.size() == (64 * 32 + 32 * 16 + 16 * 8) * 4u, "sharper words: 4x gives three levels");
+  const std::size_t last = (64 * 32 + 32 * 16) * 4;
+  int worst = 0;
+  for (std::size_t i = 0; i < 16 * 8; i++)
+    worst = std::max(worst, std::abs(static_cast<int>(levels[last + i * 4 + 3]) - static_cast<int>(src[i * 4 + 3])));
+  Check(worst <= 64, "sharper words: the smallest level is the game's picture again");
+}
+
+// "Sharper menu text" in the renderer (GxCore::AskWord / ApplyWords): a 4x4 RGBA8 texture, blue, registered as a word
+// (AddTestMenuWord), drawn at 2x. The first picture shows the game's own texture and asks for the sharper one, a later
+// one shows it (8x8 and 4x4 levels: 320 bytes); a reset while one waits drops it and the next picture asks again.
+// At 1x, off, or in the PSone demake no word is asked for. GL looks at the pixels, Vulkan at the counts.
+void TestWordSharpen(re4gx::GxApi api, const char *name) {
+  std::vector<std::uint8_t> game(64);
+  for (int i = 0; i < 16; i++) {
+    game[i * 2] = 255, game[i * 2 + 1] = 0;          // A, R
+    game[32 + i * 2] = 255, game[32 + i * 2 + 1] = 0;  // G, B: green (not the HD test's blue)
+  }
+  const re4gx::TexKey key =
+      re4gx::DolphinKey(6, 4, 4, false, game.data(), re4gx::GxTextureLevelBytes(6, 4, 4), nullptr, 0);
+  re4gx::AddTestMenuWord(key.tex, 4, 4, 6);
+  const std::string what = std::string("sharper words (") + name + "): ";
+  const bool gl = api == re4gx::GxApi::kGl;
+  std::string error;
+  for (int scale : {1, 2}) {
+    re4gx::GxRenderer r(api);
+    Require(r.Init(scale, &error), error.c_str());
+    r.SetWordSharpen(true);
+    auto run = [&](bool reset, bool withData) {
+      Builder b;
+      Baseline(b);
+      if (!reset)
+        b.flags = 0;
+      DisplayCopy(b, true, kBlack);
+      b.Bp(0x00, 1u | 1u << 4);
+      b.Xf(0x103F, {1});
+      b.Xf(0x1040, {5u << 7});
+      b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+      b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);  // colour = texture
+      b.Bp(0x80, 0);
+      b.Bp(0x84, 0);
+      b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+      b.Bp(0x30, 3);
+      b.Bp(0x31, 3);
+      b.Texture(0, 0x5678, 0, 0x100000, 4, 4, 6, withData ? game : std::vector<std::uint8_t>{});
+      std::vector<std::uint8_t> v;
+      VT(v, 100, 100, 0, kWhite, 0, 0);
+      VT(v, 164, 100, 0, kWhite, 1, 0);
+      VT(v, 164, 164, 0, kWhite, 1, 1);
+      VT(v, 100, 164, 0, kWhite, 0, 1);
+      b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+      r.Run(b.Chunk());
+    };
+    auto settle = [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); };
+    run(true, true);
+    if (scale == 1) {
+      Check(r.Stats().wordsQueued == 0, (what + "at 1x no word is asked for").c_str());
+      r.Release();
+      continue;
+    }
+    Check(r.Stats().wordsQueued == 1 && r.Stats().wordsWaitingNow == 1 && r.Stats().wordsSharpened == 0,
+          (what + "the first picture asks for the word and does not wait for it").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 260, 260), 0, 255, 0), (what + "meanwhile the game's own picture (green)").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().wordsSharpened == 1 && r.Stats().wordsWaitingNow == 0 && r.Stats().wordBytesNow == 320,
+          (what + "a later picture shows the sharper word (8x8 and 4x4 levels)").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 260, 260), 0, 255, 0, 8), (what + "still green").c_str());
+    Check(r.Stats().missingTextures == 0, (what + "nothing missing").c_str());
+    run(true, true);
+    run(true, true);
+    Check(r.Stats().wordsQueued == 3 && r.Stats().wordsWaitingNow == 1 && r.Stats().wordBytesNow == 0,
+          (what + "a reset drops the waiting word and its bytes").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().wordsSharpened == 2 && r.Stats().wordsWaitingNow == 0, (what + "then the word again").c_str());
+    r.SetWordSharpen(false);
+    run(true, true);
+    settle();
+    run(false, false);
+    Check(r.Stats().wordsQueued == 3 && r.Stats().wordsSharpened == 2 && r.Stats().wordBytesNow == 0,
+          (what + "off: the game's own picture, nothing asked for").c_str());
+    r.SetPsx(true);
+    r.SetWordSharpen(true);
+    run(true, true);
+    Check(r.Stats().wordsQueued == 3, (what + "the PSone demake keeps the game's own words").c_str());
+    r.Release();
+  }
+}
+
+void TestHdBackground(re4gx::GxApi api, const char *name) {
+  // the game's texture: 4x4 RGBA8 (format 6), blue (one tile: AR AR ... then GB GB ...)
+  std::vector<std::uint8_t> game(64);
+  for (int i = 0; i < 16; i++) {
+    game[i * 2] = 255, game[i * 2 + 1] = 0;          // A, R
+    game[32 + i * 2] = 0, game[32 + i * 2 + 1] = 255;  // G, B
+  }
+  re4gx::TexKey key;
+  const std::string path = MakeHdPack(game, 6, 4, 4, 255, 0, 0, &key);
+  auto pack = std::make_shared<re4gx::TexPack>();
+  std::string error;
+  Require(pack->Open(path, &error), ("HD background: the test pack opens: " + error).c_str());
+  const c4tex::Entry *entry = pack->Find(key);
+  Require(entry != nullptr, "HD background: the test pack has the game texture's replacement");
+  const std::string what = std::string("HD background (") + name + "): ";
+  const bool gl = api == re4gx::GxApi::kGl;
+  {
+    re4gx::GxRenderer r(api);
+    Require(r.Init(1, &error), error.c_str());
+    r.SetTexturePack(pack, 0, 64u << 20);
+    auto run = [&](bool reset, bool withData) {
+      Builder b;
+      Baseline(b);
+      if (!reset)
+        b.flags = 0;
+      DisplayCopy(b, true, kBlack);
+      b.Bp(0x00, 1u | 1u << 4);
+      b.Xf(0x103F, {1});
+      b.Xf(0x1040, {5u << 7});
+      b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+      b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);  // colour = texture
+      b.Bp(0x80, 0);
+      b.Bp(0x84, 0);
+      b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+      b.Bp(0x30, 3);
+      b.Bp(0x31, 3);
+      b.Texture(0, 0x5678, 0, 0x100000, 4, 4, 6, withData ? game : std::vector<std::uint8_t>{});
+      std::vector<std::uint8_t> v;
+      VT(v, 100, 100, 0, kWhite, 0, 0);
+      VT(v, 164, 100, 0, kWhite, 1, 0);
+      VT(v, 164, 164, 0, kWhite, 1, 1);
+      VT(v, 100, 164, 0, kWhite, 0, 1);
+      b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+      r.Run(b.Chunk());
+    };
+    auto settle = [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); };
+    run(true, true);
+    Check(r.Stats().hdQueued == 1 && r.Stats().hdWaitingNow == 1 && r.Stats().hdTextures == 0,
+          (what + "the first picture asks for the read and does not wait for it").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 0, 0, 255), (what + "meanwhile the game's own texture (blue)").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().hdSwapped == 1 && r.Stats().hdTextures == 1 && r.Stats().hdWaitingNow == 0,
+          (what + "a later picture puts the replacement in place").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "then the replacement shows (red)").c_str());
+    Check(r.Stats().missingTextures == 0 && r.Stats().hdReadErrors == 0, (what + "nothing missing, read").c_str());
+    // a reset while a read waits: dropped, the next picture asks again, the one after shows it
+    run(true, true);
+    run(true, true);
+    Check(r.Stats().hdQueued == 3 && r.Stats().hdWaitingNow == 1, (what + "a reset drops the waiting read").c_str());
+    settle();
+    run(false, false);
+    Check(r.Stats().hdSwapped == 2 && r.Stats().hdWaitingNow == 0, (what + "after the reset the replacement again").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "red again after the reset").c_str());
+    r.Release();
+  }
+  if (gl) {
+    // the loader alone: at most its limit read and not taken (here 1 byte: one read, then it waits), Cancel empties it
+    re4gx::TexLoader loader(pack, 1);
+    for (int i = 0; i < 3; i++) {
+      re4gx::TexLoader::Job job;
+      job.key = static_cast<std::uint64_t>(i);
+      job.ticket = static_cast<std::uint64_t>(i + 1);
+      job.entry = *entry;
+      loader.Add(job);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    Check(loader.ReadyBytes() == entry->dataBytes && loader.Waiting() == 3,
+          "HD background: the loader reads one and waits while it is not taken");
+    re4gx::TexLoader::Done d;
+    Check(loader.Take(d) && d.ok && d.data.size() == entry->dataBytes && d.job.ticket == 1,
+          "HD background: the first read taken, its bytes");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    Check(loader.ReadyBytes() == entry->dataBytes && loader.Waiting() == 2, "HD background: then the next one");
+    loader.Cancel();
+    Check(loader.Waiting() == 0 && loader.ReadyBytes() == 0 && !loader.Take(d), "HD background: Cancel empties it");
+  }
+  std::remove(path.c_str());
+}
+
+// The Mods page's "Costumes" and "Weapons" (1.0.0, GxRenderer::SetTexturePackKeep, tex_pack_groups.h): the list's own
+// entries say their groups; a 4x4 RGBA8 game texture, magenta, registered as a costume (AddTestGroupTexture), has a red
+// replacement in the pack. With nothing kept the replacement shows; "Costumes · Original" drops the textures (the game
+// core sends them again) and the game's own picture stays, nothing asked of the pack; "Weapons · Original" alone does
+// not touch it. GL looks at the pixels, Vulkan at the counts.
+void TestHdGroups(re4gx::GxApi api, const char *name) {
+  const std::string what = std::string("HD groups (") + name + "): ";
+  const bool gl = api == re4gx::GxApi::kGl;
+  if (gl) {
+    re4gx::TexKey k;
+    k.tex = re4gx::kGroupTextures[0].tex;
+    k.width = re4gx::kGroupTextures[0].width;
+    k.height = re4gx::kGroupTextures[0].height;
+    k.format = re4gx::kGroupTextures[0].format;
+    Check(re4gx::TextureGroups(k) == re4gx::kGroupTextures[0].groups, "HD groups: an entry of the list has its group");
+    k.format ^= 1;
+    Check(re4gx::TextureGroups(k) == 0, "HD groups: the same texels in another format belong to none");
+    bool sorted = true;
+    for (std::size_t i = 1; i < std::size(re4gx::kGroupTextures); i++) {
+      const re4gx::GroupTexture &a = re4gx::kGroupTextures[i - 1], &b = re4gx::kGroupTextures[i];
+      sorted &= std::tie(a.tex, a.width, a.height, a.format) < std::tie(b.tex, b.width, b.height, b.format);
+    }
+    Check(sorted, "HD groups: the list is sorted, no texture twice");
+  }
+  std::vector<std::uint8_t> game(64);
+  for (int i = 0; i < 16; i++) {
+    game[i * 2] = 255, game[i * 2 + 1] = 255;       // A, R
+    game[32 + i * 2] = 0, game[32 + i * 2 + 1] = 255;  // G, B: magenta
+  }
+  re4gx::TexKey key;
+  const std::string path = MakeHdPack(game, 6, 4, 4, 255, 0, 0, &key);
+  re4gx::AddTestGroupTexture(key.tex, 4, 4, 6, re4gx::kGroupCostumes);
+  auto pack = std::make_shared<re4gx::TexPack>();
+  std::string error;
+  Require(pack->Open(path, &error), ("HD groups: the test pack opens: " + error).c_str());
+  {
+    re4gx::GxRenderer r(api);
+    Require(r.Init(1, &error), error.c_str());
+    r.SetTexturePack(pack, 0, 64u << 20);
+    r.TakeTexturesDropped();
+    auto run = [&](bool reset, bool withData) {
+      Builder b;
+      Baseline(b);
+      if (!reset)
+        b.flags = 0;
+      DisplayCopy(b, true, kBlack);
+      b.Bp(0x00, 1u | 1u << 4);
+      b.Xf(0x103F, {1});
+      b.Xf(0x1040, {5u << 7});
+      b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+      b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);  // colour = texture
+      b.Bp(0x80, 0);
+      b.Bp(0x84, 0);
+      b.Bp(0x88, 3 | 3 << 10 | 6u << 20);
+      b.Bp(0x30, 3);
+      b.Bp(0x31, 3);
+      b.Texture(0, 0x6789, 0, 0x100000, 4, 4, 6, withData ? game : std::vector<std::uint8_t>{});
+      std::vector<std::uint8_t> v;
+      VT(v, 100, 100, 0, kWhite, 0, 0);
+      VT(v, 164, 100, 0, kWhite, 1, 0);
+      VT(v, 164, 164, 0, kWhite, 1, 1);
+      VT(v, 100, 164, 0, kWhite, 0, 1);
+      b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+      r.Run(b.Chunk());
+    };
+    auto settle = [] { std::this_thread::sleep_for(std::chrono::milliseconds(300)); };
+    auto show = [&] {
+      run(true, true);
+      settle();
+      run(false, false);
+    };
+    show();
+    Check(r.Stats().hdSwapped == 1, (what + "nothing kept: the pack's replacement").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "red from the pack").c_str());
+    r.SetTexturePackKeep(re4gx::kGroupCostumes);
+    Check(r.TakeTexturesDropped(), (what + "Costumes Original drops the textures: the game core sends them again").c_str());
+    show();
+    Check(r.Stats().hdQueued == 1 && r.Stats().hdSwapped == 1,
+          (what + "Costumes Original: nothing asked of the pack").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 255, 8), (what + "the game's own picture (magenta)").c_str());
+    r.SetTexturePackKeep(re4gx::kGroupWeapons);
+    Check(r.TakeTexturesDropped(), (what + "Weapons Original drops the textures too").c_str());
+    show();
+    Check(r.Stats().hdQueued == 2 && r.Stats().hdSwapped == 2,
+          (what + "Weapons Original alone: the costume replaced again").c_str());
+    if (gl)
+      Check(Near(EfbPixel(r, 130, 130), 255, 0, 0, 8), (what + "red again").c_str());
+    r.SetTexturePackKeep(re4gx::kGroupWeapons);
+    Check(!r.TakeTexturesDropped(), (what + "the same setting again drops nothing").c_str());
+    r.Release();
+  }
+  std::remove(path.c_str());
+}
+
 int main() {
   // the rules alone, without a GPU (RE4_CHECK_RULES=1: Dynamic and the benchmark's steps, quick to run)
   if (const char *rules = std::getenv("RE4_CHECK_RULES")) {
@@ -4874,6 +5651,12 @@ int main() {
       TestAutoLevel();
       TestAutoLevelGpu();
       TestBenchSteps();
+      TestPotatoBits();
+      TestHdKeptWords();
+      TestWordSharpenParts();
+      TestPictureCadence();  // (1.0.0: the pictures' pacing, no GPU either)
+      TestVsyncPeriod();
+      TestPictureHold();
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }
@@ -4899,14 +5682,24 @@ int main() {
     std::string error;
     Require(gr.Init(2, &error), error.c_str());
     TestBloom(gr, "GL 2x");
+    TestShadows(gr, "GL 2x");
     gr.Release();
   }
   TestAutoLevel();
   TestAutoLevelGpu();
   TestBenchSteps();
+  TestPotatoBits();
   TestHandOverCopies();
+  TestHdKeptWords();
+  TestWordSharpenParts();
+  TestHdBackground(re4gx::GxApi::kGl, "GL");
+  TestHdGroups(re4gx::GxApi::kGl, "GL");
+  TestWordSharpen(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN
   if (VulkanStarts()) {
+    TestHdBackground(re4gx::GxApi::kVulkan, "Vulkan");
+    TestHdGroups(re4gx::GxApi::kVulkan, "Vulkan");
+    TestWordSharpen(re4gx::GxApi::kVulkan, "Vulkan");
     TestVkRescale();
     TestVkHandOverCopies();
     TestVkOverlay();
@@ -4919,6 +5712,7 @@ int main() {
       std::string error;
       Require(vr.Init(2, &error), error.c_str());
       TestBloom(vr, "Vulkan 2x");
+      TestShadows(vr, "Vulkan 2x");
       vr.Release();
     }
   }
@@ -4953,7 +5747,9 @@ int main() {
     TestSharpen(renderer);
     TestCrtColour(renderer);
     TestBloom(renderer, poison ? "GL, forgotten contents magenta" : "GL");
+    TestShadows(renderer, poison ? "GL, forgotten contents magenta" : "GL");
     TestPictureCadence();
+    TestVsyncPeriod();
     TestPictureHold();
     if (!poison)
       TestPresentPacer();

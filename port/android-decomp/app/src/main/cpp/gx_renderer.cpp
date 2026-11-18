@@ -48,12 +48,15 @@ void GxRenderer::SetSharpen(int level) { impl_->SetSharpen(level); }
 void GxRenderer::SetTvFilter(bool on) { impl_->SetTvFilter(on); }
 void GxRenderer::SetBandwidthSave(bool on) { impl_->SetBandwidthSave(on); }
 void GxRenderer::SetPsx(bool on) { impl_->SetPsx(on); }
+void GxRenderer::SetWordSharpen(bool on) { impl_->SetWordSharpen(on); }
 void GxRenderer::SetCrt(int level) { impl_->SetCrt(level); }
 void GxRenderer::SetColour(int mode, int level) { impl_->SetColour(mode, level); }
 void GxRenderer::SetFlares(bool on) { impl_->SetFlares(on); }
 void GxRenderer::SetFlareHalos(bool on) { impl_->SetFlareHalos(on); }
 void GxRenderer::SetBloom(int level) { impl_->SetBloom(level); }
+void GxRenderer::SetShadows(int level) { impl_->SetShadows(level); }
 void GxRenderer::SetDofStrong(bool on) { impl_->SetDofStrong(on); }
+void GxRenderer::SetTexturePackKeep(unsigned groups) { impl_->SetTexturePackKeep(groups); }
 void GxRenderer::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes) {
   impl_->SetTexturePack(std::move(pack), firstLevel, budgetBytes);
 }

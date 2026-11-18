@@ -55,9 +55,11 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     static native void nativePad(int buttons, int stickX, int stickY, int substickX, int substickY, int triggerL,
             int triggerR);
     static native void nativePause(boolean on);
+    /** The mouse wheel's notches (up positive): the scope's and the binoculars' zoom (re4ipc_zoom). */
+    static native void nativeZoom(int notches);
     /** The menu's settings (OuyaMenu.Settings): before the start for the core's start, then at once. */
     static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim,
-            int frameSkip, int cheats, boolean gentleQte, boolean simpleLight);
+            int frameSkip, int cheats, boolean gentleQte, boolean simpleLight, boolean leonJacket, boolean fastCores);
     /** A cheat button of the menu (runtime/cheats.cpp); the answer as OuyaMenu.Host.cheatAction. */
     static native int nativeCheatAction(int what);
     /** The instant save (re4_core_instant): 0 its state, 1 save, 2 load; result, present, canSave, canLoad, room,
@@ -85,6 +87,9 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     private float lx, ly, rx, ry, lt, rt;   // the axes
     private int hat;                        // D-pad from the hat axes (other controllers)
     private int tapped;                     // buttons pressed for a moment (the OUYA button)
+    // the keyboard and the mouse (1.0.0, wish of the project owner, 17.11.2026; the main app's default keys)
+    private final OuyaKeyboard keyboard = new OuyaKeyboard();
+    private boolean keyboardLogged;
     private OuyaMenu menu;                  // the app's menu while it is open
     private OuyaInstaller installer;        // the disc installer while it is shown
     private FrameLayout root;
@@ -327,6 +332,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         view.onPause();
         nativePause(true);
         handler.removeCallbacks(touchWatch);
+        keyboard.reset();
         if (touchControls != null)
             touchControls.reset();
     }
@@ -405,6 +411,12 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
+        // the mouse's buttons (Android 4.1 sends a press as a touch of the mouse): the keyboard's, not RetroTouch's
+        if (installer == null && OuyaKeyboard.fromMouse(event)) {
+            if (keyboard.mouse(event.getButtonState()))
+                keyboardChanged();
+            return true;
+        }
         if (touchControls == null)
             return super.dispatchTouchEvent(event);
         touchControls.before(event);
@@ -419,20 +431,20 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     }
 
     @Override
-    public boolean touchIcons() {
-        return touchControls == null || touchControls.icons();
+    public int touchLook() {
+        return touchControls == null ? TouchStyle.DEFAULT_LOOK : touchControls.look();
     }
 
     @Override
-    public void touchSettingsChanged(boolean icons) {
+    public void touchSettingsChanged(int look) {
         if (touchControls == null)
             return;
         SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
         touchControls.setMode(OuyaMenu.Settings.touchMode(p));
         touchControls.setLatch(OuyaMenu.Settings.touchLatch(p));
         touchControls.setLatchB(OuyaMenu.Settings.touchLatchB(p));
-        if (icons != touchControls.icons())
-            touchControls.setIcons(icons);
+        if (look != touchControls.look())
+            touchControls.setLook(look);
     }
 
     // --- the app's menu (L3) -----------------------------------------------------------------------
@@ -442,7 +454,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         SharedPreferences p = getSharedPreferences(OuyaMenu.Settings.PREFS, MODE_PRIVATE);
         nativeSettings(OuyaMenu.Settings.eighths(p), OuyaMenu.Settings.fastTev(p), OuyaMenu.Settings.view(p),
                 OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p), OuyaMenu.Settings.frameSkip(p),
-                OuyaMenu.Settings.cheats(p), OuyaMenu.Settings.gentleQte(p), OuyaMenu.Settings.simpleLight(p));
+                OuyaMenu.Settings.cheats(p), OuyaMenu.Settings.gentleQte(p), OuyaMenu.Settings.simpleLight(p),
+                OuyaMenu.Settings.leonJacket(p), OuyaMenu.Settings.fastCores(p));
     }
 
     @Override
@@ -476,6 +489,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         // no button stays held while the game waits; the game and its sound stop
         keys = hat = tapped = 0;
         lx = ly = rx = ry = lt = rt = 0;
+        keyboard.reset();
         handler.removeCallbacks(untap);
         if (touchControls != null)
             touchControls.reset();
@@ -542,6 +556,23 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
             }
             return true;
         }
+        // the keyboard and the mouse (OuyaKeyboard): a BACK made from the mouse's right button is that button
+        final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && OuyaKeyboard.fromMouse(event)) {
+            if (event.getRepeatCount() == 0 && keyboard.rightButton(down))
+                keyboardChanged();
+            return true;
+        }
+        if (OuyaKeyboard.menuKey(event.getKeyCode())) {
+            if (down && event.getRepeatCount() == 0)
+                openMenu();
+            return true;
+        }
+        if (OuyaKeyboard.takes(event.getKeyCode())) {
+            if (event.getAction() != KeyEvent.ACTION_MULTIPLE && keyboard.key(event.getKeyCode(), down))
+                keyboardChanged();
+            return true;
+        }
         int bit = buttonOf(event.getKeyCode());
         if (bit == 0) {
             return super.dispatchKeyEvent(event);
@@ -560,6 +591,19 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        // the mouse: its wheel zooms, its buttons as the keyboard's (hover moves carry them too)
+        if (installer == null && OuyaKeyboard.fromMouse(event)) {
+            if (event.getActionMasked() == MotionEvent.ACTION_SCROLL) {
+                int notches = keyboard.wheel(event.getAxisValue(MotionEvent.AXIS_VSCROLL));
+                if (notches != 0 && running) {
+                    nativeZoom(notches);
+                    logKeyboard();
+                }
+            } else if (keyboard.mouse(event.getButtonState())) {
+                keyboardChanged();
+            }
+            return true;
+        }
         if ((event.getSource() & InputDevice.SOURCE_CLASS_JOYSTICK) == 0 || event.getAction() != MotionEvent.ACTION_MOVE) {
             return super.dispatchGenericMotionEvent(event);
         }
@@ -577,11 +621,23 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         return true;
     }
 
+    private void keyboardChanged() {
+        logKeyboard();
+        sendPad();
+    }
+
+    private void logKeyboard() {
+        if (!keyboardLogged && keyboard.used()) {
+            keyboardLogged = true;
+            android.util.Log.i("RE4OUYA", "keyboard and mouse: in use (WASD, E, Shift, mouse buttons, wheel; F1 the menu)");
+        }
+    }
+
     private void sendPad() {
         if (!running) {
             return;
         }
-        int buttons = keys | hat | tapped | touchKeys;
+        int buttons = keys | hat | tapped | touchKeys | keyboard.buttons();
         // the analog triggers pressed through: the digital L / R as well (as on the GameCube)
         if (lt > 0.9f) {
             buttons |= GC_L;
@@ -589,18 +645,28 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         if (rt > 0.9f) {
             buttons |= GC_R;
         }
-        int triggerL = ((keys | touchKeys) & GC_L) != 0 ? 255 : Math.round(lt * 255);
-        int triggerR = ((keys | touchKeys) & GC_R) != 0 ? 255 : Math.round(rt * 255);
+        int triggerL = (buttons & GC_L) != 0 && lt <= 0.9f ? 255 : Math.round(lt * 255);
+        int triggerR = (buttons & GC_R) != 0 && rt <= 0.9f ? 255 : Math.round(rt * 255);
         // the touch controls' sticks where they are tilted further than the controller's
         float sx = lx, sy = ly, cx = rx, cy = ry;
         if (touchX * touchX + touchY * touchY > sx * sx + sy * sy) {
             sx = touchX;
             sy = touchY;
         }
+        // W A S D and I J K L (the keyboard tilts fully)
+        float kx = keyboard.stickX(), ky = keyboard.stickY(), kcx = keyboard.cX(), kcy = keyboard.cY();
+        if (kx * kx + ky * ky > sx * sx + sy * sy) {
+            sx = kx;
+            sy = ky;
+        }
         float tcx = lookX, tcy = lookY;
         if (cStickX * cStickX + cStickY * cStickY > tcx * tcx + tcy * tcy) {
             tcx = cStickX;
             tcy = cStickY;
+        }
+        if (kcx * kcx + kcy * kcy > tcx * tcx + tcy * tcy) {
+            tcx = kcx;
+            tcy = kcy;
         }
         if (tcx * tcx + tcy * tcy > cx * cx + cy * cy) {
             cx = Math.max(-1f, Math.min(1f, tcx));

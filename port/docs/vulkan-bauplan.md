@@ -1,5 +1,9 @@
 # Vulkan als zweiter Renderpfad – Bauplan
 
+> **Seit 16.11.2026 nicht mehr experimentell** (Entscheidung des Projektinhabers für 1.0: „Vulkan kannst du auch
+> nicht mehr experimental machen“): Im App-Menü heißt die Wahl nur noch „Vulkan“ (11 Sprachen). GLES bleibt der
+> Standard, die Wahl und der Rückfall bleiben, wie unten beschrieben.
+
 Auftrag des Projektinhabers (07.11.2026, über die Hauptsitzung): „einen zweiten Renderpfad über Vulkan planen und
 bauen“, Branch `vulkan`. GLES bleibt Standard und Rückfall. Grundlage ist die Studie `vulkan-plan.md`
 (31.10.2026, Teile T1–T15, Stufen V0–V8); dieser Plan bringt sie auf den Stand 0.99.2-rc und legt die Etappen

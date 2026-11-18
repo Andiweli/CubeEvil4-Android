@@ -1,0 +1,42 @@
+// Windows resources of both PC versions of the CubeEvil4 Texture Packer: the icon (res/packer.ico, made by
+// res/make_ico.py) and the version shown in the file's properties. TEXPACK_GUI is set for the window version.
+#include <winres.h>
+
+#define TEXPACK_VERSION_NUM 1,4,0,0
+#define TEXPACK_VERSION_STR "1.4"
+
+1 ICON "packer.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION TEXPACK_VERSION_NUM
+ PRODUCTVERSION TEXPACK_VERSION_NUM
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+#ifdef TEXPACK_GUI
+            VALUE "FileDescription", "CubeEvil4 Texture Packer"
+            VALUE "InternalName", "CubeEvil4-TexturePacker"
+            VALUE "OriginalFilename", "CubeEvil4-TexturePacker.exe"
+#else
+            VALUE "FileDescription", "CubeEvil4 Texture Packer (command line)"
+            VALUE "InternalName", "CubeEvil4-TexturePacker-Console"
+            VALUE "OriginalFilename", "CubeEvil4-TexturePacker-Console.exe"
+#endif
+            VALUE "ProductName", "CubeEvil4 Texture Packer"
+            VALUE "FileVersion", TEXPACK_VERSION_STR
+            VALUE "ProductVersion", TEXPACK_VERSION_STR
+            VALUE "LegalCopyright", "CC0 (public domain). Includes no textures."
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

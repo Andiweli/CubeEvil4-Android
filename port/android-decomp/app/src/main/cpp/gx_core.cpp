@@ -5,6 +5,7 @@
 #include "etc2.h"
 #include "gx_texture.h"
 #include "tex_pack.h"
+#include "word_sharpen.h"
 
 #include <algorithm>
 #include <cmath>
@@ -172,7 +173,9 @@ std::uint64_t GxCore::OwnerKey(const std::uint32_t *p) {
     return 0;
   std::uint64_t h = 1469598103934665603ull;
   for (int i = 0; i < 3; i++) {
-    h ^= p[i];
+    // (word 2 without the real-time shadows' classes: they come and go with the shadows, the in-between picture
+    // finds its draws either way)
+    h ^= i == 2 ? p[i] & ~(RE4_GX_OWNER_OBJECT | RE4_GX_OWNER_PART) : p[i];
     h *= 1099511628211ull;
   }
   return h | 1;
@@ -1315,6 +1318,36 @@ void GxCore::SetPsx(bool on) {
   this->psxOn = on;
   // the PSone demake keeps the game's own textures: the replacements go or come back
   if (texPack) SetTexturePack(texPack, texPackLevel, texPackBudget);
+  UpdateWordSharpener();
+}
+void GxCore::SetTexturePackKeep(unsigned groups) {
+  if (groups == texPackKeep) return;
+  texPackKeep = groups;
+  // the game core sends its textures again: the groups as they should look now
+  if (texPackActive) {
+    DropTextures();
+    texturesDropped = true;
+  }
+}
+void GxCore::SetWordSharpen(bool on) {
+  if (on == wordSharpenOn) return;
+  wordSharpenOn = on;
+  UpdateWordSharpener();
+}
+void GxCore::UpdateWordSharpener() {
+  const bool active = wordSharpenOn && !psxOn;
+  if (active == wordActive) return;
+  wordActive = active;
+  // finished and not yet on the GPU at most 16 MB in the 32-bit app, 48 MB in the 64-bit one; on the GPU at most
+  // 32 / 96 MB (a screen's words take a few MB; beyond, the game's own pictures stay)
+  static const bool sync = std::getenv("RE4_WORD_SHARPEN_SYNC") && *std::getenv("RE4_WORD_SHARPEN_SYNC") == '1';
+  wordBudget = (sizeof(void *) == 4 ? 32u : 96u) << 20;
+  wordSharpener.reset();
+  if (active && !sync)
+    wordSharpener = std::make_shared<WordSharpener>((sizeof(void *) == 4 ? 16u : 48u) << 20);
+  // the game core sends its textures again: the words as they should look now
+  DropTextures();
+  texturesDropped = true;
 }
 void GxCore::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes) {
   texPackBudget = budgetBytes;
@@ -1328,6 +1361,12 @@ void GxCore::SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstL
     DropTextures();
     texturesDropped = true;
   }
+  // T4 (0.99.18): a loader thread for this pack (none for the old one; RE4_TEX_PACK_SYNC=1: none, the render thread
+  // reads as before). Read and not yet on the GPU at most 24 MB in the 32-bit app, 64 MB in the 64-bit one.
+  static const bool sync = std::getenv("RE4_TEX_PACK_SYNC") && *std::getenv("RE4_TEX_PACK_SYNC") == '1';
+  hdLoader.reset();
+  if (texPackActive && !sync)
+    hdLoader = std::make_shared<TexLoader>(texPack, (sizeof(void *) == 4 ? 24u : 64u) << 20);
 }
 void GxCore::SetCrt(int level) { this->crtLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
 void GxCore::SetColour(int mode, int level) {
@@ -1337,6 +1376,454 @@ void GxCore::SetColour(int mode, int level) {
 void GxCore::SetFlares(bool on) { this->flaresOn = on; }
 void GxCore::SetFlareHalos(bool on) { this->flareHalos = on; }
 void GxCore::SetBloom(int level) { this->bloomLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+void GxCore::SetShadows(int level) { this->shadowLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+
+bool GxCore::HasShadowMark(const Re4GxChunk &chunk) {
+  for (std::uint32_t at = 0; at < chunk.opWords;) {
+    const std::uint32_t head = chunk.ops[at];
+    if ((head & 0xFF) == RE4_GX_OP_SHADOW)
+      return true;
+    at += 1 + (head >> 8);
+  }
+  return false;
+}
+
+// A figure's or an object's solid draw up to the shadow mark: its triangles into view space (the XF's position
+// matrices, as the lens flares' FlareNote reads them; in the in-between picture of 60 FPS the blended ones). The
+// figures and their parts (RE4_GX_OWNER_FIGURE / _PART) go into shadowTris, the objects (RE4_GX_OWNER_OBJECT, level 2)
+// into objectTris: two maps, each fitted to its casters.
+void GxCore::ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk) {
+  if ((d.primitive & 0xFF) != RE4_GX_TRIANGLES || (xfReg[0x26] & 1) || !(AsFloat(xfReg[0x1A]) * 2.0f >= 500.0f))
+    return;
+  if (ownerWords[2] == 0xFF)
+    return;
+  const bool figure = (ownerWords[2] & (RE4_GX_OWNER_FIGURE | RE4_GX_OWNER_PART)) != 0;
+  const bool object = !figure && shadowLevel >= 2 && (ownerWords[2] & RE4_GX_OWNER_OBJECT) != 0;
+  if (!figure && !object)
+    return;
+  const std::uint32_t z = bp[0x40];
+  if (!(z & 1) || !((z >> 4) & 1) || d.stride < 12 || d.vertexCount == 0)
+    return;  // the solid parts only: depth tested and written
+  unsigned mtxAt = 12;
+  if (d.layout & RE4_GX_V_NORMAL)
+    mtxAt += (d.layout & RE4_GX_V_BINORMAL_TANGENT) ? 36 : 12;
+  mtxAt += ((d.layout & RE4_GX_V_COLOR0) ? 4 : 0) + ((d.layout & RE4_GX_V_COLOR1) ? 4 : 0);
+  for (int t = 0; t < 8; t++)
+    mtxAt += (d.layout & (RE4_GX_V_TEX0 << t)) ? 8 : 0;
+  shadowVerts.resize(static_cast<std::size_t>(d.vertexCount) * 3);
+  double cx = 0.0, cy = 0.0, cz = 0.0;
+  for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+    const std::uint8_t *at = chunk.vertices + d.vertexOffset + static_cast<std::size_t>(v) * d.stride;
+    float pos[3];
+    std::memcpy(pos, at, 12);
+    unsigned row = d.matrices[0] & 63;
+    if ((d.layout & RE4_GX_V_MATRIX) && mtxAt < d.stride)
+      row = at[mtxAt] & 63;
+    if (row > 61)
+      row = 0;
+    float *e = &shadowVerts[static_cast<std::size_t>(v) * 3];
+    for (int r = 0; r < 3; r++)
+      e[r] = xf.posTex[row + r][0] * pos[0] + xf.posTex[row + r][1] * pos[1] + xf.posTex[row + r][2] * pos[2] +
+             xf.posTex[row + r][3];
+    cx += e[0];
+    cy += e[1];
+    cz += e[2];
+  }
+  const double n = static_cast<double>(d.vertexCount);
+  cx /= n;
+  cy /= n;
+  cz /= n;
+  // within kShadowRange of the camera: a figure's draw by its centre, an object's (a windmill's blades, a wide door)
+  // by its nearest corner
+  double radius2 = 0.0;
+  if (object)
+    for (std::uint32_t v = 0; v < d.vertexCount; v++) {
+      const float *e = &shadowVerts[static_cast<std::size_t>(v) * 3];
+      radius2 = std::max(radius2, (e[0] - cx) * (e[0] - cx) + (e[1] - cy) * (e[1] - cy) + (e[2] - cz) * (e[2] - cz));
+    }
+  const double range = static_cast<double>(kShadowRange) + std::sqrt(radius2);
+  if (cx * cx + cy * cy + cz * cz > range * range)
+    return;
+  std::vector<float> &out = figure ? shadowTris : objectTris;
+  const std::size_t before = out.size();
+  for (std::uint32_t i = 0; i + 2 < d.indexCount; i += 3) {
+    for (int k = 0; k < 3; k++) {
+      const std::uint32_t idx = chunk.indices[d.indexOffset + i + k];
+      if (idx >= d.vertexCount) {
+        out.resize(before);
+        return;
+      }
+      const float *e = &shadowVerts[static_cast<std::size_t>(idx) * 3];
+      out.insert(out.end(), e, e + 3);
+    }
+  }
+  // the scene's viewport and projection (the mask works the EFB's depth back into view space with them)
+  for (int r = 0; r < 12; r++)
+    shadowXf[r] = xfReg[0x1A + r];
+  shadowXfValid = true;
+}
+
+// A parallel light's map along D (unit, view space) around `tris`: the light's frame (right R, up U, along D), the
+// square around them on a fixed grid (its side in steps of a fourth of an octave, its middle on whole texels, its depth
+// range in half metres), so that a caster that moves does not shift another's shadow by a texel. False without
+// triangles.
+bool GxCore::ShadowFitParallel(const std::vector<float> &tris, const float D[3], int size, ShadowMapParams *m) {
+  if (tris.size() < 9)
+    return false;
+  float up[3] = {0.0f, 1.0f, 0.0f};
+  if (std::fabs(D[1]) > 0.9f) {
+    up[0] = 1.0f;
+    up[1] = 0.0f;
+  }
+  float R[3] = {up[1] * D[2] - up[2] * D[1], up[2] * D[0] - up[0] * D[2], up[0] * D[1] - up[1] * D[0]};
+  const float rl = std::sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2]);
+  for (float &x : R)
+    x /= rl;
+  const float U[3] = {D[1] * R[2] - D[2] * R[1], D[2] * R[0] - D[0] * R[2], D[0] * R[1] - D[1] * R[0]};
+  float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+  for (std::size_t i = 0; i + 2 < tris.size(); i += 3) {
+    const float *v = &tris[i];
+    const float l[3] = {R[0] * v[0] + R[1] * v[1] + R[2] * v[2], U[0] * v[0] + U[1] * v[1] + U[2] * v[2],
+                        D[0] * v[0] + D[1] * v[1] + D[2] * v[2]};
+    for (int k = 0; k < 3; k++) {
+      lo[k] = std::min(lo[k], l[k]);
+      hi[k] = std::max(hi[k], l[k]);
+    }
+  }
+  const float need = 0.5f * std::max(hi[0] - lo[0], hi[1] - lo[1]) * 1.02f + 20.0f;
+  const float half = std::pow(2.0f, std::ceil(std::log2(std::max(need, 100.0f)) * 4.0f) / 4.0f);
+  const float texel = 2.0f * half / static_cast<float>(size);
+  const float mx = std::floor(0.5f * (lo[0] + hi[0]) / texel + 0.5f) * texel;
+  const float my = std::floor(0.5f * (lo[1] + hi[1]) / texel + 0.5f) * texel;
+  const float zn = std::floor((lo[2] - 100.0f) / 500.0f) * 500.0f;
+  const float zf = std::ceil((hi[2] + 1.5f * kShadowReach) / 500.0f) * 500.0f;
+  const float sx = 1.0f / half, sz = 2.0f / (zf - zn), tz = -(zf + zn) / (zf - zn);
+  const float rows[4][4] = {{sx * R[0], sx * R[1], sx * R[2], -sx * mx},
+                            {sx * U[0], sx * U[1], sx * U[2], -sx * my},
+                            {sz * D[0], sz * D[1], sz * D[2], tz},
+                            {0.0f, 0.0f, 0.0f, 1.0f}};
+  std::memcpy(m->row, rows, sizeof(rows));
+  m->tp[0] = zn;
+  m->tp[1] = zf;
+  m->tp[2] = 0.0f;
+  m->tp[3] = texel;
+  m->size = size;
+  m->triangles = tris.size() / 9;
+  m->extent = 2.0f * half;
+  m->bias[0] = 1.5f;
+  m->bias[1] = 1.0f;
+  m->bias[2] = 1.5f;
+  m->bias[3] = 2.0f;
+  m->casts = true;
+  return true;
+}
+
+// A point light's map from its place (L.lp, view space): a perspective frustum, kShadowPointNear .. kShadowPointFar
+// deep, around the casters within the light's reach (stage 7, 18.11.2026): along the middle of their directions from
+// the light, twice as wide as the widest of them (tangent; at least kShadowPointMinAngle, at most
+// kShadowPointHalfAngle, in steps of a fourth of an octave). A spot whose cone is no wider than that looks along its
+// own axis, as wide as its cone. While the light stays where it was in view space (the camera stands) and every caster
+// within reach still fits, the map stays as it was (shadowCone, per tile): a figure that walks within it moves no
+// other shadow by a texel. (Stage 6 aimed it where the camera looks, at points of the view within the light's reach:
+// it swung with the camera and left figures half outside, their shadows came and went and were cut off at its edge,
+// the owner's device test of 17.11.2026.) Casters outside the widest frustum cast nothing from this light. False
+// without casters within reach.
+bool GxCore::ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, int which, int size,
+                            ShadowMapParams *m) {
+  ShadowCone &keep = shadowCone[which];
+  const float *P = L.lp;
+  const float reach = L.la[3] > 0.0f ? L.la[3] : 1e30f;
+  const float rad = 3.14159265f / 180.0f;
+  const float maxTan = std::tan(kShadowPointHalfAngle * rad), minTan = std::tan(kShadowPointMinAngle * rad);
+  // the casters' corners within reach: their directions from the light
+  shadowDirs.clear();
+  double sum[3] = {0.0, 0.0, 0.0};
+  for (std::size_t i = 0; i + 2 < tris.size(); i += 3) {
+    const float v[3] = {tris[i] - P[0], tris[i + 1] - P[1], tris[i + 2] - P[2]};
+    const float d = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (!(d > kShadowPointNear) || !(d < reach))
+      continue;
+    for (int c = 0; c < 3; c++) {
+      shadowDirs.push_back(v[c] / d);
+      sum[c] += static_cast<double>(v[c] / d);
+    }
+  }
+  if (shadowDirs.empty()) {
+    keep.valid = false;
+    return false;
+  }
+  // the widest of them from an axis (the tangent of its angle; huge behind the light's plane)
+  auto widest = [&](const float ax[3]) {
+    float w = 0.0f;
+    for (std::size_t i = 0; i + 2 < shadowDirs.size(); i += 3) {
+      const float c = shadowDirs[i] * ax[0] + shadowDirs[i + 1] * ax[1] + shadowDirs[i + 2] * ax[2];
+      if (!(c > 0.05f))
+        return 1e9f;
+      w = std::max(w, std::sqrt(std::max(0.0f, 1.0f - c * c)) / c);
+    }
+    return w;
+  };
+  float A[3] = {static_cast<float>(sum[0]), static_cast<float>(sum[1]), static_cast<float>(sum[2])};
+  float want;
+  const float axisLen = std::sqrt(L.lc[0] * L.lc[0] + L.lc[1] * L.lc[1] + L.lc[2] * L.lc[2]);
+  if (L.lp[3] > 1.5f && L.lb[2] > 0.05f && axisLen > 0.5f &&
+      std::sqrt(std::max(0.0f, 1.0f - L.lb[2] * L.lb[2])) / L.lb[2] <= maxTan) {
+    for (int c = 0; c < 3; c++)
+      A[c] = L.lc[c] / axisLen;
+    want = std::sqrt(std::max(0.0f, 1.0f - L.lb[2] * L.lb[2])) / L.lb[2];
+  } else {
+    float al = std::sqrt(A[0] * A[0] + A[1] * A[1] + A[2] * A[2]);
+    if (!(al > 1e-3f)) {
+      A[0] = 0.0f;
+      A[1] = -1.0f;
+      A[2] = 0.0f;
+      al = 1.0f;
+    }
+    for (float &x : A)
+      x /= al;
+    want = 2.0f * widest(A);
+  }
+  want = std::min(maxTan, std::max(minTan, want));
+  const bool still = keep.valid && std::fabs(P[0] - keep.p[0]) < 0.5f && std::fabs(P[1] - keep.p[1]) < 0.5f &&
+                     std::fabs(P[2] - keep.p[2]) < 0.5f;
+  if (!(still && keep.tan <= 2.0f * want && widest(keep.axis) <= keep.tan)) {
+    keep.valid = true;
+    for (int c = 0; c < 3; c++) {
+      keep.p[c] = P[c];
+      keep.axis[c] = A[c];
+    }
+    keep.tan = std::min(maxTan, std::pow(2.0f, std::ceil(std::log2(want) * 4.0f - 1e-4f) / 4.0f));
+  }
+  for (int c = 0; c < 3; c++)
+    A[c] = keep.axis[c];
+  const float t = keep.tan;
+  float up[3] = {0.0f, 1.0f, 0.0f};
+  if (std::fabs(A[1]) > 0.995f) {
+    up[0] = 1.0f;
+    up[1] = 0.0f;
+  }
+  float R[3] = {up[1] * A[2] - up[2] * A[1], up[2] * A[0] - up[0] * A[2], up[0] * A[1] - up[1] * A[0]};
+  const float rl = std::sqrt(R[0] * R[0] + R[1] * R[1] + R[2] * R[2]);
+  for (float &x : R)
+    x /= rl;
+  const float U[3] = {A[1] * R[2] - A[2] * R[1], A[2] * R[0] - A[0] * R[2], A[0] * R[1] - A[1] * R[0]};
+  const float n = kShadowPointNear, f = kShadowPointFar;
+  const float a = (f + n) / (f - n), b = -2.0f * f * n / (f - n);
+  auto dot = [&](const float *x) { return x[0] * P[0] + x[1] * P[1] + x[2] * P[2]; };
+  const float rows[4][4] = {{R[0] / t, R[1] / t, R[2] / t, -dot(R) / t},
+                            {U[0] / t, U[1] / t, U[2] / t, -dot(U) / t},
+                            {a * A[0], a * A[1], a * A[2], -a * dot(A) + b},
+                            {A[0], A[1], A[2], -dot(A)}};
+  std::memcpy(m->row, rows, sizeof(rows));
+  m->tp[0] = n;
+  m->tp[1] = f;
+  m->tp[2] = 1.0f;
+  m->tp[3] = 2.0f * t / static_cast<float>(size);
+  m->size = size;
+  m->triangles = tris.size() / 9;
+  m->extent = 0.0f;
+  m->bias[0] = 1.5f;
+  m->bias[1] = 1.0f;
+  m->bias[2] = 1.5f;
+  m->bias[3] = 2.0f;
+  m->casts = true;
+  return true;
+}
+
+void GxCore::ShadowMark(const std::uint32_t *p, std::uint32_t n) {
+  if (!shadowWanted || shadowFailed)
+    return;
+  ShadowParams s{};
+  // the lights: stage 6's mark (2 + 15 k words: 0x10 | k, the ambient, then for each light its kind, place or
+  // direction in view space, luminance, strength, full and gone distances, k1, k2, a spot's cut-off cosine and axis,
+  // softness; runtime/rt_shadow.cpp lightParams), or the parallel lights of a fixed weight of stage 5 (1 + 5 k words:
+  // k, then direction, weight, softness) and of stages 1 to 4 (4 words: direction, strength 0..255): the PC dumps of
+  // then
+  float soft[kShadowLights] = {};
+  int k = 0;
+  bool lightsOfTheGame = false;
+  auto parallel = [&](int i, const std::uint32_t *d, float weight, float sf) {
+    float D[3] = {AsFloat(d[0]), AsFloat(d[1]), AsFloat(d[2])};
+    const float len = std::sqrt(D[0] * D[0] + D[1] * D[1] + D[2] * D[2]);
+    if (!(len > 1e-3f) || !std::isfinite(len) || !(weight > 0.005f) || !std::isfinite(weight))
+      return;
+    ShadowLightParams &L = s.light[i];
+    for (int c = 0; c < 3; c++)
+      L.lp[c] = D[c] / len;
+    L.lp[3] = 0.0f;
+    L.la[0] = -std::min(weight, 0.85f);  // a fixed weight
+    L.la[1] = 1.0f;
+    soft[i] = sf;
+  };
+  if (n == 4) {
+    const unsigned strength = p[3] & 0xFF;
+    parallel(0, p, strength ? std::min(0.6f, std::max(0.25f, static_cast<float>(strength) / 255.0f * 0.75f)) : 0.0f,
+             2.0f);
+    k = 1;
+  } else if (n >= 17 && (p[0] & 0xF0) == 0x10 && n == 2 + 15 * (p[0] & 0x0F)) {
+    k = static_cast<int>(std::min<std::uint32_t>(p[0] & 0x0F, kShadowLights));
+    lightsOfTheGame = true;
+    s.amb[0] = AsFloat(p[1]);
+    if (!std::isfinite(s.amb[0]) || s.amb[0] < 0.0f)
+      s.amb[0] = 0.0f;
+    for (int i = 0; i < k; i++) {
+      const std::uint32_t *q = p + 2 + 15 * i;
+      float v[15];
+      for (int c = 0; c < 15; c++) {
+        v[c] = AsFloat(q[c]);
+        if (!std::isfinite(v[c]))
+          v[c] = 0.0f;
+      }
+      ShadowLightParams &L = s.light[i];
+      const float kind = v[0] < 0.5f ? 0.0f : v[0] < 1.5f ? 1.0f : 2.0f;
+      if (kind == 0.0f) {
+        const float len = std::sqrt(v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+        if (!(len > 1e-3f))
+          continue;
+        for (int c = 0; c < 3; c++)
+          L.lp[c] = v[1 + c] / len;
+      } else {
+        for (int c = 0; c < 3; c++)
+          L.lp[c] = v[1 + c];
+      }
+      L.lp[3] = kind;
+      L.la[0] = std::max(0.0f, v[4]);
+      L.la[1] = std::max(0.0f, v[5]);
+      L.la[2] = v[6];
+      L.la[3] = v[7];
+      L.lb[0] = std::max(0.0f, v[8]);
+      L.lb[1] = std::max(0.0f, v[9]);
+      L.lb[2] = kind == 2.0f ? v[10] : -2.0f;
+      for (int c = 0; c < 3; c++)
+        L.lc[c] = v[11 + c];
+      soft[i] = v[14];
+    }
+  } else if (n >= 6 && (n - 1) % 5 == 0) {
+    k = static_cast<int>(std::min<std::uint32_t>({p[0], static_cast<std::uint32_t>(kShadowLights), (n - 1) / 5}));
+    for (int i = 0; i < k; i++)
+      parallel(i, p + 1 + 5 * i, AsFloat(p[4 + 5 * i]), AsFloat(p[5 + 5 * i]));
+  }
+  bool any = false;
+  for (int i = 0; i < k; i++) {
+    const ShadowLightParams &L = s.light[i];
+    any = any || (L.la[0] != 0.0f && L.la[1] > 0.0f);
+    soft[i] = std::isfinite(soft[i]) ? std::min(6.0f, std::max(1.0f, soft[i])) : 2.0f;
+  }
+  if ((shadowTris.empty() && objectTris.empty()) || !shadowXfValid || !any) {
+    shadowTris.clear();
+    objectTris.clear();
+    return;
+  }
+  // the scene's part of the EFB: the scissor now within the figures' viewport (as BloomRegion)
+  {
+    const int xoff = static_cast<int>(bp[0x59] & 0x3FF) * 2, yoff = static_cast<int>((bp[0x59] >> 10) & 0x3FF) * 2;
+    int x0 = std::max(0, static_cast<int>((bp[0x20] >> 12) & 0x7FF) - xoff);
+    int y0 = std::max(0, static_cast<int>(bp[0x20] & 0x7FF) - yoff);
+    int x1 = std::min(kEfbWidth, static_cast<int>((bp[0x21] >> 12) & 0x7FF) - xoff + 1);
+    int y1 = std::min(kEfbHeight, static_cast<int>(bp[0x21] & 0x7FF) - yoff + 1);
+    const float halfW = AsFloat(shadowXf[0]), halfH = -AsFloat(shadowXf[1]);
+    if (halfW > 0.0f && halfH > 0.0f) {
+      const float cx = AsFloat(shadowXf[3]) - 342.0f, cy = AsFloat(shadowXf[4]) - 342.0f;
+      x0 = std::max(x0, static_cast<int>(std::lround(cx - halfW)));
+      y0 = std::max(y0, static_cast<int>(std::lround(cy - halfH)));
+      x1 = std::min(x1, static_cast<int>(std::lround(cx + halfW)));
+      y1 = std::min(y1, static_cast<int>(std::lround(cy + halfH)));
+    }
+    if (x1 - x0 < 32 || y1 - y0 < 32) {
+      shadowTris.clear();
+      objectTris.clear();
+      return;
+    }
+    s.region[0] = Lo(x0);
+    s.region[1] = Lo(y0);
+    s.region[2] = Lo(x1) - Lo(x0);
+    s.region[3] = Lo(y1) - Lo(y0);
+  }
+  static const int sizeEnv = [] {
+    const char *v = std::getenv("RE4_GX_SHADOW_SIZE");
+    return v && *v ? std::atoi(v) : 0;
+  }();
+  const int tile = sizeEnv >= 256 && sizeEnv <= 2048 ? sizeEnv : kShadowTile;
+  s.atlas = 2 * tile;
+  // each light's figures in a tile of their own (0, 2, 3), with "Characters and objects" light 0's objects in tile 1;
+  // a tile is drawn only with casters
+  for (int i = 0; i < k; i++) {
+    ShadowLightParams &L = s.light[i];
+    if (L.la[0] == 0.0f || !(L.la[1] > 0.0f))
+      continue;
+    const int fig = i == 0 ? 0 : i + 1;
+    auto fit = [&](const std::vector<float> &tris, ShadowMapParams *m) {
+      return L.lp[3] == 0.0f ? ShadowFitParallel(tris, L.lp, tile, m)
+                             : ShadowFitPoint(tris, L, static_cast<int>(m - s.tile), tile, m);
+    };
+    bool casts = fit(shadowTris, &s.tile[fig]);
+    s.tile[fig].bias[3] = soft[i];
+    if (i == 0 && shadowLevel >= 2 && fit(objectTris, &s.tile[1])) {
+      s.tile[1].bias[3] = soft[0];
+      s.tile[1].objects = true;
+      casts = true;
+    }
+    // a light without casters (none within its reach) still lights: it stays in the mask's sum of light, so that
+    // the others' shadows do not darken when a figure leaves its reach
+    if (!casts)
+      continue;
+    s.lights++;
+  }
+  for (int t = 0; t < kShadowTiles; t++) {
+    s.tileInfo[t][0] = (t & 1) ? 0.5f : 0.0f;
+    s.tileInfo[t][1] = (t & 2) ? 0.5f : 0.0f;
+    s.tileInfo[t][2] = kShadowReach;
+    s.tileInfo[t][3] = s.tile[t].casts ? 1.0f : 0.0f;
+  }
+  if (s.lights == 0) {
+    shadowTris.clear();
+    objectTris.clear();
+    return;
+  }
+  // the mask: a texel per GameCube pixel from 2x on (the shadows are soft; the apply pass smooths), else per texel
+  const int g = halves >= 4 ? halves : 2;
+  s.maskW = std::max(1, (s.region[2] * 2 + g - 1) / g);
+  s.maskH = std::max(1, (s.region[3] * 2 + g - 1) / g);
+  s.grid[0] = static_cast<float>(s.region[2]) / static_cast<float>(s.maskW);
+  s.grid[1] = static_cast<float>(s.region[3]) / static_cast<float>(s.maskH);
+  for (int r = 0; r < 4; r++) {
+    s.vp0[r] = AsFloat(shadowXf[r]);           // xs ys zs ox (XF 0x101A..0x101D)
+    s.pr0[r] = AsFloat(shadowXf[6 + r]);       // p0 .. p3 (XF 0x1020..0x1023)
+  }
+  s.vp1[0] = AsFloat(shadowXf[4]);             // oy (0x101E)
+  s.vp1[1] = AsFloat(shadowXf[5]);             // zo (0x101F)
+  s.vp1[2] = static_cast<float>(halves) * 0.5f;
+  s.pr1[0] = AsFloat(shadowXf[10]);            // p4 (0x1024)
+  s.pr1[1] = AsFloat(shadowXf[11]);            // p5 (0x1025)
+  s.markVp1[0] = s.vp1[0];
+  s.markVp1[1] = s.vp1[1];
+  s.markVp1[2] = static_cast<float>(kEfbWidth);
+  s.markVp1[3] = static_cast<float>(kEfbHeight);
+  // the darkest the mask gets where several lights are blocked (the core shadow), the fade (view units), half an
+  // atlas texel (kShadowMaskFs keeps the taps inside a tile)
+  // Stage 7 (18.11.2026, the owner's device test: "Manche Echtzeitschatten sind zu dunkel"): the game's own lights
+  // darken at most 0.6 each (amb.y) and 0.7 together. In the castle halls a lamp is all the light a figure gets (no
+  // ambient), so its share was the whole and the cap of 0.75 (0.85 for two lamps) made the big shadows of a lamp close
+  // by nearly black, while the walls keep the light the game baked into them.
+  s.amb[1] = 0.6f;
+  s.look[0] = lightsOfTheGame ? 0.7f : 0.85f;
+  s.look[1] = 12000.0f;
+  s.look[2] = 20000.0f;
+  s.look[3] = 0.5f / static_cast<float>(s.atlas);
+  s.figTriangles = shadowTris.size() / 9;
+  s.objTriangles = s.tile[1].casts ? objectTris.size() / 9 : 0;
+  if (!shadowLogged) {
+    shadowLogged = true;
+    GXLOG("real-time shadows: first picture with them: %d light(s) (kinds %.0f %.0f %.0f), %zu triangles of the "
+          "figures, %zu of the objects, atlas %d, mask %d x %d",
+          s.lights, s.light[0].lp[3], s.light[1].lp[3], s.light[2].lp[3], s.figTriangles, s.objTriangles, s.atlas,
+          s.maskW, s.maskH);
+  }
+  ShadowPass(s);
+  stats.shadowTriangles = static_cast<unsigned>(s.figTriangles + s.objTriangles);
+  shadowTris.clear();
+  objectTris.clear();
+}
 const GxCore::BloomLook &GxCore::BloomLookOf(int level) {
   // light: the brightest parts only, a soft glow (two blurs, about 13 game pixels); strong: a little more of the
   // bright parts, wider (three blurs, about 19) and stronger. Until 0.99.13 a fixed threshold (light 0.72, strong
@@ -1470,6 +1957,11 @@ std::uint32_t GxCore::Op(const Re4GxChunk &chunk, std::uint32_t at) {
     if (n >= 4)
       SetOwner(p);
     break;
+  case RE4_GX_OP_SHADOW:
+    // the figures' real-time shadows go on the scene here (ShadowMark)
+    if (n >= 4 && shadowWanted)
+      ShadowMark(p, n);
+    break;
   case RE4_GX_OP_FORGET:
     // the real Run forgets (the in-between pass runs before it). A texture the core sends again in
     // this chunk (it forgot it for its budget) the in-between pass uploaded already: after the forget
@@ -1527,12 +2019,40 @@ void GxCore::Run(const Re4GxChunk &chunk) {
     m.stats.resets++;
     m.DropTextures();
   }
+  // T4 (0.99.18): the HD replacements read in the background since the last chunk take their game textures' place,
+  // for at most 4 ms of GPU uploads a chunk (RE4_TEX_PACK_APPLY_MS), three times that while 32 or more wait (a room's
+  // first pictures: they are in place sooner), 50 ms while the screen is black
+  if (!m.interpPass && m.hdLoader) {
+    static const double applyMs = [] {
+      const char *v = std::getenv("RE4_TEX_PACK_APPLY_MS");
+      return v && *v ? std::atof(v) : 4.0;
+    }();
+    m.ApplyHd(m.viBlack ? std::max(applyMs, 50.0) : m.hdWaiting.size() >= 32 ? applyMs * 3 : applyMs);
+  }
+  // "Sharper menu text": the words sharpened since the last chunk take their place (2 ms of uploads a chunk,
+  // RE4_WORD_APPLY_MS; 50 ms while the screen is black)
+  if (!m.interpPass && m.wordSharpener) {
+    static const double wordMs = [] {
+      const char *v = std::getenv("RE4_WORD_APPLY_MS");
+      return v && *v ? std::atof(v) : 2.0;
+    }();
+    m.ApplyWords(m.viBlack ? std::max(wordMs, 50.0) : wordMs);
+  }
   const bool uploaded = !m.interpPass && m.uploadedBy == &chunk && m.uploadedSequence == chunk.sequence;
   m.uploadedBy = nullptr;
   // merged draw calls: the chains and their indices (after the chunk's in ibo)
   m.mergeMarks.clear();
   m.mergeNext = 0;
-  if (m.mergeOn && m.BaseVertex() && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded)
+  // real-time shadows: only with the level on is the chunk scanned for the core's mark; then the
+  // figures' draws are collected one by one (no merged draws in such a chunk)
+  m.shadowWanted = m.shadowLevel > 0 && !m.shadowFailed && !m.skipDraws && !(chunk.flags & RE4_GX_CHUNK_STILL) &&
+                   HasShadowMark(chunk);
+  if (m.shadowWanted) {
+    m.shadowTris.clear();
+    m.objectTris.clear();
+    m.shadowXfValid = false;
+  }
+  if (m.mergeOn && m.BaseVertex() && !m.interpPass && !m.recordDraws && !m.skipDraws && !uploaded && !m.shadowWanted)
     m.MergePlan(chunk);
   if (!m.skipDraws && !uploaded) {
     // the vertices and indices (and the merged chains' indices) to the GPU
@@ -1643,6 +2163,9 @@ void GxCore::Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *
     blended = BlendDraw(d, k, chunk);
   else if (recordDraws)
     RecordDraw(d, k);
+  // a figure's triangles for the real-time shadows (with the in-between picture's blended matrices)
+  if (shadowWanted && !merge)
+    ShadowCollect(d, chunk);
   // a light source for the lens flares (with the in-between picture's blended matrices)
   if (flaresOn && flareAfter && !merge)
     FlareNote(d, chunk, curOpAt);
@@ -2308,8 +2831,17 @@ void GxCore::Forget(std::uint64_t key) {
   if (it != textures.end()) {
     hdBytes -= it->second.hdBytes;
     stats.hdBytesNow = hdBytes;
+    wordBytes -= std::min<std::size_t>(wordBytes, it->second.wordBytes);
+    stats.wordBytesNow = wordBytes;
     DeleteTexture(it->second.id);
     textures.erase(it);
+  }
+  wordWaiting.erase(key);
+  // its replacement, if still being read, is not wanted any more (ApplyHd drops the read)
+  auto w = hdWaiting.find(key);
+  if (w != hdWaiting.end()) {
+    hdReserved -= std::min(hdReserved, w->second.reserved);
+    hdWaiting.erase(w);
   }
 }
 
@@ -2320,9 +2852,177 @@ void GxCore::DropTextures() {
   textures.clear();
   hdBytes = 0;
   stats.hdBytesNow = 0;
+  wordBytes = 0;
+  stats.wordBytesNow = 0;
+  if (wordSharpener)
+    wordSharpener->Cancel();
+  wordWaiting.clear();
+  stats.wordsWaitingNow = 0;
   for (auto &t : paletted)
     DeleteTexture(t.second.id);
   paletted.clear();
+  CancelHd();
+}
+
+void GxCore::CancelHd() {
+  if (hdLoader)
+    hdLoader->Cancel();
+  hdWaiting.clear();
+  hdReserved = 0;
+  stats.hdWaitingNow = 0;
+}
+
+void GxCore::ApplyHd(double budgetMs) {
+  if (!hdLoader)
+    return;
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start = Clock::now();
+  TexLoader::Done d;
+  bool any = false;
+  while ((!any || std::chrono::duration<double, std::milli>(Clock::now() - start).count() < budgetMs) &&
+         hdLoader->Take(d)) {
+    any = true;
+    stats.hdLoaderReadUs += d.readUs;
+    auto w = hdWaiting.find(d.job.key);
+    if (w == hdWaiting.end() || w->second.ticket != d.job.ticket) {
+      stats.hdStale++;  // forgotten, or asked for again since
+      continue;
+    }
+    hdReserved -= std::min(hdReserved, w->second.reserved);
+    const Clock::time_point since = w->second.since;
+    hdWaiting.erase(w);
+    auto it = textures.find(d.job.key);
+    if (it == textures.end()) {
+      stats.hdStale++;
+      continue;
+    }
+    if (!d.ok) {
+      stats.hdReadErrors++;
+      continue;
+    }
+    Texture tex;
+    if (!PutHd(d.job.entry, d.job.first, it->second.width, it->second.height, d.data, tex))
+      continue;
+    // the game's own texture goes, the replacement takes its key
+    Touched();
+    hdBytes -= it->second.hdBytes;
+    DeleteTexture(it->second.id);
+    it->second = tex;
+    hdBytes += tex.hdBytes;
+    stats.hdBytesNow = hdBytes;
+    stats.hdTextures++;
+    stats.hdSwapped++;
+    const std::uint64_t waited = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - since).count());
+    stats.hdWaitMaxUs = std::max(stats.hdWaitMaxUs, waited);
+  }
+  stats.hdWaitingNow = hdWaiting.size();
+}
+
+void GxCore::AskWord(const Re4GxTexture &t, const std::uint8_t *data, std::uint64_t key,
+                     const std::vector<std::uint8_t> &rgba) {
+  const unsigned f = WordSharpenFactor(t.width, t.height, halves);
+  const std::size_t pixels = static_cast<std::size_t>(t.width) * t.height;
+  if (!f || rgba.size() < pixels * 4 || (wordSharpener && wordWaiting.count(key)))
+    return;  // (asked for already: the same key, the same texels)
+  TexKey k;
+  k.format = t.format;
+  k.width = t.width;
+  k.height = t.height;
+  k.tex = Xxh64(data, GxTextureLevelBytes(t.format, t.width, t.height), 0);
+  if (!KeepsGameTexture(k))
+    return;
+  if (!wordSharpener) {
+    // RE4_WORD_SHARPEN_SYNC=1: at once, on this thread (tests)
+    using Clock = std::chrono::steady_clock;
+    const auto t0 = Clock::now();
+    std::vector<std::uint8_t> levels;
+    unsigned count = 0;
+    SharpenWord(rgba.data(), t.width, t.height, f, levels, &count);
+    stats.wordSharpenUs +=
+        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - t0).count());
+    stats.wordsQueued++;
+    PutWord(key, f, levels, count);
+    return;
+  }
+  WordSharpener::Job job;
+  job.key = key;
+  job.ticket = ++wordTicket;
+  job.width = t.width;
+  job.height = t.height;
+  job.factor = f;
+  job.rgba.assign(rgba.begin(), rgba.begin() + static_cast<std::ptrdiff_t>(pixels * 4));
+  WordWait &w = wordWaiting[key];
+  w.ticket = job.ticket;
+  w.since = std::chrono::steady_clock::now();
+  wordSharpener->Add(std::move(job));
+  stats.wordsQueued++;
+  stats.wordsWaitingNow = wordWaiting.size();
+}
+
+void GxCore::ApplyWords(double budgetMs) {
+  if (!wordSharpener)
+    return;
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start = Clock::now();
+  WordSharpener::Done d;
+  bool any = false;
+  while ((!any || std::chrono::duration<double, std::milli>(Clock::now() - start).count() < budgetMs) &&
+         wordSharpener->Take(d)) {
+    any = true;
+    stats.wordSharpenUs += d.us;
+    auto w = wordWaiting.find(d.job.key);
+    if (w == wordWaiting.end() || w->second.ticket != d.job.ticket) {
+      stats.wordsStale++;  // forgotten, or sent again since
+      continue;
+    }
+    wordWaiting.erase(w);
+    PutWord(d.job.key, d.job.factor, d.levels, d.levelCount);
+  }
+  stats.wordsWaitingNow = wordWaiting.size();
+}
+
+bool GxCore::PutWord(std::uint64_t key, unsigned factor, const std::vector<std::uint8_t> &levels, unsigned levelCount) {
+  auto it = textures.find(key);
+  if (it == textures.end()) {
+    stats.wordsStale++;
+    return false;
+  }
+  const unsigned gameW = it->second.width, gameH = it->second.height;
+  if (wordBytes - std::min<std::size_t>(wordBytes, it->second.wordBytes) + levels.size() > wordBudget) {
+    stats.wordsOverBudget++;  // the game's own picture stays
+    return false;
+  }
+  unsigned lw = gameW * factor, lh = gameH * factor;
+  const unsigned id = BeginTexture(lw, lh, levelCount);
+  if (!id)
+    return false;
+  std::size_t at = 0;
+  for (unsigned l = 0; l < levelCount && at < levels.size(); l++) {
+    TextureLevel(id, l, lw, lh, levels.data() + at);
+    at += static_cast<std::size_t>(lw) * lh * 4;
+    lw = std::max(gameW, lw / 2);
+    lh = std::max(gameH, lh / 2);
+  }
+  EndTexture(id, levelCount);
+  // the game's own picture goes, the sharper one takes its key
+  Touched();
+  wordBytes -= std::min<std::size_t>(wordBytes, it->second.wordBytes);
+  hdBytes -= it->second.hdBytes;
+  DeleteTexture(it->second.id);
+  Texture tex;
+  tex.id = id;
+  tex.width = gameW;
+  tex.height = gameH;
+  tex.levels = levelCount;
+  tex.lodShift = std::log2(static_cast<float>(factor));
+  tex.wordBytes = static_cast<std::uint32_t>(levels.size());
+  it->second = tex;
+  wordBytes += levels.size();
+  stats.wordBytesNow = wordBytes;
+  stats.hdBytesNow = hdBytes;
+  stats.wordsSharpened++;
+  return true;
 }
 
 void GxCore::EfbCopy(std::uint32_t control) {
@@ -2686,6 +3386,8 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
     auto old = textures.find(key);
     if (old != textures.end()) {
       hdBytes -= old->second.hdBytes;
+      wordBytes -= std::min<std::size_t>(wordBytes, old->second.wordBytes);
+      stats.wordBytesNow = wordBytes;
       DeleteTexture(old->second.id);
     }
     hdBytes += tex.hdBytes;
@@ -2726,10 +3428,15 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   if (old != textures.end()) {
     hdBytes -= old->second.hdBytes;
     stats.hdBytesNow = hdBytes;
+    wordBytes -= std::min<std::size_t>(wordBytes, old->second.wordBytes);
+    stats.wordBytesNow = wordBytes;
     DeleteTexture(old->second.id);
   }
   textures[key] = tex;
   stats.textures++;
+  // "Sharper menu text": a menu word (one level, decoded in rgba) asks for its sharper picture
+  if (wordActive && levels == 1 && MaybeMenuWord(t.format, t.width, t.height))
+    AskWord(t, chunk.blob + t.dataOffset, key, rgba);
 }
 
 bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex) {
@@ -2752,6 +3459,9 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   // Dolphin names a texture the game binds with mip levels with "_m"
   const TexKey k = DolphinKey(t.format, t.width, t.height, t.levels > 1, data, level0, palette, paletteBytes);
   const c4tex::Entry *e = texPack->Find(k);
+  // the Mods page's "Costumes · Original" / "Weapons · Original": that group's textures stay the game's own
+  if (e && texPackKeep && (TextureGroups(k) & texPackKeep))
+    e = nullptr;
   // RE4_TEX_PACK_LOG=1: every texture's Dolphin name, whether the pack has it; RE4_TEX_PACK_ONLY=<hex>: only this
   // replacement (tests: which one changes a picture)
   static const bool logKeys = std::getenv("RE4_TEX_PACK_LOG") && *std::getenv("RE4_TEX_PACK_LOG") == '1';
@@ -2798,8 +3508,29 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     first--;
   unsigned w = 0, h = 0;
   const std::size_t need = LevelsBytes(*e, first, &w, &h);
-  if (hdBytes + need > texPackBudget) {
+  const std::uint64_t key = static_cast<std::uint64_t>(t.keyHi) << 32 | t.keyLo;
+  if (hdLoader && hdWaiting.count(key))
+    return false;  // asked for already: the game's own texture until it is read
+  if (hdBytes + hdReserved + need > texPackBudget) {
     stats.hdOverBudget++;
+    return false;
+  }
+  // T4 (0.99.18): read in the background, the game's own texture until then (ApplyHd puts the replacement in its place)
+  if (hdLoader) {
+    HdWait wait;
+    wait.ticket = ++hdTicket;
+    wait.reserved = need;
+    wait.since = Clock::now();
+    hdWaiting[key] = wait;
+    hdReserved += need;
+    TexLoader::Job job;
+    job.key = key;
+    job.ticket = wait.ticket;
+    job.entry = *e;
+    job.first = first;
+    hdLoader->Add(job);
+    stats.hdQueued++;
+    stats.hdWaitingNow = hdWaiting.size();
     return false;
   }
   if (!texPack->Read(*e, first, hdData)) {
@@ -2809,15 +3540,29 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
   const Clock::time_point t2 = Clock::now();
   stats.hdReadUs += us(t1, t2);
   stats.loadUs += us(t1, t2);
-  const unsigned levels = e->levels - first;
+  if (!PutHd(*e, first, t.width, t.height, hdData, tex))
+    return false;
+  stats.hdTextures++;
+  return true;
+}
+
+bool GxCore::PutHd(const c4tex::Entry &e, unsigned first, unsigned gameW, unsigned gameH,
+                   const std::vector<std::uint8_t> &data, Texture &tex) {
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point t0 = Clock::now();
+  unsigned w = 0, h = 0;
+  const std::size_t need = LevelsBytes(e, first, &w, &h);
+  if (data.size() < need)
+    return false;
+  const unsigned levels = e.levels - first;
   std::size_t gpuBytes = need;
-  unsigned id = BeginCompressed(e->encoding, w, h, levels);
+  unsigned id = BeginCompressed(e.encoding, w, h, levels);
   if (id) {
     std::size_t at = 0;
     unsigned lw = w, lh = h;
     for (unsigned l = 0; l < levels; l++) {
-      const std::size_t b = c4tex::LevelBytes(e->encoding, lw, lh);
-      CompressedLevel(id, l, lw, lh, hdData.data() + at, b);
+      const std::size_t b = c4tex::LevelBytes(e.encoding, lw, lh);
+      CompressedLevel(id, l, lw, lh, data.data() + at, b);
       at += b;
       lw = std::max(1u, lw / 2);
       lh = std::max(1u, lh / 2);
@@ -2833,7 +3578,7 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     gpuBytes = 0;
     for (unsigned l = 0, lw = w, lh = h; l < levels; l++, lw = std::max(1u, lw / 2), lh = std::max(1u, lh / 2))
       gpuBytes += static_cast<std::size_t>(lw) * lh * 4;
-    if (hdBytes + gpuBytes > texPackBudget) {
+    if (hdBytes + hdReserved + gpuBytes > texPackBudget) {
       stats.hdOverBudget++;
       return false;
     }
@@ -2844,32 +3589,33 @@ bool GxCore::UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size
     unsigned lw = w, lh = h;
     for (unsigned l = 0; l < levels; l++) {
       decoded.resize(static_cast<std::size_t>(lw) * lh * 4);
-      etc2::DecodeLevel(static_cast<etc2::Kind>(e->encoding), hdData.data() + at, lw, lh, decoded.data());
+      etc2::DecodeLevel(static_cast<etc2::Kind>(e.encoding), data.data() + at, lw, lh, decoded.data());
       TextureLevel(id, l, lw, lh, decoded.data());
-      at += c4tex::LevelBytes(e->encoding, lw, lh);
+      at += c4tex::LevelBytes(e.encoding, lw, lh);
       lw = std::max(1u, lw / 2);
       lh = std::max(1u, lh / 2);
     }
   }
   EndTexture(id, levels);
   {
-    const std::uint64_t up = us(t2, Clock::now());
+    const std::uint64_t up = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - t0).count());
     stats.hdUploadUs += up;
     stats.loadUs += up;
   }
   tex.id = id;
-  tex.width = t.width;
-  tex.height = t.height;
+  tex.width = gameW;
+  tex.height = gameH;
   tex.levels = levels;
   // how many levels finer than the game's texture (the sampler's levels move by it)
-  const float sx = static_cast<float>(w) / static_cast<float>(t.width ? t.width : 1);
-  const float sy = static_cast<float>(h) / static_cast<float>(t.height ? t.height : 1);
+  const float sx = static_cast<float>(w) / static_cast<float>(gameW ? gameW : 1);
+  const float sy = static_cast<float>(h) / static_cast<float>(gameH ? gameH : 1);
   tex.lodShift = std::max(0.0f, std::log2(std::max(sx, sy)));
   tex.hdBytes = static_cast<std::uint32_t>(gpuBytes);
+  static const bool logKeys = std::getenv("RE4_TEX_PACK_LOG") && *std::getenv("RE4_TEX_PACK_LOG") == '1';
   if (logKeys)
-    GXLOG("texture pack: the game's %ux%u shown as %ux%u (the pack's level %u of %ux%u)", t.width, t.height, w, h, first,
-          static_cast<unsigned>(e->width), static_cast<unsigned>(e->height));
-  stats.hdTextures++;
+    GXLOG("texture pack: the game's %ux%u shown as %ux%u (the pack's level %u of %ux%u)", gameW, gameH, w, h, first,
+          static_cast<unsigned>(e.width), static_cast<unsigned>(e.height));
   return true;
 }
 

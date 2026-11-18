@@ -13,14 +13,14 @@
     <string name="ingame_potato">पोटैटो मोड</string>
     <string name="ingame_potato_weather">मौसम प्रभाव</string>
     <string name="ingame_potato_special">विशेष प्रभाव</string>
-    <string name="ingame_potato_help">मौसम प्रभाव: कोहरे के बादल, बारिश, पानी के छींटे। विशेष प्रभाव: भाप, गर्मी की लहरें, पानी। कण प्रभाव: खून, धूल, धुआँ, छींटे, चिंगारियाँ और आग; “कम” इनमें से आधे दिखाता है, “कोई नहीं” आग और विस्फोटों को छोड़कर सब हटा देता है, जो चेतावनी के लिए आधे रहते हैं। छाया और रोशनी: बंद करने पर छायाएँ (कटसीन में भी), रोशनी की चमक और प्रकाश किरणें हट जाती हैं; कमरों की रोशनी वैसी ही रहती है। हर सेटिंग कमज़ोर डिवाइस पर ग्राफ़िक्स का काम कम करती है; गोली लगने की जगह, संकेत, लेज़र और कटसीन के सभी प्रभाव बने रहते हैं।</string>
+    <string name="ingame_potato_help">हर स्विच कमज़ोर डिवाइस पर ग्राफ़िक्स का काम बचाता है। कण प्रभाव: “कम” इनमें से आधे दिखाता है, “कोई नहीं” सिर्फ़ आग और विस्फोट रखता है। छाया और रोशनी बंद करने पर छायाएँ, रोशनी की चमक और प्रकाश किरणें हट जाती हैं; कमरों की रोशनी वैसी ही रहती है। गोली लगने की जगह, संकेत और लेज़र हमेशा बने रहते हैं।</string>
     <string name="ingame_comfort">आसान नियंत्रण</string>
     <string name="ingame_auto_aim">ऑटो-निशाना</string>
     <string name="ingame_always_run">हमेशा दौड़ें</string>
     <string name="ingame_far_camera">दूर कैमरा</string>
     <string name="ingame_auto_aim_help">ऑटो-निशाना: हथियार उठाते ही निशाना आपके सामने सबसे पास वाले दुश्मन पर चला जाता है और कुछ पल उसके साथ रहता है (गेम की अपनी निशाना-सहायता)।</string>
     <string name="ingame_always_run_help">हमेशा दौड़ें: चलते ही लियोन दौड़ता है; चलने के लिए दौड़ने वाला बटन (जैसे B) दबाए रखें।</string>
-    <string name="ingame_far_camera_help">चलते और खड़े रहते समय कंधे वाले कैमरे को लियोन के थोड़ा और पीछे रखता है। निशाना लगाते समय और तंग जगहों पर यह पहले की तरह पास आ जाता है; बीच में यह सहजता से चलता है।</string>
+    <string name="ingame_far_camera_help">कंधे वाले कैमरे को लियोन के थोड़ा और पीछे रखता है; निशाना लगाते समय और तंग जगहों पर यह पहले की तरह पास आ जाता है।</string>
     <string name="ingame_perf_section">परफ़ॉर्मेंस</string>
     <string name="ingame_potato_particles">कण प्रभाव</string>
     <string name="ingame_particles_normal">सामान्य</string>
@@ -31,11 +31,11 @@
     <string name="ingame_skip_normal">सामान्य</string>
     <string name="ingame_skip_aggressive">आक्रामक</string>
     <string name="ingame_skip_normal_help">फ़्रेम स्किप सामान्य: ग्राफ़िक्स चिप पिछड़ने पर एक तैयार फ़्रेम छोड़ दिया जाता है ताकि गेम सामान्य गति से चले।</string>
-    <string name="ingame_skip_aggressive_help">फ़्रेम स्किप आक्रामक: पिछड़ने पर गेम खुद दो में से अधिकतम एक फ़्रेम छोड़ता है; इससे प्रोसेसर का समय भी बचता है और धीमे प्रोसेसर वाले फ़ोन पर यह काफ़ी तेज़ है।</string>
+    <string name="ingame_skip_aggressive_help">फ़्रेम स्किप आक्रामक: पिछड़ने पर गेम खुद दो में से अधिकतम एक फ़्रेम छोड़ता है; धीमे प्रोसेसर वाले फ़ोन पर काफ़ी तेज़।</string>
     <string name="ingame_gentle_qte">आसान QTE (Professional)</string>
-    <string name="ingame_cheat_section_player">खिलाड़ी और इन्वेंटरी</string>
+    <string name="ingame_cheat_section_player">खिलाड़ी</string>
     <string name="ingame_cheat_section_weapons">हथियार</string>
-    <string name="ingame_cheat_section_game">गेम</string>
+    <string name="ingame_cheat_section_game">सामान्य और इन्वेंटरी</string>
     <string name="ingame_cheat_health">अनंत हेल्थ</string>
     <string name="ingame_cheat_ammo">अनंत गोला-बारूद</string>
     <string name="ingame_cheat_invisible">अदृश्यता</string>
@@ -49,7 +49,7 @@
     <string name="ingame_cheat_mine">माइन थ्रोअर</string>
     <string name="ingame_cheat_rocket">रॉकेट लॉन्चर</string>
     <string name="ingame_cheat_qte">ऑटोमैटिक QTE</string>
-    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखता। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। ऑटोमैटिक QTE हर क्विक-टाइम संकेत पर आपके लिए बटन दबाता है। एक्स्ट्रा गेम अनलॉक करें, गेम पूरा करने के बाद की तरह, Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है; आपका अगला सेव उन्हें रखता है। अदृश्यता: दुश्मन आपको नहीं देखते और हमला नहीं करते; बॉस और तय दृश्य फिर भी कर सकते हैं।</string>
+    <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखते। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। अदृश्यता: दुश्मन आपको अनदेखा करते हैं, बॉस और तय दृश्य नहीं। स्थिर निशाना: लेज़र और स्कोप नहीं हिलते। पोशाकें: लियोन की जैकेट से Leon पूरे गेम में अपनी भूरी जैकेट पहने रहता है; विशेष से Leon और Ashley अपनी विशेष पोशाक पहनते हैं। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। एक्स्ट्रा गेम अनलॉक करें Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है।</string>
     <string name="ingame_cheat_done">हो गया: %1$s।</string>
     <string name="ingame_cheat_already">पहले से है: %1$s।</string>
     <string name="ingame_cheat_raised">%1$s पहले से है: अब सबसे ऊँचे लेवल पर।</string>
@@ -82,8 +82,17 @@
     <string name="ingame_instant_load_warning">बिना सेव की प्रगति खो जाएगी। तुरंत सेव लोड करें?</string>
     <string name="ingame_replace">बदलें</string>
     <string name="ingame_cheat_random_items">रैंडम आइटम</string>
-    <string name="ingame_cheat_random_items_help">रैंडम आइटम: कहानी के कमरों में पड़े आइटम (गोला-बारूद, जड़ी-बूटियाँ और दूसरे इलाज के आइटम, ग्रेनेड, पेसेटा, खज़ाने) उसके बाद आप जिस भी कमरे में जाते हैं, वहाँ नए सिरे से बाँटे जाते हैं, और एक कमरा हमेशा वही आइटम देता है जब तक आप इसे बंद करके फिर से चालू न करें। चाबियाँ, हथियार, फ़ाइलें और कहानी के दूसरे आइटम वैसे ही रहते हैं, इसलिए गेम हमेशा पूरा किया जा सकता है। जो आप उठा चुके हैं वह उठाया हुआ ही रहता है; दुश्मन, बैरल और बक्से अपना सामान खुद रखते हैं। Assignment Ada और The Mercenaries में नहीं।</string>
+    <string name="ingame_cheat_random_items_help">रैंडम आइटम: कहानी के कमरों में पड़े गोला-बारूद, जड़ी-बूटियाँ, ग्रेनेड, पेसेटा और खज़ाने नए सिरे से बाँटे जाते हैं; एक कमरा अपने आइटम तब तक रखता है जब तक आप इसे बंद करके फिर से चालू न करें। चाबियाँ, हथियार और कहानी के दूसरे आइटम वैसे ही रहते हैं, इसलिए गेम हमेशा पूरा किया जा सकता है। Assignment Ada और The Mercenaries में नहीं।</string>
     <string name="ingame_cheat_extras">एक्स्ट्रा गेम अनलॉक करें</string>
+    <string name="ingame_cheat_steady">स्थिर निशाना</string>
+    <string name="ingame_cheat_costume">पोशाकें</string>
+    <string name="ingame_cheat_costume_normal">सामान्य</string>
+    <string name="ingame_cheat_costume_jacket">लियोन की जैकेट</string>
+    <string name="ingame_cheat_costume_special">विशेष</string>
+    <string name="ingame_aim_invert_v">वर्टिकल उलटें</string>
+    <string name="ingame_perf_cores">परफ़ॉर्मेंस कोर इस्तेमाल करें</string>
+    <string name="ingame_perf_help">परफ़ॉर्मेंस कोर: गेम डिवाइस के सबसे तेज़ कोर पर ऊँची क्लॉक पर चलता है। कई फ़ोन पर ज़्यादा स्मूद, लेकिन डिवाइस ज़्यादा गर्म होता है। डिफ़ॉल्ट: Android तय करता है।</string>
+    <string name="ingame_map_keyboard">कीबोर्ड और माउस</string>
     <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
     <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
     <string name="ingame_cheat_extras_already">पहले से अनलॉक: Assignment Ada और The Mercenaries टाइटल मेनू में हैं।</string>
@@ -118,7 +127,7 @@
     <string name="ingame_button_style">बटन शैली</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: हर बटन के काम का आइकन (डिफ़ॉल्ट); GC: GameCube के रंगों में अक्षर, पहले जैसे। एडिटर (ऊपर दाईं ओर गियर) में भी यही स्विच है।</string>
+    <string name="ingame_button_style_help">RE: हर बटन के काम के आइकन (डिफ़ॉल्ट)। GC, PS2 और XBOX: उन कंट्रोलरों के बटन। एडिटर (ऊपर दाईं ओर गियर) का शैली बटन चारों को बारी-बारी से बदलता है।</string>
     <string name="ingame_touch_help">ऑटो: कंट्रोलर न होने पर दिखते हैं, स्क्रीन छूने पर दिखते हैं, कोई बटन दबाने पर छिप जाते हैं। हमेशा: हमेशा दिखते हैं। छिपाएँ: कंट्रोलर जुड़ा रहने तक छिपे रहते हैं। MENU = SELECT।</string>
     <string name="ingame_latch">L और R लॉक करें</string>
     <string name="ingame_latch_b">B लॉक करें</string>
@@ -145,5 +154,7 @@
     <string name="ouya_light_detail">विस्तृत रोशनी</string>
     <string name="ouya_light_help">विस्तृत रोशनी: बंद होने पर आसपास का हिस्सा हर बिंदु के बजाय हर वस्तु पर एक बार रोशन होता है (किरदारों की रोशनी वैसी ही रहती है); OUYA पर साफ़ तौर पर तेज़, ज़मीन और पेड़ थोड़े सपाट दिखते हैं। यह तुरंत लागू होती है।</string>
     <string name="ouya_source_only">यह संस्करण और CubeEvil4 का पूरा Android संस्करण केवल यहीं उपलब्ध है।\nदूसरी साइटों या गेम प्लेटफ़ॉर्म से डाउनलोड करने से बचें।</string>
-    <string name="ouya_gentle_qte_help">आसान QTE: Professional में बटन वाले इवेंट (बचना, चाकू की लड़ाई, तेज़ी से दबाना) उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं।</string>
+    <string name="ouya_invert_help">वर्टिकल उल्टा करें: ऊपर-नीचे निशाना उल्टी दिशा में, कंट्रोलर, कीबोर्ड और टच कंट्रोल के साथ (गेम का अपना विकल्प)।</string>
+    <string name="ouya_keyboard_help">कीबोर्ड और माउस: W A S D चलना (और निशाना), Shift दौड़ना, E एक्शन, माउस का दायां बटन निशाना लगाता है, बायां गोली चलाता है, निशाना लगाते समय R रीलोड करता है, C चाकू, Q एशली को बुलाता है, Tab ब्रीफ़केस, M नक्शा, Esc विकल्प, F1 यह मेनू। I J K L कैमरा घुमाते हैं, माउस व्हील स्कोप में ज़ूम करता है। तीर, Enter और Backspace गेम के मेनू में काम करते हैं। माउस पॉइंटर निशाना नहीं लगाता।</string>
+    <string name="ouya_gentle_qte_help">आसान QTE: Professional में क्विक-टाइम इवेंट उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं।</string>
 </resources>

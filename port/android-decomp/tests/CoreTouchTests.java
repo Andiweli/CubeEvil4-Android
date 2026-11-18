@@ -231,7 +231,7 @@ public final class CoreTouchTests {
     t.look(CoreTouch.LOOK_RANGE, 0);
     t.fingerUp(7);
     check(in.pad()[3] == 92);
-    t.fingerUp(9);  // a finger that did not look
+    t.fingerUp(9);  // a finger that did not look: nothing
     check(in.pad()[3] == 92);
     t.fingerUp(8);
     check(in.pad()[3] == 0);
@@ -243,6 +243,34 @@ public final class CoreTouchTests {
     check(in.pad()[4] == 92);
     t.cancel();
     check(!t.looking() && in.pad()[4] == 0);
+
+    // 1.0, "Turn Leon with mouse / look area": a looking finger's way sideways turns Leon (CoreInput.takeBodyTurn; the
+    // core turns him where he stands, walks or runs), the C stick only up and down; aiming with "Touch Area" the swipe
+    // aims as before and turns no one; off again the look zone looks as before
+    in.setBodyTurn(true);
+    t.beginEvent();
+    t.fingerDown(1, true);
+    t.look(0.05f, 0);  // to the right: Leon turns right (yaw negative), the camera stays
+    check(in.pad()[3] == 0 && Math.abs(in.takeBodyTurn() + 0.05f * CoreInput.SWIPE_RADIANS) < 1e-6f);
+    t.look(-0.02f, -CoreTouch.LOOK_RANGE / 2);  // left and up: Leon turns left, the camera looks up
+    check(in.pad()[3] == 0 && in.pad()[4] == 46
+        && Math.abs(in.takeBodyTurn() - 0.02f * CoreInput.SWIPE_RADIANS) < 1e-6f && in.takeBodyTurn() == 0);
+    in.setTouchAim(CoreInput.AIM_LOOK);
+    t.action(CoreTouch.R, true);
+    in.pad();  // (R held: the look zone aims)
+    t.look(0.1f, 0);
+    in.pad();
+    check(in.takeAimSwipe() != null && in.takeBodyTurn() == 0);
+    t.action(CoreTouch.R, false);
+    in.setTouchAim(CoreInput.AIM_MOVE_STICK);
+    t.fingerUp(1);
+    in.setBodyTurn(false);
+    t.beginEvent();
+    t.fingerDown(1, true);
+    t.look(0.05f, 0);
+    check(in.pad()[3] > 20 && in.takeBodyTurn() == 0);
+    t.fingerUp(1);
+    check(in.pad()[3] == 0 && in.pad()[4] == 0);
 
     // touch aiming (the menu's "Touch Aiming"): while R is held the chosen way moves the control
     // stick, the other stays the C stick; without R both are the C stick
@@ -334,9 +362,161 @@ public final class CoreTouchTests {
     t.action(CoreTouch.A, true);
     check(in.pad()[0] == CoreInput.GC_A);
     t.reset();
+    in.setSwapFace(false);
 
+    aimSticks(in, t);
     layout();
     System.out.println("CoreTouchTests: " + checks + " checks passed");
+  }
+
+  /**
+   * The aim stick and the knife stick (1.0): R or L held while their finger is on them, also resting in the centre;
+   * their tilt is the control stick (the further of it and the move stick); L and R of the buttons and of the sticks
+   * add up. Since RetroTouch 1.0.0-beta.12 its onStickDown and onStickUp say when a finger is on a stick (before its
+   * first report, after its last), so the reports only tilt.
+   */
+  static void aimSticks(CoreInput in, CoreTouch t) {
+    check(CoreTouch.isStick(CoreTouch.AIM_STICK) && CoreTouch.isStick(CoreTouch.KNIFE_STICK));
+    check(CoreTouch.label(CoreTouch.AIM_STICK).equals("AIM") && CoreTouch.label(CoreTouch.KNIFE_STICK).equals("KNIFE"));
+    for (Object[] each : new Object[][] {{CoreTouch.AIM_STICK, CoreInput.GC_R, 6}, {CoreTouch.KNIFE_STICK, CoreInput.GC_L, 5}}) {
+      String stick = (String) each[0];
+      int bit = (Integer) each[1], trigger = (Integer) each[2];
+      t.reset();
+      in.setTouchAim(CoreInput.AIM_MOVE_STICK);
+      // a finger goes down in its centre (onStickDown, then the report (0, 0)): held at once, no tilt; that finger
+      // does not look
+      t.beginEvent();
+      t.stickDown(stick);
+      t.stick(stick, 0, 0);
+      t.fingerDown(5, true);
+      int[] p = in.pad();
+      check((p[0] & bit) != 0 && p[trigger] == 255 && p[1] == 0 && p[2] == 0);
+      check(!t.looking());
+      // tilted up and right: the control stick (the aim)
+      t.beginEvent();
+      t.stick(stick, 0.5f, -1f);
+      p = in.pad();
+      check((p[0] & bit) != 0 && p[1] > 0 && p[2] > 0);
+      // back to the centre while the finger stays: still held
+      t.beginEvent();
+      t.stick(stick, 0, 0);
+      p = in.pad();
+      check((p[0] & bit) != 0 && p[1] == 0 && p[2] == 0);
+      // the button of the same trigger pressed and let go: the stick keeps it held
+      String button = bit == CoreInput.GC_R ? CoreTouch.R : CoreTouch.L;
+      t.action(button, true);
+      t.action(button, false);
+      check((in.pad()[0] & bit) != 0);
+      // A fires while it holds
+      t.action(CoreTouch.A, true);
+      p = in.pad();
+      check((p[0] & (bit | CoreInput.GC_A)) == (bit | CoreInput.GC_A));
+      t.action(CoreTouch.A, false);
+      // with the move stick: the further tilt wins
+      t.beginEvent();
+      t.stick(stick, 0.8f, 0);
+      t.move(-0.3f, 0);
+      check(in.pad()[1] > 0);
+      t.move(-1f, 0);
+      check(in.pad()[1] < 0);
+      t.move(0, 0);
+      check(in.pad()[1] > 0);
+      // the finger lifts (RetroTouch's (0, 0), then onStickUp, then the lift): let go and centred
+      t.beginEvent();
+      t.stick(stick, 0, 0);
+      t.stickUp(stick);
+      p = in.pad();
+      check((p[0] & bit) == 0 && p[trigger] == 0 && p[1] == 0 && p[2] == 0);
+      t.fingerUp(5);
+      check((in.pad()[0] & bit) == 0);
+      // the button alone holds it again
+      t.action(button, true);
+      check((in.pad()[0] & bit) != 0);
+      t.action(button, false);
+      check((in.pad()[0] & bit) == 0);
+      // a report without onStickDown (RetroTouch centres its sticks when its layout loads, even ones not placed):
+      // nothing held, no tilt
+      t.stick(stick, 0, 0);
+      t.stick(stick, 0.3f, 0);
+      p = in.pad();
+      check((p[0] & bit) == 0 && p[trigger] == 0 && p[1] == 0);
+      // an onStickUp of a stick not held: nothing
+      t.stickUp(stick);
+      check((in.pad()[0] & bit) == 0);
+    }
+    // the other sticks' onStickDown (the move stick, the C stick, an id RetroTouch has none for): nothing held
+    t.reset();
+    t.stickDown(null);
+    t.stickDown(CoreTouch.C_STICK);
+    t.stickDown("other");
+    check((in.pad()[0] & (CoreInput.GC_L | CoreInput.GC_R)) == 0);
+    t.stickUp(null);
+    t.stickUp(CoreTouch.C_STICK);
+    // latching: a tapped R stays latched when the aim stick's finger lifts
+    t.reset();
+    t.setLatch(true);
+    t.action(CoreTouch.R, true);
+    t.action(CoreTouch.R, false);
+    t.beginEvent();
+    t.stickDown(CoreTouch.AIM_STICK);
+    t.stick(CoreTouch.AIM_STICK, 0, 0);
+    t.fingerDown(7, false);
+    t.stick(CoreTouch.AIM_STICK, 0, 0);
+    t.stickUp(CoreTouch.AIM_STICK);
+    t.fingerUp(7);
+    check((in.pad()[0] & CoreInput.GC_R) != 0);
+    // and a tap that lets the latched R go keeps it held while the aim stick's finger is on it
+    t.beginEvent();
+    t.stickDown(CoreTouch.AIM_STICK);
+    t.stick(CoreTouch.AIM_STICK, 0, 0);
+    t.fingerDown(8, false);
+    t.action(CoreTouch.R, true);
+    t.action(CoreTouch.R, false);
+    check(!t.latched(CoreTouch.R) && (in.pad()[0] & CoreInput.GC_R) != 0);
+    t.stickUp(CoreTouch.AIM_STICK);
+    t.fingerUp(8);
+    check((in.pad()[0] & CoreInput.GC_R) == 0);
+    t.action(CoreTouch.R, true);
+    t.action(CoreTouch.R, false);
+    check(t.latched(CoreTouch.R) && (in.pad()[0] & CoreInput.GC_R) != 0);
+    t.setLatch(false);
+    check((in.pad()[0] & CoreInput.GC_R) == 0);
+    // the layout changes under the finger (RetroTouch lets all go: (0, 0), onStickUp): R let go; the finger's later
+    // lift changes nothing
+    t.reset();
+    t.beginEvent();
+    t.stickDown(CoreTouch.AIM_STICK);
+    t.stick(CoreTouch.AIM_STICK, 0.4f, 0);
+    t.fingerDown(3, false);
+    check((in.pad()[0] & CoreInput.GC_R) != 0 && in.pad()[1] > 0);
+    t.stick(CoreTouch.AIM_STICK, 0, 0);
+    t.stickUp(CoreTouch.AIM_STICK);
+    check((in.pad()[0] & CoreInput.GC_R) == 0 && in.pad()[1] == 0);
+    t.fingerUp(3);
+    check((in.pad()[0] & CoreInput.GC_R) == 0);
+    // all four sticks of one layout at once (RetroTouch 1.0.0-beta.12: up to 8; the app allows 4): the move stick,
+    // the C stick, the aim and the knife stick, each its own part
+    t.reset();
+    t.beginEvent();
+    t.stickDown(CoreTouch.AIM_STICK);
+    t.stick(CoreTouch.AIM_STICK, 0, 1f);
+    t.fingerDown(1, false);
+    t.beginEvent();
+    t.stickDown(CoreTouch.KNIFE_STICK);
+    t.stick(CoreTouch.KNIFE_STICK, 0, 0);
+    t.fingerDown(2, false);
+    t.beginEvent();
+    t.stickDown(CoreTouch.C_STICK);
+    t.stick(CoreTouch.C_STICK, 1f, 0);
+    t.fingerDown(4, true);
+    check(!t.looking());
+    int[] p = in.pad();
+    check((p[0] & (CoreInput.GC_L | CoreInput.GC_R)) == (CoreInput.GC_L | CoreInput.GC_R) && p[2] < 0 && p[3] > 0);
+    // then Android takes the fingers: everything let go
+    t.cancel();
+    p = in.pad();
+    check((p[0] & (CoreInput.GC_L | CoreInput.GC_R)) == 0 && p[2] == 0);
+    t.reset();
   }
 
   static boolean validId(String id) {
@@ -388,9 +568,12 @@ public final class CoreTouchTests {
     placed.remove(CoreTouch.C_STICK);
     placed.remove(CoreTouch.ZOOM_IN);
     placed.remove(CoreTouch.ZOOM_OUT);
+    placed.remove(CoreTouch.AIM_STICK);
+    placed.remove(CoreTouch.KNIFE_STICK);
     // (room for R3 and the two zoom buttons the editor adds, 0.99.15)
     check(used.equals(placed) && buttons + 3 <= 16 && sticks == 1 && looks == 1 && pads == 1);
-    // one move stick in the default layout, room for the C stick (RetroTouch: at most two sticks)
+    // one move stick in the default layout, room for one more stick the editor adds: the C stick, the aim stick or
+    // the knife stick (RetroTouch: at most two sticks, its editor skips a stick action when two are placed)
 
     // the touch areas: a button and the stick an ellipse of half the width and height times
     // sqrt(1.15), the D-pad its rectangle; in shares of the screen a circle, whatever the screen

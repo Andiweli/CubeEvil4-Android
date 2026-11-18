@@ -68,10 +68,10 @@ final class CoreMenu extends Dialog {
     void fpsChanged(int place);  // CoreActivity.FPS_PLACE: 0 off, 1..4 where
     /** The setting "Touch Controls": TouchShowRule.AUTO, FORCE or SUPPRESS (the preferences hold it). */
     void touchModeChanged(int mode);
-    /** The touch controls show icons (RetroTouch's button style ICONS, else LABELS; RetroTouch keeps it). */
-    boolean touchIcons();
-    /** The choice "Button style": icons (true) or labels, at once. */
-    void touchIconsChanged(boolean icons);
+    /** The touch controls' look: TouchStyle.RE, GC, PS2 or XBOX (TouchControls keeps it). */
+    int touchLook();
+    /** The choice "Button style": a look, at once. */
+    void touchLookChanged(int look);
     /** The switch "Use Gyro-Aiming" (the preferences hold it). */
     void gyroChanged(boolean on);
     /** The switch "Alternate Controls" (the preferences hold it). */
@@ -115,8 +115,12 @@ final class CoreMenu extends Dialog {
     void autoAimChanged(boolean on);
     /** "Always run": Leon runs without the run key, which walks instead (CoreBridge.setAim). */
     void alwaysRunChanged(boolean on);
+    /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn). */
+    void bodyTurnChanged(boolean on);
     /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's (CoreBridge.setGentleQte). */
     void gentleQteChanged(boolean on);
+    /** The cheat "Costumes · Leon's jacket" (1.0): Leon keeps his brown jacket (CoreBridge.setLeonJacket). */
+    void leonJacketChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
     boolean gameLanguages();
     /** The debug build's discs are imported: SELECT held opens the game's debug menu (the button mapping says so). */
@@ -159,6 +163,8 @@ final class CoreMenu extends Dialog {
     PerfProfile.Device perfDevice();
     /** A performance profile chosen on the start page (PerfProfile.CUSTOM .. HIGH): stored and applied. */
     void profileChosen(int profile);
+    /** A switch the real-time shadows depend on changed (RealtimeShadows): their level anew. */
+    void shadowsChanged();
   }
 
   private interface Changed<T> { void accept(T value); }
@@ -175,8 +181,11 @@ final class CoreMenu extends Dialog {
   /** "Random items" in the cheat switches (wish of the project owner, 07.11.2026, GitHub issue #161; runtime/cheats.cpp)
    *  and its seed in bits 11..30, a new one each time the switch goes on (the rooms dealt alike until then). */
   static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
+  /** "Steady aim" in the cheat switches (wish of the project owner, 16.11.2026: "Atemstopp beim Zielen"; bit 31,
+   *  runtime/cheats.cpp, patch 0233): the laser sight and the scope do not sway. */
+  static final int STEADY_AIM_BIT = 1 << 31;
   private static final int PANEL = 0xff191f1c, SURFACE = 0xff222a25, BORDER = 0xff414b41;
-  private static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
+  static final int INK = 0xfff0eee5, MUTED = 0xffa6afa3, GOLD = 0xffd7bc7d, ACTIVE = 0xff45432e;
   private final Host host;
   private final SharedPreferences graphics, input;
   private boolean tools;
@@ -187,9 +196,9 @@ final class CoreMenu extends Dialog {
   private final TextView title;
   private final Button back, resume, update;
   private static final int UPDATE_GREEN = 0xff2d5233, UPDATE_GREEN_EDGE = 0xff4f8a57;
-  private static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
+  static final int UPDATE_RED = 0xff7a2a26, UPDATE_RED_EDGE = 0xffb2463f;
   // the warning before another player character (08.11.2026): a dark red under the text, the "Update" button's edge
-  private static final int WARN_RED = 0xff4e1f1c;
+  static final int WARN_RED = 0xff4e1f1c;
   // "Delete All Data" in a quiet red (wish of the project owner, 14.11.2026: "dezent rötlich"), as the Benchmark's green
   private static final int WIPE_RED = 0xff3a2321, WIPE_RED_EDGE = 0xff6e3c37, WIPE_TEXT = 0xffe2c7c2;
   // the Benchmark button: the green of "Up to date", quieter (wish of the project owner, 06.11.2026)
@@ -214,6 +223,7 @@ final class CoreMenu extends Dialog {
   private TextView hdStatus;
   private Button hdImport;
   private boolean updateAsked;  // the question after an update (PerfProfile.FIRST_ASK) shown in this menu
+  private TextView versionLabel;  // "v0.99.18-rc" left of the update button (0.99.18); null without a versionName
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
   private Button exportAll, exportZip, saveSlot, loadSlot;
   private final View.OnLayoutChangeListener windowLayout = (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
@@ -245,7 +255,13 @@ final class CoreMenu extends Dialog {
         ViewGroup.LayoutParams.WRAP_CONTENT);
     gap.setMarginEnd(dp(8));
     actions.addView(update, gap); actions.addView(resume);
-    root.addView(new MenuLayout.Header(context, back, title, actions), new LinearLayout.LayoutParams(-1, -2));
+    // the installed version left of them, small, with some room (the project owner, 15.11.2026, "wie in der OUYA
+    // Version links vom Button"; until 0.99.17 in brackets after the start page's title): "v0.99.18-rc", also while the
+    // update button is hidden (no internet); MenuLayout.Header places it (under the buttons where a narrow window
+    // leaves no room beside them)
+    String installed = version();
+    if (installed != null) versionLabel = text("v" + installed, 14, false);
+    root.addView(new MenuLayout.Header(context, back, title, versionLabel, actions), new LinearLayout.LayoutParams(-1, -2));
     separator(root);
     scroll = new ScrollView(context);
     scroll.setFillViewport(false);
@@ -547,10 +563,76 @@ final class CoreMenu extends Dialog {
     return b;
   }
   private void fpsLabel(Button b, int place, boolean on) { valueLabel(b, R.string.ingame_info_hud, place, on); }
+  /** The real-time shadows' value (RealtimeShadows.choice): Off, Characters, Characters and objects. */
+  static int shadowsName(int choice) {
+    return choice <= 0 ? R.string.ingame_off : choice >= 2 ? R.string.ingame_rt_shadows_objects
+        : R.string.ingame_rt_shadows_figures;
+  }
+  /** Why the real-time shadows are not recommended on this device (RealtimeShadows.deviceCheck), for the note. */
+  static int shadowsWhy(int check) {
+    switch (check) {
+      case RealtimeShadows.GPU_UNKNOWN: return R.string.ingame_rt_shadows_why_gpu_unknown;
+      case RealtimeShadows.GPU_WEAK: return R.string.ingame_rt_shadows_why_gpu;
+      case RealtimeShadows.NO_BENCHMARK: return R.string.ingame_rt_shadows_why_benchmark;
+      case RealtimeShadows.BENCHMARK_LOW: return R.string.ingame_rt_shadows_why_benchmark_low;
+      case RealtimeShadows.CPU_LIMIT: return R.string.ingame_rt_shadows_why_cpu;
+      default: return R.string.ingame_rt_shadows_why_memory;
+    }
+  }
   /** "Name · value" on a button that moves through its values with each press, lit while not off. */
   private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
     b.setText(getContext().getString(R.string.ingame_toggle_value, s(name), s(value)));
+  }
+  /** "View distance · Normal" and its eyes after the text (the project owner, 15.11.2026): 4 Far, 3 Normal, 2 Medium,
+   *  1 Short, a crossed-out eye None; lit but at None. The eyes are one piece after a space: a narrow button puts them
+   *  on the next line, never cuts the text; TalkBack reads the text alone. */
+  private void viewLabel(Button b, int level) {
+    valueLabel(b, R.string.ingame_potato_view, CoreBridge.VIEW_LABEL[level], !CoreBridge.viewOff(level));
+    String text = b.getText().toString();
+    int eyes = CoreBridge.viewEyes(level);
+    SpannableStringBuilder t = new SpannableStringBuilder(text).append(' ');
+    int start = t.length(); t.append('\uFFFC');
+    t.setSpan(new Eyes(getContext().getDrawable(eyes > 0 ? R.drawable.ic_eye : R.drawable.ic_eye_off), Math.max(1, eyes)),
+        start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    b.setText(t);
+    b.setContentDescription(text);
+  }
+  /** `count` icons side by side in the text (CoreMenu.viewLabel): Lucide's "eye" / "eye-off" (res/drawable/ic_eye*.xml,
+   *  ISC, app/THIRD_PARTY_NOTICES.md), each as high as the text's letters with a little room, drawn in the paint's
+   *  colour, so they follow the button's state as its text does. Identical icons: the same in either direction. */
+  static final class Eyes extends android.text.style.ReplacementSpan {
+    private final android.graphics.drawable.Drawable icon;
+    final int count;
+
+    Eyes(android.graphics.drawable.Drawable icon, int count) {
+      this.icon = icon.mutate();
+      this.count = count;
+    }
+    private static int size(android.graphics.Paint paint) { return Math.round(paint.getTextSize() * 1.15f); }
+    private static int gap(android.graphics.Paint paint) { return Math.round(paint.getTextSize() * .25f); }
+
+    @Override public int getSize(android.graphics.Paint paint, CharSequence text, int start, int end,
+                                 android.graphics.Paint.FontMetricsInt fm) {
+      if (fm != null) {
+        android.graphics.Paint.FontMetricsInt m = paint.getFontMetricsInt();
+        fm.ascent = m.ascent; fm.descent = m.descent; fm.top = m.top; fm.bottom = m.bottom; fm.leading = m.leading;
+      }
+      return count * size(paint) + (count - 1) * gap(paint);
+    }
+
+    @Override public void draw(android.graphics.Canvas canvas, CharSequence text, int start, int end, float x, int top,
+                               int y, int bottom, android.graphics.Paint paint) {
+      int size = size(paint), gap = gap(paint);
+      android.graphics.Paint.FontMetricsInt m = paint.getFontMetricsInt();
+      int iconTop = y + (m.ascent + m.descent) / 2 - size / 2;  // centred on the letters' middle
+      icon.setTint(paint.getColor());
+      for (int i = 0; i < count; i++) {
+        int left = Math.round(x) + i * (size + gap);
+        icon.setBounds(left, iconTop, left + size, iconTop + size);
+        icon.draw(canvas);
+      }
+    }
   }
   /**
    * Frame skip (0.99.8, one button; wish of the project owner, 10.11.2026): 0 off, 1 Normal (the renderer leaves out a
@@ -574,6 +656,11 @@ final class CoreMenu extends Dialog {
   static int dofLevel(SharedPreferences g) {
     if (g.contains(DOF_LEVEL)) return Math.max(0, Math.min(2, g.getInt(DOF_LEVEL, 1)));
     return g.getBoolean("dof", true) ? 1 : 0;
+  }
+  /** "Sharper menu text" (1.0.0): the game's own menu words drawn sharper at high resolutions; on by default. */
+  static final String SHARPER_TEXT = "sharperText";
+  static boolean sharperText(SharedPreferences g) {
+    return g.getBoolean(SHARPER_TEXT, true);
   }
   /** The filter "Sharpen" (0.99.2): 0 off (the default), 1 light, 2 strong. */
   static final String SHARPEN_LEVEL = "sharpenLevel";
@@ -618,13 +705,8 @@ final class CoreMenu extends Dialog {
     int[] titles = {R.string.ingame_title, R.string.ingame_display, R.string.ingame_audio,
         R.string.ingame_controls_page, R.string.ingame_performance, R.string.ingame_cheats,
         R.string.ingame_management, R.string.ingame_controller_config};
-    if (page == HOME && version() != null) {
-      SpannableStringBuilder t = new SpannableStringBuilder(s(titles[page]));
-      int start = t.length(); t.append(" (v").append(version()).append(")");
-      t.setSpan(new RelativeSizeSpan(.6f), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-      t.setSpan(new StyleSpan(Typeface.NORMAL), start, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-      title.setText(t);
-    } else title.setText(s(titles[page]));
+    // only the page's name; the installed version is left of the update button since 0.99.18 (versionLabel)
+    title.setText(s(titles[page]));
     if (page == HOME) home(); else if (page == DISPLAY) display(); else if (page == AUDIO) audio();
     else if (page == CONTROLS) controls(); else if (page == PERFORMANCE) performance();
     else if (page == CHEATS) cheats(); else if (page == CONTROLLER) controller();
@@ -821,7 +903,8 @@ final class CoreMenu extends Dialog {
   }
 
   // DISPLAY (order of the project owner, 04.11.2026): GRAPHICS with the picture format first, then POST-PROCESSING
-  // (effects: depth of field, lens flares; the two picture filters), then OPTIONAL FEATURES (minimap, FPS display)
+  // (effects: depth of field, lens flares, bloom, the real-time shadows; the picture filters), then
+  // OPTIONAL FEATURES (minimap, FPS display)
   private void display() {
     heading(R.string.ingame_graphics);
     renderer();
@@ -842,6 +925,12 @@ final class CoreMenu extends Dialog {
     indentedHelp(s(R.string.ingame_fxaa_help));
     graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
         new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
+    // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026: "Bitte baue den Schärfefilter für die
+    // Schrift auch in 1.0.0 ein."): the game's own menu words drawn sharper at high resolutions; on by default
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_sharper_text, sharperText(graphics), on -> {
+      graphics.edit().putBoolean(SHARPER_TEXT, on).apply(); CoreBridge.setSharperText(on);
+    });
+    indentedHelp(s(R.string.ingame_sharper_text_help));
     heading(R.string.ingame_postprocessing);
     LinearLayout effects = labelledOptions(R.string.ingame_effects);
     // each press moves the depth of field on: off, light (as before), strong (wish of the project owner, 05.11.2026)
@@ -873,8 +962,31 @@ final class CoreMenu extends Dialog {
       CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     valueLabel(bloom, R.string.ingame_bloom, bloomLabels[bloomLevel(graphics)], bloomLevel(graphics) != 0);
+    // Real-time shadows (RealtimeShadows; until 16.11.2026 debug builds only, since then every build, decisions of the
+    // project owner): "Off > Characters > Characters and objects" (the project owner, 15.11.2026), since 16.11.2026
+    // under the effects (the project owner: "Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'"),
+    // always shown (the project owner: "Yes, always show it"): a device that is not capable enough shows "Off" until
+    // the player chooses, with a note why
+    final boolean shadowsRow = host != null;
+    final int shadowsCheck = shadowsRow ? RealtimeShadows.deviceCheck(host.perfDevice(), PerfProfile.Bench.of(graphics))
+        : RealtimeShadows.CAPABLE;
+    if (shadowsRow) {
+      final boolean capable = shadowsCheck == RealtimeShadows.CAPABLE;
+      Button shadows = cellAction(buttonsRow(effects), "", v -> {
+        int next = RealtimeShadows.next(RealtimeShadows.choice(graphics, capable));
+        graphics.edit().putInt(RealtimeShadows.KEY, next).apply();
+        valueLabel((Button) v, R.string.ingame_rt_shadows, shadowsName(next), next > 0);
+        host.shadowsChanged();
+      });
+      final int shadowsChoice = RealtimeShadows.choice(graphics, capable);
+      valueLabel(shadows, R.string.ingame_rt_shadows, shadowsName(shadowsChoice), shadowsChoice > 0);
+    }
     indentedHelp(s(R.string.ingame_flares_help));
     indentedHelp(s(R.string.ingame_bloom_help));
+    if (shadowsRow) indentedHelp(s(R.string.ingame_rt_shadows_help));
+    if (shadowsRow && shadowsCheck != RealtimeShadows.CAPABLE) {
+      indentedHelp(getContext().getString(R.string.ingame_rt_shadows_not_recommended, s(shadowsWhy(shadowsCheck))));
+    }
     // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
     LinearLayout filters = labelledOptions(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
@@ -984,7 +1096,8 @@ final class CoreMenu extends Dialog {
     parent.addButton(box);
     return box;
   }
-  /** "Renderer": OpenGL ES or Vulkan (experimental, port/docs/vulkan-bauplan.md E7); a change restarts the game
+  /** "Renderer": OpenGL ES or Vulkan (port/docs/vulkan-bauplan.md E7; not experimental since 16.11.2026, the project
+   *  owner: "Vulkan kannst du auch nicht mehr experimental machen"); a change restarts the game
    *  after a question, "Cancel" keeps the one before (as the game's language). Without Vulkan here: OpenGL ES only. */
   private void renderer() {
     final String[] labels = {s(R.string.ingame_renderer_gles), s(R.string.ingame_renderer_vulkan)};
@@ -1016,10 +1129,12 @@ final class CoreMenu extends Dialog {
         new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), 3,
         mode -> host.touchModeChanged(mode));
     help(R.string.ingame_touch_help);
-    // the touch buttons' look (RetroTouch 1.0.0-beta.10, wish of the project owner, 09.11.2026): the same choice as
-    // the editor's style button, read from RetroTouch each time the page opens
-    choices(R.string.ingame_button_style, new String[] {s(R.string.ingame_button_icons), s(R.string.ingame_button_labels)},
-        new int[] {1, 0}, host == null || host.touchIcons() ? 1 : 0, Integer.MAX_VALUE, value -> host.touchIconsChanged(value == 1));
+    // the touch buttons' look (wishes of the project owner, 09.11.2026 and 17.11.2026): RE, GC, PS2 and XBOX, the same
+    // choice as the editor's style button, read each time the page opens
+    choices(R.string.ingame_button_style, new String[] {s(R.string.ingame_button_icons), s(R.string.ingame_button_labels),
+        s(R.string.ingame_button_ps2), s(R.string.ingame_button_xbox)},
+        new int[] {TouchStyle.RE, TouchStyle.GC, TouchStyle.PS2, TouchStyle.XBOX},
+        host == null ? TouchStyle.DEFAULT_LOOK : host.touchLook(), Integer.MAX_VALUE, look -> host.touchLookChanged(look));
     help(R.string.ingame_button_style_help);
     // the gyro in a section of its own, above the comfort controls (wishes of the project owner, 30.10.2026)
     heading(R.string.ingame_motion);
@@ -1058,12 +1173,17 @@ final class CoreMenu extends Dialog {
         on -> host.aimInvertChanged(on), R.string.ingame_aim_speed, CoreActivity.AIM_SPEED_MIN,
         CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
+    // "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026): off by default, the
+    // whole row, under aiming
+    toggle(buttonsRow(body), R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
+        on -> host.bodyTurnChanged(on));
     // "Gentler QTEs" (wish of the project owner, 14.11.2026: Professional's quick-time events "not to be done by touch,
     // just about with a controller"): on by default, the whole row, at the comfort controls' end
     toggle(buttonsRow(body), R.string.ingame_gentle_qte,
         input.getBoolean(CoreActivity.GENTLE_QTE, CoreActivity.GENTLE_QTE_DEFAULT), on -> host.gentleQteChanged(on));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
     help(R.string.ingame_always_run_help); help(R.string.ingame_gentle_qte_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_body_turn_help);
     help(R.string.ingame_knife_swipe_help);
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section
     // of its own, a third of the row each
@@ -1533,10 +1653,10 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_potato);
     MenuLayout.Buttons potato = buttonsRow(body);
     toggle(potato, R.string.ingame_potato_weather, graphics.getBoolean("weatherEffects", true), on -> {
-      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     toggle(potato, R.string.ingame_potato_special, graphics.getBoolean("specialEffects", true), on -> {
-      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      graphics.edit().putBoolean("specialEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // two more on a user's wish (08.11.2026, through the project owner): the particles of fights, weapons and
     // fires in three steps (each press moves it on: normal, less, none, as the sharpening), and shadows with the
@@ -1548,28 +1668,33 @@ final class CoreMenu extends Dialog {
       int next = (CoreBridge.particleEffects(graphics) + 1) % 3;
       graphics.edit().putInt("particleEffects", next).apply();
       valueLabel((Button) v, R.string.ingame_potato_particles, particleLabels[next], next != 2);
-      CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
     // lit while there are particles, "Less" too; off only at "None" (wish of the project owner, 09.11.2026)
     valueLabel(particles, R.string.ingame_potato_particles, particleLabels[CoreBridge.particleEffects(graphics)],
         CoreBridge.particleEffects(graphics) != 2);
     toggle(morePotato, R.string.ingame_potato_shadows, graphics.getBoolean("shadowsLight", true), on -> {
-      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoMask(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      graphics.edit().putBoolean("shadowsLight", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
+      if (host != null) host.shadowsChanged();
     });
-    // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance" in three steps, each
-    // press moves it on (Normal, Medium, Short; off only at Short), the distance fog nearer and nothing drawn beyond it
-    // (patch 0223, in the core: OpenGL ES and Vulkan alike)
-    final int[] viewLabels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short};
-    MenuLayout.Buttons lastPotato = buttonsRow(body);
-    Button view = cellAction(lastPotato, "", v -> {
-      int next = (CoreBridge.viewDistance(graphics) + 1) % 3;
+    // a third row (wish of the project owner, 09.11.2026, from the OUYA branch): "View distance", each press moves it
+    // on, the distance fog nearer and nothing drawn beyond it (patch 0223, in the core: OpenGL ES and Vulkan alike);
+    // since 0.99.18 (the project owner, 15.11.2026) five steps, Normal, Medium, Short, None (the 35 % with thick fog),
+    // Far; lit but at None, with eyes after the text (viewLabel). Alone in a plain row over the whole width, as the
+    // buttons' rows lay out one button (MenuLayout.GAP all round): a GridLayout measures its height at the unbroken
+    // text's width, and the eyes put on the next line in a narrow window were cut off
+    Button view = button("", v -> {
+      int next = CoreBridge.nextView(CoreBridge.viewDistance(graphics));
       graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, next).apply();
-      valueLabel((Button) v, R.string.ingame_potato_view, viewLabels[next], next != 2);
+      viewLabel((Button) v, next);
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[next]);
       CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
-    valueLabel(view, R.string.ingame_potato_view, viewLabels[CoreBridge.viewDistance(graphics)],
-        CoreBridge.viewDistance(graphics) != 2);
+    LinearLayout.LayoutParams wide = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    wide.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
+    body.addView(view, wide);
+    viewLabel(view, CoreBridge.viewDistance(graphics));
     help(R.string.ingame_potato_help);
     help(R.string.ingame_view_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
@@ -1674,19 +1799,37 @@ final class CoreMenu extends Dialog {
     // "Source and updates" (wish of the project owner, 14.11.2026): the releases are on the same page
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());
+    // under the link a quiet note, its two lines centred (wish of the project owner, 15.11.2026): CubeEvil4 is only
+    // on this page, not on other sites or game platforms
+    body.addView(sourceNote(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT));
+  }
+
+  /** The note under "Source and updates": two lines, centred, small and muted as the other help texts. */
+  TextView sourceNote() {
+    TextView note = text(s(R.string.ingame_source_only) + "\n" + s(R.string.ingame_source_avoid), 14, false);
+    note.setGravity(Gravity.CENTER_HORIZONTAL);
+    note.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+    note.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    return note;
   }
 
   /** "Delete All Data" in a quiet red (the Benchmark button's way, in red). */
   private Button wipeButton() {
-    Button wipe = button(s(R.string.ingame_wipe), v -> askWipe());
+    Button wipe = quietRed(button(s(R.string.ingame_wipe), v -> askWipe()));
+    wipe.setEnabled(host != null);
+    return wipe;
+  }
+
+  /** The quiet red of "Delete All Data" (also "Delete texture pack", wish of the project owner, 17.11.2026). */
+  private Button quietRed(Button b) {
     StateListDrawable quiet = new StateListDrawable();
     quiet.addState(new int[] {android.R.attr.state_focused}, focused());
     quiet.addState(new int[] {android.R.attr.state_pressed}, shape(WIPE_RED, UPDATE_RED_EDGE, 6));
     quiet.addState(new int[0], shape(WIPE_RED, WIPE_RED_EDGE, 6));
-    wipe.setBackground(quiet);
-    wipe.setTextColor(FocusLook.text(ColorStateList.valueOf(WIPE_TEXT)));
-    wipe.setEnabled(host != null);
-    return wipe;
+    b.setBackground(quiet);
+    b.setTextColor(FocusLook.text(ColorStateList.valueOf(WIPE_TEXT)));
+    return b;
   }
 
   /**
@@ -1776,8 +1919,10 @@ final class CoreMenu extends Dialog {
     return row;
   }
   /** The CHEATS page (out of MANAGEMENT since 30.10.2026, wish of the project owner). Since 05.11.2026 in three
-   *  sections (wish of the project owner): PLAYER & INVENTORY (the switches health, ammo, invisibility; one-hit
-   *  kill, the case, the money), WEAPONS (each at its highest levels), GAME (automatic QTEs, the extra games). */
+   *  sections (wish of the project owner), since 16.11.2026 in this order (the project owner): PLAYER (health, ammo,
+   *  invisibility; one-hit kill, steady aim, the special costumes), WEAPONS (each at its highest levels), GENERAL &
+   *  INVENTORY (automatic QTEs, the extra games; random items and enemies; the case, the money), then the player
+   *  character and the mods. */
   private void cheats() {
     cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
     heading(R.string.ingame_cheat_section_player);
@@ -1785,10 +1930,11 @@ final class CoreMenu extends Dialog {
     cheatSwitch(player, R.string.ingame_cheat_health, 1);
     cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
     cheatSwitch(player, R.string.ingame_cheat_invisible, INVISIBLE_BIT);
-    MenuLayout.Buttons inventory = cheatRow(3);
-    cheatSwitch(inventory, R.string.ingame_cheat_onehit, 4);
-    cheatButton(inventory, 2, R.string.ingame_cheat_case);
-    cheatButton(inventory, 3, R.string.ingame_cheat_money);
+    MenuLayout.Buttons player2 = cheatRow(3);
+    cheatSwitch(player2, R.string.ingame_cheat_onehit, 4);
+    cheatSwitch(player2, R.string.ingame_cheat_steady, STEADY_AIM_BIT);
+    // the special costumes, out of the player character's section (the project owner, 16.11.2026)
+    costumeSwitch(player2);
     heading(R.string.ingame_cheat_section_weapons);
     MenuLayout.Buttons weapons = cheatRow(3);
     cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
@@ -1821,6 +1967,10 @@ final class CoreMenu extends Dialog {
       game.edit().putInt(CoreActivity.ENEMY_SEED, seed).apply();
       host.enemyRandomChanged(seed);
     });
+    // the case and the money under them (the project owner, 16.11.2026)
+    MenuLayout.Buttons inventory = cheatRow(2);
+    cheatButton(inventory, 2, R.string.ingame_cheat_case);
+    cheatButton(inventory, 3, R.string.ingame_cheat_money);
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
@@ -1843,7 +1993,9 @@ final class CoreMenu extends Dialog {
     hdStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
     hdStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
     body.addView(hdStatus);
-    MenuLayout.Buttons first = cheatRow(2), second = cheatRow(2);
+    // the layout (wish of the project owner, 17.11.2026): left Import, Sharpness, Delete (in the quiet red of "Delete All
+    // Data"); right the switch and under it "Costumes" and "Weapons"
+    MenuLayout.Buttons first = cheatRow(2), second = cheatRow(2), third = cheatRow(2);
     hdImport = cellAction(first, s(TexturePacks.importing ? R.string.ingame_hd_cancel : R.string.ingame_hd_import), v -> {
       if (host == null) return;
       if (TexturePacks.importing) host.cancelTexturePackImport();
@@ -1864,12 +2016,33 @@ final class CoreMenu extends Dialog {
       main.postDelayed(this::refreshHd, 500);
     });
     valueLabel(sharpness, R.string.ingame_hd_sharpness, half ? R.string.ingame_hd_half : R.string.ingame_hd_full, half);
-    Button delete = cellAction(second, s(R.string.ingame_hd_delete), v -> askDeletePack());
+    // "Costumes" and "Weapons" (1.0.0, wish of the project owner, 17.11.2026): each press moves it between "Texture
+    // pack" (the default) and "Original", the playable characters' (or the weapons') own textures with a pack on
+    Button costumes = groupSwitch(second, R.string.ingame_hd_costumes, TexturePacks.COSTUMES);
+    Button delete = quietRed(cellAction(third, s(R.string.ingame_hd_delete), v -> askDeletePack()));
+    Button weapons = groupSwitch(third, R.string.ingame_hd_weapons, TexturePacks.WEAPONS);
     onOff.setEnabled(info != null);
     sharpness.setEnabled(info != null);
+    costumes.setEnabled(info != null);
+    weapons.setEnabled(info != null);
     delete.setEnabled(info != null && !TexturePacks.importing);
     if (TexturePacks.importing && host != null) host.textureListener(textureListener);
     help(R.string.ingame_hd_help);
+    help(R.string.ingame_hd_groups_help);
+  }
+
+  /** "Costumes" / "Weapons" on the Mods page: "Texture pack" (true, the default) or "Original", sent at once. */
+  private Button groupSwitch(MenuLayout.Buttons row, int label, String key) {
+    Button b = cellAction(row, "", v -> {
+      boolean pack = !graphics.getBoolean(key, true);
+      graphics.edit().putBoolean(key, pack).apply();
+      valueLabel((Button) v, label, pack ? R.string.ingame_hd_pack : R.string.ingame_hd_original, pack);
+      if (host != null) host.graphicsChanged();
+      main.postDelayed(this::refreshHd, 500);
+    });
+    boolean pack = graphics.getBoolean(key, true);
+    valueLabel(b, label, pack ? R.string.ingame_hd_pack : R.string.ingame_hd_original, pack);
+    return b;
   }
 
   /** The HD textures' line: the import's progress, the pack (and what the renderer replaced so far), or none. */
@@ -1974,6 +2147,9 @@ final class CoreMenu extends Dialog {
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
+      // Leon, Ada, HUNK; under them Krauser and Wesker, under Ada and HUNK (the project owner, 16.11.2026: "Unter dem
+      // Button von Leon bleibt der Platz also frei")
+      if (i == 3) row.addGap();
       Button b = cellAction(row, labels[i], v -> {
         Runnable choose = () -> {
           select(buttons, labels, index);
@@ -1988,7 +2164,6 @@ final class CoreMenu extends Dialog {
       b.setContentDescription(labels[i] + ", " + s(b.isSelected() ? R.string.ingame_on : R.string.ingame_off));
       buttons[i] = b;
     }
-    costumeSwitch(row);
     help(R.string.ingame_cheat_character_help);
   }
   /** Before Ada, HUNK, Krauser or Wesker take Leon's place (wish of the project owner, 08.11.2026): a reddish
@@ -2041,29 +2216,42 @@ final class CoreMenu extends Dialog {
     dialog.setOnShowListener(d -> understood.requestFocus());
     Immersive.show(dialog);
   }
-  /** "Special costumes · On/Off" over a smaller "(Leon/Ashley only)", as tall as one line's button (the
-   *  owner, 03.11.2026: the second row as high as the first). */
+  /** The costumes' choices (costumeSwitch): the game's own, Leon's jacket, the special costumes. */
+  static final int COSTUME_NORMAL = 0, COSTUME_JACKET = 1, COSTUME_SPECIAL = 2;
+
+  /** The costume in force: Special with the cheats' bit (COSTUME_BIT, the switch "Special costumes on" of before
+   *  0.99.19 as well), Leon's jacket with its setting (CoreActivity.LEON_JACKET), else Normal. */
+  static int costumeChoice(int bits, boolean jacket) {
+    return (bits & COSTUME_BIT) != 0 ? COSTUME_SPECIAL : jacket ? COSTUME_JACKET : COSTUME_NORMAL;
+  }
+
+  /** The cheat bits of a costume choice (Special: COSTUME_BIT, the others without it). */
+  static int costumeBits(int bits, int choice) {
+    return choice == COSTUME_SPECIAL ? bits | COSTUME_BIT : bits & ~COSTUME_BIT;
+  }
+
+  /** "Costumes · Normal / Leon's jacket / Special" (1.0, the project owner, 16.11.2026: "ein Toggle-Button ... und nur
+   *  mehr 'Kostüme'", without the note "(Leon/Ashley only)"): each press the next, as Frame skip; lit but at Normal.
+   *  Normal: the game's own costumes. Leon's jacket: Leon keeps his brown jacket for the whole game (patch 0235,
+   *  CoreBridge.setLeonJacket). Special: the special costumes of Leon and Ashley (COSTUME_BIT). */
   private void costumeSwitch(MenuLayout.Buttons parent) {
-    final Button[] b = new Button[1];
-    Runnable label = () -> {
-      boolean on = (cheatBits & COSTUME_BIT) != 0;
-      SpannableStringBuilder t = new SpannableStringBuilder(getContext().getString(R.string.ingame_toggle_value,
-          s(R.string.ingame_cheat_costume), s(on ? R.string.ingame_on : R.string.ingame_off)));
-      int from = t.length(); t.append('\n').append(s(R.string.ingame_cheat_costume_note));
-      t.setSpan(new RelativeSizeSpan(.75f), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-      t.setSpan(new StyleSpan(Typeface.NORMAL), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-      b[0].setSelected(on); b[0].setText(t);
-    };
-    b[0] = cellAction(parent, "", v -> {
-      cheatBits ^= COSTUME_BIT; host.cheatsChanged(cheatBits); label.run();
-    });
-    b[0].setPadding(dp(12), dp(2), dp(12), dp(2));
-    b[0].setAccessibilityDelegate(new View.AccessibilityDelegate() {
-      @Override public void onInitializeAccessibilityNodeInfo(View view, AccessibilityNodeInfo info) {
-        super.onInitializeAccessibilityNodeInfo(view, info); info.setCheckable(true); info.setChecked(view.isSelected());
+    final int[] labels = {R.string.ingame_cheat_costume_normal, R.string.ingame_cheat_costume_jacket,
+        R.string.ingame_cheat_costume_special};
+    final android.content.SharedPreferences game =
+        getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
+    Button b = cellAction(parent, "", v -> {
+      final boolean jacket = game.getBoolean(CoreActivity.LEON_JACKET, false);
+      final int next = (costumeChoice(cheatBits, jacket) + 1) % 3;
+      final int bits = costumeBits(cheatBits, next);
+      if (bits != cheatBits) {
+        cheatBits = bits;
+        host.cheatsChanged(cheatBits);
       }
+      if ((next == COSTUME_JACKET) != jacket) host.leonJacketChanged(next == COSTUME_JACKET);
+      valueLabel((Button) v, R.string.ingame_cheat_costume, labels[next], next != COSTUME_NORMAL);
     });
-    label.run();
+    final int now = costumeChoice(cheatBits, game.getBoolean(CoreActivity.LEON_JACKET, false));
+    valueLabel(b, R.string.ingame_cheat_costume, labels[now], now != COSTUME_NORMAL);
   }
   /** The game is held while the menu is open: the core does a button at once and answers. */
   private void cheatAction(int what, int label) {
@@ -2191,8 +2379,7 @@ final class CoreMenu extends Dialog {
   }
   private String version() {
     try {
-      String v = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName;
-      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+      return AppUpdate.plain(getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).versionName);
     } catch (android.content.pm.PackageManager.NameNotFoundException e) { return null; }
   }
   /** "+5°", "0°", "−5°": the field of view's change in degrees, digits 0..9 in every language. */
@@ -2291,9 +2478,27 @@ final class CoreMenu extends Dialog {
     return name + " (" + f[2] + " blocks)";
   }
 
+  /**
+   * The menu's window animation (0.99.17, wish of the project owner): up from the screen's bottom as it opens, back down
+   * as it closes, however it opens and closes (Android plays it on the window, the game does not wait for it); none
+   * when Android's animations are off.
+   */
+  static int windowAnimations(boolean animationsOn) {
+    return animationsOn ? R.style.CoreMenuSlide : R.style.CoreMenuNoAnimation;
+  }
+
+  /** Android's animations are on: the animator duration scale is not 0 ("Remove animations" sets it to 0). */
+  static boolean animationsOn(Context c) {
+    if (android.os.Build.VERSION.SDK_INT >= 26) return android.animation.ValueAnimator.areAnimatorsEnabled();
+    return android.provider.Settings.Global.getFloat(c.getContentResolver(),
+        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f;
+  }
+
   @Override protected void onStart() {
     super.onStart();
     if (getWindow() != null) {
+      // before the window is added (Dialog.show calls onStart first): the opening slides too
+      getWindow().setWindowAnimations(windowAnimations(animationsOn(getContext())));
       getWindow().setBackgroundDrawableResource(android.R.color.transparent);
       resizeWindow();
       getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
@@ -2316,7 +2521,7 @@ final class CoreMenu extends Dialog {
       width = area.getWidth() - area.getPaddingLeft() - area.getPaddingRight();
       height = area.getHeight() - area.getPaddingTop() - area.getPaddingBottom();
     }
-    // the game's window reaches over the camera's cutout (0.99.15), the menu's window does not (Cutout)
+    // the game's window reaches over the camera's cutout (0.99.17), the menu's window does not (Cutout)
     final int[] cutout = Cutout.safe(hostDecor);
     width -= cutout[0] + cutout[2];
     height -= cutout[1] + cutout[3];

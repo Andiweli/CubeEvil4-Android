@@ -32,6 +32,11 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_instant_damaged', 'ingame_instant_failed', 'ingame_instant_saved', 'ingame_instant_overwrite_title',
         'ingame_instant_load_title', 'ingame_instant_overwrite', 'ingame_instant_load_warning', 'ingame_replace',
         'ingame_cheat_random_items', 'ingame_cheat_random_items_help', 'ingame_cheat_extras',
+        # 1.0.0 (wish of the project owner, 17.11.2026): steady aim and the costumes
+        'ingame_cheat_steady', 'ingame_cheat_costume', 'ingame_cheat_costume_normal', 'ingame_cheat_costume_jacket',
+        'ingame_cheat_costume_special',
+        # invert vertical, the performance cores, the keyboard and mouse heading (1.0.0)
+        'ingame_aim_invert_v', 'ingame_perf_cores', 'ingame_perf_help', 'ingame_map_keyboard',
         'ingame_cheat_extras_text', 'ingame_cheat_extras_later', 'ingame_cheat_extras_already',
         'ingame_language_restart_title', 'ingame_restart', 'ingame_later',
         'ingame_management', 'ingame_card_busy', 'ingame_card_none', 'ingame_export', 'ingame_export_zip',

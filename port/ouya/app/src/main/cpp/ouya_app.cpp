@@ -18,6 +18,7 @@
 #include "gx_gl2_shader.h"
 #include "re4_core.h"
 #include "re4_core_client.h"
+#include "re4_cpu_info.h"
 #include "re4_gx_frame.h"
 
 #include <EGL/egl.h>
@@ -60,6 +61,9 @@ const char *const kCoreSettings[][2] = {
     {"RE4_GX_TEXTURE_BUDGET_MB", "64"},
     {"RE4_DEBUG_HUD", "0"},               // none of the debug build's displays
     {"RE4_ROOM_MENU", "0"},               // "New Game" without the debug build's room menu
+    // the GPU's fog dense at the far plane at every shorter view distance (35 to 75 %), as the OUYA branch's
+    // patch 0901 did since 14.11.2026; the main app's 1.0.0 does it only below 50 % (runtime/view_distance.cpp)
+    {"RE4_VIEW_DENSE", "2"},
 };
 
 std::mutex gLock;
@@ -103,6 +107,13 @@ std::atomic<bool> gCpuSkip{false};
 std::atomic<bool> gGentleQte{true};  // "Gentler QTEs (Professional)", runtime/qte_touch.cpp
 unsigned gChunksSecond = 0;  // GL thread: chunks taken since the last choice (fewer while the game leaves some out)
 int gViewPercent = 50, gPotato = 3, gAim = 100 << 8, gCheats = 0;  // under gLock
+// the cheat "Costumes · Leon's jacket" (1.0.0, patches 0235/0236; re4ipc_set_leon_jacket), under gLock
+bool gLeonJacket = false;
+// "Use performance cores" (1.0.0 for old phones with fast and slow cores, wish of the project owner, 17.11.2026; the
+// main app's Force Performance): the core puts the game thread and the GX decoder on the fast cores
+// (re4_core_set_fast_cores), the GL thread goes there itself (nativeFrame); the OUYA's four cores are alike
+std::atomic<bool> gFastCores{false};
+int gRenderFast = -1;  // GL thread: the setting the GL thread runs with (-1: none yet)
 bool gWaitReset = false;  // GL thread: a new renderer draws from the next chunk that starts over
 
 // The chunks the fetch thread took and the renderer has not run yet: in the core process's shared
@@ -430,8 +441,9 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
   setenv("RE4_POTATO", value, 1);  // runtime/potato.cpp: weather, special effects, particles, shadows
   setenv("RE4_CPU_SKIP", gCpuSkip ? "1" : "0", 1);  // frame skip Aggressive
   setenv("RE4_GENTLE_QTE", gGentleQte ? "1" : "0", 1);
-  snprintf(value, sizeof(value), "%d", gCheats);
+  snprintf(value, sizeof(value), "%u", static_cast<unsigned>(gCheats));  // bit 31: steady aim
   setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
+  setenv("RE4_LEON_JACKET", gLeonJacket ? "1" : "0", 1);  // runtime/cheats.cpp, patch 0235
   if (gameLanguage >= 2 && gameLanguage <= 6) {
     // the European discs: the game's language (the main app's RE4_GAME_LANGUAGE, retail-eu-plan.md R7)
     snprintf(value, sizeof(value), "%d", static_cast<int>(gameLanguage));
@@ -459,7 +471,8 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
     return env->NewStringUTF(gProblem.c_str());
   }
   gRunning = true;
-  re4ipc_set_aim(gAim);  // auto aim, always run, far camera (no environment for them)
+  re4ipc_set_aim(gAim);  // invert, auto aim, always run, far camera (no environment for them)
+  re4ipc_set_fast_cores(gFastCores ? 1 : 0);
   std::thread(Fetch).detach();
   if (!StartSound())
     LOG("no sound (OpenSL ES)");
@@ -515,19 +528,23 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
                                                                                          jint aim, jint frameSkip,
                                                                                          jint cheats,
                                                                                          jboolean gentleQte,
-                                                                                         jboolean simpleLight) {
+                                                                                         jboolean simpleLight,
+                                                                                         jboolean leonJacket,
+                                                                                         jboolean fastCores) {
   gWantSimpleLight = simpleLight == JNI_TRUE;
   // 0 off, 1 Normal (the renderer leaves out older pictures, the core pictures without draws), 2 Aggressive
   // (also the game's own frame skip)
   gFrameSkip = frameSkip >= 1;
   const bool cpuSkip = frameSkip >= 2, cpuChanged = cpuSkip != gCpuSkip.exchange(cpuSkip);
   const bool gentle = gentleQte == JNI_TRUE, gentleChanged = gentle != gGentleQte.exchange(gentle);
+  const bool fast = fastCores == JNI_TRUE, fastChanged = fast != gFastCores.exchange(fast);
   gWantEighths = eighths < 4 ? 4 : eighths > 8 ? 8 : static_cast<int>(eighths);
   gWantFastTev = fastTev == JNI_TRUE;
   std::lock_guard<std::mutex> l(gLock);
   const bool view = viewPercent != gViewPercent, pot = potato != gPotato, aimed = aim != gAim,
-             cheated = cheats != gCheats;
+             cheated = cheats != gCheats, jacket = (leonJacket == JNI_TRUE) != gLeonJacket;
   gCheats = cheats;
+  gLeonJacket = leonJacket == JNI_TRUE;
   gViewPercent = viewPercent < 20 ? 20 : viewPercent > 100 ? 100 : static_cast<int>(viewPercent);
   gPotato = potato & 31;  // runtime/potato.cpp: bits 0..4
   gAim = aim;
@@ -545,8 +562,42 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     re4ipc_set_cpu_skip(cpuSkip ? 1 : 0);
   if (gentleChanged)
     re4ipc_set_gentle_qte(gentle ? 1 : 0);
-  LOG("settings: view %d %%, potato %d, aim 0x%x, frame skip %s, cheats 0x%x", gViewPercent, gPotato, gAim,
-      cpuSkip ? "aggressive" : gFrameSkip ? "normal" : "off", gCheats);
+  if (jacket)
+    re4ipc_set_leon_jacket(gLeonJacket ? 1 : 0);
+  if (fastChanged)
+    re4ipc_set_fast_cores(fast ? 1 : 0);
+  LOG("settings: view %d %%, potato %d, aim 0x%x, frame skip %s, cheats 0x%x, Leon's jacket %s, performance cores %s",
+      gViewPercent, gPotato, gAim, cpuSkip ? "aggressive" : gFrameSkip ? "normal" : "off", gCheats,
+      gLeonJacket ? "on" : "off", fast ? "on" : "off");
+}
+
+// "Use performance cores" for the GL thread (the main app's drawGx): off the slow cores, Android's performance hint
+// where it has one (Android 13); about once a second back on them if Android moved it. Off: left to Android.
+static void PlaceGlThread() {
+  static re4cpu::PerfHint hint;
+  static unsigned checks, moves;
+  const int fast = gFastCores ? 1 : 0;
+  if (fast != gRenderFast) {
+    const bool first = gRenderFast < 0;
+    gRenderFast = fast;
+    if (fast) {
+      char cores[160];
+      re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kRenderThread);
+      LOG("cores: the GL thread %s", cores);
+      const int tid = re4cpu::ThreadId();
+      const char *why = "";
+      hint.Open(&tid, 1, 33333333LL, &why);
+      LOG("performance hint: %s (the GL thread, 33.3 ms a picture)", why);
+    } else {
+      hint.Close();
+      if (!first) {
+        re4cpu::ReleaseCores();
+        LOG("cores: the GL thread left to Android");
+      }
+    }
+  }
+  if (fast && ++checks % 30 == 0 && re4cpu::KeepOnFastCores() && ++moves <= 4)
+    LOG("cores: the GL thread put back on its cores (Android had moved it, %u times so far)", moves);
 }
 
 // A new EGL context: a renderer of its own (the chunks begin anew with a full state)
@@ -577,6 +628,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
     StartOver();
   }
   ahead::Frame();
+  PlaceGlThread();
   if (gRenderer && gRunning) {
     // the chunks taken since the last frame; none yet: wait a little (the game makes about 30 a second)
     std::deque<const Re4GxChunk *> got;
@@ -765,6 +817,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
 }
 
 // The app goes to the background (or comes back): the game and its sound stop (go on)
+// The mouse wheel (1.0.0, OuyaKeyboard): whole notches, up positive; the core zooms the scope or the binoculars
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeZoom(JNIEnv *, jclass, jint notches) {
+  if (gRunning && notches != 0)
+    re4ipc_zoom(notches);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativePause(JNIEnv *, jclass, jboolean on) {
   if (!gRunning)
     return;

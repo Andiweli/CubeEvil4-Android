@@ -441,7 +441,7 @@
  },
  {
   "file": "src/game/trans.cpp",
-  "line": 333,
+  "line": 339,
   "text": "(u8*) pG->prim_base",
   "operand": "pG->prim_base",
   "type": "s32",
@@ -449,7 +449,7 @@
  },
  {
   "file": "src/game/trans.cpp",
-  "line": 375,
+  "line": 387,
   "text": "(u8*) pG->prim_base",
   "operand": "pG->prim_base",
   "type": "s32",
@@ -457,7 +457,7 @@
  },
  {
   "file": "src/game/trans.cpp",
-  "line": 916,
+  "line": 935,
   "text": "(void*) -1",
   "operand": "-1",
   "type": "int",
@@ -465,7 +465,7 @@
  },
  {
   "file": "src/game/trans.cpp",
-  "line": 917,
+  "line": 936,
   "text": "(void*) -1",
   "operand": "-1",
   "type": "int",
@@ -473,7 +473,7 @@
  },
  {
   "file": "src/game/trans.cpp",
-  "line": 2418,
+  "line": 2465,
   "text": "(u8*) pG->prim_cnt",
   "operand": "pG->prim_cnt",
   "type": "s32",
@@ -481,7 +481,7 @@
  },
  {
   "file": "src/game/trans.cpp",
-  "line": 2425,
+  "line": 2472,
   "text": "(u8*) pG->prim_cnt",
   "operand": "pG->prim_cnt",
   "type": "s32",

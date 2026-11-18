@@ -72,9 +72,17 @@ struct Texture {
   unsigned width = 0, height = 0, levels = 1;
   float lodShift = 0.0f;
   std::uint32_t hdBytes = 0;
+  std::uint32_t wordBytes = 0;  // a sharper menu word (word_sharpen.h): its levels' bytes
 };
 
 class TexPack;
+class TexLoader;
+class WordSharpener;
+}  // namespace re4gx
+namespace c4tex {
+struct Entry;
+}
+namespace re4gx {
 
 // An EFB copy to a texture: the texels as the matching texture format reads
 // them (8-bit copies as I8: value in all four channels; two-channel copies as
@@ -237,8 +245,52 @@ struct GxCore {
   bool texPackActive = false, texturesDropped = false;
   std::vector<std::uint8_t> hdData;  // a replacement's texels on their way to the GPU
   void SetTexturePack(std::shared_ptr<const TexPack> pack, unsigned firstLevel, std::size_t budgetBytes);
-  // the replacement of the texture Upload is at (into tex); false: none, keep the game's
+  // the pack's groups kept original (TextureGroup bits, GxRenderer::SetTexturePackKeep); a change drops the textures
+  unsigned texPackKeep = 0;
+  void SetTexturePackKeep(unsigned groups);
+  // the replacement of the texture Upload is at (into tex); false: none (or not read yet), keep the game's
   bool UploadHd(const Re4GxTexture &t, const std::uint8_t *data, std::size_t bytes, Texture &tex);
+  // T4 (0.99.18): the replacements read in the background (TexLoader): UploadHd asks for the read and the game's own
+  // texture shows meanwhile; ApplyHd, at the start of each chunk, puts the finished ones on the GPU in its place
+  // (within `budgetMs`, at least one). hdWaiting: the textures asked for (by key), each with its ticket and the bytes
+  // of the budget kept for it (hdReserved). RE4_TEX_PACK_SYNC=1: read on the render thread as before (tests).
+  struct HdWait {
+    std::uint64_t ticket = 0;
+    std::size_t reserved = 0;
+    std::chrono::steady_clock::time_point since;
+  };
+  std::shared_ptr<TexLoader> hdLoader;
+  std::unordered_map<std::uint64_t, HdWait> hdWaiting;
+  std::size_t hdReserved = 0;
+  std::uint64_t hdTicket = 0;
+  void ApplyHd(double budgetMs);
+  void CancelHd();
+  // "Sharper menu text" (1.0.0, word_sharpen.h; GxRenderer::SetWordSharpen): Upload shows a menu word's own picture
+  // and asks wordSharpener for a sharper one (wordWaiting: by key, each with its ticket); ApplyWords, at the start of
+  // each chunk, puts the finished ones on the GPU in its place (within `budgetMs`, at least one), while they take at
+  // most wordBudget bytes (wordBytes now). Off, at 1x, in the PSone demake: none, Upload as before.
+  // RE4_WORD_SHARPEN_SYNC=1: sharpened on the render thread at once (tests).
+  struct WordWait {
+    std::uint64_t ticket = 0;
+    std::chrono::steady_clock::time_point since;
+  };
+  bool wordSharpenOn = false, wordActive = false;
+  std::shared_ptr<WordSharpener> wordSharpener;
+  std::unordered_map<std::uint64_t, WordWait> wordWaiting;
+  std::uint64_t wordTicket = 0;
+  std::size_t wordBytes = 0, wordBudget = 0;
+  void SetWordSharpen(bool on);
+  void UpdateWordSharpener();
+  // after Upload put a game texture under `key`: a menu word's sharper picture asked for (or made at once)
+  void AskWord(const Re4GxTexture &t, const std::uint8_t *data, std::uint64_t key,
+               const std::vector<std::uint8_t> &rgba);
+  void ApplyWords(double budgetMs);
+  // a sharpened word's levels in place of the game's texture under `key`; false when they do not fit wordBudget
+  bool PutWord(std::uint64_t key, unsigned factor, const std::vector<std::uint8_t> &levels, unsigned levelCount);
+  // a read replacement onto the GPU (ETC2, or decoded where the API cannot take it): `gameW` x `gameH` the game's
+  // texture; false when the API failed or the decoded levels do not fit the budget
+  bool PutHd(const c4tex::Entry &e, unsigned first, unsigned gameW, unsigned gameH, const std::vector<std::uint8_t> &data,
+             Texture &tex);
   std::unordered_map<std::uint32_t, Copy> copies;  // by destination address
   std::unordered_map<std::uint64_t, Texture> paletted; // copies read through a palette
   bool dofStrong = false;
@@ -628,6 +680,109 @@ struct GxCore {
   // renderer's texels, w 1 (unused: 0).
   void BloomHalos(float out[8][4]) const;
   virtual void BloomPass() = 0;
+  // --- real-time shadows of the figures and objects (GxRenderer::SetShadows; every build since 16.11.2026, until
+  // then debug builds only, decisions of the project owner; port/docs/echtzeit-schatten-studie.md) ------------------
+  // The game core marks the place (RE4_GX_OP_SHADOW: after the room, the figures and the game's own shadow receivers,
+  // before the effects; only in play and with a foot shadow light of the room, whose direction it sends in view space).
+  // Up to the mark the casters' solid draws are collected (ShadowCollect: the owner tag's FIGURE / PART bits, with
+  // level 2 also its OBJECT bit; depth written, within kShadowRange of the camera) as triangles in view space. At the
+  // mark ShadowMark fits a map around each kind along the light and the API's ShadowPass draws them from the light
+  // (the depth maps), marks the pixels where a figure (red) or an object (green) is the visible surface, works out a
+  // mask from the EFB's depth (darker where a surface lies behind a caster as the light sees it; a figure takes no
+  // shadow, an object only the figures') and multiplies it into the EFB's colour. Off (the default and every release
+  // build) nothing of it runs: no scan for the mark, no collecting, no pass, no program of it.
+  static constexpr float kShadowRange = 15000.0f;  // view units (millimetres)
+  // how far a shadow reaches behind its caster along the light (the ground under it, a wall beside it; the room casts
+  // nothing, so a longer shadow fell through walls onto what lies behind them: r101). The same for the objects: with
+  // 8 m the drapes under a castle hall's ceiling darkened the whole floor while its statue cast nothing (r211); the
+  // windmill's blades shade their platform (r103), 16.11.2026.
+  static constexpr float kShadowReach = 4000.0f;
+  // Stage 5 (16.11.2026, the project owner: the shadows follow the game's light): up to three lights a picture, the
+  // ones that really light the figures (runtime/rt_shadow.cpp). Their maps share one depth atlas of 2 x 2 tiles of
+  // kShadowTile texels: 0 light 0's figures, 1 light 0's objects, 2 light 1's figures, 3 light 2's figures (the weaker
+  // lights' objects cast nothing: the cost). (768 texels a tile: with 1024 the PC's pass took twice as long as with
+  // the two maps of stage 4, 16.11.2026.)
+  // Stage 6 (16.11.2026, the project owner: a standing figure's shadow "wandered" when Leon walked): a point light's
+  // map is drawn from its place (a perspective map, ShadowFitPoint), so that every figure's shadow points away from
+  // the lamp from where that figure stands; its frustum looks where the camera sees the lamp's light, not at the
+  // casters; a parallel light's map lies on a fixed grid (ShadowFitParallel), so that a caster that moves a little
+  // shifts no other shadow; the darkening at each place comes from the light's own fall-off there against all the
+  // light there (kShadowMaskFs LightAt; the ambient includes the lights that are the same everywhere). A figure that
+  // stands still keeps its shadow, whoever else moves.
+  // Stage 7 (18.11.2026, the owner's device test: some shadows too dark, others flickering wildly): a point light's
+  // map is fitted to the casters within the light's reach and kept while the camera stands (ShadowFitPoint); a
+  // light without casters still lights (it stays in the mask's sum); the game's lights darken at most 0.6 each and
+  // 0.7 together; a shadow that falls much larger than its caster fades.
+  static constexpr int kShadowLights = 3, kShadowTiles = 4, kShadowTile = 768;
+  // a point light's frustum: from its place towards the middle of what the camera sees within its reach (a spot of a
+  // cone up to that wide along its own axis), 140 degrees wide, 0.1 .. 30 m (no caster moves it)
+  static constexpr float kShadowPointHalfAngle = 70.0f, kShadowPointNear = 100.0f, kShadowPointFar = 30000.0f;
+  // stage 7: the narrowest a point light's map gets (ShadowFitPoint fits it to the casters within the light's reach)
+  static constexpr float kShadowPointMinAngle = 45.0f;
+  // one tile's map
+  struct ShadowMapParams {
+    float row[4][4];                 // view space to the map's clip space (x, y, z, w; GL's depth -w..w): lx, ly, lz, lw
+    float tp[4];                     // near, far (view units along its axis), 1 perspective / 0 parallel, a texel's size
+                                     // (parallel: view units; perspective: per view unit of distance)
+    float bias[4];                   // depth bias, slope bias, normal offset (texels), PCF radius (texels)
+    float extent;                    // a parallel map's side (view units)
+    int size;                        // its texels each way
+    std::size_t triangles;
+    bool casts;                      // it has casters; only such a tile is drawn
+    bool objects;                    // the objects' triangles (tile 1), else the figures'
+  };
+  // one light as kShadowMaskFs takes it (LightAt): lp place (point, spot) or direction it travels (parallel) in view
+  // space, w the kind (0 parallel, 1 point, 2 spot); la the colour's luminance (negative: a fixed weight, the marks of
+  // stages 1 to 5), strength, full up to, gone from (view units); lb GX attenuation k1, k2, a spot's cut-off cosine;
+  // lc a spot's axis
+  struct ShadowLightParams {
+    float lp[4], la[4], lb[4], lc[4];
+  };
+  struct ShadowParams {
+    ShadowMapParams tile[kShadowTiles];
+    float tileInfo[kShadowTiles][4];  // corner in the atlas (x, y: 0 or 0.5), reach (view units), 1 when it casts
+    ShadowLightParams light[kShadowLights];
+    float amb[4];                    // the light the same everywhere (luminance: the ambient and the lights that turn
+                                     // with the camera), the darkest one light's shadow gets (stage 7: 0.6), 0, 0
+    int lights;                      // lights that cast
+    int atlas;                       // the atlas' texels each way (2 tiles)
+    std::size_t figTriangles, objTriangles;
+    int region[4];                   // the scene's part of the EFB in the renderer's texels
+    int maskW, maskH;                // the mask's texels (one per GameCube pixel from 2x on, else one per texel)
+    float grid[4];                   // EFB texels per mask texel (x, y)
+    float vp0[4], vp1[4], pr0[4], pr1[4];  // the scene's XF viewport and projection (kShadowMaskFs; vp1.z the scale)
+    float markVp1[4];                // kShadowMarkVs's vp1: oy, zo, the EFB's width and height
+    float look[4];                   // the darkest (1 - x), fade start, fade end (view units), half an atlas texel
+  };
+  int shadowLevel = 0;               // 0 off, 1 the figures, 2 the figures and the objects
+  bool shadowFailed = false;         // the pass failed on this driver: off for good (the menu's choice stays)
+  bool shadowWanted = false;         // this chunk: the level on and a mark in it (Run)
+  bool shadowLogged = false;
+  std::vector<float> shadowTris;     // the figures' triangles so far, view space, three floats a corner
+  std::vector<float> objectTris;     // the objects' (level 2: RE4_GX_OWNER_OBJECT)
+  std::vector<float> shadowVerts;    // one draw's corners (ShadowCollect's scratch)
+  std::uint32_t shadowXf[12] = {};   // XF 0x101A..0x1025 of the last figure draw: the scene's viewport and projection
+  bool shadowXfValid = false;
+  void SetShadows(int level);
+  // the chunk has a shadow mark (only asked with the level on)
+  static bool HasShadowMark(const Re4GxChunk &chunk);
+  void ShadowCollect(const Re4GxDraw &d, const Re4GxChunk &chunk);
+  // a parallel light's map along D (unit, view space), a point light's or a spot's from its place (L.lp), aimed with
+  // the scene's projection `proj` (XF 0x1020..0x1023); false without triangles
+  static bool ShadowFitParallel(const std::vector<float> &tris, const float D[3], int size, ShadowMapParams *m);
+  bool ShadowFitPoint(const std::vector<float> &tris, const ShadowLightParams &L, int which, int size,
+                      ShadowMapParams *m);
+  // a point light's map as ShadowFitPoint fitted it last, per tile: kept while the light stays where it was in view
+  // space and every caster still fits
+  struct ShadowCone {
+    bool valid;
+    float p[3], axis[3], tan;
+  };
+  ShadowCone shadowCone[kShadowTiles] = {};
+  std::vector<float> shadowDirs;     // ShadowFitPoint's scratch: the casters' directions from the light
+  // the mark's op (stage 5: the lights; stages 1 to 4: one direction and strength): the parameters, then ShadowPass
+  void ShadowMark(const std::uint32_t *p, std::uint32_t n);
+  virtual void ShadowPass(const ShadowParams &) {}
   // One op of the chunk at `at` (Run); the next op's place (the end when the op is cut off).
   std::uint32_t Op(const Re4GxChunk &chunk, std::uint32_t at);
   // the GPU side of the ops (Op): the API renderer's

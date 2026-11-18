@@ -207,6 +207,114 @@ auch in den 11 Räumen, die nur zählen, **D** echte neue Stellen nahe den alten
 - Unverändert aus Stufe 1: nur beim Erschaffen, die gespeicherte Liste wird nie geschrieben, gleicher Seed gleiches
   Bild, Bosse, Story-Gegner, Wellen, Ashleys Teil, Ada und Mercenaries bleiben.
 
+## 10. Stufe 2 „wirklich zufällig“: Prüfung und Prototyp (16.11.2026, Branch `random-enemies`)
+
+Auftrag des Projektinhabers (16.11.2026): „Prüfe nun auch separat und genau den Cheat für 'Zufällige Gegner' wie wir
+die sauber ohne Crash oder Fehler dennoch zufällig platzieren können. Es gibt immer wieder Userfeedback, dass das nicht
+klappt. Ich muss gestehen bei mir standen die Gegner auch immer an derselben Stelle.“ Nutzermeldungen: GitHub #264
+(„Random enemies, not working on some devices“), #236 („random enemies only add 1-2 Ganados“), #237. Zuerst nur ein
+Prototyp im Branch `random-enemies`; **am 16.11.2026 vom Projektinhaber für 1.0 übernommen** (1.0.0, bis 16.11.2026 als 0.99.19 geplant; Abschnitt 9 in
+`whole-program-status.md`), mit dem Aufräumen aus 10.4 und neuem Hilfetext.
+
+### 10.1 Warum es unverändert aussieht (gemessen)
+
+Gemessen mit dem Stand von `release-candidate` (3087fd5a, Stufe 1.5), Rundgang aller 126 Räume ohne Cheat und mit den
+Seeds 4242, 777, 31337 (Debug-Discs), dazu EU und US mit 4242; Werkzeug `re-compare.py` im Notizordner. Maß „für den
+Spieler sichtbar“: ein Ganado steht **mehr als 5 m von jedem Platz, an dem im Original ein Ganado stand** (gleich
+welcher). Der Vergleich je Listeneintrag übertreibt, weil Stufe 1.5 Ganados die Plätze tauschen lässt.
+
+- 59 Räume haben beim Raumbeginn Ganados (380 im Rundgang). Stufe 1.5 rührt davon **12 Räume** an (r103 r106 r107 r111
+  r113 r11a r20d r225 r303 r304 r31d r330), etwa 55 Ganados (14 %).
+- **Sichtbar neue Stellen: 0 oder 1 von 380 Ganados je Seed** (4242: 1 in r20d, 777: 0, 31337: 1 in r20d). Im Mittel
+  steht jeder veränderte Ganado 0,4–2,8 m neben einem Original-Platz. Der Tausch setzt einen anderen Dorfbewohner auf
+  dieselbe Stelle, `nearSpot` schiebt ihn 1,5–4 m daneben.
+- Die übrigen Räume bleiben aus drei Gründen: geschützt (63 von 108 Skripten: zählt, Boss, Einträge über Variablen),
+  beim Raumbeginn keine gewöhnlichen Ganados (die Gegner kommen dort per Skript, in Wellen), oder Ganados mit
+  Sonderrolle (`set` ≠ 0: Eimer, Feuer, Wache, Versteck; etwa 40 Einträge, 230 gewöhnliche).
+- Das frühe Dorf: r100 hat beim Raumbeginn keinen Ganado (alle kommen per Skript), r101 ist geschützt (heute) und hat
+  nur 3 gewöhnliche von 11 (die Gruppe am Feuer hat Sonderrollen `set` 5–0xB, zwei weitere hält ein Bereich fest).
+- **Kein Fehler im Weg zum Kern** (Bericht des Projektinhabers `09913-randomizer-owner`: „core: random enemies seed
+  294150“, „leave r100 as it is“), auch nicht nach Spielstand laden, Raumwechsel, neuem Spiel oder Neustart des Spiels
+  (Sprache, Extras: der Seed liegt im Kern, `re4_core_restart_game` lässt ihn stehen); im eigenen Kernprozess
+  (32 bit) derselbe Weg wie die übrigen Cheats (Nachricht 44 nach „hello“). Gleicher Seed zweimal: alle 126 Räume
+  gleich. #264 „not working on some devices“ ist nach allem, was der Code zeigt, derselbe Eindruck.
+
+### 10.2 Was echte Zufälligkeit begrenzt
+
+- **Arten:** je Raum höchstens 4 geladene Gegnerarten (`EmReadModule[4]`); jede Ganado-Art 0x10–0x20 hat ihre eigenen
+  Daten (`EmFileTbl`). Eine andere Art geht nur, wenn sie im Raum schon geladen ist; `flag` (Waffe, Kleidung) und
+  `type` bedeuten je Art etwas anderes. Nicht im Prototyp (siehe 10.4).
+- **Skript- und Ereignisgegner:** Wellen und Nachschub erschafft das Raumskript später (`EmSetFromList2`, `setEm`),
+  meist an Eingängen außer Sicht; sie laufen nicht über `EmSetFromList` und bleiben. Ereignisse (Zwischensequenzen)
+  zerstören die Ganados meist vorher (`SceDestroyEm`, r101 Event20/30) und erschaffen sie danach per Skript.
+- **Was ein Skript mit einem Eintrag macht** (neu unterschieden, `enemy_random_table.py`): „steuern“ (`setEm`,
+  `setPtr`, `GetEmPtrFromList`, `GetEmIdFromList`, `EmSetFromList2`, ein `Em_list`-Feld außer `be_flag`) – der Platz
+  bleibt; „an/aus und Tod“ (`EmListSetAlive`, `EmSetDie*`, `Em_list[N].be_flag`, Tote löschen) – das Skript schaut nie,
+  wo der Ganado steht. Ein Skript, das über eine Variable steuert, schützt alle Zahlen der Tabellen, die es nennt
+  (sonst alle Tabellenzahlen der Datei: mehr als nötig, nie weniger). Das öffnet 52 Räume für „nur Stellen“; nur die
+  Zahl darf dort nie wechseln (Zählskripte).
+- **Boden und Wege:** das Spiel hat ein Wegenetz je Raum (`RTP`, `pG->Rtp`, `route_ck.cpp`): Wegpunkte, ihre
+  Verbindungen und eine Tabelle „nächster Punkt auf dem Weg von A nach B“ (−1: kein Weg). Darüber finden die Gegner zu
+  Leon. Ein Punkt auf einer Verbindung im Teil des Raums, den der eigene Platz des Ganados in beide Richtungen
+  erreicht, ist begehbarer Boden, von dem er überall hinkommt, wo er vorher hinkam (ein Dach-Ganado bleibt auf seinem
+  Dach, wenn das Dach ein eigener Teil ist). Geprüft mit der Kollision: Boden (`hitCheck2`, ohne Fall-, Klippen-,
+  Zaun-, Sprung- und Versteckboden, nicht steil), Wände, Kopffreiheit.
+- **Bereiche des Raums:** Türen (3 m), Leitern, Gegenstände, Sprünge, Verstecke, Speicherpunkte, Schadensflächen
+  (1,5 m) und Ereignisse, die ein Gegner auslösen kann (`target_type` 2): dort nie.
+- **Leon:** 10 m Abstand beim Raumbeginn, es sei denn, der eigene Platz war näher (sonst greift er sofort an).
+- **Spielstand und Gleichheit:** unverändert wie Stufe 1/1.5: nur die Kopie beim Erschaffen, die Liste wird nie
+  geschrieben (Prüfung `RE4_ENEMY_RANDOM_CHECK`), alles aus Seed, Liste, Raum und Eintrag.
+
+### 10.3 Prototyp (Stufe 2)
+
+- **Kern** `runtime/enemy_random.cpp`: `routeSpot` vor dem bisherigen Weg: aus allen Wegpunkten, die der Wegpunkt des
+  eigenen Platzes (`getNearPoint`, wie die Gegner selbst ihn finden) in beide Richtungen erreicht, ein Punkt, eine
+  seiner Verbindungen, eine Stelle darauf, bis 0,8 m daneben; Boden höchstens 70 cm vom Weg, auf dem Weg dorthin kein
+  Absatz über 50 cm, keine Wand in 40 cm und 1 m Höhe, 1,7 m frei; 10 m von Leon; 1,2 m von jedem Eintrag des Raums
+  und jeder gewählten Stelle; außerhalb der Bereiche oben; 24 Versuche, sonst Stufe 1.5. Blickrichtung beliebig.
+  Kopien (±10 %) ebenso. Ohne Wegnetz im Raum oder ohne Wegpunkt am Platz: Stufe 1.5. `RE4_ENEMY_RANDOM_STAGE=1` (nur
+  PC-Prüfung) schaltet Stufe 2 ab. Neue Protokollzeile je Raum: „route N way points …, moved X m on average, at most Y
+  m; tries turned down …“; mit `RE4_ENEMY_RANDOM_CHECK=1` zusätzlich das Wegnetz für die Karten („enemies: map …“).
+- **Schutzliste** `port/tools/enemy_random_table.py` → `enemy_random_rooms.inc`: 108 Skripte: 11 unangetastet (10
+  Bossräume r10b r119 r11e r11f r221 r224 r228 r31b r31c r332, dazu r100), **52 „nur Stellen“**, 45 offen (Stellen und
+  Zahl). Geschützte Einträge: was ein Skript steuert; freigegeben gegenüber 0.99.13 nur Einträge, die ein Skript an-
+  und ausschaltet (r101 0x14–0x1F, r200 0x00/0x1D, r202 0x1E, r20f 0x0F, r316 0x03/0x08/0x09, von Hand geprüft).
+- **Testhilfe** `RE4_TEST_EM_KILL` mit der Kennung 100: jeder Ganado (0x10–0x20 ohne Händler).
+- Patch 0231 bleibt, wie er ist (kein neuer Patch unter `src/`).
+
+### 10.4 Nicht im Prototyp (mögliche spätere Schritte)
+
+- **Wellen:** auch die später erschaffenen Ganados zufällig (Haken in `EmSetFromList2`), nur außer Sicht von Leon und
+  der Kamera. Würde das frühe Dorf sichtbar ändern (r100, r101-Belagerung), Risiko: Gegner erscheinen vor den Augen
+  des Spielers, Zählskripte der Wellen.
+- **Sonderrollen** (`set` ≠ 0) bleiben; „Walk“, „Stay & Walk“, „Attack wait“ wären möglich, betreffen beim Raumbeginn
+  aber fast keinen Eintrag.
+- **Andere Arten derselben Familie,** wo der Raum ihre Daten hat: eine Tabelle je Art (`type`, `flag`: Waffen,
+  Kleidung) wäre nötig; Ereignisse und Zählskripte nach Art (`SceCountEmAlive(0x10, 0x20)` zählt alle, einige Skripte
+  einzelne Arten).
+- **Bei jedem Betreten neu** statt fest je Seed (der Tod einer Kopie bleibt an ihrem Eintrag).
+- **Aufräumen bei einer Übernahme (erledigt mit der Übernahme in 1.0.0, 16.11.2026):** `routeSpot` lief auch für
+  Ganados, die beim Raumbeginn nicht erscheinen (tot, später im Kapitel); das kostete nur Versuche (r30f: 443
+  abgelehnte) und konnte die übrigen Stellen über die Abstandsliste verschieben. Jetzt werden nur die geplant, die
+  jetzt kommen (im Rundgang mit 4242 und 777 dieselben Stellen wie im Prototyp).
+
+### 10.5 Ergebnis am PC (16.11.2026)
+
+Rundgänge aller 126 Räume (`re-tours.sh`), Auswertung `re-compare.py`/`re-table.py`, Karten `re-map.py` (alle im
+Notizordner der Sitzungen), Maß „an neuer Stelle“ wie 10.1:
+
+| Stand | Disc, Seed | Ergebnis | Ganados an neuer Stelle (von 380) | Räume |
+|---|---|---|---:|---:|
+| heute (1.5) | Debug 4242 / 777 / 31337 | ALLES OK | 1 / 0 / 1 | 1 / 0 / 1 |
+| heute (1.5) | EU 4242, US 4242 | 125/126 (r333), ALLES OK | 4, 2 | – |
+| Prototyp | Debug ohne, 4242 (2×), 777, 31337 | ALLES OK | 90 / 91 / 92 | 25 / 26 / 26 |
+| Prototyp | US 4242, 777 | ALLES OK | 92 / 92 | 28 / 27 |
+| Prototyp | EU 4242, 777 | 125/126 (r333, auch ohne Cheat) | 93 (gegen EU ohne Cheat) | 27 |
+
+Dazu: Dorf-Belagerung bis zur Glocke (alle Seeds und Discs), „alle fallen“-Rundgang ohne fehlendes Ereignis, Liste in
+390 Raumstarts nie geschrieben, `whole_build_android.sh --abi all` 0 Fehler. Einzelheiten: `whole-program-status.md`,
+Abschnitt „Branch `random-enemies`“. Nicht geprüft: auf einem Gerät.
+
 ## Quellen der Prüfung
 
 Gegnerliste und Erschaffen: `include/global.h:66-81, 202, 211`, `src/game/em_set.cpp`, `src/game/stage.cpp:57-251`,

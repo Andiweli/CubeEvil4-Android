@@ -148,6 +148,17 @@ final class BenchmarkFlow {
     main.postDelayed(poll, 500);
   }
 
+  /**
+   * A key that ends the benchmark while it runs: Back, Esc, or one that presses the game's B through the controller's
+   * or the keyboard's mapping now (`gcButtons`: CoreInput.gcButton / keyboardButton; 0.99.17, users could not end it:
+   * a B moved by the button mapping or "Swap A/B" counted only as Android's B code), and a controller's B code that
+   * presses nothing. The touch controls' B is no key: CoreActivity watches it (benchTouch).
+   */
+  static boolean cancels(int keyCode, int gcButtons) {
+    return keyCode == android.view.KeyEvent.KEYCODE_BACK || keyCode == android.view.KeyEvent.KEYCODE_ESCAPE
+        || (gcButtons & CoreInput.GC_B) != 0 || (keyCode == android.view.KeyEvent.KEYCODE_BUTTON_B && gcButtons == 0);
+  }
+
   /** B / Back while it runs: back to where the game was, nothing changed. */
   void cancel() {
     if (!running()) return;
@@ -460,8 +471,8 @@ final class BenchmarkFlow {
       if (v[PerfProfile.PARTICLES] != 0)
         out.add(toggle(R.string.ingame_potato_particles, s(particles[Math.min(2, v[PerfProfile.PARTICLES])])));
       if (v[PerfProfile.SHADOWS] == 0) out.add(toggle(R.string.ingame_potato_shadows, s(R.string.ingame_off)));
-      int[] view = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short};
-      if (v[PerfProfile.VIEW] != 0) out.add(toggle(R.string.ingame_potato_view, s(view[Math.min(2, v[PerfProfile.VIEW])])));
+      int view = CoreBridge.viewLevel(v[PerfProfile.VIEW]);
+      if (view != CoreBridge.VIEW_NORMAL) out.add(toggle(R.string.ingame_potato_view, s(CoreBridge.VIEW_LABEL[view])));
     }
     return out;
   }

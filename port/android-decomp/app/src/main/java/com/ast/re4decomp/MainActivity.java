@@ -1,8 +1,15 @@
 package com.ast.re4decomp;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.DocumentsContract;
+import android.provider.Settings;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.*;
@@ -22,6 +29,8 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   private final Handler main = new Handler(Looper.getMainLooper());
   private volatile boolean destroyed;
   private boolean loading, startupShown;
+  /** The warning of an unofficial build while it shows (warnFirst). */
+  private AlertDialog warning;
   /** Core flavor: the original game core runs the game (CoreActivity). */
   private boolean core;
   private ImportManager imports;
@@ -31,6 +40,13 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   private Spinner category, rooms, mode;
   private RoomCatalog catalog;
   private List<RoomCatalog.Entry> shown = Collections.emptyList();
+  // the data folder of the player's choice (the flavour sideload, DataFolder): its line and buttons, the settings of
+  // all files access opened (back in onResume), a move running
+  private TextView folderPath;
+  private Button folderChoose, folderReset;
+  private boolean folderPermissionAsked, folderBusy;
+  private static boolean folderNoted;  // the note of a folder that cannot be used: once a start
+  private static final int REQUEST_TREE = 40, REQUEST_STORAGE = 41;
   @Override public void onCreate(Bundle state) {
     super.onCreate(state); startupShown=state!=null&&state.getBoolean("startupShown",false); imports = ((Re4Application)getApplication()).imports;
     if (getIntent().getBooleanExtra(SHOW_LAUNCHER, false)) startupShown = true;
@@ -47,6 +63,8 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       centered(body, getString(R.string.core_notice), 12, false, dp(2));
       line(body, dp(10));
       start = button(body, getString(R.string.core_start), this::startOriginalTitle);
+      // the flavour sideload (1.0, DataFolder): where the data go, before the discs are imported
+      if (DataFolder.enabled) dataFolderSection(body);
       heading(body, getString(R.string.core_import_heading));
     } else {
       // the variant "classic" (own game modules): its name and real version, so it is not taken for
@@ -94,7 +112,7 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom()); return insets;
     });
   }
-  private void startOriginalTitle(){if(!loading&&!imports.busy&&gameReady()){startupShown=true;Intent start=new Intent(this,core?CoreActivity.class:StartupActivity.class);if(core)start.putExtra("coreSettings",getIntent().getStringExtra("coreSettings"));startActivity(start);}else importPanel.setVisibility(View.VISIBLE);}
+  private void startOriginalTitle(){if(warnFirst())return;if(!loading&&!imports.busy&&gameReady()){startupShown=true;Intent start=new Intent(this,core?CoreActivity.class:StartupActivity.class);if(core)start.putExtra("coreSettings",getIntent().getStringExtra("coreSettings"));startActivity(start);}else importPanel.setVisibility(View.VISIBLE);}
   @Override protected void onSaveInstanceState(Bundle state){state.putBoolean("startupShown",startupShown);super.onSaveInstanceState(state);}
   private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
   private String versionName() {
@@ -106,6 +124,17 @@ public final class MainActivity extends Activity implements ImportManager.Listen
     TextView t = new TextView(this); t.setText(text); t.setTextSize(sp); t.setGravity(Gravity.CENTER_HORIZONTAL);
     if (bold) t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
     t.setPadding(0, top, 0, 0); body.addView(t); return t;
+  }
+  /** A release build signed with another key than the project owner's (OfficialBuild, 1.0.0): the red warning at
+   *  each start of the app, before the game starts (also the game's own start once the discs are there); confirmed,
+   *  the start screen goes on as it would have (changed(): the game starts by itself when its discs are ready).
+   *  True while it is due. */
+  private boolean warnFirst() {
+    if (!OfficialBuild.mustWarn(this)) return false;
+    if (warning == null || !warning.isShowing()) {
+      warning = UnofficialWarning.show(this, () -> { warning = null; if (!destroyed) changed(); });
+    }
+    return true;
   }
   /** A thin line in the text colour (the core launcher's separators). */
   private View rule(int color) {
@@ -245,8 +274,180 @@ public final class MainActivity extends Activity implements ImportManager.Listen
   @Override protected void onActivityResult(int request, int result, Intent data) {
     super.onActivityResult(request, result, data);
     if ((request == 1 || request == 2) && result == RESULT_OK && data != null && data.getData() != null) imports.start(data.getData(), request);
+    if (request == REQUEST_TREE && result == RESULT_OK && data != null && data.getData() != null) folderChosen(data.getData());
   }
-  @Override protected void onResume() { super.onResume(); imports.attach(this); }
+  @Override protected void onResume() {
+    super.onResume(); imports.attach(this); warnFirst();
+    // back from Android's settings of all files access (Android 11 and later): granted, the folder picker follows
+    if (folderPermissionAsked) {
+      folderPermissionAsked = false;
+      if (DataFolder.hasPermission(this)) openTree(); else note(getString(R.string.data_folder_permission_denied));
+    }
+  }
+  @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+    super.onRequestPermissionsResult(request, permissions, results);
+    if (request != REQUEST_STORAGE) return;
+    if (DataFolder.hasPermission(this)) openTree(); else note(getString(R.string.data_folder_permission_denied));
+  }
+
+  // ---- the data folder of the player's choice (the flavour sideload, 1.0; DataFolder) ----
+
+  /** Its heading, the folder in use and the buttons "Choose folder" and "Restore default". */
+  private void dataFolderSection(LinearLayout body) {
+    heading(body, getString(R.string.data_folder_heading));
+    folderPath = new TextView(this); folderPath.setGravity(Gravity.CENTER_HORIZONTAL); folderPath.setPadding(0, dp(2), 0, dp(2));
+    body.addView(folderPath);
+    LinearLayout row = new LinearLayout(this);
+    folderChoose = new Button(this); folderChoose.setText(R.string.data_folder_choose); folderChoose.setOnClickListener(v -> chooseFolder());
+    folderReset = new Button(this); folderReset.setText(R.string.data_folder_reset); folderReset.setOnClickListener(v -> change(null));
+    row.addView(folderChoose, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+    row.addView(folderReset, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+    body.addView(row);
+    showFolder();
+    // the chosen folder cannot be used at this start (permission gone, SD card or USB drive missing): the app's own
+    String why = AppStorage.fallback(this);
+    if (why != null && !folderNoted) {
+      folderNoted = true;
+      note(getString(R.string.data_folder_unavailable, DataFolder.chosen(this), why));
+    }
+  }
+
+  private void showFolder() {
+    if (folderPath == null) return;
+    String custom = DataFolder.chosen(this);
+    File base = AppStorage.base(this);
+    folderPath.setText(custom != null && base.getAbsolutePath().equals(custom) ? base.getAbsolutePath()
+        : getString(R.string.data_folder_own, base.getAbsolutePath()));
+    boolean idle = !imports.busy && !loading && !folderBusy;
+    folderChoose.setEnabled(idle);
+    folderReset.setEnabled(idle && custom != null);
+  }
+
+  /** "Choose folder": the storage permission first (explained), then the system's folder picker. */
+  private void chooseFolder() {
+    if (imports.busy || loading || folderBusy) return;
+    if (DataFolder.hasPermission(this)) { openTree(); return; }
+    new AlertDialog.Builder(this).setTitle(Build.VERSION.SDK_INT >= 30 ? R.string.data_folder_permission_title
+            : R.string.data_folder_permission_title_storage)
+        .setMessage(Build.VERSION.SDK_INT >= 30 ? R.string.data_folder_permission_all_files : R.string.data_folder_permission_storage)
+        .setPositiveButton(android.R.string.ok, (d, w) -> askPermission())
+        .setNegativeButton(android.R.string.cancel, null).show();
+  }
+
+  /** Android 11 and later: its settings of all files access for the app (else of all apps); Android 6 to 10: the
+   *  storage permission. Checked again in onResume or onRequestPermissionsResult. */
+  private void askPermission() {
+    if (Build.VERSION.SDK_INT >= 30) {
+      folderPermissionAsked = true;
+      try {
+        startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName())));
+      } catch (ActivityNotFoundException e) {
+        try {
+          startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+        } catch (ActivityNotFoundException e2) {
+          folderPermissionAsked = false;
+          note(getString(R.string.data_folder_permission_denied));
+        }
+      }
+    } else if (Build.VERSION.SDK_INT >= 23) {
+      requestPermissions(new String[] {android.Manifest.permission.READ_EXTERNAL_STORAGE,
+          android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE);
+    }
+  }
+
+  private void openTree() {
+    try { startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_TREE); }
+    catch (ActivityNotFoundException e) { note(getString(R.string.data_folder_no_picker)); }
+  }
+
+  /** The picker's folder as a real path, checked: the app's data go there (change), or a note why not. */
+  private void folderChosen(Uri tree) {
+    String primary = Environment.getExternalStorageDirectory().getAbsolutePath(), path;
+    try { path = DataFolder.pathOfTree(tree.getAuthority(), DocumentsContract.getTreeDocumentId(tree), primary); }
+    catch (IllegalArgumentException e) { path = null; }
+    String[] checked = DataFolder.check(path, primary);
+    if (checked[0] == null) {
+      note(getString(DataFolder.ANDROID.equals(checked[1]) ? R.string.data_folder_android : R.string.data_folder_not_local));
+      return;
+    }
+    File to = new File(checked[0]);
+    String problem = DataFolder.prepare(to);
+    if (problem != null) { note(getString(R.string.data_folder_not_usable, to.getAbsolutePath(), problem)); return; }
+    change(to.getAbsolutePath());
+  }
+
+  /** The data folder becomes `path` (null: the app's own): its data moved along on request, then a new start. */
+  private void change(String path) {
+    if (imports.busy || loading || folderBusy) return;
+    File from = AppStorage.base(this), to = path == null ? AppStorage.standard(this) : new File(path);
+    if (from.getAbsolutePath().equals(to.getAbsolutePath())) {
+      // (the chosen folder could not be used and the app's own is in use: only the choice goes)
+      if (path == null && DataFolder.chosen(this) != null) commit(null);
+      else note(getString(R.string.data_folder_same, to.getAbsolutePath()));
+      return;
+    }
+    if (!DataFolder.present(to).isEmpty()) {
+      new AlertDialog.Builder(this).setMessage(getString(R.string.data_folder_existing, to.getAbsolutePath()))
+          .setPositiveButton(android.R.string.ok, (d, w) -> commit(path)).setNegativeButton(android.R.string.cancel, null).show();
+      return;
+    }
+    if (DataFolder.present(from).isEmpty()) { commit(path); return; }
+    new AlertDialog.Builder(this).setTitle(R.string.data_folder_move_title)
+        .setMessage(getString(R.string.data_folder_move_text, from.getAbsolutePath(), to.getAbsolutePath()))
+        // (Android's own "yes" and "no" read "OK" and "Cancel" on newer versions: the buttons say what they do)
+        .setPositiveButton(R.string.data_folder_move_yes, (d, w) -> move(from, to, path))
+        .setNegativeButton(R.string.data_folder_move_no, (d, w) -> commit(path))
+        .setNeutralButton(android.R.string.cancel, null).show();
+  }
+
+  /** Moves the data (DataFolder.move) with its progress; done, the new folder is kept and the app starts again. */
+  private void move(File from, File to, String path) {
+    folderBusy = true; showFolder();
+    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(20), dp(8), dp(20), 0);
+    ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal); bar.setMax(1000); box.addView(bar);
+    TextView text = new TextView(this); box.addView(text);
+    AlertDialog dialog = new AlertDialog.Builder(this).setTitle(R.string.data_folder_moving).setView(box).setCancelable(false).show();
+    android.content.Context app = getApplicationContext();
+    long[] shownAt = {0};
+    worker.execute(() -> {
+      String problem = DataFolder.move(from, to, (done, total) -> {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - shownAt[0] < 200 && done < total) return;
+        shownAt[0] = now;
+        main.post(() -> {
+          bar.setProgress(total > 0 ? (int) (done * 1000 / total) : 1000);
+          text.setText(getString(R.string.data_folder_moved_of, DataFolder.megabytes(done), DataFolder.megabytes(total)));
+        });
+      });
+      // (kept here, so a new start takes the new folder even should this screen be gone)
+      if (problem == null) DataFolder.choose(app, path);
+      main.post(() -> {
+        if (destroyed) return;
+        dialog.dismiss();
+        folderBusy = false;
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (problem != null) { note(getString(R.string.data_folder_move_failed, problem, from.getAbsolutePath())); showFolder(); }
+        else commit(path);
+      });
+    });
+  }
+
+  /** Keeps the choice and starts the app again (LauncherRestartActivity), so the imports, the core and the logs take
+   *  the new folder from the start. */
+  private void commit(String path) {
+    DataFolder.choose(this, path);
+    Toast.makeText(this, R.string.data_folder_restart, Toast.LENGTH_LONG).show();
+    startActivity(new Intent(this, LauncherRestartActivity.class)
+        .putExtra(LauncherRestartActivity.GAME_PID, android.os.Process.myPid()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+  }
+
+  private void note(String text) {
+    if (destroyed) return;
+    new AlertDialog.Builder(this).setMessage(text).setPositiveButton(android.R.string.ok, null).show();
+  }
   @Override protected void onPause() { imports.detach(this); super.onPause(); }
   @Override public void changed() {
     // the core launcher shows the import prompt as its heading: the status line only for the rest
@@ -264,7 +465,8 @@ public final class MainActivity extends Activity implements ImportManager.Listen
       status.setVisibility(status.getText().length() == 0 ? View.GONE : View.VISIBLE);
     }
     if (!gameReady() || imports.busy) importPanel.setVisibility(View.VISIBLE);
-    if (start != null) start.setEnabled(gameReady() && !imports.busy && !loading);
+    if (start != null) start.setEnabled(gameReady() && !imports.busy && !loading && !folderBusy);
+    showFolder();
     if (imports.busy || loading) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     updateOpenState();
     if(!startupShown&&gameReady()&&!imports.busy&&!loading)startOriginalTitle();
@@ -277,5 +479,5 @@ public final class MainActivity extends Activity implements ImportManager.Listen
           e.getRepeatCount(), e.getMetaState(), e.getDeviceId(), e.getScanCode(), e.getFlags(), InputDevice.SOURCE_DPAD));
     return super.dispatchKeyEvent(e);
   }
-  @Override protected void onDestroy() { destroyed = true; worker.shutdownNow(); main.removeCallbacksAndMessages(null); super.onDestroy(); }
+  @Override protected void onDestroy() { destroyed = true; if (warning != null) warning.dismiss(); worker.shutdownNow(); main.removeCallbacksAndMessages(null); super.onDestroy(); }
 }

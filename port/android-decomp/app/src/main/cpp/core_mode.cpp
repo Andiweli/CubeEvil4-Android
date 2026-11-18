@@ -21,6 +21,7 @@
 #include "gx_selfcheck.h"
 #include "minimap_view.h"
 #include "picture_cadence.h"
+#include "potato_bits.h"
 #include "re4_card_files.h"
 #include "re4_core_client.h"
 #include "re4_cpu_info.h"
@@ -117,9 +118,12 @@ struct CoreApi {
   void (*setHudLayout)(int, int, int){};  // optional (cores since 07.11.2026, patch 0215): the life gauge's corner
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
+  void (*bodyTurn)(float){};  // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
+  void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
+  int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
   int (*instant)(int, Re4InstantInfo *){};
@@ -469,9 +473,12 @@ void loadCore(JNIEnv *env) {
   api.setHudLayout = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_set_hud_layout"));
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
+  api.bodyTurn = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_body_turn"));
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
+  api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
+  api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
   api.instant = reinterpret_cast<int (*)(int, Re4InstantInfo *)>(dlsym(api.main, "re4_core_instant"));
@@ -708,10 +715,12 @@ Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSharpen{0};  // the menu's sharpening (CoreBridge.setSharpen: 0 off, 1 light, 2 strong)
+std::atomic<int> optSharperText{1};  // "Sharper menu text" (CoreBridge.setSharperText; on by default)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
 std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flares, 2 halos + lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optCrt{0};       // the menu's CRT (CoreBridge.setCrt: 0 off, 1 light, 2 strong; or RE4_GX_CRT)
+std::atomic<int> optShadows{0};  // real-time shadows (CoreBridge.setShadows, RealtimeShadows.java)
 std::atomic<int> optBloom{0};     // the menu's bloom (CoreBridge.setBloom, 0.99.13: 0 off, 1 light, 2 strong; or RE4_GX_BLOOM)
 std::atomic<int> optColour{0};    // the menu's colour (CoreBridge.setColour: mode * 4 + level; or RE4_GX_COLOUR=M,L)
 std::atomic<int> optPsx{0};       // the menu's PSone demake (CoreBridge.setPsx; or RE4_GX_PSX=1)
@@ -723,6 +732,8 @@ unsigned texPackLevel = 0;
 std::size_t texPackBudget = 256u << 20;
 std::atomic<unsigned> texPackReplaced{0}, texPackLooked{0};
 std::atomic<std::uint64_t> texPackBytes{0};
+// the Mods page's "Costumes" / "Weapons" at "Original" (CoreBridge.setTextureGroups; re4gx::TextureGroup bits)
+std::atomic<unsigned> texPackKeep{0};
 std::atomic<int> optTvFilter{0};  // the menu's original TV filter (CoreBridge.setTvFilter; or RE4_GX_TV_FILTER=1)
 std::atomic<int> optSmooth{0};  // the menu's 60 FPS from in-between pictures (CoreBridge.setSmooth)
 std::atomic<int> optMerge{0};   // the menu's merged draw calls (CoreBridge.setMerge; or RE4_GX_MERGE=1)
@@ -965,7 +976,8 @@ int fastSent = -1;    // what the core was told last (-1: nothing yet)
 std::atomic<int> optPotato{0};
 int potatoSent = -1;  // what the core was told last (-1: nothing yet; the GPU bench sets its own)
 // The menu's "View distance" (CoreBridge.setViewDistance, wish of the project owner, 09.11.2026; patch 0223): percent of
-// the room's distance fog and far plane, 100 Normal, 75 Medium, 50 Short
+// the room's distance fog and far plane, 100 Normal, 75 Medium, 50 Short; since 0.99.18 also 35 Very short and above
+// 100 Far (the core: the far plane out into the room's own fog)
 std::atomic<int> optViewDistance{100};
 int viewDistanceSent = -1;  // what the core was told last (-1: nothing yet)
 // The menu's "Aggressive frame skip" (CoreBridge.setCpuSkip, wish of the project owner, 10.11.2026; patch 0227): the
@@ -1148,7 +1160,8 @@ void benchApply(const BenchStep &step) {
   optHalfDof = step.halfDof;
   optSerial++;
   if (api.setDof) api.setDof(step.dof);
-  if (api.setPotato) api.setPotato(step.potato >= 0 ? step.potato : optPotato.load());
+  // (the benchmark measures without the real-time shadows, as before 16.11.2026: the menu's switches only)
+  if (api.setPotato) api.setPotato(step.potato >= 0 ? step.potato : re4::PotatoSwitches(optPotato.load()));
 }
 
 // Once per displayed frame (GL thread), after the chunk.
@@ -2312,12 +2325,18 @@ bool drawGx() {
   gx->SetFxaa(optFxaa.load() != 0);
   static const int sharpenEnv = getenv("RE4_GX_SHARPEN") ? atoi(getenv("RE4_GX_SHARPEN")) : 0;
   gx->SetSharpen(sharpenEnv > 0 ? sharpenEnv : optSharpen.load());
+  // "Sharper menu text" (1.0.0): RE4_WORD_SHARPEN=0/1 wins over the menu
+  static const char *wordsEnv = getenv("RE4_WORD_SHARPEN");
+  gx->SetWordSharpen(wordsEnv && *wordsEnv ? *wordsEnv == '1' : optSharperText.load() != 0);
   static const bool tvEnv = getenv("RE4_GX_TV_FILTER") && *getenv("RE4_GX_TV_FILTER") == '1';
   gx->SetTvFilter(optTvFilter.load() != 0 || tvEnv);
   gx->SetBandwidthSave(optVkBandwidth.load() != 0);
   static const bool psxEnv = getenv("RE4_GX_PSX") && *getenv("RE4_GX_PSX") == '1';
   gx->SetPsx(optPsx.load() != 0 || psxEnv);
   {
+    // RE4_TEX_PACK_KEEP=<bits> wins over the Mods page (1 costumes, 2 weapons original)
+    static const char *keepEnv = getenv("RE4_TEX_PACK_KEEP");
+    gx->SetTexturePackKeep(keepEnv && *keepEnv ? static_cast<unsigned>(atoi(keepEnv)) : texPackKeep.load());
     std::lock_guard<std::mutex> lock(texPackLock);
     gx->SetTexturePack(texPack, texPackLevel, texPackBudget);
   }
@@ -2336,19 +2355,40 @@ bool drawGx() {
     static unsigned loggedLookups = 0;
     static std::chrono::steady_clock::time_point loggedAt;
     const auto at = std::chrono::steady_clock::now();
-    if (st.hdLookups != loggedLookups && at - loggedAt > std::chrono::seconds(5)) {
-      loggedLookups = st.hdLookups;
+    // (the replacements read in the background count too: they come after their lookups)
+    if (st.hdLookups + st.hdSwapped != loggedLookups && at - loggedAt > std::chrono::seconds(5)) {
+      loggedLookups = st.hdLookups + st.hdSwapped;
       loggedAt = at;
       LOG("HD textures so far: %u of %u replaced, %u over the budget, %u not readable, %.1f MB on the GPU; key %.0f ms, "
-          "reading %.0f ms, GPU upload %.0f ms",
+          "reading %.0f ms, GPU upload %.0f ms; in the background (0.99.18): %u read, %zu waiting, %u dropped, the "
+          "loader read %.0f ms, longest wait %.0f ms",
           st.hdTextures, st.hdLookups, st.hdOverBudget, st.hdReadErrors, st.hdBytesNow / 1048576.0, st.hdKeyUs / 1000.0,
-          st.hdReadUs / 1000.0, st.hdUploadUs / 1000.0);
+          st.hdReadUs / 1000.0, st.hdUploadUs / 1000.0, st.hdSwapped, st.hdWaitingNow, st.hdStale,
+          st.hdLoaderReadUs / 1000.0, st.hdWaitMaxUs / 1000.0);
     }
   }
   static const int crtEnv = getenv("RE4_GX_CRT") ? atoi(getenv("RE4_GX_CRT")) : 0;
   gx->SetCrt(crtEnv > 0 ? crtEnv : optCrt.load());
   static const int bloomEnv = getenv("RE4_GX_BLOOM") ? atoi(getenv("RE4_GX_BLOOM")) : 0;
   gx->SetBloom(bloomEnv > 0 ? bloomEnv : optBloom.load());
+  // real-time shadows (every build since 16.11.2026; Off: 0, nothing of them runs)
+  static const int shadowsEnv = getenv("RE4_GX_SHADOWS") ? atoi(getenv("RE4_GX_SHADOWS")) : -1;
+  const int shadowsWanted = shadowsEnv >= 0 ? shadowsEnv : optShadows.load();
+  gx->SetShadows(shadowsWanted);
+  // the core's part of them, asked once while they are wanted and the core runs (16.11.2026: on the device the menu
+  // said "on" and nothing changed, and nothing in the log said why): a core built before them, or one that knows
+  // only the figures, is named in the log
+  static int coreShadows = -1;  // -1: not asked yet
+  if (shadowsWanted > 0 && coreShadows < 0 && api.state && api.state() == RE4_CORE_RUNNING) {
+    coreShadows = api.rtShadows ? std::max(0, api.rtShadows()) : 0;
+    if (coreShadows == 0)
+      LOG("real-time shadows: a core without real-time shadows (rebuild the core: port/docs/lokal-bauen.md); the "
+          "renderer waits for the core's marks in vain");
+    else if (coreShadows < shadowsWanted)
+      LOG("real-time shadows: the core knows only the figures' (rebuild the core for the objects')");
+    else
+      LOG("real-time shadows: the core knows them (%s)", coreShadows >= 2 ? "characters and objects" : "characters");
+  }
   static int colourEnvMode = -1, colourEnvLevel = 1;
   if (colourEnvMode < 0) {
     colourEnvMode = 0;
@@ -2402,8 +2442,9 @@ bool drawGx() {
   // A steady rhythm (0.99.12, a user's Helio G85 phone at 30 FPS on 60 Hz: 46 % of the new pictures two vsyncs apart,
   // the others 1 and 3 in turn, felt as small frame drops): a new game picture that is ready one vsync after the last
   // one (that one came late) waits for the next vsync, so every picture shows for two. Only at 30 game pictures a
-  // second without 60 FPS on a screen near 60 Hz, and only while the render thread keeps up (this refresh is the vsync
-  // right after the last new picture); never twice for a chunk (skipNext draws it at the next refresh).
+  // second without 60 FPS on a screen near 60 Hz (since 1.0.0 also near 90 Hz: three vsyncs a picture, one ready after
+  // one or two waits one), and only while the render thread keeps up; never twice for a chunk (skipNext draws it at
+  // the next refresh).
   if (chunk && fresh && !smoothOn) {
     const long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
@@ -2412,8 +2453,8 @@ bool drawGx() {
       skipNext = chunk;
       chunk = nullptr;
       if (pictureHold.held == 1 || pictureHold.held % 600 == 0)
-        LOG("picture pacing: %u new pictures held back one vsync so far (a steady two-vsync rhythm at 30 a second)",
-            pictureHold.held);
+        LOG("picture pacing: %u new pictures held back one vsync so far (a steady rhythm at 30 a second: %d vsyncs a "
+            "picture)", pictureHold.held, re4gx::PictureHold::Target(period));
     }
   }
   // Behind: the core has finished the next chunk already. Then the in-between picture (60 FPS) is
@@ -2588,7 +2629,8 @@ bool drawGx() {
       viewDistanceSent = viewDistance;
       // (the reports: what the core was told; the core logs each fog it shortens, "view: fog type ...")
       LOG("view distance to the core: %s (%d %% of each room's distance fog and far plane)",
-          viewDistance >= 100 ? "Normal" : viewDistance >= 75 ? "Medium" : "Short", viewDistance);
+          viewDistance > 100 ? "Far" : viewDistance == 100 ? "Normal" : viewDistance >= 75 ? "Medium"
+          : viewDistance >= 50 ? "Short" : "Very short", viewDistance);
     }
     // (60 FPS and the game's frame skip exclude each other: the in-between pictures need every picture)
     const int cpuSkip = optCpuSkip.load() != 0 && !smoothOn ? 1 : 0;
@@ -3093,9 +3135,12 @@ void useCoreProcess(const std::string &why) {
   api.setHudLayout = re4ipc_set_hud_layout;
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
+  api.bodyTurn = re4ipc_body_turn;
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setGentleQte = re4ipc_set_gentle_qte;
+  api.setLeonJacket = re4ipc_set_leon_jacket;
+  api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
   api.instant = re4ipc_instant;
@@ -3331,15 +3376,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPictureEv
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_vsync(JNIEnv *, jclass, jlong ns) {
   if (api.vsync) api.vsync(static_cast<int64_t>(ns));
-  // the display's vsyncs for the pictures' cadence (NotePicture)
-  const long long last = displayVsyncAt.exchange(ns), p = displayVsyncPeriod.load();
-  if (last > 0 && ns > last) {
-    const long long d = ns - last;
-    if (p <= 0 || d < p / 2)
-      displayVsyncPeriod.store(d);  // (the first, or much shorter than thought: start over)
-    else if (d < p * 3 / 2)
-      displayVsyncPeriod.store(p + (d - p) / 16);
-  }
+  // the display's vsyncs for the pictures' cadence (NotePicture), the 120 Hz rhythm (present::pacer) and the 30 FPS
+  // one (pictureHold): the latest and the period, the median of the last intervals (picture_cadence.h VsyncPeriod,
+  // 1.0.0; only this thread, the app's beat, calls it)
+  static re4gx::VsyncPeriod vsyncPeriod;
+  displayVsyncAt.store(ns);
+  const long long period = vsyncPeriod.Note(ns);
+  if (period > 0)
+    displayVsyncPeriod.store(period);
 }
 
 // The room the game is in (for the Java room loader), -1 outside a room.
@@ -3534,15 +3578,22 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFastCores
 // The menu's Potato mode (drawGx tells the core): bit 0 weather effects off, bit 1 special effects off, bits 2..3 particle
 // effects (1 less, 2 none), bit 4 shadows and light effects off. (Until 0.99.6 this kept only bits 0 and 1: the menu's
 // "Particle effects" and "Shadows & light" of 0.99.3 never reached the core; found 09.11.2026.)
+// Bits 5 and 6 are no Potato switches: the real-time shadows (RealtimeShadows.java, CoreBridge.potatoSent),
+// kept for the core (re4::PotatoForCore; until 16.11.2026 this cut them off and the core never got them).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setPotato(JNIEnv *, jclass, jint mask) {
-  const int want = static_cast<int>(mask) & 31;
-  if (optPotato.exchange(want) != want)
-    LOG("Potato mode: %s", want ? PotatoName(want).c_str() + 2 : "everything drawn");
+  const int want = re4::PotatoForCore(static_cast<int>(mask));
+  if (optPotato.exchange(want) != want) {
+    const int switches = re4::PotatoSwitches(want), shadows = want & re4::kPotatoShadows;
+    LOG("Potato mode: %s%s", switches ? PotatoName(switches).c_str() + 2 : "everything drawn",
+        !shadows ? "" : (shadows & 0x40) ? " (real-time shadows for the core: characters and objects)"
+                                       : " (real-time shadows for the core: characters)");
+  }
 }
 
-// The menu's "View distance" (PERFORMANCE, Potato mode; drawGx tells the core): 100 Normal, 75 Medium, 50 Short.
+// The menu's "View distance" (PERFORMANCE, Potato mode; drawGx tells the core): 100 Normal, 75 Medium, 50 Short, 35 Very
+// short, 150 Far (0.99.18).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setViewDistance(JNIEnv *, jclass, jint percent) {
-  const int want = percent < 20 ? 20 : percent > 100 ? 100 : static_cast<int>(percent);
+  const int want = percent < 20 ? 20 : percent > 300 ? 300 : static_cast<int>(percent);
   if (optViewDistance.exchange(want) != want) LOG("view distance: %d %%", want);
 }
 
@@ -3672,6 +3723,18 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_re4decomp_CoreBridge_setTextur
   return env->NewStringUTF(error.c_str());
 }
 
+// The Mods page's "Costumes" and "Weapons" (1.0.0, decision of the project owner, 17.11.2026): false keeps that
+// group's textures the game's own while a pack is on (GxRenderer::SetTexturePackKeep; at once, the textures are sent
+// again).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setTextureGroups(JNIEnv *, jclass,
+                                                                                    jboolean costumesPack,
+                                                                                    jboolean weaponsPack) {
+  const unsigned keep = (costumesPack ? 0u : re4gx::kGroupCostumes) | (weaponsPack ? 0u : re4gx::kGroupWeapons);
+  if (texPackKeep.exchange(keep) != keep)
+    LOG("HD textures: costumes %s, weapons %s", costumesPack ? "texture pack" : "original",
+        weaponsPack ? "texture pack" : "original");
+}
+
 // what the renderer did with the HD textures so far: replaced, looked up, the replacements' bytes on the GPU now
 extern "C" JNIEXPORT jlongArray JNICALL Java_com_ast_re4decomp_CoreBridge_texturePackUse(JNIEnv *env, jclass) {
   const jlong v[3] = {static_cast<jlong>(texPackReplaced.load()), static_cast<jlong>(texPackLooked.load()),
@@ -3780,6 +3843,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setBloom(JNI
     LOG("bloom: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
+// Real-time shadows (RealtimeShadows.java; GxRenderer::SetShadows; every build since 16.11.2026): 0 off, 1 the
+// figures, 2 the figures and the objects. The game core gets its part with the Potato mask (bits 5 and 6).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setShadows(JNIEnv *, jclass, jint level) {
+  const int want = level <= 0 ? 0 : level >= 2 ? 2 : 1;
+  if (optShadows.exchange(want) != want)
+    LOG("real-time shadows: %s", want == 2 ? "the figures and the objects" : want ? "the figures" : "off");
+}
+
 // Colour (the menu, 0.99.9; GxRenderer::SetColour): mode 0 off, 1 warm film, 2 survival horror; level 1 light,
 // 2 strong.
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setColour(JNIEnv *, jclass, jint mode, jint level) {
@@ -3794,6 +3865,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharpen(J
   const int want = level < 0 ? 0 : level > 2 ? 2 : level;
   if (optSharpen.exchange(want) != want)
     LOG("sharpen: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
+}
+
+// "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words drawn sharper at
+// high resolutions (GxRenderer::SetWordSharpen, word_sharpen.h); on by default.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharperText(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optSharperText.exchange(want) != want)
+    LOG("sharper menu text: %s", want ? "on" : "off");
 }
 
 // 60 FPS (experimental): in-between pictures of the renderer (drawGx).
@@ -3827,6 +3906,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_aimTurn(JNIE
   if (api.aimTurn) api.aimTurn(yaw, pitch);
 }
 
+// "Turn Leon with mouse / look area" (CoreActivity, 1.0): the movement sideways as Leon's turn in radians, positive
+// left (cores since 16.11.2026; older ones: nothing).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_bodyTurn(JNIEnv *, jclass, jfloat yaw) {
+  if (api.bodyTurn) api.bodyTurn(yaw);
+}
+
 // The mouse wheel (CoreActivity): notches, up positive; the core zooms the scope and the binoculars by them (cores
 // since 12.11.2026, 0.99.12; older ones: nothing).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_zoom(JNIEnv *, jclass, jint notches) {
@@ -3834,6 +3919,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_zoom(JNIEnv 
 }
 
 // The cheat "Random enemies" (CoreMenu): its seed, 0 off (cores since 12.11.2026, 0.99.12; older ones: nothing).
+// The cheat "Leon's jacket" (1.0, CoreMenu's "Costumes"; runtime/cheats.cpp)
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLeonJacket(JNIEnv *, jclass, jboolean on) {
+  if (api.setLeonJacket) api.setLeonJacket(on ? 1 : 0);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGentleQte(JNIEnv *, jclass, jboolean on) {
   if (api.setGentleQte) api.setGentleQte(on ? 1 : 0);
 }

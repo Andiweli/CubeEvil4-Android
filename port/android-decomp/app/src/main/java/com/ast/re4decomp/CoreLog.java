@@ -188,6 +188,8 @@ final class CoreLog {
     } catch (Exception e) {
       b.append("App: ").append(c.getPackageName()).append('\n');
     }
+    // a release build signed with another key than the project owner's (OfficialBuild, 1.0.0): the start screen's note
+    if (OfficialBuild.unofficial(c)) b.append(c.getString(R.string.core_unofficial)).append('\n');
     b.append("Device: ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
         .append(" (").append(Build.DEVICE).append(")\n");
     b.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");

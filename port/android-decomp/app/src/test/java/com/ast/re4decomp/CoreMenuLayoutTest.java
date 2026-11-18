@@ -98,11 +98,17 @@ public class CoreMenuLayoutTest {
 
   @Test public void allPagesFitAcrossLanguagesWidthsAndFontScales() throws Exception {
     String[] languages = {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"};
+    // a capable device (the project owner's Retroid, its benchmark): the Display page with the
+    // real-time shadows' row under the effects (16.11.2026), the longest of its values
+    final PerfProfile.Device retroid =
+        new PerfProfile.Device("Qualcomm Adreno (TM) 650, OpenGL ES 3.2", 8, 4, 2841, 7600, 60.0, 4, 16, 1080);
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class},
         // gameLanguages: the home page with the European discs' "Game language" too
-        (proxy, method, args) -> method.getReturnType() == boolean.class ? Boolean.TRUE
-            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null);
+        (proxy, method, args) -> method.getName().equals("perfDevice") ? retroid
+            : method.getReturnType() == boolean.class ? Boolean.TRUE
+            : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0
+            : method.getReturnType() == int.class ? (Object) 0 : null);
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     Method metadata = CoreMenu.class.getDeclaredMethod("showInstant", long[].class); metadata.setAccessible(true);
     for (String language : languages) for (float scale : new float[] {1f, 1.5f, 2f}) {
@@ -111,6 +117,10 @@ public class CoreMenuLayoutTest {
         Configuration config = new Configuration(activity.getResources().getConfiguration());
         config.setLocale(Locale.forLanguageTag(language)); config.fontScale = scale;
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+        activity.getApplicationInfo().flags |= android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
+        activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).edit().putInt(CoreMenu.DYN_CAP_30, 6)
+            .putInt(CoreMenu.DYN_CAP_60, 5).putInt(PerfProfile.BENCH_CPU_LOAD, 27).putInt(RealtimeShadows.KEY, 2)
+            .apply();
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         // the update button beside "Back to the game": both of its labels
         menu.showUpdate(scale == 1.5f ? AppUpdate.CURRENT : AppUpdate.OLDER);
@@ -122,6 +132,9 @@ public class CoreMenuLayoutTest {
             kind.setInt(menu, page == 7 ? ActionMap.KIND_CONTROLLER : ActionMap.KIND_KEYBOARD);
           }
           show.invoke(menu, Math.min(page, 7), false);
+          if (page == 1)
+            assertNotNull("the real-time shadows under the effects (" + language + ")",
+                findButtonWith((View) field(menu, "root"), activity.getString(R.string.ingame_rt_shadows)));
           if (page == 0) metadata.invoke(menu, (Object) new long[] {0, 1, 1, 1, 0x100, 101, 123456, 1792841040});
           if (page == 5) {
             // the cheat buttons' longest answer shown under them
@@ -229,7 +242,20 @@ public class CoreMenuLayoutTest {
     return y;
   }
 
-  private static Button findButton(View view, String start) {
+  /** The first button whose text holds `part` (Arabic's "name · value" starts with a right-to-left mark). */
+  static Button findButtonWith(View view, String part) {
+    if (view instanceof Button && ((Button) view).getText().toString().contains(part)) return (Button) view;
+    if (view instanceof ViewGroup) {
+      ViewGroup g = (ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        Button b = findButtonWith(g.getChildAt(i), part);
+        if (b != null) return b;
+      }
+    }
+    return null;
+  }
+
+  static Button findButton(View view, String start) {
     if (view instanceof Button && ((Button) view).getText().toString().startsWith(start)) return (Button) view;
     if (view instanceof ViewGroup) {
       ViewGroup g = (ViewGroup) view;
@@ -269,21 +295,53 @@ public class CoreMenuLayoutTest {
     assertEquals(1, AppUpdate.compare("0.96.0-beta", "0.95.2-beta"));
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
+      setVersion(activity, "0.99.18-rc-core");
       CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
       Button update = (Button) field(menu, "update"), resume = (Button) field(menu, "resume");
-      assertEquals("hidden until GitHub answered", View.GONE, update.getVisibility());
-      menu.showUpdate(AppUpdate.CURRENT);
+      TextView version = (TextView) field(menu, "versionLabel");
       View root = (View) field(menu, "root");
-      measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
-          Math.round(300 * activity.getResources().getDisplayMetrics().density));
+      int width = Math.round(960 * activity.getResources().getDisplayMetrics().density);
+      int height = Math.round(300 * activity.getResources().getDisplayMetrics().density);
+      assertEquals("hidden until GitHub answered", View.GONE, update.getVisibility());
+      // 0.99.18 (the project owner, 15.11.2026, as in the OUYA menu): "v0.99.18-rc" left of the update button, without
+      // "-core"; the title only the page's name; the version also while the update button is hidden (no internet)
+      TextView title = (TextView) field(menu, "title");
+      assertEquals("the title without the version", activity.getString(R.string.ingame_title), title.getText().toString());
+      assertEquals("v0.99.18-rc", version.getText().toString());
+      measure(root, width, height);
+      View header = (View) version.getParent();
+      assertEquals("the version without an answer from GitHub", View.VISIBLE, version.getVisibility());
+      assertTrue("then left of Back to the game", version.getRight() <= leftIn(resume, header));
+      menu.showUpdate(AppUpdate.CURRENT);
+      measure(root, width, height);
       assertEquals(activity.getString(R.string.ingame_up_to_date), update.getText().toString());
       assertFalse("up to date: not clickable", update.isEnabled());
       assertTrue("left of Back to the game", update.getRight() <= resume.getLeft());
+      assertTrue("the version left of the update button", version.getRight() <= leftIn(update, header));
       assertEquals("in the same row", update.getTop(), resume.getTop());
       menu.showUpdate(AppUpdate.OLDER);
       assertEquals(activity.getString(R.string.ingame_update), update.getText().toString());
       assertTrue("an update: clickable", update.isEnabled());
+      assertFalse("the version is no button", version.isFocusable() || version.isClickable());
     }
+  }
+
+  /** `v`'s left and top edge in `ancestor`'s coordinates (views in different groups compared). */
+  static int leftIn(View v, View ancestor) {
+    int x = 0;
+    for (View at = v; at != ancestor; at = (View) at.getParent()) x += at.getLeft();
+    return x;
+  }
+  static int topIn(View v, View ancestor) {
+    int y = 0;
+    for (View at = v; at != ancestor; at = (View) at.getParent()) y += at.getTop();
+    return y;
+  }
+
+  /** The APK's versionName as the package manager gives it to CoreMenu.version() (the tests' own is not set). */
+  static void setVersion(Activity activity, String versionName) {
+    org.robolectric.Shadows.shadowOf(activity.getPackageManager())
+        .getInternalMutablePackageInfo(activity.getPackageName()).versionName = versionName;
   }
 
   @Test public void controlsPageHasMotionComfortAndControllerSectionsWithOneGap() throws Exception {
@@ -324,14 +382,19 @@ public class CoreMenuLayoutTest {
       Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
       assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
-      // "Button style" (RetroTouch 1.0.0-beta.10, 09.11.2026): Icons and Labels under the touch choices and their help,
-      // Icons chosen without a host (a new player's style, TouchStyle.DEFAULT_BUTTON_STYLE)
+      // "Button style" (09.11.2026; four looks since 17.11.2026): RE, GC, PS2 and XBOX side by side under the touch
+      // choices and their help, RE chosen without a host (a new player's look, TouchStyle.DEFAULT_LOOK)
       Button icons = findButton(body, activity.getString(R.string.ingame_button_icons));
       Button labels = findButton(body, activity.getString(R.string.ingame_button_labels));
-      assertNotNull(icons); assertNotNull(labels);
+      Button ps2 = findButton(body, activity.getString(R.string.ingame_button_ps2));
+      Button xbox = findButton(body, activity.getString(R.string.ingame_button_xbox));
+      assertNotNull(icons); assertNotNull(labels); assertNotNull(ps2); assertNotNull(xbox);
       assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
-      assertEquals("icons and labels side by side", icons.getParent(), labels.getParent());
-      assertTrue(icons.isSelected()); assertFalse(labels.isSelected());
+      assertEquals("RE and GC side by side", icons.getParent(), labels.getParent());
+      assertEquals("PS2 and XBOX with them", icons.getParent(), ps2.getParent());
+      assertEquals(icons.getParent(), xbox.getParent());
+      assertEquals(4, ((ViewGroup) icons.getParent()).getChildCount());
+      assertTrue(icons.isSelected()); assertFalse(labels.isSelected()); assertFalse(ps2.isSelected()); assertFalse(xbox.isSelected());
       assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
@@ -508,9 +571,16 @@ public class CoreMenuLayoutTest {
   @Test public void cheatsPageSwitchesSendTheirBits() throws Exception {
     final int[] sent = {-1};
     final int[] enemySeed = {-1};
+    final Boolean[] jacket = {null};
     CoreMenu.Host host = (CoreMenu.Host) Proxy.newProxyInstance(CoreMenu.Host.class.getClassLoader(),
         new Class<?>[] {CoreMenu.Host.class}, (proxy, method, args) -> {
           if (method.getName().equals("cheatsChanged")) sent[0] = (Integer) args[0];
+          if (method.getName().equals("leonJacketChanged")) {
+            jacket[0] = (Boolean) args[0];
+            // as CoreActivity: the setting the button reads at its next press
+            org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences(CoreActivity.GAME_PREFS, 0)
+                .edit().putBoolean(CoreActivity.LEON_JACKET, (Boolean) args[0]).commit();
+          }
           if (method.getName().equals("enemyRandomChanged")) enemySeed[0] = (Integer) args[0];
           return method.getReturnType() == boolean.class ? Boolean.FALSE : method.getReturnType() == int.class ? 0
               : method.getReturnType() == float.class ? (Object) 1f : method.getReturnType() == double.class ? (Object) 60.0 : null;
@@ -521,8 +591,9 @@ public class CoreMenuLayoutTest {
       Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
       show.invoke(menu, 5, false);  // CHEATS, a page of its own since 30.10.2026
       ViewGroup body = (ViewGroup) field(menu, "body");
-      // 05.11.2026: PLAYER & INVENTORY (health, ammo, invisibility; one-hit kill, case, money), WEAPONS (Handcannon,
-      // Killer7, Matilda; Chicago Typewriter, Mine Thrower, rocket launcher), GAME (QTEs, extra games)
+      // 16.11.2026: PLAYER (health, ammo, invisibility; one-hit kill, steady aim, special costumes), WEAPONS
+      // (Handcannon, Killer7, Matilda; Chicago Typewriter, Mine Thrower, rocket launcher), GENERAL & INVENTORY (QTEs,
+      // extra games; random items and enemies; case, money)
       assertEquals(0, heading(body, activity, R.string.ingame_cheat_section_player));
       ViewGroup switches = (ViewGroup) body.getChildAt(1), inventory = (ViewGroup) body.getChildAt(2);
       assertEquals(3, heading(body, activity, R.string.ingame_cheat_section_weapons));
@@ -531,7 +602,7 @@ public class CoreMenuLayoutTest {
       assertEquals(3, switches.getChildCount()); assertEquals(3, inventory.getChildCount());
       assertEquals(3, weapons.getChildCount()); assertEquals(3, launchers.getChildCount());
       String[][] labels = {{"ingame_cheat_health", "ingame_cheat_ammo", "ingame_cheat_invisible"},
-          {"ingame_cheat_onehit", "ingame_cheat_case", "ingame_cheat_money"},
+          {"ingame_cheat_onehit", "ingame_cheat_steady", "ingame_cheat_costume"},
           {"ingame_cheat_handcannon", "ingame_cheat_killer7", "ingame_cheat_matilda"},
           {"ingame_cheat_chicago", "ingame_cheat_mine", "ingame_cheat_rocket"}};
       ViewGroup[] rows = {switches, inventory, weapons, launchers};
@@ -546,6 +617,10 @@ public class CoreMenuLayoutTest {
       oneHit.performClick(); assertEquals(5, sent[0]);
       invisible.performClick(); assertEquals(5 | CoreMenu.INVISIBLE_BIT, sent[0]);
       invisible.performClick(); assertEquals(5, sent[0]);
+      // "Steady aim" (16.11.2026): bit 31
+      Button steady = (Button) inventory.getChildAt(1);
+      steady.performClick(); assertEquals(5 | CoreMenu.STEADY_AIM_BIT, sent[0]); assertTrue(steady.isSelected());
+      steady.performClick(); assertEquals(5, sent[0]); assertFalse(steady.isSelected());
       health.performClick(); assertEquals(4, sent[0]);
       // the bottom row (29.10.2026): two, automatic QTEs (bit 8) and the extra games' button
       ViewGroup more = (ViewGroup) body.getChildAt(7);
@@ -577,6 +652,11 @@ public class CoreMenuLayoutTest {
       assertEquals(0, game.getInt(CoreActivity.ENEMY_SEED, -1));
       assertEquals(0, enemySeed[0]);
       assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_random_enemies_help)));
+      // the case and the money under them (16.11.2026)
+      ViewGroup goods = (ViewGroup) body.getChildAt(9);
+      assertEquals(2, goods.getChildCount());
+      assertTrue(((Button) goods.getChildAt(0)).getText().toString().contains(activity.getString(R.string.ingame_cheat_case)));
+      assertTrue(((Button) goods.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_money)));
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());
@@ -590,6 +670,34 @@ public class CoreMenuLayoutTest {
       assertNull(findText(body, "Play as"));
       Button leon = findButton(body, "Leon"), hunk = findButton(body, "HUNK"), wesker = findButton(body, "Wesker");
       assertTrue(leon.isSelected()); assertFalse(hunk.isSelected());
+      // 16.11.2026: Leon, Ada, HUNK; an empty cell under Leon, Krauser, Wesker (the focus never stops there)
+      ViewGroup characters = (ViewGroup) leon.getParent();
+      assertEquals(6, characters.getChildCount());
+      String[] order = {"Leon", "Ada", "HUNK", null, "Krauser", "Wesker"};
+      for (int i = 0; i < order.length; i++) {
+        View cell = characters.getChildAt(i);
+        if (order[i] == null) {
+          assertFalse("the empty cell is no button", cell instanceof Button);
+          assertFalse("the focus never stops on it", cell.isFocusable());
+        } else {
+          assertEquals(order[i], ((Button) cell).getText().toString());
+        }
+      }
+      // wide: Krauser under Ada, Wesker under HUNK; narrow (the row folds): the empty cell goes, no hole
+      View root = (View) field(menu, "root");
+      float density = activity.getResources().getDisplayMetrics().density;
+      measure(root, Math.round(960 * density), Math.round(540 * density));
+      Button ada = findButton(body, "Ada"), krauser = findButton(body, "Krauser");
+      assertEquals(View.INVISIBLE, characters.getChildAt(3).getVisibility());
+      assertEquals("Krauser under Ada", ada.getLeft(), krauser.getLeft());
+      assertEquals("Wesker under HUNK", hunk.getLeft(), wesker.getLeft());
+      assertTrue(krauser.getTop() > ada.getTop());
+      measure(root, Math.round(300 * density), Math.round(540 * density));
+      if (((android.widget.GridLayout) characters).getColumnCount() < 3) {
+        assertEquals("folded: no empty cell", View.GONE, characters.getChildAt(3).getVisibility());
+      }
+      measure(root, Math.round(960 * density), Math.round(540 * density));
+      assertEquals("wide again: the empty cell back", View.INVISIBLE, characters.getChildAt(3).getVisibility());
       // another character than Leon warns first (08.11.2026): its name centred on top, the warning, one button
       // "I understand" centred below; only that button switches, the choice stays until then
       hunk.performClick();
@@ -624,13 +732,35 @@ public class CoreMenuLayoutTest {
       leon.performClick(); assertEquals(5, sent[0]);
       assertSame("Leon and the chosen one ask nothing", ask, org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog());
       assertTrue(leon.isSelected()); assertFalse(wesker.isSelected());
-      // the special costume in the row's sixth place (03.11.2026): bit 256, the character kept
+      // the costumes, the player section's sixth button (1.0, the project owner, 16.11.2026): Normal > Leon's jacket >
+      // Special > Normal, as Frame skip; Special is bit 256 (the special costumes of before), Leon's jacket a setting
+      // of its own (leonJacketChanged); the character kept; lit but at Normal; no note under it any more
       Button costume = findButton(body, activity.getString(R.string.ingame_cheat_costume));
-      assertSame(leon.getParent(), costume.getParent());
-      assertTrue(costume.getText().toString().endsWith("\n" + activity.getString(R.string.ingame_cheat_costume_note)));
-      costume.performClick(); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
+      assertSame(inventory, costume.getParent());
+      assertEquals(2, inventory.indexOfChild(costume));
+      final String name = activity.getString(R.string.ingame_cheat_costume);
+      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
+          activity.getString(R.string.ingame_cheat_costume_normal)), costume.getText().toString());
+      assertFalse(costume.isSelected());
+      costume.performClick();
+      assertEquals(Boolean.TRUE, jacket[0]); assertEquals(5, sent[0]); assertTrue(costume.isSelected());
+      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
+          activity.getString(R.string.ingame_cheat_costume_jacket)), costume.getText().toString());
+      costume.performClick();
+      assertEquals(Boolean.FALSE, jacket[0]); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
+      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
+          activity.getString(R.string.ingame_cheat_costume_special)), costume.getText().toString());
       hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
+      jacket[0] = null;
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
+      assertNull("Special > Normal leaves the jacket off", jacket[0]);
+      // the switch of before (bit 256 stored) shows Special; Leon's jacket alone Leon's jacket
+      assertEquals(CoreMenu.COSTUME_SPECIAL, CoreMenu.costumeChoice(256, false));
+      assertEquals(CoreMenu.COSTUME_SPECIAL, CoreMenu.costumeChoice(256 | 5, true));
+      assertEquals(CoreMenu.COSTUME_JACKET, CoreMenu.costumeChoice(5, true));
+      assertEquals(CoreMenu.COSTUME_NORMAL, CoreMenu.costumeChoice(5, false));
+      assertEquals(5 | 256, CoreMenu.costumeBits(5, CoreMenu.COSTUME_SPECIAL));
+      assertEquals(5, CoreMenu.costumeBits(5 | 256, CoreMenu.COSTUME_JACKET));
     }
   }
 
@@ -903,6 +1033,9 @@ public class CoreMenuLayoutTest {
       assertEquals(1, zips[0]);
       // the summary and the heading at the bottom (wish of the project owner, 14.11.2026)
       assertNotNull(findText(root, activity.getString(R.string.ingame_source).toUpperCase(Locale.getDefault())));
+      // and under the link the note that CubeEvil4 is only there (the project owner, 15.11.2026)
+      assertNotNull(findText(root, activity.getString(R.string.ingame_source_only) + "\n"
+          + activity.getString(R.string.ingame_source_avoid)));
       wipe.performClick();
       TestLooper.idle();
       android.app.AlertDialog ask = (android.app.AlertDialog) org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
@@ -1029,9 +1162,10 @@ public class CoreMenuLayoutTest {
     }
   }
 
-  /** Potato mode, 0.99.6: "View distance" in a third row, Normal (the default, lit), Medium (lit), Short (off), with its
-   *  own line of help. */
-  @Test public void viewDistanceMovesThroughThreeStepsAndIsOffOnlyAtShort() throws Exception {
+  /** Potato mode, 0.99.6: "View distance" in a third row with its own line of help, each press one step on; since
+   *  0.99.18 (the project owner, 15.11.2026) Normal, Medium, Short, None (the 35 %), Far, then Normal again, lit but at
+   *  None, and after the text eyes: 3, 2, 1, a crossed-out one, 4 (CoreMenu.Eyes); TalkBack reads the text alone. */
+  @Test public void viewDistanceMovesThroughFiveStepsWithEyes() throws Exception {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
       android.content.SharedPreferences g = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
@@ -1043,19 +1177,65 @@ public class CoreMenuLayoutTest {
       Button view = findButton(root, activity.getString(R.string.ingame_potato_view));
       Button particles = findButton(root, activity.getString(R.string.ingame_potato_particles));
       assertNotNull(view); assertNotSame(particles.getParent(), view.getParent());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_normal)));
-      assertTrue(view.isSelected());
-      view.performClick();
-      assertEquals(1, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_medium)));
-      view.performClick();
-      assertEquals(2, CoreBridge.viewDistance(g)); assertFalse(view.isSelected());
-      assertTrue(view.getText().toString().endsWith(activity.getString(R.string.ingame_view_short)));
-      assertEquals(50, CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
-      view.performClick();
-      assertEquals(0, CoreBridge.viewDistance(g)); assertTrue(view.isSelected());
+      int[] levels = {0, 1, 2, 3, 4, 0};
+      int[] labels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short,
+          R.string.ingame_view_very_short, R.string.ingame_view_far, R.string.ingame_view_normal};
+      int[] eyes = {3, 2, 1, 1, 4, 3};
+      boolean[] lit = {true, true, true, false, true, true};
+      for (int i = 0; i < levels.length; i++) {
+        if (i > 0) view.performClick();
+        String where = "step " + i;
+        assertEquals(where, levels[i], CoreBridge.viewDistance(g));
+        assertEquals(where + ": lit", lit[i], view.isSelected());
+        CharSequence text = view.getText();
+        String words = activity.getString(R.string.ingame_toggle_value, activity.getString(R.string.ingame_potato_view),
+            activity.getString(labels[i]));
+        assertEquals(where + ": the text, a space, the eyes", words + " \uFFFC", text.toString());
+        assertEquals(where + ": TalkBack reads the text", words, view.getContentDescription().toString());
+        CoreMenu.Eyes[] spans = ((android.text.Spanned) text).getSpans(0, text.length(), CoreMenu.Eyes.class);
+        assertEquals(where + ": one piece of eyes", 1, spans.length);
+        assertEquals(where + ": eyes", eyes[i], spans[0].count);
+      }
+      assertEquals(35, CoreBridge.VIEW_PERCENT[3]);
+      assertTrue(CoreBridge.VIEW_PERCENT[4] > 100);
       assertTrue(hasText(root, activity.getString(R.string.ingame_view_help)));
     }
+  }
+
+  /** 0.99.18: the levels saved before (0 Normal, 1 Medium, 2 Short) mean what they meant, the new ones keep their
+   *  numbers (3 Very short, 4 Far), an unknown value is Normal; Far keeps the bloom as Normal does, the shorter levels
+   *  turn it off; a profile's Far reaches the core as Far. */
+  @Test public void viewDistanceLevelsKeepSavedValuesAndTheBloom() {
+    android.content.SharedPreferences g = org.robolectric.RuntimeEnvironment.getApplication()
+        .getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0);
+    g.edit().clear().apply();
+    // (since 1.0.0 Medium 65 % and Far 160 %: a saved level keeps its meaning, only its percent changed)
+    int[] percent = {100, 65, 50, 35, 160};
+    for (int i = 0; i < percent.length; i++) {
+      g.edit().putInt(CoreBridge.VIEW_DISTANCE, i).apply();
+      assertEquals(i, CoreBridge.viewDistance(g));
+      assertEquals(percent[i], CoreBridge.VIEW_PERCENT[i]);
+    }
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, 4).apply();
+    assertEquals(CoreBridge.VIEW_FAR, CoreBridge.viewDistance(g));
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, 9).apply();
+    assertEquals(CoreBridge.VIEW_NORMAL, CoreBridge.viewDistance(g));
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, -1).apply();
+    assertEquals(CoreBridge.VIEW_NORMAL, CoreBridge.viewDistance(g));
+    g.edit().putInt(CoreMenu.BLOOM_LEVEL, 2).putInt(CoreBridge.VIEW_DISTANCE, CoreBridge.VIEW_FAR).apply();
+    assertEquals(2, CoreBridge.bloomSent(g));
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, CoreBridge.VIEW_VERY_SHORT).apply();
+    assertEquals(0, CoreBridge.bloomSent(g));
+    // the menu's order round: Normal, Medium, Short, Very short, Far, Normal
+    int level = CoreBridge.VIEW_NORMAL;
+    int[] seen = new int[6];
+    for (int i = 0; i < seen.length; i++) { seen[i] = level; level = CoreBridge.nextView(level); }
+    assertArrayEquals(new int[] {0, 1, 2, 3, 4, 0}, seen);
+    // a profile with Far (the Custom profile holds the raw value): the core gets Far's percent
+    int[] v = PerfProfile.current(g);
+    assertEquals(CoreBridge.VIEW_VERY_SHORT, v[PerfProfile.VIEW]);
+    assertEquals(CoreBridge.VIEW_PERCENT[CoreBridge.VIEW_FAR],
+        CoreBridge.VIEW_PERCENT[CoreBridge.viewLevel(CoreBridge.VIEW_FAR)]);
   }
 
   /** The performance profiles in one row with the benchmark at its end, the lines under it over the whole width (the

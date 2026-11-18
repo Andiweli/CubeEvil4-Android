@@ -272,6 +272,50 @@ void re4_gx_put_owner(unsigned int object, unsigned int function, unsigned int t
     re4_gx_put_u32(life);
 }
 
+// The figures' real-time shadows (re4_gx_frame.h RE4_GX_OP_SHADOW, runtime/rt_shadow.cpp): a command of the port,
+// byte 0x03, and four words.
+void re4_gx_put_shadow(float x, float y, float z, unsigned int strength)
+{
+    re4_gx_put_u8(0x03);
+    re4_gx_put_f32(x);
+    re4_gx_put_f32(y);
+    re4_gx_put_f32(z);
+    re4_gx_put_u32(strength & 0xFF);
+}
+
+// Stage 6: byte 0x05, the count, the ambient, then 15 words a light (gx_decode.cpp makes RE4_GX_OP_SHADOW of 2 + 15 k
+// words, the first 0x10 | k).
+void re4_gx_put_shadow_lights2(int count, const float* data)
+{
+    if (count < 1 || !data) {
+        return;
+    }
+    if (count > 3) {
+        count = 3;
+    }
+    re4_gx_put_u8(0x05);
+    re4_gx_put_u8((unsigned char) count);
+    for (int i = 0; i < 1 + count * 15; i++) {
+        re4_gx_put_f32(data[i]);
+    }
+}
+
+// Stage 5: byte 0x04, the count, then five words a light (gx_decode.cpp makes RE4_GX_OP_SHADOW of 1 + 5 k words).
+void re4_gx_put_shadow_lights(int count, const float* lights)
+{
+    if (count < 1 || !lights) {
+        return;
+    }
+    if (count > 3) {
+        count = 3;
+    }
+    re4_gx_put_u8(0x04);
+    re4_gx_put_u8((unsigned char) count);
+    for (int i = 0; i < count * 5; i++) {
+        re4_gx_put_f32(lights[i]);
+    }
+}
+
 void re4_gx_put_s8(signed char v)
 {
     re4_gx_put_u8((unsigned char) v);

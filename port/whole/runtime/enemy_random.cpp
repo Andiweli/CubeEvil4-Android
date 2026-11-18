@@ -19,25 +19,40 @@
 //     loaded) at a safe place beside another one, its death kept at an empty entry of the list (id 0: the game never
 //     uses it), so it stays dead like the others; only while the room's enemy works keep room for what is still to
 //     come (the entries of the room not there yet, and four more).
+//   - stage 2 (prototype, branch random-enemies, 16.11.2026, port/docs/gegner-randomizer-plan.md section 10): before
+//     all that, a place anywhere the room's route reaches (RouteSpot: the room's way points, which the enemies use to
+//     find Leon, in the part of the room the Ganado's own spot reaches both ways; on a link between two of them, up to
+//     0.8 m aside; the checks of NearSpot and: no fall, cliff or hiding floor, not in or near an area of the room
+//     (doors 3 m, ladders, items, jumps, hiding places, save points 1.5 m), 10 m from Leon at the start unless the
+//     spot was nearer, 1.2 m from every entry and every place chosen; 24 tries, the first 16 also 5 m from every
+//     place where a Ganado of the room stands at this start: a player sees one there as at its old place), facing
+//     anywhere. Only where that
+//     finds nothing (no route, no way point near the spot) the stage 1.5 way. RE4_ENEMY_RANDOM_STAGE=1 (the PC
+//     check) keeps stage 1.5 for a comparison.
 // The list itself is never written: the enemy gets a copy of its entry with the new place (EmSetWork), so a save stays
 // the game's own (only a copy's death sets a bit of an empty entry). Same seed, same list and room: the same places,
 // the same ones left out, the same copies.
 //
-// Kinds of rooms (port/tools/enemy_random_table.py -> enemy_random_rooms.inc): open; "counts only" (0.99.13: the script
-// counts or removes enemies by kind, nothing depends on where they stand: places change, the number never); untouched
-// (a boss, list entries named through variables or in the list itself, or counting and more), and rooms without a
-// script file. Never touched: the extra games (Ada's, the Mercenaries), Ashley's part, stage 4; the entries a room
-// script names by number; the entries an area of the room waits for (waiting_type 1: a door, an item that comes when
-// that enemy dies); entries that are not ordinary Ganados (ids 0x10..0x20 except the trader 0x18, `set` 0 =
-// "Normal", no chainsaw, trader, Garrador or gatling form, t_emlist.cpp); waves and reinforcements (scripts create
-// them later with EmSetFromList2, never through EmSetFromList).
+// Kinds of rooms (port/tools/enemy_random_table.py -> enemy_random_rooms.inc): open; "places only" (stage 2: the
+// script counts, sweeps or names list entries; the places of the Ganados it does not drive change, the number never;
+// 0.99.13 had this only for the 11 rooms that just count); untouched (a boss, r100), and rooms without a script file.
+// Never touched: the extra games (Ada's, the Mercenaries), Ashley's part, stage 4; the entries a room script drives
+// (EmSetFromList2, setEm, setPtr, GetEmPtrFromList, an Em_list field other than be_flag; switching an entry on or off
+// or keeping its death does not count); the entries an area of the room waits for (waiting_type 1: a door, an item
+// that comes when that enemy dies); entries that are not ordinary Ganados (ids 0x10..0x20 except the trader 0x18,
+// `set` 0 = "Normal", no chainsaw, trader, Garrador or gatling form, t_emlist.cpp); waves and reinforcements (scripts
+// create them later with EmSetFromList2, never through EmSetFromList).
 #include "types.h"
 #include "global.h"
 #include "em.h"
 #include "sce_at.h"
 #include "atari.h"
+#include "at_sub.h"
+#include "area.h"
+#include "route_ck.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,7 +68,7 @@ extern "C" void re4_enemy_random_extra_made(int ok);
 
 namespace {
 
-enum { kOpen = 0, kUntouched = 1, kCountsOnly = 2 };
+enum { kOpen = 0, kUntouched = 1, kPlacesOnly = 2 };
 
 struct RoomRow {
     u16 room;
@@ -163,6 +178,12 @@ struct Plan {
     } copies[kMaxCopies];
     int copyCount, copyNext, copiesMade, copiesFailed;
     int movers, swapped, nearby, spots, protectedByArea, copyRefused;
+    // stage 2: the room's way points, the movers placed through them, those without a way point near their spot,
+    // how far the movers came from their own spot (cm, summed; the largest), the tries turned down and why
+    int routePoints, routed, noHome;
+    float movedSum, movedMax;
+    int moverCount;
+    int tries, noFloor, badFloor, wall, nearLeon, crowded, inArea, oldPlace;
     char why[96];
     char refused[64];
 };
@@ -309,6 +330,271 @@ bool nearSpot(const Place& base, u32 h, const Avoid& avoid, Place* out)
     return false;
 }
 
+// ---- a place anywhere the room's route reaches (stage 2 prototype, 16.11.2026) -------------------------------------
+
+constexpr int kRouteTries = 24;
+constexpr float kRouteAside = 800.0f;    // up to 0.8 m beside the link between two way points
+constexpr float kRouteFloor = 700.0f;    // the floor there within 70 cm of the link's height
+constexpr float kLeonAway = 10000.0f;    // 10 m from Leon at the room's start (unless the spot was nearer)
+constexpr float kApartRoute = 1200.0f;   // 1.2 m from every entry of the room and every place chosen
+constexpr float kFresh = 5000.0f;        // the first tries want a place 5 m from every Ganado spot of the room
+constexpr int kFreshTries = 16;          // (a player sees a Ganado there as at its old place)
+// floors no Ganado should stand on: falls, cliffs, fences, jump-over and hiding places, the edges up and down
+constexpr u32 kBadFloor = SAT_ATTR_FALL | SAT_ATTR_CLIFF | SAT_ATTR_FALL_FANCE | SAT_ATTR_JUMPOVER | SAT_ATTR_HIDE |
+                          SAT_ATTR_FANCE | SAT_ATTR_UP | SAT_ATTR_DOWN | SAT_ATTR_UP2 | SAT_ATTR_DOWN2;
+
+int gStage = -1;  // RE4_ENEMY_RANDOM_STAGE (the PC check): 1 keeps stage 1.5; else 2
+
+int stageNow()
+{
+    if (gStage < 0) {
+        const char* v = getenv("RE4_ENEMY_RANDOM_STAGE");
+        gStage = v && *v == '1' ? 1 : 2;
+    }
+    return gStage;
+}
+
+// The room's route (pG->Rtp, route_ck.h; the tables at byte offsets from the header)
+struct Route {
+    int n, nLine;
+    const RTP_POINT* pt;
+    const RTP_LINE* ln;
+    const s8* next;
+};
+Route gRoute;
+
+bool routeOpen()
+{
+    gRoute.n = 0;
+    const RTP* r = (const RTP*) pG->Rtp;
+    if (!r || r->nPoint < 2 || r->nPoint > 127 || r->nNext != r->nPoint * r->nPoint) {
+        return false;
+    }
+    const uintptr_t base = (uintptr_t) r;
+    gRoute.pt = (const RTP_POINT*) (base + r->pPoint);
+    gRoute.ln = (const RTP_LINE*) (base + r->pLine);
+    gRoute.next = (const s8*) (base + r->pNext);
+    gRoute.nLine = r->nLine;
+    gRoute.n = r->nPoint;
+    return true;
+}
+
+// Both ways: from a to b and from b to a (the table's next point, -1 none)
+bool connected(int a, int b)
+{
+    if (a == b) {
+        return true;
+    }
+    const int n = gRoute.n;
+    return gRoute.next[a * n + b] >= 0 && gRoute.next[b * n + a] >= 0;
+}
+
+// The way point a spot belongs to: the nearest with a clear line (getNearPoint, as the enemies find theirs); -1 none
+int homeOf(const s16 pos[3])
+{
+    if (gRoute.n == 0) {
+        return -1;
+    }
+    Vec v = {pos[0] * 10.0f, pos[1] * 10.0f, pos[2] * 10.0f};
+    const int h = getNearPoint(&v, 0, 0);
+    return h >= 0 && h < gRoute.n ? h : -1;
+}
+
+// The areas of the room no Ganado should stand in or near
+struct KeepOut {
+    SCE_AT_DATA* at;
+    float margin;
+};
+KeepOut gKeep[128];
+int gKeepN;
+
+void keepOutCollect()
+{
+    gKeepN = 0;
+    for (SCE_AT_DATA* w = sceAtSetOtStart(); (w = sceAtGetOtAddr(w)) != 0;) {
+        if (w->pParent) {
+            continue;  // on a moving model: its area is in the model's space
+        }
+        float m = 0.0f;
+        switch (w->id) {
+        case SCEAT_ID_DOOR:
+            m = 3000.0f;
+            break;
+        case SCEAT_ID_ITEM:
+        case SCEAT_ID_JUMP:
+        case SCEAT_ID_SAVE:
+        case SCEAT_ID_DAMAGE:
+        case SCEAT_ID_STOOP:
+        case SCEAT_ID_SKEY:
+        case SCEAT_ID_LADDER:
+        case SCEAT_ID_USE:
+        case SCEAT_ID_HIDE:
+        case SCEAT_ID_POS_JUMP:
+        case SCEAT_ID_ITEM_PARENT:
+            m = 1500.0f;
+            break;
+        case SCEAT_ID_EXEC:
+            m = (w->target_type & 2) ? 1500.0f : 0.0f;  // an event an enemy can set off
+            break;
+        default:
+            break;
+        }
+        if (m > 0.0f && gKeepN < (int) (sizeof(gKeep) / sizeof(gKeep[0]))) {
+            gKeep[gKeepN].at = w;
+            gKeep[gKeepN].margin = m;
+            gKeepN++;
+        }
+    }
+}
+
+bool keptOut(float x, float y, float z)
+{
+    for (int k = 0; k < gKeepN; k++) {
+        const float m = gKeep[k].margin;
+        const float d[5][2] = {{0.0f, 0.0f}, {m, 0.0f}, {-m, 0.0f}, {0.0f, m}, {0.0f, -m}};
+        for (const auto& o : d) {
+            Vec p = {x + o[0], y + 100.0f, z + o[1]};
+            if (AreaHitCheck(&gKeep[k].at->area, &p)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// The floor under (x, z) near height y, as a Ganado would stand on it: false when none, steep or of a bad kind
+int floorKind(float x, float y, float z, float* out)
+{
+    Vec top = {x, y + 800.0f, z}, bottom = {x, y - 1500.0f, z}, hit;
+    Vec* n = 0;
+    const u32 attr = (u32) SatMgr.hitCheck2(&top, &bottom, &hit, &n, SAT_CK_FLOOR, 0);
+    if (!attr) {
+        return 1;  // none
+    }
+    if ((attr & kBadFloor) || (n && n->y < 0.7f)) {
+        return 2;  // bad
+    }
+    *out = hit.y;
+    return 0;
+}
+
+// The room's Ganado spots of this start (the places a player knows): the first tries of routeSpot keep 5 m from them
+Avoid gOld;
+
+// A place anywhere on the route of the part of the room way point `home` reaches both ways, checked as the head
+// comment says; `own` the mover's own spot (its facing and the rest of the place)
+bool routeSpot(int home, const Place& own, u32 h, const Avoid& avoid, Plan& p, Place* out)
+{
+    const Route& R = gRoute;
+    int cand[128], nc = 0;
+    for (int k = 0; k < R.n; k++) {
+        if (connected(home, k)) {
+            cand[nc++] = k;
+        }
+    }
+    if (nc < 2) {
+        return false;
+    }
+    const float lx = pG->pl_pos.x, lz = pG->pl_pos.z;
+    const float ox = own.pos[0] * 10.0f, oz = own.pos[2] * 10.0f;
+    const float leonBefore = sqrtf((ox - lx) * (ox - lx) + (oz - lz) * (oz - lz));
+    for (u32 t = 0; t < (u32) kRouteTries; t++) {
+        const u32 r = mix(h + t * 0x9E3779B9u);
+        const u32 r2 = mix(r ^ 0x5bd1e995u);
+        p.tries++;
+        const RTP_POINT& a = R.pt[cand[r % (u32) nc]];
+        // a link of it to another way point of the same part, a point along it, up to 0.8 m aside
+        int links[16], nl = 0;
+        for (int k = 0; k < a.nLine && nl < 16; k++) {
+            const int li = a.offLine + k;
+            if (li >= R.nLine) {
+                break;
+            }
+            const int c = R.ln[li].connect;
+            if (c >= 0 && c < R.n && connected(home, c)) {
+                links[nl++] = c;
+            }
+        }
+        float bx = a.pos.x, by = a.pos.y, bz = a.pos.z, dx = 0.0f, dz = 0.0f;
+        if (nl > 0) {
+            const RTP_POINT& b = R.pt[links[(r >> 8) % (u32) nl]];
+            const float s = (float) (r2 & 0x3FF) / 1024.0f;
+            dx = b.pos.x - a.pos.x;
+            dz = b.pos.z - a.pos.z;
+            bx += dx * s;
+            by += (b.pos.y - a.pos.y) * s;
+            bz += dz * s;
+        }
+        float cx = bx, cz = bz;
+        const float len = sqrtf(dx * dx + dz * dz);
+        if (len > 1.0f) {
+            const float side = ((float) ((r2 >> 10) & 0x3FF) / 512.0f - 1.0f) * kRouteAside;
+            cx += -dz / len * side;
+            cz += dx / len * side;
+        }
+        float fy, cy;
+        const int kb = floorKind(bx, by, bz, &fy), kc = kb ? kb : floorKind(cx, by, cz, &cy);
+        if (kb || kc) {
+            (kb == 1 || kc == 1 ? p.noFloor : p.badFloor)++;
+            continue;
+        }
+        if (absOf(fy - by) > kRouteFloor || absOf(cy - fy) > kStepMax) {
+            p.noFloor++;
+            continue;
+        }
+        // from the link to the place: the floor on the way, no wall at 40 cm and 1 m, room for a figure above
+        bool ok = true;
+        for (int k = 1; k <= 3 && ok; k++) {
+            const float s = (float) k / 4.0f;
+            float my;
+            ok = floorKind(bx + (cx - bx) * s, fy, bz + (cz - bz) * s, &my) == 0 && absOf(my - fy) <= kGapMax;
+        }
+        if (!ok || !clearLine(bx, fy + 400.0f, bz, cx, cy + 400.0f, cz) ||
+            !clearLine(bx, fy + 1000.0f, bz, cx, cy + 1000.0f, cz) || !clearLine(cx, cy + 100.0f, cz, cx, cy + 1700.0f, cz)) {
+            p.wall++;
+            continue;
+        }
+        const float leon = sqrtf((cx - lx) * (cx - lx) + (cz - lz) * (cz - lz));
+        if (leon < kLeonAway && leon < leonBefore) {
+            p.nearLeon++;
+            continue;
+        }
+        for (int k = 0; k < avoid.n && ok; k++) {
+            const float ex = cx - avoid.p[k][0], ez = cz - avoid.p[k][2], ey = cy - avoid.p[k][1];
+            ok = ex * ex + ez * ez >= kApartRoute * kApartRoute || absOf(ey) > 2000.0f;
+        }
+        if (!ok) {
+            p.crowded++;
+            continue;
+        }
+        for (int k = 0; k < gOld.n && ok && t < (u32) kFreshTries; k++) {
+            const float ex = cx - gOld.p[k][0], ez = cz - gOld.p[k][2], ey = cy - gOld.p[k][1];
+            ok = ex * ex + ez * ez >= kFresh * kFresh || absOf(ey) > 2000.0f;
+        }
+        if (!ok) {
+            p.oldPlace++;
+            continue;
+        }
+        if (keptOut(cx, cy, cz)) {
+            p.inArea++;
+            continue;
+        }
+        *out = own;
+        out->pos[0] = (s16) lroundf(cx / 10.0f);
+        out->pos[1] = (s16) lroundf(cy / 10.0f);
+        out->pos[2] = (s16) lroundf(cz / 10.0f);
+        out->rot[1] = (s16) ((int) (mix(r2) & 0x7FFF) - 0x4000);  // facing anywhere
+        return true;
+    }
+    return false;
+}
+
+float distOf(const s16 a[3], const s16 b[3])
+{
+    const float dx = (a[0] - b[0]) * 10.0f, dz = (a[2] - b[2]) * 10.0f;
+    return sqrtf(dx * dx + dz * dz);
+}
+
 void avoidAdd(Avoid& a, const s16 pos[3])
 {
     if (a.n < (int) (sizeof(a.p) / sizeof(a.p[0]))) {
@@ -390,6 +676,7 @@ extern "C" void re4_enemy_random_room(void)
     int nm = 0, ns = 0;
     Avoid avoid;
     avoid.n = 0;
+    gOld.n = 0;
     for (int i = 0; i < 256; i++) {
         const EM_LIST& e = pG->Em_list[i];
         if (e.id == 0 || e.room != (u16) p.room) {
@@ -398,6 +685,7 @@ extern "C" void re4_enemy_random_room(void)
         avoidAdd(avoid, e.pos);
         if (ganadoId(e.id) && comesNow(e, i)) {
             p.ganados++;
+            avoidAdd(gOld, e.pos);
         }
         const bool protect = namedIn(row, i) || waited[i];
         if (protect && ganadoSpot(e)) {
@@ -436,12 +724,64 @@ extern "C" void re4_enemy_random_room(void)
         spots[k] = spots[j];
         spots[j] = t;
     }
+    // stage 2: the room's route and the areas to keep out of
+    const bool route = stageNow() >= 2 && routeOpen();
+    p.routePoints = route ? gRoute.n : 0;
+    gKeepN = 0;
+    if (route) {
+        keepOutCollect();
+    }
+    if (gCheck && route) {
+        // the PC check's maps (re-map.py): Leon at the start, the room's way points and their links, the doors
+        static u16 drawn[64];
+        static int drawnN;
+        bool seen = false;
+        for (int k = 0; k < drawnN && !seen; k++) {
+            seen = drawn[k] == (u16) p.room;
+        }
+        if (!seen && drawnN < 64) {
+            drawn[drawnN++] = (u16) p.room;
+            re4_log("enemies: map r%03x leon %.0f %.0f %.0f", p.room, (double) pG->pl_pos.x, (double) pG->pl_pos.y,
+                    (double) pG->pl_pos.z);
+            for (int k = 0; k < gRoute.n; k++) {
+                char links[160] = "";
+                int len = 0;
+                const RTP_POINT& a = gRoute.pt[k];
+                for (int j = 0; j < a.nLine && a.offLine + j < gRoute.nLine && len < (int) sizeof(links) - 8; j++) {
+                    len += snprintf(links + len, sizeof(links) - len, " %d", gRoute.ln[a.offLine + j].connect);
+                }
+                re4_log("enemies: map r%03x point %d %.0f %.0f %.0f links%s", p.room, k, (double) a.pos.x,
+                        (double) a.pos.y, (double) a.pos.z, links);
+            }
+            for (int k = 0; k < gKeepN; k++) {
+                Vec c;
+                AreaGetCenterPos(&c, &gKeep[k].at->area);
+                re4_log("enemies: map r%03x area %d kind %d %.0f %.0f %.0f", p.room, gKeep[k].at->no, gKeep[k].at->id,
+                        (double) c.x, (double) c.y, (double) c.z);
+            }
+        }
+    }
     int now[256], nn = 0, idle = -1;
     for (int k = 0; k < nm; k++) {
         const int no = movers[k];
+        if (!comesNow(pG->Em_list[no], no)) {
+            // (dead or later in the chapter: EmSetFromList does not create it now, nothing to place; its spot stays
+            // one the others may take in stage 1.5's shuffle)
+            idle = idle < 0 ? no : idle;
+            continue;
+        }
+        const Place own = placeOf(pG->Em_list[no]);
         const Place spot = placeOf(pG->Em_list[spots[k]]);
         Place near;
-        if (nearSpot(spot, hashOf(p.seed, (u32) p.list, (u32) p.room, 0x200u + (u32) no), avoid, &near)) {
+        const int home = route ? homeOf(own.pos) : -1;
+        p.noHome += route && home < 0;
+        if (home >= 0 && routeSpot(home, own, hashOf(p.seed, (u32) p.list, (u32) p.room, 0x500u + (u32) no), avoid, p,
+                                   &near)) {
+            p.place[no] = near;
+            p.moved[no] = true;
+            p.routed++;
+            avoidAdd(avoid, near.pos);
+        } else if (nearSpot(spot, hashOf(p.seed, (u32) p.list, (u32) p.room, 0x200u + (u32) no), avoid, &near)) {
             p.place[no] = near;
             p.moved[no] = true;
             p.nearby++;
@@ -451,14 +791,16 @@ extern "C" void re4_enemy_random_room(void)
             p.moved[no] = true;
             p.swapped++;
         }
-        if (comesNow(pG->Em_list[no], no)) {
-            now[nn++] = no;
-        } else if (idle < 0) {
-            idle = no;
+        now[nn++] = no;
+        if (p.moved[no]) {
+            const float d = distOf(p.place[no].pos, own.pos);
+            p.movedSum += d;
+            p.movedMax = d > p.movedMax ? d : p.movedMax;
         }
+        p.moverCount++;
     }
     // the number: +/- 10 % (rooms with 10 or more Ganados at the start), never in a room that counts
-    const int range = p.kind == kCountsOnly ? 0 : p.ganados >= 20 ? 2 : p.ganados >= 10 ? 1 : 0;
+    const int range = p.kind == kPlacesOnly ? 0 : p.ganados >= 20 ? 2 : p.ganados >= 10 ? 1 : 0;
     p.change = range ? (int) (hashOf(p.seed, (u32) p.list, (u32) p.room, 0x4E) % (u32) (2 * range + 1)) - range : 0;
     if (p.change < 0) {
         // left out: Ganados that come now, never the last of a kind in the room
@@ -516,7 +858,12 @@ extern "C" void re4_enemy_random_room(void)
             cp.entry = empty[(first + c) % ne];
             const Place anchor = p.moved[cp.beside] ? p.place[cp.beside] : placeOf(pG->Em_list[cp.beside]);
             Place at;
-            if (!nearSpot(anchor, hashOf(p.seed, (u32) p.list, (u32) p.room, 0x300u + (u32) c), avoid, &at)) {
+            // stage 2: anywhere the route of the other one's part reaches, else beside it
+            const int home = route ? homeOf(pG->Em_list[cp.beside].pos) : -1;
+            const Place own = placeOf(pG->Em_list[cp.from]);
+            if (!(home >= 0 &&
+                  routeSpot(home, own, hashOf(p.seed, (u32) p.list, (u32) p.room, 0x600u + (u32) c), avoid, p, &at)) &&
+                !nearSpot(anchor, hashOf(p.seed, (u32) p.list, (u32) p.room, 0x300u + (u32) c), avoid, &at)) {
                 p.copyRefused++;
                 continue;
             }
@@ -567,8 +914,8 @@ extern "C" int re4_enemy_random_extra(EM_LIST* out)
         gLines++;
         char count[160] = "";
         int len = 0;
-        if (p.kind == kCountsOnly) {
-            len = snprintf(count, sizeof(count), "; the number stays (the room counts its enemies)");
+        if (p.kind == kPlacesOnly) {
+            len = snprintf(count, sizeof(count), "; the number stays (places only: the script counts or names enemies)");
         } else if (p.change == 0) {
             len = snprintf(count, sizeof(count), "; the number stays (%s)", p.ganados >= 10 ? "as drawn" : "under 10");
         } else if (p.change < 0) {
@@ -590,9 +937,19 @@ extern "C" int re4_enemy_random_extra(EM_LIST* out)
             }
         }
         re4_log("enemies: random enemies in r%03x (list %d, seed %u%s): %d Ganados at the start, %d ordinary, %d spots: "
-                "%d at a new place nearby, %d on another's spot%s%s",
-                p.room, p.list, p.seed, p.kind == kCountsOnly ? ", counts only" : "", p.ganados, p.movers, p.spots,
-                p.nearby, p.swapped, count, p.protectedByArea ? " (some kept: an area waits for them)" : "");
+                "%d anywhere on the route, %d at a new place nearby, %d on another's spot%s%s",
+                p.room, p.list, p.seed, p.kind == kPlacesOnly ? ", places only" : "", p.ganados, p.movers, p.spots,
+                p.routed, p.nearby, p.swapped, count, p.protectedByArea ? " (some kept: an area waits for them)" : "");
+        if (gLines < 300) {
+            gLines++;
+            re4_log("enemies: r%03x stage %d: route %d way points (%d of the movers without one near), the %d that come "
+                    "moved %.1f m on average, at most %.1f m; %d tries turned down: %d no floor, %d bad floor, %d wall, "
+                    "%d near Leon, %d crowded, %d near an old Ganado spot, %d in an area (%d areas kept out of)",
+                    p.room, stageNow(), p.routePoints, p.noHome, p.moverCount,
+                    p.moverCount ? (double) (p.movedSum / p.moverCount / 1000.0f) : 0.0, (double) (p.movedMax / 1000.0f),
+                    p.noFloor + p.badFloor + p.wall + p.nearLeon + p.crowded + p.oldPlace + p.inArea, p.noFloor,
+                    p.badFloor, p.wall, p.nearLeon, p.crowded, p.oldPlace, p.inArea, gKeepN);
+        }
     }
     if (p.copyNext >= p.copyCount) {
         // (after the copies: their entries are empty ones, whose be_flag the game may set; the check sees the rest)

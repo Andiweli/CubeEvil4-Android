@@ -2602,6 +2602,58 @@ size_t command(const u8* p, size_t n, size_t* need, bool be, int depth)
         }
         return 17;
     }
+    case 0x03: {  // the port's real-time shadow mark (gx_fifo.cpp re4_gx_put_shadow, runtime/rt_shadow.cpp)
+        *need = 17;
+        if (n < 17) {
+            return 0;
+        }
+        const u32 shadow[4] = {rd32(p + 1, be), rd32(p + 5, be), rd32(p + 9, be), rd32(p + 13, be)};
+        if (chunk()) {
+            emit(RE4_GX_OP_SHADOW, shadow, 4);
+        }
+        return 17;
+    }
+    case 0x04: {  // stage 5's lights for the real-time shadows (gx_fifo.cpp re4_gx_put_shadow_lights): the count,
+                  // five words a light
+        *need = 2;
+        if (n < 2) {
+            return 0;
+        }
+        const unsigned count = p[1] >= 1 && p[1] <= 3 ? p[1] : 0;
+        *need = 2 + 20 * count;
+        if (n < *need) {
+            return 0;
+        }
+        u32 lights[16];
+        lights[0] = count;
+        for (unsigned i = 0; i < 5 * count; i++) {
+            lights[1 + i] = rd32(p + 2 + 4 * i, be);
+        }
+        if (count && chunk()) {
+            emit(RE4_GX_OP_SHADOW, lights, 1 + 5 * count);
+        }
+        return 2 + 20 * count;
+    }
+    case 0x05: {  // stage 6's lights (gx_fifo.cpp re4_gx_put_shadow_lights2): the count, the ambient, 15 words a light
+        *need = 2;
+        if (n < 2) {
+            return 0;
+        }
+        const unsigned count = p[1] >= 1 && p[1] <= 3 ? p[1] : 0;
+        *need = 2 + 4 * (1 + 15 * count);
+        if (n < *need) {
+            return 0;
+        }
+        u32 lights[2 + 45];
+        lights[0] = 0x10 | count;
+        for (unsigned i = 0; i < 1 + 15 * count; i++) {
+            lights[1 + i] = rd32(p + 2 + 4 * i, be);
+        }
+        if (count && chunk()) {
+            emit(RE4_GX_OP_SHADOW, lights, 2 + 15 * count);
+        }
+        return 2 + 4 * (1 + 15 * count);
+    }
     case 0x44:  // metrics
     case 0x48:  // invalidate the vertex cache
         gStats.commands++;

@@ -9,13 +9,13 @@ import android.view.View;
 import com.ast.retrotouch.RetroTouchAdapter;
 import com.ast.retrotouch.RetroTouchButtonShape;
 import com.ast.retrotouch.RetroTouchButtonStyle;
-import com.ast.retrotouch.RetroTouchColors;
 import com.ast.retrotouch.RetroTouchControl;
 import com.ast.retrotouch.RetroTouchLayout;
 import com.ast.retrotouch.RetroTouchMode;
 import com.ast.retrotouch.RetroTouchStickListener;
+import com.ast.retrotouch.RetroTouchSkin;
+import com.ast.retrotouch.RetroTouchSkinListener;
 import com.ast.retrotouch.RetroTouchView;
-import com.ast.retrotouch.RetroTouchStyleListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +27,11 @@ import java.util.Locale;
  * OUYA APK on a phone or tablet with Android 4.x: the OUYA has no touch screen, so the controls only show where
  * Android has one (FEATURE_TOUCHSCREEN), and by the menu's "Touch Controls" (Auto: without a controller, a tap shows
  * them, a button hides them; Force; Suppress). RetroTouch's gear opens its editor (move, resize, save the layout,
- * the button style RE or GC); the game stands meanwhile. Everything here runs on the UI thread.
+ * the button style); the game stands meanwhile. Everything here runs on the UI thread.
+ *
+ * Four skins since 1.0.0 (TouchStyle: RE, GC, PS2, XBOX; RetroTouch 1.0.0-beta.13's RetroTouchSkin, the main app's
+ * TouchControls, merged 18.11.2026): the editor's style button goes through them, the menu offers all four (look(),
+ * setLook); RetroTouch keeps the choice. A player of the old GC style (RetroTouch's LABELS) gets the GC skin.
  */
 final class OuyaTouchControls {
   interface Host {
@@ -42,6 +46,10 @@ final class OuyaTouchControls {
   static final String TAG = "RE4OUYA";
   /** The key of the saved layout (the main app's: an exported layout fits). */
   static final String LAYOUT_ID = "cubeevil4";
+  /** RetroTouch's preferences (the main app's TouchLayoutFile.PREFS) and its keys of the style (before skins) and of
+   *  the skin chosen. */
+  static final String PREFS = "retrotouch_layouts";
+  static final String STYLE_KEY = "button_style_" + LAYOUT_ID, SKIN_KEY = "button_skin_" + LAYOUT_ID;
 
   private final RetroTouchView view;
   private final OuyaTouch touch;
@@ -73,18 +81,28 @@ final class OuyaTouchControls {
     view = new RetroTouchView(context);
     view.setFocusable(false);
     view.setAutoHideOnController(false);
-    view.setAvailableButtonStyles(RetroTouchButtonStyle.LABELS, RetroTouchButtonStyle.ICONS);
+    // RE's style without skins (the base of the RE skin)
+    view.setAvailableButtonStyles(RetroTouchButtonStyle.ICONS);
     view.setDefaultButtonStyle(TouchStyle.DEFAULT_BUTTON_STYLE);
-    Locale language = context.getResources().getConfiguration().locale;
-    view.setStyleToggleLabels(context.getString(R.string.ingame_button_labels).toUpperCase(language),
-        context.getString(R.string.ingame_button_icons).toUpperCase(language));
+    // the actions with RE's labels and icons (every skin sets its own content on top), the C stick an analog stick
+    for (int i = 0; i < OuyaTouch.ACTIONS.length; i++) {
+      String action = OuyaTouch.ACTIONS[i];
+      if (OuyaTouch.isStick(action))
+        view.registerStickAction(action, OuyaTouch.LABELS[i], null, TouchStyle.icon(action));
+      else
+        view.registerAction(action, OuyaTouch.LABELS[i], null, TouchStyle.icon(action));
+    }
+    view.setDefaultColors(TouchStyle.COLOURS);
+    registerSkins();
+    view.setDefaultSkin(TouchStyle.IDS[TouchStyle.DEFAULT_LOOK]);
+    // the old GC style becomes the GC skin (before the layout: RetroTouch reads the saved skin with it)
+    migrateOldGc(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE));
     view.setGameplayLayout(layout(shoulder));
-    applyStyle(view.getButtonStyle());
-    view.setStyleListener(new RetroTouchStyleListener() {
+    Log.i(TAG, "touch controls: skin " + view.getSkin());
+    view.setSkinListener(new RetroTouchSkinListener() {
       @Override
-      public void onButtonStyleChanged(RetroTouchButtonStyle style) {
-        applyStyle(style);
-        Log.i(TAG, "touch controls: button style " + style + " (editor)");
+      public void onSkinChanged(String skin) {
+        Log.i(TAG, "touch controls: skin " + skin + " (editor)");
       }
     });
     view.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
@@ -144,44 +162,34 @@ final class OuyaTouchControls {
 
   private abstract static class Listener extends RetroTouchAdapter implements RetroTouchStickListener {}
 
-  private void applyStyle(RetroTouchButtonStyle style) {
-    boolean icons = style == RetroTouchButtonStyle.ICONS;
-    for (int i = 0; i < OuyaTouch.ACTIONS.length; i++) {
-      String action = OuyaTouch.ACTIONS[i];
-      RetroTouchColors colours = icons || OuyaTouch.COLOURS[i] == 0 ? null
-          : RetroTouchColors.of(OuyaTouch.COLOURS[i]).withBorderColor(OuyaTouch.BORDER);
-      if (OuyaTouch.isStick(action))
-        view.registerStickAction(action, OuyaTouch.LABELS[i], colours);
-      else
-        view.registerAction(action, OuyaTouch.LABELS[i], colours, TouchStyle.icon(action));
-      view.setButtonShape(action, icons ? TouchStyle.iconShape(action) : RetroTouchButtonShape.AUTO);
-    }
-    applyAspects(icons);
-    view.setDefaultColors(icons ? TouchStyle.COLOURS : null);
+  /** The four skins for L's and R's width on this screen (the same IDs again: RetroTouch replaces them in place). */
+  private void registerSkins() {
+    for (RetroTouchSkin skin : TouchStyle.skins(shoulder))
+      view.registerSkin(skin);
   }
 
-  private void applyAspects(boolean icons) {
-    for (String action : OuyaTouch.ACTIONS) {
-      float aspect = icons ? TouchStyle.aspect(action, shoulder) : 1f;
-      view.setButtonAspect(action, aspect == 1f ? 0f : aspect);
-    }
+  /** A player of the old GC style (RetroTouch's LABELS, saved before skins) without a skin chosen yet: the GC skin. */
+  static boolean migrateOldGc(android.content.SharedPreferences p) {
+    if (p.contains(SKIN_KEY) || !"LABELS".equals(p.getString(STYLE_KEY, null)))
+      return false;
+    p.edit().putString(SKIN_KEY, TouchStyle.IDS[TouchStyle.GC]).apply();
+    Log.i(TAG, "touch controls: the old GC style becomes the GC skin");
+    return true;
   }
 
-  /** The button style shown is ICONS ("RE"). */
-  boolean icons() { return view.getButtonStyle() == RetroTouchButtonStyle.ICONS; }
+  /** The skin shown (TouchStyle.RE .. XBOX; the menu's "Button style"). */
+  int look() { return TouchStyle.look(view.getSkin()); }
 
-  /** The menu's "Button style": ICONS ("RE", on) or LABELS ("GC"); RetroTouch keeps the choice. */
-  void setIcons(boolean on) {
-    RetroTouchButtonStyle style = on ? RetroTouchButtonStyle.ICONS : RetroTouchButtonStyle.LABELS;
-    view.setButtonStyle(style);
-    applyStyle(style);
-    Log.i(TAG, "touch controls: button style " + style + " (app menu)");
+  /** The menu's "Button style": a skin at once (RetroTouch saves the choice). */
+  void setLook(int which) {
+    view.setSkin(TouchStyle.IDS[TouchStyle.valid(which)]);
+    Log.i(TAG, "touch controls: skin " + view.getSkin() + " (app menu)");
   }
 
   private void reshape() {
     reshape = false;
     view.setGameplayLayout(layout(shoulder));
-    applyAspects(icons());
+    registerSkins();
     touch.reset();
   }
 

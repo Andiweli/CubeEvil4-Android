@@ -21,7 +21,7 @@ namespace fs = std::filesystem;
 namespace pack {
 
 const char *const kToolName = "CubeEvil4 Texture Packer";
-const char *const kToolVersion = "1.3";
+const char *const kToolVersion = "1.4";
 
 std::string Lower(std::string s) {
   for (char &c : s)
@@ -643,9 +643,11 @@ std::uint64_t MemoryFor(const Source &s, unsigned maxSide) {
 
 }  // namespace
 
-std::vector<std::uint64_t> EstimateSizes(const std::vector<const Source *> &todo, const std::vector<unsigned> &sizes) {
+std::vector<std::vector<std::uint64_t>> EstimateEach(const std::vector<const Source *> &todo,
+                                                     const std::vector<unsigned> &sizes,
+                                                     const std::function<void(std::size_t)> &progress) {
   std::vector<std::vector<std::uint64_t>> each(todo.size(), std::vector<std::uint64_t>(sizes.size(), 0));
-  std::atomic<std::size_t> next{0};
+  std::atomic<std::size_t> next{0}, finished{0};
   auto work = [&] {
     for (;;) {
       const std::size_t i = next++;
@@ -664,13 +666,26 @@ std::vector<std::uint64_t> EstimateSizes(const std::vector<const Source *> &todo
         const unsigned encoding = !known || bits > 4 ? c4tex::kEtc2RgbaEac : c4tex::kEtc2Rgb;
         each[i][k] = c4tex::ImageBytes(encoding, w, h, c4tex::FullChain(w, h)) + c4tex::kAlign + c4tex::kEntryBytes;
       }
+      finished++;
     }
   };
   std::vector<std::thread> pool;
   const unsigned threads = std::min<unsigned>(8, std::max(1u, std::thread::hardware_concurrency()));
   for (unsigned t = 0; t < threads; t++) pool.emplace_back(work);
+  if (progress) {
+    while (finished.load() < todo.size()) {
+      progress(finished.load());
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    progress(todo.size());
+  }
   for (std::thread &t : pool) t.join();
-  std::vector<std::uint64_t> total(sizes.size(), 4096);
+  return each;
+}
+
+std::vector<std::uint64_t> EstimateSizes(const std::vector<const Source *> &todo, const std::vector<unsigned> &sizes) {
+  const std::vector<std::vector<std::uint64_t>> each = EstimateEach(todo, sizes);
+  std::vector<std::uint64_t> total(sizes.size(), kEstimateBase);
   for (const auto &v : each)
     for (std::size_t k = 0; k < sizes.size(); k++) total[k] += v[k];
   return total;
@@ -782,6 +797,8 @@ Outcome Convert(const Pack &pack, const std::vector<const Source *> &todo, const
       p.total = todo.size();
       p.written = at;
       p.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+      p.failed = failed.size();
+      p.current = rel;
       progress(p);
     }
   }
@@ -822,6 +839,7 @@ Outcome Convert(const Pack &pack, const std::vector<const Source *> &todo, const
   ok = ok && sink.WriteAt(0, &header, sizeof(header)) && sink.WriteAt(infoOffset, info.data(), info.size());
   out.entries = entries.size();
   out.failed = failed.size();
+  out.failures = failed;
   out.skipped = pack.skipped.size() + pack.duplicates.size();
   out.fileBytes = at;
   out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();

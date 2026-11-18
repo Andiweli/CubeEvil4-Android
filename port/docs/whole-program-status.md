@@ -15,8 +15,1661 @@ Funktionen.** Danach bis 1.0 nur noch Fehlerbehebungen.
 - Gerätestand des Projektinhabers (14.11.2026): HD-Texturen, Bloom, der 120-Hz-Rhythmushalter und die dynamische
   Auflösung laufen. Noch nicht richtig auf einem Gerät geprüft: Zufällige Gegner Stufe 1.5, der ZIP-Export und
   „Alle Daten löschen“.
+- Gerätestand des Projektinhabers (15.11.2026, über die Hauptsitzung): **alles aus 0.99.17 auf dem Gerät geprüft, es
+  läuft.** Von Nutzern noch nicht geprüft (aus 0.99.15): die sanfteren QTEs, der C-Stick auf Tasten und der Zoom.
+- **Vor 1.0 nicht behoben (Entscheidung des Projektinhabers, 15.11.2026):** Fackelflackern bei 60 FPS, Leons Ruckeln
+  mit dem linken Stick mancher Controller, alte importierte Spielstände mit vertauschten Räumen. Ihre Zeilen in den
+  Known issues bleiben, weil sie weiter stimmen.
+- **Ausnahme für 0.99.18 (vom Projektinhaber selbst gewählt, 15.11.2026):** „Abbrechen“ statt „Abbruch“ in allen
+  Sprachen, zwei neue Stufen der Sichtweite (Sehr kurz, Weit), HD-Texturen im Hintergrund laden (T4).
+- **Ausnahme für 1.0 (Projektinhaber, 16.11.2026):** Ziel- und Messer-Stick für die Touch-Steuerung („Die Funktion 8
+  baue auch ein. Wir nehmen sie dann mit 1.0 mit.“); Abschnitt 5 von 0.99.19. Die nächste Veröffentlichung ist 1.0
+  („Yes, next is 1.0“, 16.11.2026, kein weiteres 0.99.x): die Sticks bleiben sichtbar, Zeile unter New im Releasetext;
+  die Version hieß bis zur Umbenennung am 16.11.2026 weiter 0.99.19-rc (versionCode 121), seitdem 1.0.0. Ebenso für 1.0 (Projektinhaber,
+  16.11.2026: „Nimm das auch noch als Feature für 1.0 mit auf“): die Option „Leon mit Maus / Blickfeld drehen“,
+  Abschnitt 7 von 0.99.19; und der Flavor „sideload“ mit Datenordner nach Wahl, Abschnitt 8. Ebenso (Projektinhaber,
+  16.11.2026, nach dem Bericht zur Meldung „immer dieselben Gegner“): „Zufällige Gegner“ Stufe 2, Abschnitt 9.
 
-## Version 0.99.15-rc (in Arbeit, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc)
+## Branch `random-enemies`: „Zufällige Gegner“ wirklich zufällig, Prüfung und Prototyp Stufe 2 (16.11.2026, Basis 3087fd5a)
+
+**Auftrag des Projektinhabers (16.11.2026, über die Hauptsitzung):** „Prüfe nun auch separat und genau den Cheat für
+'Zufällige Gegner' wie wir die sauber ohne Crash oder Fehler dennoch zufällig platzieren können. Es gibt immer wieder
+Userfeedback, dass das nicht klappt. Ich muss gestehen bei mir standen die Gegner auch immer an derselben Stelle.“
+Zuerst nur Prototyp im eigenen Branch; **am 16.11.2026 vom Projektinhaber für 1.0 in `release-candidate` übernommen**
+(Version 0.99.19-rc, Abschnitt 9).
+Einzelheiten: `port/docs/gegner-randomizer-plan.md` Abschnitt 10; Bericht für den Inhaber
+`E:\Development\Android\reports\random-enemies-2026-11-16.md`; Karten `E:\Development\Android\builds\random-enemies\`.
+
+- **Befund:** kein Fehler im Weg zum Kern (auch nicht nach Laden, neuem Spiel, Neustart des Spiels, im eigenen
+  Kernprozess). Stufe 1.5 (0.99.19) setzt bei jedem Seed (4242, 777, 31337) **höchstens 1 von 380 Ganados** des
+  Rundgangs an eine neue Stelle (mehr als 5 m von jedem Original-Platz): Ganze Räume waren gesperrt (175 Ganados in 26
+  Räumen), sonst tauschen Ganados nur die Plätze (± 1,5–4 m), im frühen Dorf kommen die Gegner per Skript oder haben
+  Sonderrollen.
+- **Prototyp Stufe 2** (`runtime/enemy_random.cpp`, `port/tools/enemy_random_table.py` → `enemy_random_rooms.inc`,
+  `RE4_TEST_EM_KILL` mit Kennung 100 in `state_trace.cpp`; **kein neuer Patch**, 0231 unverändert): Stellen überall auf
+  dem Wegenetz des Raums (`pG->Rtp`, im Teil, den der eigene Platz in beide Richtungen erreicht), geprüft mit Boden,
+  Wänden, Bereichen (Türen 3 m, Leitern, Gegenstände 1,5 m), 10 m von Leon, zuerst 5 m von allen Original-Plätzen;
+  sonst Stufe 1.5. Die Schutzliste trennt „Skript steuert“ (bleibt) von „Skript schaltet an/aus“: 11 Räume
+  unangetastet (10 Bossräume, r100), 52 „nur Stellen“, 45 offen.
+- **Geprüft am PC** (i686 -O2, `whole_build.sh` alle Prüfungen grün; `whole_build_android.sh --abi all` 0 Fehler;
+  Skripte `re-*.sh`/`re-*.py` im Notizordner der Sitzungen):
+  - Rundgang aller 126 Räume, Debug-Discs: ohne Cheat, Seed 4242 (mit Listen-Prüfung), 4242 noch einmal, 777, 31337:
+    je **ALLES OK**. Seed 4242: **90 von 380 Ganados in 25 Räumen an neuen Stellen** (heute 1 in 1 Raum), 777: 91 in
+    26 (eine Kopie in r225, 12 → 13), 31337: 92 in 26; gleicher Seed zweimal: alle Räume gleich.
+  - US-Discs 4242 und 777 (mit Listen-Prüfung): ALLES OK, dieselbe Planung wie Debug. EU-Discs 4242 und 777: 125 von
+    126, r333 stürzt im Prüfprotokoll ab (Altbefund, **auch ohne Cheat** in diesem Stand, r333 ohne gewöhnlichen
+    Ganado); EU: 93 Ganados an neuen Stellen (heute 4). In 390 Raumstarts mit Listen-Prüfung nie geschrieben, kein
+    „Em set failed“, keine gescheiterte Kopie.
+  - Dorf-Belagerung r101 (`re-siege.sh`: Leon in Bereich 8, alle Ganados fallen nach und nach): Glocken-Szene
+    `r101s30` nach 24 Toten, ohne Cheat und mit 4242/777/31337 (Debug), 0/4242 (EU, US).
+  - Rundgang „alle Ganados fallen alle 300 Bilder“ (`re-killtour.sh`, `re-events.py`: gelesene Ereignis-Dateien und
+    Türschlösser gegen denselben Lauf ohne Cheat): Debug 4242 und US 4242 126 von 126 gleich; Debug 777 und EU 4242 je
+    ein Raum anders, weil Leon durch eine Tür in den nächsten Raum lief (r11a → r11b, r103 → r101); r200/r218 mit dem
+    Cheat eine Welle mehr. „Em set failed“ nur in r400–r409 der EU-/US-Discs, gleich oft ohne Cheat (Stufe 4, nie
+    angefasst). EU r333 wie oben.
+  - Randbefund (nicht vom Cheat): beim Wechsel r11a → r11b schreibt `RE4_TEST_DOORS` eine Zeile mit unsinnigen Werten
+    für Eintrag 21 (auch ohne Cheat, gleiche Werte; `re-door.sh`): das Prüfprotokoll liest ein Objekt mitten im Laden.
+  - **Nicht geprüft:** auf einem Gerät; ganze Kapitel durchgespielt.
+
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8, Stufe 7 am 18.11.2026 auf 249dc807)
+
+**Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
+dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
+aktiviert, nicht wenn man Release baut. Erst nach 1.0 kommen sie ins Release.“ Weg B der Studie
+(`port/docs/echtzeit-schatten-studie.md`, Notizen und Versuchs-Code `port/docs/echtzeit-schatten/`). **Nicht in den
+Releasetext für Tester:** Release-Builds haben die Funktion nicht.
+
+**In `release-candidate` übernommen (15.11.2026, Auftrag der Hauptsitzung):** Stufen 1–3 (9c975bd0) per Fast-Forward
+in 0.99.19. **Nur in Debug-Builds bis nach 1.0**; der Releasetext v0.99.19-rc bekommt nichts davon. Geprüft am PC nach
+dem Fast-Forward: Kern i686 -O2 mit Patch 0240 gebaut (0 Fehler, Kern- und Laufzeittests bestanden, Stubs wie
+erwartet), App-Tests 185 je Variante grün (neu `RealtimeShadowsTest`), `check_translations.py` ohne Befund,
+`assembleCoreRelease` gebaut (die APK ist nicht „debuggable“, die Menüzeile fehlt dort). Die Menüzeile erscheint im
+Debug-Build erst, wenn der Benchmark auf einem starken Gerät gelaufen ist. Stufe 4 (Gegenstände, drei Stufen) folgt
+auf `realtime-shadows` und kommt später auf dieselbe Weise.
+
+**Seit 16.11.2026 (release-candidate, Projektinhaber: „Yes, always show it“):** Im Debug-Build steht die Zeile
+„Echtzeitschatten“ unter Anzeige → Effekte immer, auch ohne Benchmark, vor dem Erkennen des Grafikchips und auf
+schwachen Geräten. Solange der Spieler nichts gewählt hat (`rtShadows` nicht gespeichert), entscheidet das Gerät
+(`RealtimeShadows.deviceCheck`): ein starkes Gerät nach dem Benchmark hat „Figuren und Objekte“, jedes andere „Aus“, mit
+einem Hinweis unter der Zeile „Für dieses Gerät nicht empfohlen (Grund)“ (11 Sprachen; Grafikchip unbekannt/zu schwach,
+noch kein Benchmark, Benchmark-Stufen zu niedrig, Prozessor am Limit, unter 4 GB). Die Zeile zeigt den geltenden
+Wert. Eine im Menü getroffene Wahl gilt auf jedem Gerät; Potato „Schatten & Licht“ aus schaltet weiter ab. Logzeile
+z. B. „real-time shadows (debug build): on (characters and objects) (the menu's choice; device check: no benchmark
+yet)“. Release-Builds unverändert: keine Zeile, nichts gelesen oder gesendet. Geprüft am PC: `RealtimeShadowsTest`
+(Zeile immer im Debug-, nie im Release-Build; Standard je Gerät; gespeicherte Wahl gewinnt; Potato sperrt), App-Tests
+aller Varianten, `check_translations.py`, `assembleCoreRelease`. Bilder (ohne Benchmark, starkes Gerät) in
+`E:\Development\Android\builds\release-candidate\shadows-row-always\`. Nicht geprüft: auf einem Gerät.
+
+- **Kern** (`runtime/rt_shadow.cpp`, Patch 0240, Tabelle unten): Die App schaltet mit Bit 5 der Potato-Maske ein
+  (`re4_core_set_potato`, auch über den 32-bit-Kernprozess, keine neue Nachricht; `potato.cpp` trennt das Bit von den
+  Potato-Schaltern ab). Pro Bild prüft `re4_rt_shadow_frame` am Anfang von `Render`:
+  - der Schalter an, Potato „Schatten & Licht“ an,
+  - im Spiel (`Rno0 == 3`; kein Ereignis, kein Unterbildschirm, kein Tod/Fortsetzen `STA_DIEDEMO`, kein Film, kein
+    Wärmebild, nicht `DPF_SHADOW`),
+  - ein Fußschatten-Licht (LIT `Id 4`, `Kind 5`) erreicht Leon, ausgewählt wie `DrawFootShadow`.
+
+  Dann zeichnet `DrawFootShadow` keine Flecken. Nach Ordnungstabelle 14 (Raum und Figuren in Tabelle 11, die
+  Empfänger der Spiel-Schatten in 14, die Effekte erst danach) setzt `re4_rt_shadow_mark` den Port-Befehl 0x03 →
+  `RE4_GX_OP_SHADOW` mit der Lichtrichtung in Kamera-Koordinaten und der Stärke (Rot des Lichts mal Schattenfarbe der
+  Figur). In Räumen ohne solches Licht (19 von 127) passiert nichts: Dort gibt es auch keine Flecken.
+- **Renderer** (`GxRenderer::SetShadows`, `GxCore::ShadowCollect`/`ShadowMark`, GLES `ShadowPass` in `gx_gl.cpp`,
+  Shader `kShadow*` in `gx_fixed_shaders.h`):
+  - Bis zur Marke sammelt er die festen Zeichnungen der Figuren (Owner-Bit FIGURE, Tiefe geschrieben, höchstens 15 m
+    von der Kamera) als Dreiecke in Kamera-Koordinaten.
+  - An der Marke: eine Tiefenkarte von 1024² längs des Lichts, die Pixel, an denen eine Figur die sichtbare Fläche ist
+    (dieselben Dreiecke gegen die EFB-Tiefe), und eine Maske je GameCube-Pixel aus der EFB-Tiefe (8 PCF-Abfragen, nur
+    zum Licht gewandte Flächen). Die Maske wird mit der EFB-Farbe multipliziert.
+  - Figuren empfangen keinen Schatten. Das behebt die Streifen aus der Studie (r30f). Ein Schatten reicht höchstens
+    4 m hinter die Figur (sonst fiel er durch Wände, r101), und er blendet zwischen 12 und 20 m Abstand aus.
+  - Stärke 0,25 bis 0,6. Kein Schatten in Menübildern (`RE4_GX_CHUNK_STILL`), auch im 60-FPS-Zwischenbild (mit den
+    gemischten Matrizen).
+  - Aus (Standard): kein Suchen der Marke, kein Sammeln, kein Durchgang, kein Programm.
+  - Vulkan (Stufe 3, `gx_vk.cpp` `ShadowPass`, dieselben Shader): ein eigener Durchgang nur mit Tiefe für die Karte
+    (D16, Vergleichs-Sampler, linear wo das Format es kann), die Markierungen mit der EFB-Tiefe (bei MSAA die
+    aufgelöste) als Tiefe zum Prüfen, Maske und Multiplikation (neue Mischart 4) wie beim Bloom. Die Shader nehmen die
+    Lichtmatrix als drei Zeilen (der Vulkan-Umwandler kennt kein mat4) und `glz` für die Tiefe von GL (-w..w) oder
+    Vulkan (0..w).
+- **App:** `RealtimeShadows.java`.
+  - Ein Debug-Build ist das Android-Kennzeichen „debuggable“ (coreDebug; ein signierter Release-Build hat es nicht;
+    `BuildConfig` erzeugt das Projekt nicht).
+  - Freigabe: Debug-Build, starker Grafikchip, Benchmark mit 3× bei 30 oder 2× bei 60 Bildern, Prozessor nicht am
+    Limit, mindestens 4 GB Speicher (GLES und Vulkan).
+  - Dann und mit Potato „Schatten & Licht“ an ist es ab Werk **an** (`rtShadows`).
+  - `CoreActivity.checkShadows` prüft jeden Tick (der Chip ist erst mit dem Renderer bekannt) und nach Menü-Änderungen.
+    Es schickt `CoreBridge.setShadows` und das Bit mit `CoreBridge.potatoSent` (an allen sechs Stellen statt
+    `potatoMask`; `bloomSent` liest weiter `potatoMask`).
+  - Ins Fehlerprotokoll schreibt es „real-time shadows (debug build): on/off (Grund)“.
+  - Menü Leistung, unter der Sichtweite (seit Stufe 3b unter Anzeige → Effekte; seit Stufe 4 drei Stufen, unten): „Echtzeitschatten · Aus / Figuren“ mit Hilfetext, nur wo freigegeben, 11
+    Sprachen (`ingame_rt_shadows`, `_figures`, `_help`; `check_translations.py` 455 Texte ok).
+  - Release-Build: keine Zeile, kein Lesen der Einstellung, kein Aufruf zu Kern oder Renderer, kein Log.
+- **Geprüft (PC):**
+  - Kern i686 -O2 `whole_build.sh`: alle Prüfungen grün.
+  - `gx_gl_check` 0 Fehler, neu `TestShadows` bei 1× und 2× und mit magentafarben gemachten vergessenen Inhalten: Aus
+    oder ohne Kern-Marke ändert sich kein Byte und es läuft kein Durchgang. An: die Wand neben der Figur 160 → 66, die
+    Figur, die übrige Wand und das HUD unverändert, kein Schatten im Menübild.
+  - **Release unverändert, Renderer:** 22 Bilder ohne Marke (r101, r403, r205, r30f) und 18 mit Marke (r101, r403)
+    zeichnet der neue Renderer mit Schatten aus Byte für Byte wie der Renderer von release-candidate c2f5dcda
+    (`~/pshd/same.sh`).
+  - **Kern:** Zwei Läufe des unveränderten Kerns unterscheiden sich schon in jeder Aufnahme (Adressen in den
+    Owner-Marken, Zeitabhängiges). Ein Byte-Vergleich ist dort nicht möglich. Ohne Bit 5 kehren die drei Haken sofort
+    zurück. Im Lauf ohne Bit gab es keine Log-Zeile zu Schatten.
+  - App-Tests 185 von 185 grün (core und classic), darunter `RealtimeShadowsTest`: Release-Build nie, Potato-Maske ohne Bit gleich wie vorher; Debug auf Retroid-Daten
+    an; Potato oder Menü aus; schwache Geräte, kein Benchmark, Prozessor am Limit, wenig Speicher nie; die Menüzeile nur
+    wo freigegeben.
+  - Gradle `externalNativeBuildCoreDebug` und Java beider Varianten übersetzt.
+  - Vulkan (lavapipe): `gx_gl_check` mit Vulkan 0 Fehler, `TestShadows` „Vulkan 2x“ mit denselben Werten wie GLES.
+    18 Bilder mit Marke (r101, r403): Vulkan und GLES mit Schatten ohne ein Pixel über 3 % Abstand; mit 4× MSAA ebenso
+    (Schatten vorhanden, 8 514 statt 8 520 geänderte Pixel). Der Android-Kern ARM32 und ARM64 baut ohne Fehler.
+  - Kosten am PC (llvmpipe, 2×, ohne das erste Bild):
+
+    | Raum | Bilder | Durchgang | Anteil am Bild | Dreiecke der Figuren |
+    |---|---|---|---|---|
+    | r101 Dorfkampf | 4 | 12,3 ms | 11 % | 9 956–15 799 |
+    | r403 Dorf | 7 | 9,6 ms | 8 % | 11 349–20 751 |
+    | r30f | 7 | 14,4 ms | 15 % | 19 736 |
+    | r100 Wald | 7 | 12,6 ms | 6 % | 7 127–9 127 |
+    | r207 Schloss | 5 | 30,5 ms (ein Ausreißer 81 ms) | 13 % | 8 033–19 683 |
+
+  - Schätzung Retroid (Adreno 650, 3×), nicht gemessen: etwa 1 bis 2 ms pro Bild. Bei 30 Bildern genug Reserve, bei
+    60 Bildern pendelt sich die dynamische Auflösung vermutlich eine halbe Stufe tiefer ein.
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\debug-build\` (links heute mit Flecken, Mitte mit
+  Echtzeitschatten, rechts die Maske). Die Bilder der Studie liegen eine Ebene höher.
+- **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung), MSAA und Vulkan am Gerät, EU-Disc.
+- **Offene Grenzen (so gewollt):** Haare und Laub zeichnet das Spiel erst nach der Marke: Sie werfen keinen Schatten.
+  Gebäude werfen keinen Schatten auf Figuren. Der Benchmark misst ohne Schatten.
+
+**Stufe 4 (16.11.2026, auf 66e5bc8b): Gegenstände, drei Stufen.** Wünsche des Projektinhabers (über die
+Hauptsitzung), Wortlaut: „Fässer und Windräder sollen aber auch Schatten haben.“ und „Prüfe generell alles
+Bewegliche, ob Schatten möglich sind: Flaggen wie in Map 1-2 usw. Es sollte nicht inkonsistent wirken. Von daher wäre
+ein Schalter für Aus > Figuren > Figuren und Objekte evtl. sinnvoll.“ Weiter nur in Debug-Builds.
+
+- **Bestandsaufnahme** (alle 127 Räume der Debug-Disc am PC, je ein Start mit Leon, der sich einmal dreht; Messcode
+  nur in der WSL-Kopie, `RE4_OWNER_CENSUS`/`RE4_SHADOW_WHERE`): jedes Objekt einer Ordnungstabelle einmal mit seiner
+  Art. Ganze Arten sind drin oder draußen, nie einzelne Stücke.
+
+  | Was | Woher der Kern es kennt | Stufe | Sauber? Was stört | Beispielräume |
+  |---|---|---|---|---|
+  | Waffen und Schilde in der Hand, Parasiten | ObjMgr-Waffen, EmMgr WEP 0x42 und SHIELD 0x50, ObjMgr 18/22/38/65 | Figuren | sauber, gehören zur Figur (folgen ihren Matrizen) | alle mit Gegnern |
+  | Türen | EmMgr DOOR 0x41 (152) | Figuren und Objekte | sauber; die Wand daneben wirft keinen Schatten, bei schrägem Licht steht der Türschatten allein | 100, 101, 104, 209 |
+  | Kisten | EmMgr BOX 0x43 (472), ObjMgr BOX 6 | Figuren und Objekte | sauber; zerschlagen ist auch der Schatten weg | fast alle |
+  | Fässer | EmMgr BARREL 0x48 (59) | Figuren und Objekte | sauber (Bilder r209, r11f) | 104, 11f, 202, 203, 209, 301 |
+  | Regale, Schränke zum Schieben | EmMgr RACK 0x45 (22) | Figuren und Objekte | sauber | 101, 103, 10d, 111 |
+  | Bäume und Felsen, die fallen oder rollen | EmMgr TREE 0x49 (3), ROCK 0x4A (9) | Figuren und Objekte | nicht im Bild geprüft | 119; 106, 10a, 11e, 202 |
+  | Hebel, Gittertore | EmMgr SWITCH 0x4B (18), BARRED 0x4E (28) | Figuren und Objekte | nicht im Bild geprüft; wo das Spiel selbst einen Schatten zeichnet, keiner dazu | 201, 204, 206, 208 |
+  | Drehende Raum-Modelle (Windradflügel, Räder, Zahnräder) | Scroll-Modell SMX-Typ 1 (125) | Figuren und Objekte | sauber (Windrad r103: Flügelschatten auf Plattform und Palisade) | 103, 104, 10c, 10f, 113, 217 |
+  | Schwingende Raum-Modelle (Lampen, Schilder, Käfige) | SMX-Typ 2 (109) | Figuren und Objekte | nicht im Bild geprüft; 55 in Tabelle 16 (r104) kommen nach der Marke und werfen nicht | 104, 107, 10d, 205, 300 |
+  | Vom Raum-Skript gesetzte oder bewegte Modelle, Modelle aus Szenen (das Auto in r100) | Scroll ohne Typ mit be_flag 0x20 (`SetObjSmd`, 137), ObjMgr 2 (59), ObjMgr EVENT 24 (115) | Figuren und Objekte | sauber (Auto r100); nicht vorbeleuchtet, weil nicht im SMD | 100, 103, 105, 108, 10c |
+  | Stoff: Fahnen, Banner, Stoffbahnen | `clothTrans` (22) | Figuren und Objekte | ein Stoff ist dünn, sein Schatten auch; hoch Hängendes reicht mit 4 m nicht bis zum Boden (r211) | 100, 103, 104, 113, 211, 327 |
+  | Maschinen: Leitern, Glocken, Gatling, Gondel, Lore, Speere, Ketten, Säulen, schwimmende Insel, Wachturm, Statue, Stier, Sprengfässer | ObjMgr 19, 20, 21, 53, 59, 27, 29, 31, 28, 57, 55, 62, 5, 6, 64 | Figuren und Objekte | nicht im Bild geprüft | 10f, 21b, 224, 226, 30f, 320, 332 |
+  | Fenster | EmMgr WINDOW 0x46 (346) | nie | bündig in der Wand, die Wand wirft nichts; meist erst nach der Marke (Tabelle 17) | 100, 101, 209, 211 |
+  | Fackeln, Leuchter | EmMgr TORCH 0x47 (236) | nie | sind selbst Licht | 102, 109, 203, 209 |
+  | Gegenstände zum Aufheben, Treffer- und Minenkörper | EmMgr ITEM, HIT, MINE; ObjMgr ITEM 25 (724) | nie | klein und blinkend; HIT und MINE unsichtbar | fast alle |
+  | Feste Kulisse: Häuser, Zäune, Mauern, Seile, Brücken | Scroll-Modelle ohne Bewegung (17 485) | nie | ihre Schatten sind in die Raumgrafik gemalt: doppelt dunkel; ein Zaun ja und ein Haus nein wirkte inkonsistent | alle |
+  | Haare, Laub, Gras, Feuer, Rauch, Wasser, Spiegel | nach der Marke, Effekte, SMX-Typ 15 | nie | – | – |
+  | Was das Spiel selbst beschattet | be_flag 0x10 mit Schattenlicht (`shadowModelRender`, Tabelle 8) | nie dazu | sonst doppelt dunkel auf den Empfängern des Spiels | 100, 206, 228 |
+
+- **Kern** (`runtime/gx_owner.cpp`, `runtime/rt_shadow.cpp`, kein neuer Patch): Bit 6 der Potato-Maske (nur mit Bit
+  5) heißt „Figuren und Objekte“. In einem Bild mit Echtzeitschatten trägt die Owner-Marke `RE4_GX_OWNER_PART`
+  (0x400, schon bei „Figuren“) oder `RE4_GX_OWNER_OBJECT` (0x200, nur bei „Figuren und Objekte“) nach der Tabelle oben
+  (`shadowClass`). Vom Spiel selbst beschattete Objekte merkt sich der Kern aus Tabelle 8 (`shadowModelRender`, ohne
+  Eigenschatten) und lässt sie aus. Ohne Echtzeitschatten (jeder Release-Build) bleiben die Marken wie vorher.
+- **Renderer:** Stufe 2 sammelt die Objekte in eine eigene zweite Karte (1024², eigener Ausschnitt, damit ein Windrad
+  die Karte der Figuren nicht grob macht). Ein Objekt wird bis 15 m plus seinem Radius gesammelt. Sein Schatten reicht
+  wie bei den Figuren höchstens 4 m hinter den Werfer: Mit 8 m dunkelten die Stoffbahnen unter der Decke der
+  Schlosshalle (r211) den ganzen Boden ab, während die Statue daneben nichts warf. Die Windradflügel beschatten so ihre
+  Plattform und die Palisade, nicht den 7 m tieferen Boden.
+  Markierungen rot für Figuren, grün für Objekte (Mischen nach Maximum). Die Maske nimmt auf der Welt den dunkleren
+  Wert beider Karten, auf einem Objekt nur den der Figuren (kein Eigenschatten, keine Streifen), auf einer Figur nichts.
+  GLES und Vulkan gleich (Vulkan: zweites Tiefenbild, Mischart MAX in der Markierungs-Pipeline). Die Owner-Schlüssel
+  des 60-FPS-Zwischenbilds lassen die neuen Bits weg.
+- **App:** „Echtzeitschatten · Aus > Figuren > Figuren und Objekte“ (seit Stufe 3b unter Anzeige → Effekte;
+  `RealtimeShadows`: 0, 1, 2; jeder Druck die
+  nächste Stufe), neuer Text `ingame_rt_shadows_objects` und ein Satz mehr im Hilfetext, 11 Sprachen
+  (`check_translations.py` 456 Texte ok). Ab Werk **„Figuren und Objekte“** (`DEFAULT_LEVEL`, Begründung bei den
+  Kosten). Fehlerprotokoll: „real-time shadows (debug build): on (characters and objects) (Grund)“.
+- **Geprüft (PC):** Kern i686 -O2 (0 Fehler, Kern- und Laufzeittests bestanden, Stubs wie erwartet); `gx_gl_check`
+  GLES und Vulkan je 0 Fehler, `TestShadows` neu mit einem Objekt: bei „Figuren“ wirft es nichts, bei „Figuren und
+  Objekte“ seinen Schatten (Wand 160 → 66), Figurschatten unverändert, Objekt und Figur selbst unverändert; App-Tests
+  186 je Variante grün (neu `theThreeLevels`, die Menüzeile durchläuft alle drei Stufen); `externalNativeBuildCoreDebug`.
+  **Release unverändert, Renderer:** 6 Bilder des Spiels wie im Release (ohne Marke und Bits) bei Stufe 0, 1 und 2 und
+  24 Bilder mit Marke und Objekt-Bits bei Stufe 0 zeichnet der neue Renderer Byte für Byte wie der Renderer von
+  release-candidate c2f5dcda vor allen Schatten (42 von 42 gleich, `same4.sh`). Ohne Bit 5 fragt der Kern keine Klasse
+  ab (`re4_rt_shadow_classes` 0): die Owner-Marken bleiben wie vorher. Der Android-Kern baut für ARM32 und ARM64
+  ohne Fehler (`whole_build_android.sh --abi all`).
+- **Kosten je Stufe am PC** (llvmpipe, 2×, je 7 Bilder ohne das erste, jeder Satz allein gezeichnet; Durchgang mit
+  `glFinish` davor und danach, Median):
+
+  | Raum | „Figuren“ | „Figuren und Objekte“ | dazu | Dreiecke der Objekte |
+  |---|---|---|---|---|
+  | r100 Auto | 8,3 ms | 9,1 ms | +0,8 ms | 0–19 305 |
+  | r103 Windrad | 10,0 ms | 10,9 ms | +0,9 ms | 724 |
+  | r209 Fass | 10,5 ms | 13,3 ms | +2,8 ms | 604 |
+  | r209 Fässchen | 10,5 ms | 11,1 ms | +0,6 ms | 384 |
+  | r11f Fass | 12,0 ms | 12,4 ms | +0,4 ms | 60 |
+  | r211 Stoffbahnen | 9,7 ms | 11,6 ms | +1,9 ms | 3 762 |
+  | r211 Stoffbahnen 2 | 9,9 ms | 10,9 ms | +1,0 ms | 3 762 |
+  | r104 | 10,3 ms | 10,6 ms | +0,3 ms | 160–1 486 |
+  | r203 | 15,3 ms | 16,7 ms | +1,4 ms | 688 |
+
+  Im Mittel kosten die Objekte knapp 1 ms zu den rund 10 ms der Figuren, das sind etwa 1 % des ganzen Bildes (die
+  Figuren etwa 10 %). Ohne Objekte im Umkreis wird die zweite Karte nicht gezeichnet. Schätzung Retroid (Adreno 650,
+  3×), nicht gemessen: zu den 1 bis 2 ms der Figuren etwa 0,1 bis 0,3 ms. Deshalb ab Werk „Figuren und Objekte“.
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\objects\` (je links „Figuren“, Mitte „Figuren und
+  Objekte“, rechts dasselbe mit rot markiert, was sich ändert): Windradflügel r103 (auch nah), Fässer r209 und r11f,
+  Fässchen r209, das Auto r100, die Stoffbahnen der Schlosshalle r211 und zum Vergleich r211 mit den verworfenen 8 m.
+- **Nicht geprüft:** Gerät (Kosten auf dem Adreno, Bild in Bewegung), EU-Disc, im Bild: Schwingendes, Hebel,
+  Gittertore, Maschinen, Bäume und Felsen.
+
+**Stufe 3b (16.11.2026): Gerätetest ohne Wirkung, Ursache behoben; Zeile unter Anzeige → Effekte.** Der Inhaber auf
+dem Retroid (Vulkan, Debug-Build, r104, EU-Discs): „Es ist kein Unterschied mit oder ohne Echtzeitschatten. Die
+Figuren haben in beiden Fällen ihren Blob-Schatten.“ Bericht: `E:\Development\Android\reports\shadows-owner-test-2026-11-16.md`.
+
+- **Ursache:** `Java_com_ast_re4decomp_CoreBridge_setPotato` (`core_mode.cpp`) behielt nur die Bits 0..4 (`& 31`).
+  Bit 5 (und seit Stufe 4 Bit 6) aus `CoreBridge.potatoSent` kam nie beim Kern an: kein Bild mit Marke, die Flecken
+  blieben. Die PC-Prüfungen setzten die Bits mit `RE4_POTATO` direkt im Kern und gingen nie durch diesen Weg.
+- **Behoben:** `potato_bits.h` (`re4::PotatoForCore`: Bits 0..6; `re4::PotatoSwitches`: 0..4). Die JNI-Funktion
+  reicht beide Schatten-Bits weiter, der Benchmark bekommt weiter nur die Potato-Schalter (misst ohne Schatten wie
+  vorher), das Log nennt die Potato-Schalter und dahinter die Schatten-Bits. Der 32-bit-Kernprozess
+  (`coreproc.cpp kSetPotato`) und `re4_potato_set` reichen den Wert unverändert durch; sonst nimmt kein Teil der App
+  den Potato-Wert als „ein Potato-Schalter ist an“ (Bloom liest in Java `potatoMask` ohne die Bits).
+- **Kern-Log:** „real-time shadows: the app's setting arrived: characters and objects“ bei jeder Änderung, danach
+  je Raum eine Zeile mit dem Stand und Grund („on (…; the foot shadow light reaches the player, no round blobs), r104“
+  oder „paused (no foot shadow light …)“). Ein Release-Build setzt die Bits nie: keine Zeile.
+- **Alter Kern wird erkannt:** neue Kernfunktion `re4_core_rt_shadows` (2: Figuren und Objekte), im 64-bit-Weg über
+  `dlsym`, im 32-bit-Kernprozess über den neuen IPC-Befehl `kRtShadows` (ein älterer Kernprozess antwortet „unknown
+  command“). Sobald Schatten gewünscht sind und der Kern läuft, fragt die App einmal und schreibt „a core without
+  real-time shadows (rebuild the core …)“, „the core knows only the figures'“ oder „the core knows them (…)“.
+- **Menü:** Die Zeile steht jetzt unter Anzeige → Nachbearbeitung → Effekte, nach Bloom, mit ihrem Hilfetext nach dem
+  von Bloom (Wunsch des Inhabers: „Außerdem sollte der Echtzeitschatten unter ANZEIGE rein unter 'Effekte'“). Unter
+  Leistung ist sie weg. Gleiche Freigabe, nur Debug-Builds, drei Stufen, 11 Sprachen.
+- **r104 mit EU-Discs:** 13 von 15 Kameraschnitten haben ein Fußschatten-Licht (Typ 1, 3° neben senkrecht, Stärke 135),
+  wie auf der Debug-Disc; r104 gehört nicht zu den 19 Räumen ohne. Am PC (EU-Discs mit Raum-Info, Leon an der Stelle
+  des Spielstands, Sichtweite Weit, Vulkan, 2,5×, 60 FPS mit Zwischenbildern, FXAA, CRT stark, Bloom leicht): der Kern
+  meldet „on (characters and objects; … no round blobs), r104“, der Vulkan-Renderer zeichnet die Schatten in alle 10
+  echten und 9 Zwischenbilder (19 Durchgänge). Die Sichtweite ändert nichts daran (die Karte richtet sich nach den
+  Werfern im Umkreis von 15 m, nicht nach der Sichtweite). **An dieser Stelle sieht man trotzdem keinen Unterschied:**
+  Das Licht kommt fast senkrecht, Leons Füße liegen unter dem Bildrand, keine andere Figur im Bild. Deutlich wird der
+  Unterschied bei Gegnern und Begleitern im Bild, bei Gegenständen und in Räumen mit schrägem Licht (r100 21°, r101
+  33°, r103 28°, r11f 35°, r203 24°, r209 25°, r211 35°). Bilder und Logs:
+  `E:\Development\Android\builds\realtime-shadows\stage3b\`.
+- **Geprüft (PC):** Kern i686 -O2 (0 Fehler, Tests bestanden), `gx_gl_check` GLES und Vulkan je 0 Fehler, neu
+  `TestPotatoBits` (auch im Schnelllauf `RE4_CHECK_RULES=1`; mit dem alten `& 31` schlägt er dreimal fehl, gegengeprüft),
+  App-Tests 186 je Variante grün (`theMenuRowOnlyWhereOffered`: Zeile unter Anzeige, nicht mehr unter Leistung;
+  `allPagesFitAcrossLanguagesWidthsAndFontScales` jetzt mit der Zeile auf der Anzeige-Seite in allen 11 Sprachen, 5
+  Breiten und 3 Schriftgrößen), Android-Kern ARM32 und ARM64 ohne Fehler.
+- **Nicht geprüft:** auf dem Retroid (der Inhaber testet nach dem Zusammenführen erneut).
+
+**Stufe 5 (16.11.2026, auf 9f660236): Die Schatten folgen dem Licht des Spiels.** Weiter nur in Debug-Builds. Wunsch des
+Inhabers nach seinem Gerätetest, Wortlaut: „Derzeit wird der Echtzeitschatten immer in die gleiche Richtung
+angezeigt, mit der gleichen Intensität egal ob hell, dunkel oder in Räumen. 1. Besser wäre evtl. den Schatten in
+Dunkelheit nur dezent und bei etwas Licht. 2. Wenn Fackeln oder Deckenleuchten, Lampen oder Kerzen in der Nähe sind,
+sollen die sich auch auf den Schatten auswirken. 3. In manchen Räumen oder Regionen sind Unwetter und es blitzt immer
+wieder hell am Himmel, hier sollte der Schatten auch beeinflusst werden. 4. Beachte auch Kernschatten und Halbschatten
+bei mehreren Lichtquellen. 5. In Räumen wäre auch wichtig, Schatten nur bei Licht zu zeichnen und da auch unter
+Beachtung der Lichtquelle(n).“
+
+- **Woher das Licht kommt (Analyse):**
+  - Jedes Modell bekommt pro Bild seine Lichter in `cLightInfo::pLight[8]` (`cLightMgr::setModel2` in `Trans`, in der
+    Reihenfolge des Lichter-Pools, ohne Rangfolge). `LightSetModel` (`trans_lit.cpp`) macht daraus die GX-Lichter:
+    - Farbe `DispCol × Alpha/128` (Fackeln flackern über Id 1, der Mündungsblitz verblasst über Id 0x10);
+    - Abfall je Typ: 0 konstant, 1 linear, 2 quadratisch, 3/6 Spot mit Kegel, 4 eigene GX-Koeffizienten, 5
+      parallel, 7 nur Umgebungslicht.
+  - Das Umgebungslicht einer Figur ist `cLightEnv::AmbientEm` oder ein lokales Umgebungslicht (Typ 7).
+  - Parallele Lichter mit `dir.Flag & 1` drehen sich mit der Kamera (Fülllicht der Entwickler).
+  - Das Fußschatten-Licht (Id 4, Kind 5) ist nur für die runden Flecken da und beleuchtet keine Figur.
+  - **Gewitter:** Die Sturmräume (r10c, r111–r113, r117–r119, r11b–r11d) setzen per Zeitgeber einen Raumeffekt mit einem
+    Effekt-Licht (ESP11, `be_flag` 0x40). Solange es lebt, ist der Blitz-Zustand gesetzt (`EffGetToolState() & 3`, der
+    Raum schaltet `ThunderFlagOn`).
+    - r118 (Friedhof bei Nacht) zeigt beim Blitz ein Raummodell und setzt ein paralleles Welt-Licht als Effekt-Licht.
+    - r119 (Kolosseum bei Nacht) hebt die Intensität zweier Lichter, darunter eines, das sich mit der Kamera dreht.
+    - Die Baumschatten beim Blitz zeichnet das Spiel selbst (das Raummodell oder ein Schattenlicht des Effekts). Sie
+      bleiben wie sie sind.
+- **Kern** (`runtime/rt_shadow.cpp`, kein neuer Patch; die Haken von 0240 bleiben):
+  - Am Anfang von `Render` rechnet `chooseLights` für Leon jedes Licht seiner Liste wie `LightSetModel` aus (ohne den
+    Winkel zur Fläche). Dazu kommt das Umgebungslicht.
+  - Werfen dürfen Lichter, die in der Welt sitzen: parallele nach ihrer Richtung, die anderen von ihrem Ort weg (weg
+    von Fackel, Lampe, Kerze). Lichter, die sich mit der Kamera drehen, werfen nur während eines Blitzes.
+    Lichter an Leon selbst (Mündungsblitz, näher als 40 cm) werfen nie.
+  - Die hellsten drei werfen. Gewicht je Licht = sein Anteil am ganzen Licht bei Leon (höchstens 0,75), im Dunkeln
+    weniger: voll ab 0,9 eines weißen Lichts, nichts unter 0,15. Weichheit: Himmel und Blitz scharf (1,5 Texel),
+    Lampen näher an Leon weicher (bis 4).
+  - Der neue Port-Befehl 0x04 (`re4_gx_put_shadow_lights`) wird zu `RE4_GX_OP_SHADOW` mit 1 + 5·k Wörtern. Der alte
+    Befehl 0x03 bleibt lesbar (alte PC-Aufnahmen).
+  - Die Flecken sind aus, sobald die Schatten im Spiel an sind, auch wo kein Licht wirft (Schatten nur bei Licht).
+  - Log: je Raum „on (… from the lights that reach the player …)“ oder „none (no light that sits in the world reaches
+    the player here …)“. Mit `RE4_SHADOW_LIGHTS=N` alle N Bilder jedes Licht, die Wahl und die Richtungen.
+- **Renderer:** bis zu drei Lichter je Bild in einem Tiefen-Atlas von 2048² (vier Kacheln zu 1024²):
+  - Licht 0: Figuren und Objekte; Licht 1 und 2: nur Figuren (die Kosten).
+  - Die Maske zählt die Lichter zusammen: wo zwei Lichter verdeckt sind, ist es dunkler (Kernschatten), wo eins, heller
+    (Halbschatten). Höchstens 0,85 dunkler.
+  - Jede Abfrage bleibt in ihrer Kachel. Nur noch zwei Kartentexturen im Shader (Vulkan: 4 statt 6 Sampler).
+  - GLES und Vulkan gleich.
+- **App:** Hilfetext um einen Satz ergänzt („folgen den Lichtern des Spiels – Fackeln, Lampen, Himmel, Blitze – und
+  bleiben im Dunkeln schwach“), 11 Sprachen.
+- **Geprüft (PC):**
+  - Kern i686 -O2: 0 Fehler, Kern- und Laufzeittests bestanden, Stubs wie erwartet. Android-Kern ARM32 und ARM64 ohne
+    Fehler.
+  - `gx_gl_check` GLES und Vulkan je 0 Fehler. Neu in `TestShadows`: zwei Lichter von links und rechts geben auf jeder
+    Seite der Figur einen Halbschatten (Wand 160 → 96 statt 66 bei einem Licht), ein Licht mit Gewicht 0 wirft
+    nichts (kein Durchgang). Die alte Marke mit vier Wörtern gibt Byte für Byte das Bild von Stufe 4.
+  - App-Tests 213 je Variante grün, `check_translations.py` ohne Befund (469 Texte).
+  - **Release unverändert, Renderer:** 6 Bilder ohne Marke bei Stufe 0, 1 und 2 und 45 Bilder mit Marke (auch neuen
+    Lichter-Marken) bei Stufe 0 zeichnet der neue Renderer Byte für Byte wie release-candidate c2f5dcda vor allen
+    Schatten (63 von 63 gleich).
+  - Lichter im Spiel (Log `RE4_SHADOW_LIGHTS`):
+
+    | Raum | Licht bei Leon | Lichter, die werfen (Gewicht) |
+    |---|---|---|
+    | r100 Wald am Tag | 1,53 | 2 (0,42 / 0,15) |
+    | r117 Kirche, Kerzen und Leuchter | 1,35 | 3 (0,34 / 0,31 / 0,18) |
+    | r201 Schlosshalle | 1,52 | 1 (0,42) |
+    | r323-Start (Nacht, Felswand, eine Lampe) | 0,75 | 2 (0,10 / 0,05) |
+    | r118 Friedhof zwischen den Blitzen | 0,44 | 1, die Laterne 1,9 m entfernt (0,12) |
+    | r118 Friedhof beim Blitz | 0,79 | 3: Blitz-Effektlicht, Kameralicht, Laterne (0,38 / 0,25 / 0,15) |
+    | r119 Kolosseum zwischen den Blitzen | 0,40 | 1 (0,11) |
+    | r119 Kolosseum beim Blitz | 0,85 | 2: das aufgehellte Kameralicht, Lampe (0,70 / 0,15) |
+
+  - **Kosten am PC** (llvmpipe, 2×, „Figuren und Objekte“, Durchgang mit `glFinish`, Mittel):
+
+    | Lichter | Durchgang | Räume |
+    |---|---|---|
+    | 1 | 13–16 ms | r118, r119, r201 |
+    | 2 | 14–18 ms | r100, r323, r118/r119 beim Blitz |
+    | 3 | 18–21 ms | r117, r118 beim Blitz |
+
+    Gleiche Bilder, Stufe 4 gegen Stufe 5 abwechselnd gezeichnet (ein Licht): r11f 13,4 → 13,6 ms, r100 9,5 → 10,8 ms,
+    r209 12,5 → 16,9 ms. Mit Kacheln zu 1024 Texeln dauerte es doppelt so lange wie Stufe 4, deshalb 768 (eine Figur
+    etwa 3 mm je Texel). Schätzung Retroid, nicht gemessen: ein Licht wie bisher 1 bis 2 ms, drei Lichter etwa 1,5 bis 3
+    ms.
+  - **Raum-Rundgang** mit eingeschalteten Schatten im Kern (`RE4_POTATO=96`, i686, 126 Räume, je 6000 Bilder ab der
+    Hauptschleife, Leon läuft, zielt, schießt): **126 von 126 ohne Fehler**. In 116 Räumen werfen Lichter Schatten;
+    in 53 gibt es Stellen ohne werfendes Licht (dort weder Schatten noch Flecken).
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage5\` (je links ohne Schatten, Mitte Stufe 5, rechts
+  die Maske, dunkel = Schatten): Friedhof r118 zwischen den Blitzen und beim Blitz, Kolosseum r119 ebenso, Kirche r117
+  (drei Lichter), Nacht mit einer Lampe (r323-Start), Wald r100 am Tag, Schlosshalle r201; dazu ein Auszug aus dem
+  Lichter-Log von r118.
+- **Was man sieht und was nicht:** Die Kamera schneidet Leon an den Knien ab. Sein eigener Schatten liegt oft außerhalb
+  des Bildes, und ein Kameralicht wirft ihn von der Kamera weg genau hinter ihn. Deutlich wird es an Begleitern,
+  Gegnern und Gegenständen im Bild und an Wänden neben Leon. Die Masken zeigen, wo die Schatten fallen.
+- **Nicht geprüft:** Gerät (Retroid, Kosten auf dem Adreno, Bild in Bewegung, Flackern der Fackeln), EU-Disc, Ashley
+  auf dem Friedhof (der Debug-Start hat sie nicht).
+- **Grenzen (so gewollt):** Die Lichter sind die von Leon und gelten für alle Figuren im Bild (keine Lichter je Figur).
+  Die Objekte werfen nur vom stärksten Licht. Punktlichter werfen mit einer Richtung (von der Lampe zu Leon), nicht
+  strahlenförmig. Die Baumschatten beim Blitz zeichnet das Spiel selbst.
+
+**Stufe 6 (16./17.11.2026, auf f43d61c8): Schatten anderer Figuren wandern nicht mehr mit Leon.** Fehler für 1.0, gemeldet
+vom Inhaber nach dem Gerätetest, Wortlaut: „Echtzeitschatten klappen schon sehr gut, aber die Schatten der anderen
+Personen 'wandern' bzw. 'bewegen' sich um die Person mit, wenn sich Leon bewegt. Bewegt sich also Leon und seine
+Schatten bewegen sich wegen irgendeiner statischen Lichtquelle, bewegen sich plötzlich auch die Schatten vom Händler,
+der daneben steht, oder von Ashley, die danebensteht.“ Vorgabe der Hauptsitzung: kein Schatten, keine Stärke und kein
+Gegenstandsschatten darf sich ändern, nur weil Leon geht.
+
+- **Ursache:** Stufe 5 rechnete für eine Lampe oder Fackel eine einzige Richtung aus, von der Lampe zu Leon, und
+  benutzte sie für alle Figuren; auch die Stärke galt an Leons Platz. Ging Leon, drehten sich die Schatten von Händler
+  und Ashley mit, und ihre Stärke änderte sich. Dazu warf ein Fass vor einer Lampe seinen Schatten zur Lampe hin
+  (Händlerhöhle r10E: der Fassschatten änderte in jedem Bild seine Form).
+- **Kern** (`runtime/rt_shadow.cpp`):
+  - Die Lichter aller Figuren im Bild zählen: Leon, die Begleiterin und die Figuren des Charakter-Managers
+    (`cEm::id` unter 0x40), die gezeichnet werden und höchstens 20 m von der Kamera entfernt sind.
+  - Jedes Licht zählt mit dem Höchsten, was es einer dieser Figuren gibt; die drei hellsten, die in der Welt sitzen,
+    werfen. Ein Licht, das eine Figur trägt (Fackel eines Ganados, Mündungsfeuer), wirft nicht.
+  - Die Wahl bleibt ruhig: Ein Licht, das im letzten Bild geworfen hat, zählt bei der Wahl anderthalbmal so hell, und
+    das erste Licht (von ihm werfen auch die Gegenstände) bleibt das erste, bis ein anderes einer Figur doppelt so viel
+    gibt (ein Blitz tut das). Kommt Leon in die Reichweite einer weiteren Lampe, springt kein Gegenstandsschatten um.
+  - Das Umgebungslicht, das mitgeschickt wird, enthält auch die Lichter, die überall gleich hell sind (die parallelen
+    Lichter, die sich mit der Kamera drehen und nur beim Blitz werfen). Ohne sie war die Summe bei Nacht zu klein und die
+    Lampenschatten verschwanden ganz (r118 zwischen den Blitzen: 0,13 statt Leons 0,44 in Stufe 5).
+  - Hört eine Lampe des Spiels an ihrer Reichweite schlagartig auf (`normal.x` 0), läuft der Schatten über weitere
+    30 % der Reichweite aus, statt in einer Linie abzubrechen.
+  - Neuer Port-Befehl 0x05 (`re4_gx_put_shadow_lights2`): je Licht Art (parallel, Punkt, Spot), Ort bzw. Richtung in
+    Kamera-Koordinaten, Helligkeit, Stärke, Abfall (wie `trans_lit.cpp`), Kegel eines Spots, Weichheit; dazu das
+    Umgebungslicht.
+- **Renderer:**
+  - Ein Punkt- oder Spotlicht bekommt eine perspektivische Karte von seinem Ort aus (`ShadowFitPoint`). So zeigt der
+    Schatten jeder Figur von der Lampe weg, von dort aus, wo diese Figur steht.
+  - Der Kegel dieser Karte (140°, 0,1 bis 30 m) schaut dorthin, wo die Kamera im Licht der Lampe etwas sieht (Punkte
+    1 bis 20 m vor der Kamera, je nach dem Licht, das dort ankommt); ein Spot mit engerem Kegel schaut entlang seiner
+    Achse. Er hängt nicht an den Figuren. Werfer außerhalb des Kegels werfen von dieser Lampe nichts. (Der erste Versuch
+    vom 16.11. schaute immer auf einen Punkt 3 m vor der Kamera; stand die Lampe vor der Kamera, schaute er zurück und
+    ließ alles hinter der Lampe aus.)
+  - Ein paralleles Licht bekommt seine Karte auf einem festen Raster (`ShadowFitParallel`): Seitenlänge in Vierteloktaven,
+    Mitte auf ganzen Texeln, Tiefe in halben Metern. Bewegt sich ein Werfer ein wenig, verschiebt sich kein anderer
+    Schatten um einen Texel.
+  - Die Stärke rechnet die Maske an jeder Stelle aus dem Abfall des Lichts dort (`LightAt`), gegen alles Licht dort
+    (Umgebungslicht samt Kameralichtern und die drei Lichter), im Dunkeln schwächer. Nichts davon hängt daran, wo Leon
+    steht.
+  - Die Marken der Stufen 1 bis 5 bleiben lesbar (parallele Lichter mit fester Stärke): alte PC-Aufnahmen und Tests
+    geben dieselben Werte wie vorher.
+- **Test (`gx_gl_check`, GLES und Vulkan, `TestShadowsStill`):** eine Lampe 1,2 m vor der Kamera, eine graue Wand 3 m
+  entfernt, zwei Figuren 2 m entfernt. Die rechte geht (von 380 nach 460), die linke steht: Die linke Bildhälfte bleibt
+  Byte für Byte gleich, jeder Schatten zeigt von der Lampe weg, der Schatten der rechten geht mit ihr.
+  `RE4_GX_CHECK_PICTURES=DIR` speichert die Bilder, dazu dieselben mit der Marke von Stufe 5 (dort springt der Schatten
+  der stehenden Figur mit).
+- **Geprüft am PC (i686, Debug-Disc; r11c mit EU-Discs):**
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet; `whole_build_android.sh --abi all`
+    0 Fehler (ARM32 und ARM64, Stubs wie erwartet).
+  - `gx_gl_check` GLES und Vulkan 0 Fehler (Lampentest in beiden: linker Schatten 40 bei 160 ohne Schatten).
+  - Raum-Rundgang mit eingeschalteten Schatten (`RE4_POTATO=96`, 126 Räume, je 6000 Bilder): **126 von 126 ohne Fehler**.
+  - Schatten aus (jede Stufe) wie vor den Schatten: 21 Aufnahmen ohne Marke in den Stufen 0, 1, 2 und 25 mit Marke in
+    Stufe 0, gezeichnet vom Renderer vor den Schatten (c2f5dcda) und vom neuen: 88 von 88 Bildern Byte für Byte gleich.
+  - App: `externalNativeBuildCoreDebug` (beide ABIs) gebaut, `testCoreDebugUnitTest` 216 Tests ohne Fehler (einer
+    übersprungen).
+  - Im Spiel vorher/nachher (Leon geht, 8 Bilder im Abstand von 15; Pixel, die mit Schatten mindestens 0,8 % dunkler
+    sind als ohne):
+
+    | Raum | Stufe 5 | Stufe 6 |
+    |---|---|---|
+    | r11c vor der Hütte (EU-Discs: Händler, Ashley, Fackel, blaues Feuer) | 0 (Stufe 5 fand bei Leon kein Licht der Welt) | bis 9960: die Fackel wirft Leons und Ashleys Schatten auf den Boden |
+    | r10E Händlerhöhle (Lampe 2,8 m vor der Kamera) | 8400–12300: der Fassschatten fiel zur Lampe hin und änderte in jedem Bild seine Form | 0: er fällt hinter das Fass, von der Kamera aus verdeckt |
+    | r117 Kirche (drei Lichter) | 900–12200 | 1300–37400 |
+    | r118 Friedhof zwischen den Blitzen | 6400 und 7300 in den ersten zwei Bildern, sonst 0 | 0–43: die Lampe ist schwach, Leons Schatten fällt dorthin, wo sie kaum noch hinreicht |
+    | r11f Ashley folgt (Tag, kein Licht der Welt) | 0 | 0–46 |
+
+  - Kosten nicht sauber gemessen (am PC liefen dabei andere Prüfungen): mit drei Lichtern 15–29 ms je Durchgang auf
+    llvmpipe, wie Stufe 5 (18–21 ms).
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage6\`: `test-lamp-standing-figure.png` (der Test,
+  Stufe 5 gegen Stufe 6, rechts weiß, was sich geändert hat), je Raum vier Bilder des Gangs (Stufe 5, ihre Maske,
+  Stufe 6, ihre Maske; dunkel = Schatten): r11c, r10E, r117, r118, r11f.
+- **Nicht geprüft:** Gerät (Retroid: Bild in Bewegung, Kosten der perspektivischen Karten auf dem Adreno); im Spiel
+  pixelgenau (die Kamera folgt Leon, das ganze Bild bewegt sich mit; der pixelgenaue Nachweis ist der Test); Ashley,
+  die wartet; der Händler mit einem Lampenschatten, der im Bild zu sehen ist.
+- **Grenzen (so gewollt):**
+  - Die Karte eines Punktlichts deckt 140° ab; was außerhalb steht, wirft von diesem Licht nichts.
+  - Die Karten hängen an der Kamera (Ausrichtung, Raster). Bewegt sich die Kamera, können Schattenränder um einen Texel
+    flimmern; ein Schatten wandert nicht.
+  - Bei einem parallelen Licht richtet sich die Größe der Karte nach allen Werfern (in Vierteloktaven); geht Leon weit
+    von den anderen weg, wird sie eine Stufe gröber.
+  - Erreichen mehr als drei Lichter die Figuren, kann ein Licht, das nur Leon erreicht, ein anderes verdrängen (mit dem
+    Vorsprung von anderthalbfach selten). Gegenstände werfen nur vom ersten Licht.
+  - Ein schwaches Licht bei Nacht gibt einen schwachen Schatten: so dunkel wie das Licht auf der Figur, die ihn wirft.
+
+**Stufe 7 (18.11.2026, auf 249dc807): Schatten nicht mehr zu dunkel, kein wildes Flackern.** Fehler für 1.0, gemeldet
+vom Inhaber nach dem Gerätetest mit 249dc807, Wortlaut: „Manche Echtzeitschatten sind zu dunkel oder flackern wild herum.
+Ich habe ein paar GX-Dumps angefügt.“ Dumps: `E:\Development\Android\reports\shadows-flicker-2026-11-18\gx-dumps\`
+(5 Folgen zu je 12 Bildern, 17.11.2026 22:11).
+
+- **Am PC nachgezeichnet:** Der PC zeichnet die Dumps wie das Gerät (GLES und Vulkan gleich; kein Fehler der
+  Grafikgenauigkeit des Geräts). Folgen 00/01: Burghof und Mauer r202 (drei Lichter, zwei davon 0,5 m auseinander,
+  Umgebungslicht 0,059); Folgen 02–04: Burgsaal mit Wandteppich, eine Kerzenlampe, Umgebungslicht 0.
+- **Zu dunkel, Ursachen:**
+  - In den Burgsälen ist eine Lampe das ganze Licht, das eine Figur bekommt (kein Umgebungslicht, auch keine örtlichen
+    Umgebungslichter). Ihr Anteil war damit 1, jeder Schatten so dunkel, wie es geht (0,75), während Wand und Boden das
+    Licht behalten, das das Spiel in sie eingebacken hat.
+  - Zwei Lichter einer Lampe (0,5 m auseinander) warfen zwei Schatten übereinander: zusammen 0,85, fast schwarz.
+  - Eine Lampe dicht neben einer Figur (0,8 m neben Leons Kopf) warf einen riesigen Schatten auf die Wand dahinter.
+- **Flackern, Ursachen:**
+  - Die Karte einer Lampe schaute dorthin, wo die Kamera hinsieht (Stufe 6): Sie drehte sich mit der Kamera um bis zu
+    65° in sieben Bildern, und oft lagen nur 40 % der Figuren darin. Schatten kamen und gingen und wurden an ihrem Rand
+    in einer geraden Linie abgeschnitten.
+  - Ein riesiger Schatten einer nahen Lampe vergrößert jede kleine Bewegung (Atmen, Zielen) um ein Mehrfaches.
+  - Die Stärke nahm das Licht am Werfer nur aus der Mitte der Abtastung: Am Rand sprang sie zwischen dem Licht am
+    Werfer und dem am Boden.
+- **Renderer:**
+  - Die Karte einer Lampe liegt um die Figuren in ihrer Reichweite (`ShadowFitPoint`): entlang der Mitte ihrer
+    Richtungen, doppelt so weit wie die weiteste (45° bis 70°, in Vierteloktaven). Solange die Kamera steht und alle
+    hineinpassen, bleibt sie, wie sie war.
+  - Ein Licht ohne Werfer in seiner Reichweite zählt weiter zum Licht an jeder Stelle (vorher fiel es heraus).
+  - Lichter des Spiels dunkeln je höchstens 0,6 und zusammen 0,7 ab (vorher 0,75 und 0,85). Die Marken der Stufen 1 bis 5
+    behalten ihre Werte.
+  - Fällt ein Lampenschatten mehr als 1,7-mal so groß wie sein Werfer, wird er blasser; ab 3,3-mal ist er weg (eine
+    echte Lampe ist kein Punkt).
+  - Der Abstand des Werfers zur Lampe kommt vom nächsten von fünf Abtastpunkten.
+- **Kern** (`runtime/rt_shadow.cpp`):
+  - Lampen, die weniger als 1 m auseinander hängen, werfen als eine, mit der Stärke beider.
+  - Zum Umgebungslicht zählen wieder die örtlichen Umgebungslichter (Typ 7), wie in Stufe 5 bei Leon, jetzt das Meiste,
+    was eine Figur im Bild bekommt. (In r201, r202, r207 gibt es keine; dort ändert das nichts.)
+- **Geprüft am PC:**
+  - Die fünf Dump-Folgen des Inhabers mit dem Renderer von 249dc807 (wie auf dem Gerät) und dem neuen gezeichnet:
+    - Mauer r202: zwei fast schwarze Schatten übereinander → ein blasser.
+    - Wandteppich: riesiger Kopfschatten → keiner.
+    - Saal mit Säule und Ashley: Schatten in Stücken, die von Bild zu Bild kommen und gehen → ein ruhiger, blasser
+      bzw. keiner.
+    - Hof r202: Leons langer Schatten bleibt, ohne die Schnittkante, weicher.
+    Die Dumps enthalten die Lichter des alten Kerns; die Änderungen im Kern wirken dort nicht.
+  - Im Spiel mit dem neuen Kern (Leon geht, 8 Bilder im Abstand von 15; Pixel mindestens 0,8 % dunkler als ohne
+    Schatten): Kirche r117 Stufe 6 1300–37400 → Stufe 7 1300–5600 (der große Kerzenschatten am Boden fast weg, die
+    anderen gleich); Hütte r11c 0–9960 → 0–4860; r10E, r118 wie vorher (fast keine).
+  - `gx_gl_check` GLES und Vulkan 0 Fehler. Der Lampentest (`TestShadowsStill`) besteht weiter: Die linke Bildhälfte
+    bleibt Byte für Byte gleich, während die rechte Figur geht (die Karte bleibt, solange die Kamera steht und beide
+    hineinpassen). Sein Schatten ist jetzt 113 statt 40 (160 ohne): höchstens 0,6, und er fällt 2,25-mal so groß wie
+    die Figur.
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet; `whole_build_android.sh --abi all`
+    0 Fehler (ARM32 und ARM64, Stubs wie erwartet).
+  - Raum-Rundgang mit eingeschalteten Schatten (`RE4_POTATO=96`, 126 Räume, je 6000 Bilder): **126 von 126 ohne Fehler** (der Zeittest `runtime-test vsync` im Bauschritt schlug unter Volllast einmal fehl, danach im Leerlauf dreimal bestanden).
+  - Schatten aus (jede Stufe) wie vor den Schatten: 21 Aufnahmen ohne Marke in den Stufen 0, 1, 2 und 25 mit Marke in
+    Stufe 0 gegen den Renderer vor den Schatten (c2f5dcda): 88 von 88 Bildern Byte für Byte gleich.
+  - App: `externalNativeBuildCoreDebug` (beide ABIs) gebaut, `testCoreDebugUnitTest` 226 Tests ohne Fehler (zwei übersprungen).
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage7\`: `device-00` bis `device-04` (je fünf Bilder
+  einer Folge: oben das Gerät, darunter die Maske von Stufe 6, Stufe 7 aus denselben Dumps am PC, ihre Maske; dunkel =
+  Schatten), `game-r117.png` und `game-r11c.png` (Stufe 6 gegen 7 im Spiel).
+- **Nicht geprüft:** Gerät (Retroid: das Bild in Bewegung, die Kosten; die Anpassung der Lampenkarte an die Figuren
+  läuft auf dem Prozessor, je Licht einmal über die Ecken der Figuren). Die Räume der Folgen 02–04 nicht mit dem neuen
+  Kern angespielt (Raum nicht sicher bestimmt).
+- **Grenzen:** Lichter hinter Wänden werfen weiter (das Spiel lässt ihr Licht für die Figuren durch Wände; die Karten
+  kennen keine Wände). Steht eine Lampe mitten zwischen Figuren, fasst ihre Karte höchstens 140° (die Mitte ihrer
+  Richtungen); was außerhalb steht, wirft von ihr nichts. Bewegt sich die Kamera, wird die Karte jedes Bild neu
+  angepasst (Ränder können um einen Texel flimmern; kein Schatten wandert).
+
+## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
+
+Version **1.0.0** (versionCode 122; bis zur Umbenennung am 16.11.2026 0.99.19-rc, versionCode 121), Releasetext
+`port/android-decomp/docs/releases/v1.0.0.md` (bis dahin `v0.99.19-rc.md`; „Changes since v0.99.18.“, Known issues
+aus 0.99.18 übernommen). Release-APKs `CubeEvil4-1.0.0-Android.apk` und `CubeEvil4-1.0.0-Android-sideload.apk`. Die
+Abschnitte unten nennen den Releasetext noch mit seinem alten Namen.
+Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
+nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0237 (0240 gehört den Echtzeit-Schatten).
+Am 17.11.2026 `origin/master` 17749902 hineingemischt (der Inhaber hat auf GitHub drei Zeilen in die README
+geschrieben, einen Hinweis auf einen Fork; Zeilen unverändert übernommen), damit `master` beim Release per
+Fast-Forward nachzieht. Am selben Abend `origin/touch-styles` da0e4ff8 hineingemischt (Touch-Stile RE, GC, PS2, XBOX
+mit RetroTouch 1.0.0-beta.13, Abschnitt 22), danach e6d4e388 (GC-Skin grau, 249dc807). Am 18.11.2026 Echtzeit-Schatten
+Stufe 7 (`origin/realtime-shadows` 4653a5f2, Abschnitt „Stufe 7“ beim Branch `realtime-shadows` oben) per
+Fast-Forward übernommen; die Zeile „Real-time shadows“ im Releasetext um zwei Sätze ergänzt (nicht mehr zu dunkel
+unter Lampen, kein Flackern beim Drehen der Kamera, riesige Schatten einer Lampe direkt neben einer Figur blenden aus).
+
+**Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
+**1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
+sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche ja erst Freitag und teste bis dahin lokal.“ Umbenannt am
+16.11.2026 (Abschnitt 14). Der Tag `1.0.0` entsteht erst, wenn der Inhaber veröffentlicht (voraussichtlich Freitag,
+20.11.2026) und es freigibt.
+
+Technische Notiz (16.11.2026): `OfficialBuild.java` vergleicht in Release-Builds (nicht „debuggable“) den SHA-256
+der Signaturzertifikate der App mit `RELEASE_CERTS`; bei keinem Treffer bei jedem Kaltstart (einmal pro Prozess) ein
+rotes Popup `UnofficialWarning` (Texte `ingame_unofficial_*`, 11 Sprachen), das vor dem Spielstart bestätigt werden
+muss (MainActivity hält den Start an, CoreActivity schickt einen neuen Prozess zuerst dorthin), und eine Zeile in
+`device.txt` (`core_unofficial`). Debug-Builds lesen nichts, nicht lesbar = nichts. Test `OfficialBuildTest`.
+
+Nachtrag (17.11.2026, Projektinhaber über die Hauptsitzung): „Die Meldung / Popup wenn die Signatur verändert wurde
+soll nur beim ersten App Start kommen und nicht bei jedem.“
+- Nach dem Bestätigen merkt sich die App die fremde Signatur (SHA-256 der Zertifikate, sortiert; Datei
+  `official_build`, Schlüssel `confirmedSigner`). Das Popup kommt für sie nicht wieder, auch nicht nach einem
+  Kaltstart oder einem Update mit demselben Schlüssel.
+- Eine andere fremde Signatur warnt noch einmal; gelöschte App-Daten auch.
+- Die offizielle Signatur warnt nie, Debug-Builds unverändert. Die Zeile in `device.txt` bleibt bei jedem
+  Fehlerbericht.
+- Kein Wort dazu in README und Releasetext (Vorgabe).
+- Geprüft: `OfficialBuildTest.onceForEachSignature` und ein Kaltstart in `theGameWaitsForTheWarning`; App-Tests 216 je
+  Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund. Emulator (x86_64-Telefon, Release-Hülle mit
+  Wegwerf-Schlüssel, Skript `rc-measure/emu_warning_once.sh`):
+  - der erste Start mit Popup;
+  - nach A zwei Kaltstarts und ein Update mit demselben Schlüssel ohne;
+  - nach gelöschten App-Daten wieder mit.
+  - Bilder: `E:\Development\Android\builds\release-candidate\unofficial-once\`.
+
+### 1. Sichtweite: warum die Stufen kaum anders aussehen (Analyse, Projektinhaber, 15.11.2026; kein Code)
+
+Frage des Inhabers: Weit, Normal, Mittel und Kurz zeigen kaum Unterschied, Weit und Normal gar keinen. Nur Analyse
+und Vorschlag, nichts an der App geändert. Gemessen am PC (i686-Kern von 9d46444b, Debug-Discs) mit Messcode nur in
+der WSL-Kopie (Zählung jeder Prüfung gegen den Sichtkegel in `trans_ot.cpp`, Modi „ohne Sichtgrenze“ und „Nebel
+weiter“); Bilder und Tabellen in `E:\Development\Android\builds\release-candidate\view-distance-analysis\`
+(`messwerte.txt`), Werkzeuge im Notizordner der Sitzungen (`rc-measure/`).
+
+- **Was die Sicht begrenzt:** (1) der Nebel der GPU; (2) die Sichtgrenze des Spiels, `Nebelende × (1 −
+  far_play_ratio)`: nur ganze Objekte, deren Hülle dahinter liegt, fallen weg (`trans_ot.cpp`); die Projektion
+  reicht immer 1000 m, große Raummodelle (Gelände) werden immer gezeichnet und verschwinden nur im Nebel; (3) das
+  Nachladen der Raumteile (`block.cpp`: Teil des Bereichs und seine Nachbarn sichtbar, der nächste Ring im ARAM
+  versteckt, der Rest gelöscht). Keine Entfernungs- oder Detailstufen je Objekt gefunden.
+- **Warum Weit = Normal:** in den Räumen mit dicht werdendem Nebel (Wald r100, Schlucht r10a, See r107) ist der
+  Nebel an der Grenze schon 60–94 % dicht; was Weit (heute) zusätzlich zeichnet, liegt in dichtem Nebel oder hinter
+  Mauern und Felsen. Hängebrücke r100: 2 Objekte mehr, auch ganz ohne Grenze nicht mehr (im geladenen Teil steht
+  hinter 46 m nichts). Dafür kostet Weit viel: Weg zum See r107 253 → 465 Zeichenaufträge (+84 %), Burghof r205
+  293 → 422 (an der Mauerecke 575 → 1132), bei 73–1600 geänderten Pixeln von 229 000.
+- **Warum Mittel und Kurz nah an Normal:** sie stauchen den Nebel (Halbdicht-Entfernung im Wald 37 → 28 → 19 m), das
+  meiste Sichtbare liegt aber näher als 30–40 m und wird nur etwas trüber; was ihre Grenze wegschneidet, liegt hinter
+  Mauern oder in dichtem Nebel. Sie sparen trotzdem Arbeit (Mittel/Kurz): See −22/−32 %, Burghof −14/−21 %, Wald und
+  Dorf 0 bis −3 %; Keine See −34 %, Burghof −26 % (an der Mauerecke −51 %), Dorf −12 %, Wald −6 %.
+- **Mehr vom Raum laden:** der Debug-Modus „alle Raumteile zeigen“ bricht im Port mangels Debug-Speicher ab; an der
+  Brücke gäbe es im geladenen Teil ohnehin nichts weiter. Nicht weiter verfolgt.
+- **Vorschlag (wartet auf den Inhaber):** Weit = Nebelende × 1,6 (Beginn bleibt), Grenze dort, wo dieser Nebel 95 %
+  dicht ist (Messmodus `fogout`); in 9 Räumen × 8 Blickrichtungen keine Löcher, sichtbar weiter (Wald, See,
+  Bauernhof, Burgzufahrt, Insel: Ufer und Wolken klarer, Stimmung heller); Kosten wie Weit heute. Mittel 65 % statt
+  75 %; Kurz 50 % und Keine 35 % bleiben. Vor einem Einbau alle 126 Räume mit beiden Disc-Arten am PC drehen lassen.
+- **Die Schlucht des Inhabers:** Kapitel 1-2, draußen links von der Tür des Startgebäudes (Antwort des Inhabers):
+  r104, Platz `-6200,0,4900`, 2,3 rad, Blick auf das Metalltor zwischen den Steinmauern. Dort zeichnen Normal, Weit
+  und „ohne Grenze“ dasselbe (888 Zeichenaufträge, Weit 858 Pixel anders): im Blick steht nichts weiter als 61 m,
+  wo der Nebel bei Normal schon 78 % dicht ist. Zeichenaufträge: Mittel 0 % (Vorschlag 65 %: −2 %), Kurz −19 %,
+  Keine −29 %; Vorschlag Weit
+  118 000 Pixel anders (Felsen und Bäume hinter dem Tor klarer). Bilder 10 und 11.
+
+### 2. Hinweis unter „Quelle und Updates“ (Projektinhaber, 15.11.2026)
+
+- Im App-Menü auf der Seite „Verwaltung“ steht unter dem Knopf mit dem GitHub-Link ein kleiner, gedämpfter Hinweis,
+  zwei Zeilen, mittig (`CoreMenu.sourceNote`, Texte `ingame_source_only` und `ingame_source_avoid` in allen 11
+  Sprachen; „CubeEvil4“, „Android“ und „OUYA/Potato“ bleiben überall gleich). Deutsch: „CubeEvil4 für Android und
+  OUYA/Potato ist nur hier verfügbar.“ / „Vermeide den Download von Fremdseiten oder Spieleplattformen.“ Nur die
+  Android-App; die OUYA-App klärt die Hauptsitzung mit dem Inhaber.
+- `check_translations.py` prüft neu (KEEP), dass die drei Namen in jeder Sprache unverändert im Text stehen.
+- **Geprüft am PC:** App-Tests 180 je Variante grün (Core und Classic), neu `CoreMenuRowsTest.sourceNoteCentredUnderTheLink`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, 320–960 dp: unter dem Link, nichts abgeschnitten, jede Zeile
+  mittig, der zweite Satz auf eigener Zeile, bei normaler Schrift ab 700 dp genau zwei Zeilen);
+  `check_translations.py` ohne Befund. Bilder (Deutsch und Englisch, 900 und 360 px breit, dazu die ganze Seite) in
+  `E:\Development\Android\builds\release-candidate\menu-source-note\`.
+- **Nicht geprüft:** auf einem Gerät.
+
+### 3. Sichtweite: „Weit“ rückt den Nebel weg, „Mittel“ 65 % (Projektinhaber, 15.11.2026)
+
+Freigabe des Inhabers für den Vorschlag aus Abschnitt 1: „Ja die Sichtweite-Vorschläge so umsetzen“.
+
+- **Weit** (`VIEW_PERCENT` 160 statt 150): `runtime/view_distance.cpp` `re4_view_fog_at` mit f > 1 nimmt das
+  Nebelende mal f, der Beginn bleibt; die Sichtgrenze liegt dort, wo dieser Nebel `kFarDensity` (95 %) dicht ist,
+  nie näher als die des Spiels und nie hinter dem Nebelende. Das Weit von 0.99.18 (Nebel des Raums, nur die
+  Sichtgrenze weiter) bleibt als Messmodus `RE4_VIEW_FAR_MODE=keep`. **Mittel** 65 statt 75. Kurz, Keine und Normal
+  unverändert; gespeicherte Stufen (0–4) behalten ihre Bedeutung, die Augen im Knopf bleiben. Hilfetext
+  `ingame_view_help` in allen 11 Sprachen (Weit: Nebel weiter weg, kostet am meisten; die Burg und die Insel nicht mehr
+  als Ausnahme genannt). Patch 0223 nur im Kopf ergänzt. `viewfog`-Test auf 160 % (Dorf, Wald, Burg ohne
+  `far_play_ratio`, umgekehrter Nebel, Messmodus keep).
+- **Prüfung aller 126 Räume am PC** (Debug- und EU-Discs, Startplatz, 8 Blickrichtungen, Normal/Weit/Mittel; Ergebnis
+  in `E:\Development\Android\builds\release-candidate\view-distance-0.99.19\pruefung.txt`): 79 Räume mit Nebel, keiner
+  mit Löchern, Blick aus der Welt oder kaputtem Himmel (alle Bilder angesehen; neue schwarze Pixel bei Weit höchstens
+  514/515, Rauschen in Räumen ohne Nebel 397/360). Kein Raum braucht eine Grenze. r101 mit B durch die Akten
+  geprüft; r215, r227, r22b, r316 nur ihre Zwischensequenzen (gleich). Weit kostet wie in 0.99.18 (r107 +84 %, r205
+  +44 %), Mittel spart bis −32 % (r209). Umschalten im laufenden Spiel geprüft (r100). Werkzeuge im Notizordner
+  (`rc-view_batch.sh` mit TAG, `rc-measure/check_review.py`, `event_frames.sh`, `deliver19.sh`).
+- **Geprüft am PC:** Kern i686 gebaut, `runtime-test` 0 Fehler (viewfog ok); App-Tests 180 je Variante grün;
+  `check_translations.py` ohne Befund. Vorher/Nachher-Bilder in
+  `E:\Development\Android\builds\release-candidate\view-distance-0.99.19\`.
+- **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, Vulkan, US- und JP-Discs, Stellen weit weg vom Startplatz.
+
+### 4. Cheat-Seite neu geordnet, „Atemstopp beim Zielen“, kürzere Hilfetexte (Projektinhaber, 16.11.2026)
+
+- **Cheat-Seite** (`CoreMenu.cheats`): der Abschnitt „Spieler“ / „Player“ (vorher Leon) hat zwei Reihen zu drei
+  Schaltern: Leben, Munition, Unsichtbar / One-Hit-Kill, **Atemstopp beim Zielen**, Spezialkostüme. „Allgemein und
+  Inventar“ / „General & inventory“ (vorher Spiel) bekommt als dritte Reihe „Koffer L“ und „+1.000.000 PTAS“. Die
+  Figurenwahl steht als Raster Leon, Ada, HUNK / leer, Krauser, Wesker (`MenuLayout.Buttons.addGap`: eine leere,
+  nicht wählbare Zelle, die beim Umbrechen auf weniger Spalten wegfällt).
+- **Atemstopp beim Zielen** (`ingame_cheat_steady`, 11 Sprachen): Bit 31 der Cheat-Schalter
+  (`CoreMenu.STEADY_AIM_BIT`, `runtime/cheats.cpp` `re4_steady_aim`, `kAllBits`), Patch 0233: das Ziel des Lasers
+  wandert nicht mehr, das Zielfernrohr (Gewehre, Minenwerfer) atmet nicht. Das Fernglas bleibt.
+  **Geprüft am PC** (i686, Debug-Discs, r100, `RE4_TEST_WEAPON`, R gehalten): Handfeuerwaffe aus: Neigung wandert
+  −0,04…0, an: bleibt 0,00 (Laserbereich 13 statt 3279 geänderte Pixel zwischen drei Bildern); Gewehr-Zielfernrohr
+  300–1200 statt 10 000–24 000 geänderte Pixel. Bilder in `E:\Development\Android\builds\release-candidate\steady-aim\`.
+- **Hilfetexte:** 34 lange Hilfetexte im App-Menü in allen 11 Sprachen auf das Wesentliche gekürzt (Deutsch 12 173 →
+  7 792 Zeichen); Liste vorher/nachher in `E:\Development\Android\reports\0.99.19-help-texts.md`.
+- **Geprüft am PC:** Kern i686 gebaut (0 Fehler), `runtime-test` 0 Fehler, Rundgang der Prüfstrecke ohne Befund;
+  App-Tests 202 je Variante grün (Core und Classic; `CoreMenuLayoutTest.cheatsPageSwitchesSendTheirBits` prüft neu
+  die Reihen, Bit 31, die leere Zelle und das Umbrechen); `check_translations.py` ohne Befund (467 Texte). Bilder der
+  Cheat-Seite (Deutsch und Englisch, 360 px hochkant, 960 px quer) in
+  `E:\Development\Android\builds\release-candidate\cheats-layout\`.
+- **Nicht geprüft:** auf einem Gerät, ARM32/ARM64, mit EU-Discs im Spiel.
+
+### 5. Ziel-Stick und Messer-Stick für die Touch-Steuerung (für 1.0, Projektinhaber, 16.11.2026)
+
+Wunsch eines Spielers, vom Inhaber für 1.0 angenommen. Zwei Sticks, die der Editor (Zahnrad) hinzufügt; das
+Standard-Layout bleibt unverändert.
+
+- **AIM** (Ziel-Stick): solange ein Finger darauf liegt (auch ruhig in der Mitte), ist R gedrückt; seine Neigung ist
+  der Hauptstick, der bei gehaltenem R zielt (Waffe, Zielfernrohr). **KNIFE** (Messer-Stick): dasselbe mit L. Der
+  andere Daumen schießt mit A. Beschriftung „AIM“ und „KNIFE“, grau wie die übrigen Tasten.
+- `CoreTouch`: `AIM_STICK`/`KNIFE_STICK` in `ACTIONS` (Anmeldung über `registerStickAction` wie der C-Stick).
+  RetroTouch meldet einen Finger in der Mitte eines Sticks als (0, 0), genau wie das Loslassen; deshalb hält der
+  Finger, in dessen Ereignis der erste `onStick` kam (`fingerDown`), den Stick, bis er sich hebt (`fingerUp`); ist der
+  Finger unbekannt, beendet das (0, 0) des Loslassens. L und R der Tasten und der Sticks addieren sich (keiner lässt
+  den anderen los, auch nicht mit „Halten“ / Latch); Hauptstick = Bewegungs-, Ziel- oder Messer-Stick, der weiter
+  geneigte. `cancel`/`reset` lassen alles los. Hebt sich der Finger, schickt `TouchControls` den Zustand sofort
+  (`fingerUp` meldet das; das letzte (0, 0) von RetroTouch kam vorher, sonst bliebe R bis zur nächsten Berührung
+  gedrückt). RetroTouch meldet (0, 0) auch außerhalb jeder Berührung (Belegung geladen oder zurückgesetzt, auch für
+  nicht gelegte Sticks; im Emulator gefunden): gehalten wird nur, wenn die erste Meldung im Ereignis kommt, in dem
+  ein Finger aufsetzt (`beginEvent(down)` … `endEvent` aus `TouchControls.before/after`); eine Meldung außerhalb
+  lässt einen gehaltenen Stick los. Keine Änderung an RetroTouch.
+- **Grenze von RetroTouch:** höchstens zwei Sticks je Layout (`RetroTouchLayout.validate`; der Editor überspringt
+  beim Durchschalten Stick-Aktionen, wenn schon zwei liegen). Mit dem Bewegungsstick passt also nur einer von C-Stick,
+  Ziel-Stick und Messer-Stick dazu. Für Ziel- und Messer-Stick zusammen (oder mit dem C-Stick) braucht RetroTouch
+  mindestens vier Sticks je Layout. **Zweite Lücke:** im Symbol-Stil (RE, Standard) zeichnet RetroTouch hinzugefügte
+  Sticks ohne Beschriftung und ohne Symbol (`drawIconStick`): C-, Ziel- und Messer-Stick sehen gleich aus; nur der
+  GC-Stil zeigt „C“, „AIM“, „KNIFE“. Dafür bräuchte `registerStickAction` ein Symbol (wie `registerAction`).
+- Hilfetext `ingame_touch_aim_help` um einen Satz ergänzt (11 Sprachen); `check_translations.py` prüft „AIM“ und
+  „KNIFE“ (KEEP).
+- **Geprüft am PC:** `CoreTouchTests` 364 Prüfungen (Halten in der Mitte, Neigung, weiter geneigter Stick gewinnt,
+  Taste und Stick zusammen, Latch, unbekannter Finger, Meldungen außerhalb einer Berührung, `cancel`); App-Tests je
+  Variante grün; `check_translations.py` ohne Befund. **Emulator** (x86_64-Telefon, Debug-Hülle ohne Kern,
+  Platzhalter-Discs): im Editor C, AIM, KNIFE wählbar und gespeichert; mit zwei Sticks keine weiteren; mit einer
+  Wegwerf-APK, die den gesendeten Pad-Zustand ins Log schreibt: Finger ruhig in der Mitte R gedrückt, Neigung zielt
+  (97 rechts, 81/60 schräg), zurück zur Mitte R bleibt, Abheben lässt los; Messer-Stick ebenso mit L. Bilder und
+  Protokoll in `E:\Development\Android\builds\release-candidate\aim-stick\`.
+- **Nicht geprüft:** im Spiel (Zielen und Zielfernrohr mit dem Kern), zwei Finger gleichzeitig im Emulator (nur in
+  `CoreTouchTests`), auf einem Gerät.
+
+### 6. Alternative Steuerung: Zoom im Zielfernrohr (Spielerbericht über den Projektinhaber, 16.11.2026)
+
+„One issue I noticed when using the alternative controls with the sniper rifle is that there is no way to zoom in.
+Perhaps it's possible to map the zoom function to the left stick. I am using a D3 controller.“
+
+- **Ursache:** Mit der alternativen Steuerung legt `CoreInput.pad` beim Zielen (L1/L2 über die Hälfte) den rechten
+  Stick auf den Hauptstick und setzte den C-Stick auf 0. Das Zielfernrohr zoomt aber nur mit dem C-Stick hoch/runter
+  (`cam_extra.cpp CameraScope::move`, ebenso `CameraBinocular::move`).
+- **Was der C-Stick beim Zielen sonst tut:** nichts. Die Schulterkamera (`cam_qfps.cpp calcDepressionRatio`) schaut
+  mit ihm nur herum, solange keine Waffe bereit ist (`isKamae`); beim Zielen mit Pistole, Messer & Co. nimmt sie die
+  Neigung der Waffe. Sonst lesen ihn nur Debug-Kameras (`cam_ctrl.cpp r0_Debug/r0_Free/r0_RailBehind`). Zielfernrohr
+  und Fernglas lesen nur sein Y.
+- **Gebaut:** Beim Zielen mit der alternativen Steuerung ist **linker Stick hoch/runter der C-Stick** (Y), sein X
+  bleibt 0. Nur das Y, weil nur das zoomt und so auch sonst nichts im Spiel davon merkt. Nicht beim Zielen,
+  GameCube-Belegung, eigene Tastenbelegung, Touch, Tastatur/Maus (Mausrad, I/K) unverändert. Hilfetext
+  `ingame_alternate_help` um „Zielfernrohr: linker Stick hoch/runter zoomt.“ ergänzt (11 Sprachen).
+- **Geprüft am PC:** `CoreInputTests` 1852 Prüfungen (alternativ + Zielen: rechter Stick zielt, linker hoch = C-Stick
+  +92, halb runter = −46, seitlich nichts; Messer ebenso; ohne Zielen unverändert); `CoreTouchTests` 364;
+  App-Tests 202 je Variante grün; `check_translations.py` ohne Befund. **Kern (i686, Debug-Discs, r100, Gewehr, R
+  gehalten):** C-Stick Y über `RE4_TEST_WHEEL` (derselbe Eingang wie `CoreBridge.pad`) zoomt das Zielfernrohr hinein
+  auf 1,0 (Sichtwinkel 9°) und wieder heraus auf 0,5 (27°); Skript `rc-measure/alt_zoom.sh` im Notizordner, Bilder
+  und Log in `E:\Development\Android\builds\release-candidate\alt-scope-zoom\`.
+- **Nicht geprüft:** auf einem Gerät mit echtem Controller (D3), das Fernglas mit der alternativen Steuerung.
+
+### 7. „Leon mit Maus / Blickfeld drehen“ (für 1.0, Spielerwunsch über den Projektinhaber, 16.11.2026)
+
+„will there be better camera physics in the future? in the pc version (hd) modders have made it that you can turn leon
+using your mouse only. will it be a thing in CubeEvil? being able to change directions immediately through the look
+area?“ Gemeint ist das Maus-Drehen der PC-Mods: Leon selbst dreht sich mit der Maus, die Panzersteuerung bleibt. Nicht
+die „moderne Bewegung“ aus 0.99.7 (kamerabezogenes Gehen mit Einrasten, in b4fb8572 wieder entfernt).
+
+- **Schalter** im App-Menü, Abschnitt Komfort unter „Vertikal umkehren / Zielgeschwindigkeit“, ganze Reihe, aus ab
+  Werk (`CoreActivity.BODY_TURN`, Texte `ingame_body_turn`, `ingame_body_turn_help`, 11 Sprachen).
+- **Maus** (`CoreInput.mouseMoved`): seitwärts dreht Leon (dieselbe Drehung wie beim Zielen, `MOUSE_AIM_RADIANS` ×
+  Maus-Empfindlichkeit), die Kamera schaut dann nur noch hoch und runter. **Touch-Blickfeld** (`CoreTouch.look`,
+  `CoreInput.touchTurn/takeBodyTurn`): der Weg des Fingers seitwärts dreht Leon (`SWIPE_RADIANS` × „Zielgeschwindigkeit“),
+  hoch/runter bleibt der C-Stick. **Hoch/runter bleibt wie bisher** (die Kamera schaut hoch und runter): Leon selbst hat
+  keine Neigung, und so geht der Blick nach oben nicht verloren. Zielen unverändert (Maus und „Touch-Fläche“ zielen wie
+  vorher; beim Zielen kommt keine Drehung bei Leon an). Controller und ihre Sticks unverändert; ohne Schalter nichts.
+- **Kern:** `CoreBridge.bodyTurn` → `re4_core_body_turn` (`runtime/gyro.cpp`, über den Kernprozess `kBodyTurn` = 47),
+  zum nächsten Spielbild aufsummiert und dort auf `pPL->ang.y` gelegt, gleichmäßig wie die Bewegung kommt. Nur im
+  Spiel (`Rno0` 3), ohne Untermenü, Ereignis, gesperrte Tasten (`SPF_KEY`), Zielfernrohr oder Fernglas, und nur in
+  Leons eigenen Bewegungsroutinen 0/0..4 (Stehen, Gehen, Rückwärts, Laufen, Drehen auf der Stelle). Nicht beim
+  Zielen (0/6), Messer (0/0xB), schneller Wende (0/5), Leiter (0/0x10), Springen, Fallen, Boot, Ducken, Schieben,
+  nicht bei Treffern, Griffen, Tod, Szenen (Routine 0 ≠ 0). Ashleys Teil geht mit (gleiche Routinen). **Patch 0234**
+  (`player.cpp`): Steht Leon still, gab das Spiel der Schulterkamera seine Richtung nicht weiter; ein gedrehtes Bild
+  zählt jetzt als bewegt, die Kamera folgt.
+- **Geprüft am PC:**
+  - `CoreInputTests` 1861 (Maus aus: niemand dreht sich, Kamera wie bisher; an: Leon dreht, Kamera nur hoch/runter,
+    Zielen gleich), `CoreTouchTests` 369 (Blickfeld seitwärts dreht, hoch/runter schaut; „Touch-Fläche“ mit R zielt
+    und dreht niemanden; aus: wie bisher), App-Tests 202 je Variante grün, `check_translations.py` ohne Befund (469).
+  - Kern i686 gebaut (0 Fehler, runtime-test 0 Fehler). **Rundgang** (`rc-measure/mouse_turn.sh`, Testschalter
+    `RE4_TEST_TURN`, `RE4_TEST_LADDER`, `RE4_TRACE_TURN`) in r100 (Wald), r101 (Dorf), r205 (Burghof): im Stand 60
+    Bilder je 0,03 rad gedreht (+1,8 rad), beim Gehen 100 Bilder je −0,02 rad (−2,0 rad), gleichmäßig Bild für Bild;
+    die Kamera folgt im Stand (Bilder: gleiche Lage, Blick dreht mit). Keine Drehung im Ereignis (r100 899 Bilder,
+    r101 76), im Untermenü (r101 Funkspruch und Anleitung, 360), bei gesperrten Tasten (r101 10), in der schnellen
+    Wende (je 23) und auf der Leiter (je 69); die schnelle Wende läuft wie gewohnt. Keine Abstürze. Bilder, Protokolle
+    und Zusammenfassung in `E:\Development\Android\builds\release-candidate\mouse-turn\`.
+- **Nicht geprüft:** auf einem Gerät, mit echter Maus, mit echtem Finger im Blickfeld; Gefühl und Empfindlichkeit;
+  ARM32/ARM64; Ashleys Teil; das Boot und andere Sonderlagen nur über die Routinenregel.
+
+### 8. Flavor „sideload“: Datenordner nach Wahl (für 1.0, Projektinhaber, 16.11.2026)
+
+„Hier auch noch ein Punkt für die Installation: Daten sollen auf Userwunsch auch außerhalb des /android/data/* Ordners
+eingelesen werden können beim DVD Import“, mit einer Anleitung des Inhabers (Flavor `sideload`, Berechtigungen nur dort).
+Branch `sideload-data-folder` (von `release-candidate` 603e0cd9), danach in `release-candidate` gemischt.
+
+- **Flavors:** Haupt-Flavor ist `core` (`com.ast.cubeevil4`, `-core`, die GitHub-Releases); `car` ist der Google-Play-Build
+  (Android Automotive, `com.ast.re4decomp`); `classic` die alte arm64-App. Neu `sideload`: alles wie `core` (App-ID,
+  SDKs, ABIs, CMake, Emulator-Schalter, Ressourcen/Bibliotheken/Assets aus `src/core` wie bei `car`), `versionNameSuffix
+  '-sideload'`, `BuildConfig.CUSTOM_DATA_FOLDER` true (sonst überall false; `buildFeatures.buildConfig`). `src/sideload`
+  hat nur das Manifest: `MANAGE_EXTERNAL_STORAGE`, `READ/WRITE_EXTERNAL_STORAGE` mit `maxSdkVersion 29`,
+  `requestLegacyExternalStorage`. Gleiche App-ID und Signatur (der Inhaber signiert in Android Studio): `core` und
+  `sideload` installieren übereinander. Keine GitHub-Workflows im Repository: Release-APK von Hand, Generate Signed APK
+  → `sideloadRelease`, Name `CubeEvil4-<Version>-Android-sideload.apk`.
+- **Datenpfad:** `AppStorage.base` war schon die einzige Stelle (Datenordner; darunter `game` = Discs, Speicherkarte,
+  Sofortspeicher und der Pfad an den Kern über `ImportManager.root`/`CoreBridge.start`, `textures`, `logs`,
+  `gx-dumps`); sie nimmt jetzt `DataFolder.usable`, sonst wie bisher `AppStorage.standard`. Bleiben intern:
+  Shader-Cache (`noBackupFilesDir`), Bericht-Dateien zum Teilen und Filme/Räume im Cache, die App-Einstellungen
+  (SharedPreferences), die classic-Spielstände. Im nativen Code kein eigener Pfad.
+- **Startbildschirm** (nur `sideload`, englisch wie der übrige Startbildschirm): Abschnitt „Data folder“ vor dem
+  Disc-Import mit Pfad, „Choose folder“, „Restore default“. Erst die Berechtigung (Android 11+: Erklärung, dann
+  Einstellungen „Zugriff auf alle Dateien“ für die App, sonst für alle Apps, geprüft in `onResume`; Android 7–10:
+  Laufzeit-Recht), dann `ACTION_OPEN_DOCUMENT_TREE`; `DataFolder.pathOfTree` macht daraus einen Pfad
+  (`primary:` → `/storage/emulated/0/…`, `XXXX-XXXX:` → `/storage/XXXX-XXXX/…`, Downloads `raw:`), `check` lehnt
+  Android, Android/data, Android/obb (jeder App) und alles außerhalb `/storage` ab, ein Speicher-Stamm wird
+  `…/CubeEvil4`; `prepare` legt an und schreibt/löscht eine Probedatei. Dann Daten verschieben (Ja/Nein/Abbrechen),
+  Neustart über `LauncherRestartActivity`.
+- **Verschieben** (`DataFolder.move`): nur die Einträge der App (`game`, `textures`, `logs`, `gx-dumps`); gleicher
+  Speicher: umbenennen, sonst kopieren mit Fortschritt (Platz vorher geprüft, 64 MB Reserve), Originale erst nach
+  vollständigem Kopieren gelöscht; bei einem Fehler alles zurück (Kopien gelöscht, Umbenanntes zurück), der alte Ordner
+  bleibt in Gebrauch. Hat der neue Ordner schon CubeEvil4-Daten, wird nichts verschoben, er wird so genommen.
+- **Rückfall beim Start:** Ordner fehlt, nicht beschreibbar oder Berechtigung entzogen → eigener Ordner für diesen Lauf,
+  Hinweis auf dem Startbildschirm, die Wahl bleibt gespeichert, nichts gelöscht; der Fehlerbericht nennt es.
+- **Update-Prüfung:** `AppUpdate.plain` lässt `-core` und `-sideload` weg (auch Menü-Version und Touch-Layout-Datei):
+  „1.0-sideload“ ist Release „1.0“, kein falsches Update.
+- **Geprüft am PC:** App-Tests je Variante 213 grün (core, classic, sideload; neu `DataFolderTest` 10: Pfade der
+  Ordnerwahl, abgelehnte Ordner, Schreibprobe, Verschieben mit Umbenennen und Kopieren samt Fortschritt, Rücknahme bei
+  einem Fehler, nichts über vorhandene Daten, leere Ordner keine Daten, AppStorage mit Wahl, ohne Berechtigung, ohne Ordner, ohne Flavor;
+  `AppUpdateTest` „-sideload“); Lint der Release-Builds (`lintVital` sideload, core, car) ohne Befund. Zusammengeführte Manifeste von coreDebug/Release, carDebug/Release,
+  classicDebug/Release byte-gleich wie vor dem Branch; nur sideload hat `MANAGE_EXTERNAL_STORAGE` (auch `aapt dump
+  permissions` der APKs: core ohne, sideload mit, die Speicher-Rechte dort nur bis `maxSdkVersion 29`). Befund nebenbei:
+  core (wie vor dem Branch) hat über die RetroTouch-Bibliothek `READ/WRITE_EXTERNAL_STORAGE` und `READ_PHONE_STATE`
+  ohne Grenze, car entfernt sie; nichts geändert.
+- **Emulatoren** (Debug-Hülle x86_64 ohne Kern, Platzhalter-Discs; Bilder in
+  `E:\Development\Android\builds\release-candidate\sideload-data-folder\android10|12|14|16\`):
+  - Android 16: Erklärung → App-Seite „Zugriff auf alle Dateien“ → zurück → Ordnerwahl (Stamm von Android gesperrt) →
+    `CubeData` → Daten verschieben (aus `Android/data` heraus kein Umbenennen, also kopiert, 8 MB) → Neustart, Discs
+    gefunden; Spielbildschirm schreibt `logs` in den neuen Ordner, Fehlerbericht „the player's folder“; Zugriff
+    entzogen → eigener Ordner mit Hinweis, Daten unberührt; „Restore default“ verschiebt zurück; die core-APK
+    installiert sich darüber, ohne Abschnitt, mit dem eigenen Ordner.
+  - Android 14: dasselbe mit „Start empty“ (neuer Ordner leer, alter unverändert), dann **echter Import von Disc 1**
+    (Debug-Disc, nur auf dem Emulator) in den gewählten Ordner: „verified and imported successfully“, 1,3 GB.
+  - Android 12: Ablehnung (zurück ohne Einschalten → Hinweis, nichts geändert), dann Einschalten → `Documents` →
+    verschoben. Eigenheit des Abbilds: steht der Zugriff auf „default“, schaltet schon das Öffnen der Seite ihn ein.
+  - Android 10: Laufzeit-Recht „photos, media and files“; `Android/data` wählbar, von der App abgelehnt; der
+    Speicher-Stamm wird `/storage/emulated/0/CubeEvil4`; verschoben per Umbenennen; Recht entzogen → Rückfall mit Hinweis.
+  - Gefunden und behoben: Androids „Ja/Nein“ heißen auf neuen Versionen „OK/Cancel“ (Knöpfe jetzt „Move data“ /
+    „Start empty“); ein leerer `game`-Ordner galt als Daten (zählt jetzt nur mit einer Datei darin); Überschrift auf
+    Android 7–10 „Access to the storage“.
+- **Nicht geprüft:** das Spiel selbst aus einem gewählten Ordner (Emulator ohne Kern; der Kern bekommt denselben
+  Pfad wie die Importe), SD-Karte oder USB-Stick (dort wird kopiert statt umbenannt), ein echtes Gerät, ARM32/ARM64,
+  Android TV und Autos, der signierte Release-Build.
+
+### 9. Zufällige Gegner Stufe 2: wirklich zufällige Stellen (für 1.0, Projektinhaber, 16.11.2026)
+
+Auftrag des Projektinhabers nach dem Bericht `E:\Development\Android\reports\random-enemies-2026-11-16.md` (Prüfung
+und Prototyp im Branch `random-enemies`, Abschnitt „Branch `random-enemies`“ oben; Plan
+`port/docs/gegner-randomizer-plan.md` Abschnitt 10): „Übernimm den Prototyp ‚Zufällige Gegner Stufe 2' … in
+release-candidate: vorher das Aufräumen aus 10.4 …, neuer Hilfetext … in 11 Sprachen …, Raum-Rundgang Debug/EU/US,
+Releasetext.“ Kein neuer Patch (0231 unverändert), nächste freie Patchnummer weiter 0235.
+
+- **Kern** (`runtime/enemy_random.cpp`): die gewöhnlichen Ganados, die beim Raumbeginn erscheinen, bekommen eine Stelle
+  irgendwo auf dem Wegenetz des Raums (`routeSpot`, Plan 10.3), sonst wie Stufe 1.5. Aufräumen 10.4: geplant werden nur
+  Ganados, die `EmSetFromList` jetzt erschafft (tote oder spätere nicht mehr: weniger Versuche, die Abstandsliste
+  enthält keine Stellen, an denen niemand steht; im Rundgang mit 4242 und 777 dieselben Stellen wie im Prototyp, in
+  anderen Spielständen können sie abweichen).
+- **Schutzliste** (`enemy_random_table.py` → `enemy_random_rooms.inc`): 11 Räume unangetastet (10 Bossräume, r100),
+  52 nur Stellen, 45 offen; geschützt bleiben die Einträge, die ein Skript steuert.
+- **App:** Hilfetext `ingame_cheat_random_enemies_help` in 11 Sprachen neu (kurz wie die übrigen seit Abschnitt 4):
+  zufällige Stellen überall, wo Ganados laufen können; Bosse, besondere Gegner, Ganados mit fester Rolle und Wellen
+  bleiben, das Dorf am Anfang ändert sich daher kaum. `check_translations.py`: 469 Texte ohne Befund.
+- **Releasetext** v0.99.19-rc: eine Zeile unter Fixed.
+- **Geprüft am PC** (Stand 0adf0b6c = release-candidate 9f660236 mit dem Prototyp, i686 -O2, `whole_build.sh` alle
+  Prüfungen grün; Skripte `re-*.sh`/`re-*.py` im Notizordner der Sitzungen): Rundgang aller 126 Räume Debug ohne
+  Cheat, Seed 4242 und 777 (mit Listen-Prüfung) je **ALLES OK**, 90 bzw. 91 von 380 Ganados an neuen Stellen (mehr
+  als 5 m von jedem Original-Platz) in 25 bzw. 26 Räumen; US 4242 ALLES OK, dieselbe Planung wie Debug; EU 4242 125 von
+  126 (r333 stürzt im Prüfprotokoll ab, Altbefund auch ohne Cheat, Abschnitt „Branch `random-enemies`“). Liste in 231
+  Raumstarts nie geschrieben, kein „Em set failed“, keine gescheiterte Kopie. Dorf-Belagerung r101 mit 4242 und 777:
+  Glocken-Szene nach 24 Toten. `check_translations.py` ohne Befund; `whole_build_android.sh --abi all` 0 Fehler. Die
+  App-Tests (Gradle) nicht neu gelaufen (nur Texte geändert).
+- **Nicht geprüft:** auf einem Gerät (Test des Projektinhabers auf dem Retroid steht aus).
+
+### 10. Echtzeit-Schatten Stufe 5 übernommen (nur Debug-Builds, Hauptsitzung, 16.11.2026)
+
+`origin/realtime-shadows` 9247f05d (f22bd6ea „die Schatten folgen den Lichtern des Spiels“ und das Hineinmischen von
+release-candidate 70a505e0) per Fast-Forward in release-candidate. Einzelheiten: Abschnitt „Branch
+`realtime-shadows`“ oben, Stufe 5. Kein neuer Patch (die Haken von 0240 bleiben), nächste freie Patchnummer weiter 0235.
+Keine Zeile im Releasetext: die Schatten gab es da nur in Debug-Builds (Vorgabe der Hauptsitzung).
+
+- **Geprüft am PC (Stand 9247f05d):** Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet;
+  `gx_gl_check` GLES und Vulkan 0 Fehler (mit `TestShadows`, zwei Lichter); App-Tests 213 je Variante grün (core,
+  classic, sideload); `check_translations.py` ohne Befund (469 Texte); `assembleCoreRelease` und `lintVitalCoreRelease`
+  ohne Befund, das Release-Manifest nicht „debuggable“.
+- **Release unverändert (Bilder):** die Aufnahmen der Schatten-Sitzung von Stufe 5 (r100, r117, r201, r323, r118 und
+  r119 mit Blitzen; je ein Lauf ohne Marke wie bisher jedes Release und einer mit Marke und Objekt-Tags), gezeichnet vom
+  Renderer vor allen Schatten (release-candidate c2f5dcda) und von 9247f05d mit Schatten aus: **212 von 212 Bildern
+  Byte für Byte gleich**, kein Schatten-Durchgang (Skript `rc-measure/rc_shadows_off_same.sh` im Notizordner der
+  Sitzungen).
+- **Nicht geprüft:** auf einem Gerät.
+
+### 11. Echtzeit-Schatten auch im Release-Build (für 1.0, Projektinhaber, 16.11.2026)
+
+Entscheidung des Projektinhabers (über die Hauptsitzung), Wortlaut: „Die Schatten kannst du auch in den Hauptbuild
+übernehmen. Ich release erst 1.0 Ende der Woche. Also keine Beta mehr.“ Die Schatten gibt es jetzt in jedem Build mit
+genau den Regeln, die bisher die Debug-Builds hatten. Kein neuer Patch, nächste freie Patchnummer weiter 0235.
+
+- **App:**
+  - `RealtimeShadows`: Die Prüfung auf „debuggable“ ist weg (`built()`, `offered()` und die Ablehnung „release build“
+    entfallen). `refusal(vulkan)` lehnt nur noch ab, wenn der Renderer sie nicht zeichnen kann (heute keiner).
+  - Die Zeile „Echtzeit-Schatten“ steht immer unter Anzeige → Effekte.
+  - Ohne eigene Wahl entscheidet das Gerät: Ein starkes Gerät (`deviceCheck` CAPABLE) hat „Figuren und Objekte“, jedes
+    andere „Aus“ mit dem Hinweis, warum. Die Wahl im Menü gilt auf jedem Gerät. Potatos „Schatten & Licht“ aus schaltet
+    sie ab.
+  - `CoreActivity.checkShadows` läuft in jedem Build (nicht während des Benchmarks); die Log-Zeile heißt jetzt
+    „real-time shadows: …“.
+  - `OfficialBuild` hat seine eigene Prüfung auf „debuggable“ (`OfficialBuild.debuggable`); vorher lieh es sie von
+    `RealtimeShadows.built`.
+  - Hilfetext ohne „(nur Testversionen)“, 11 Sprachen.
+  - Die Kommentare „nur Debug-Builds bis nach 1.0“ in App, Renderer und Kern sind angepasst. Der Kopf von Patch 0240
+    bleibt, wie er ist (Geschichte).
+- **Was sonst an „debuggable“ hing:** nichts.
+  - Der Kern (Bits 5 und 6 der Potato-Maske, `re4_core_rt_shadows`) und der Renderer (`CoreBridge.setShadows`,
+    `GxRenderer::SetShadows`) hatten nie eine eigene Sperre: Sie taten nur nichts, weil ein Release-Build nichts schickte.
+  - JNI und der 32-bit-Kernprozess reichen die Werte wie bisher weiter.
+- **Die Varianten:**
+  - `core` und `sideload`: Debug und Release gleich (Zeile, Gerätewahl, eigene Wahl).
+  - `car` (Google Play, Android Automotive): derselbe Code wie `core`, also ebenso.
+  - `classic`: hat keinen Spielkern und kein App-Menü des Kerns, also keine Schatten.
+  - Die OUYA-App liegt nicht in diesem Repository und ist unverändert.
+- **Releasetext** v0.99.19-rc: eine Zeile unter New. README: „real-time shadows“ in der Liste der Grafik-Optionen.
+- **Geprüft am PC:**
+  - App-Tests 213 je Variante grün (core, classic, sideload). `RealtimeShadowsTest` neu:
+    - Aus schickt dem Kern die Potato-Maske wie vor den Schatten;
+    - nur der Renderer kann ablehnen;
+    - die Menüzeile in je drei Geräten als Debug- und als Release-Build gleich (Wert, Hinweis, Weiterschalten).
+  - `assembleCoreRelease`, `lintVitalCoreRelease` und `lintVitalCarRelease` ohne Befund; `check_translations.py`
+    ohne Befund (469 Texte).
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; `gx_gl_check` GLES und Vulkan 0 Fehler.
+  - **Release mit Schatten aus zeichnet wie vorher:** dieselben 212 Aufnahmen wie in Abschnitt 10, Renderer vor allen
+    Schatten (c2f5dcda) gegen diesen Stand mit Schatten aus: 212 von 212 Byte für Byte gleich. Der Renderer selbst ist
+    hier unverändert (nur Kommentare).
+- **Nicht geprüft:**
+  - auf einem Gerät, vor allem ein signierter Release-Build auf dem Retroid: Zeile, Vorgabe nach dem Benchmark, Kosten;
+  - ein schwaches Gerät mit Release-Build (Hinweis unter der Zeile; nur in den Unit-Tests).
+
+### 12. Vulkan nicht mehr „experimentell“ (für 1.0, Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Vulkan kannst du auch nicht mehr experimental machen.“
+
+- Die Wahl unter Anzeige → Renderer heißt nur noch „Vulkan“, in allen 11 Sprachen; Arabisch behält das
+  Rechts-nach-links-Zeichen vorne (`check_translations.py`).
+- Sonst nannte Vulkan nirgends mehr „experimentell“: der Hilfetext, die Neustart-Frage, die Meldungen beim Rückfall auf
+  OpenGL ES, die Start- und Benchmark-Texte, README und `lokal-bauen.md` nicht.
+- Angepasst sind außerdem zwei Code-Kommentare (`CoreMenu.renderer`, `gx_gl.h`), ein Hinweis oben in
+  `port/docs/vulkan-bauplan.md` und im Releasetext die bekannte Schwäche „Vulkan (experimental): …“, jetzt „Vulkan: …“.
+- Unverändert:
+  - OpenGL ES bleibt Standard („gles“, wenn nichts gewählt ist); Absturz-Wächter und Rückfall wie bisher.
+  - Die Menü-Gruppe „Experimental“ mit 60 FPS, Frame skip, zusammengefassten Zeichenaufrufen, Vertex-Ring und „Save
+    bandwidth (Vulkan)“ bleibt.
+- **Releasetext** v0.99.19-rc: eine Zeile unter Changed.
+- **Geprüft am PC:** App-Tests 213 je Variante grün (core, classic, sideload; die Menü-Layout-Tests mit den
+  kürzeren Namen); `check_translations.py` ohne Befund (469 Texte); `assembleCoreRelease` und `lintVitalCoreRelease`
+  ohne Befund. Kern und Renderer nicht neu geprüft (nur ein Kommentar in `gx_gl.h`, mit dem Release-Build kompiliert).
+- **Nicht geprüft:** auf einem Gerät (nur Texte und Kommentare geändert).
+
+### 13. RetroTouch 1.0.0-beta.12: vier Sticks, Symbole, Finger auf dem Stick (für 1.0, Projektinhaber, 16.11.2026)
+
+Das AAR des Inhabers (`RetroTouch-1.0.0-beta.12.aar`, sha256 `323c32e2…93ee`) ersetzt `app/libs/retrotouch.aar`. Es
+beantwortet die drei Lücken aus Abschnitt 5.
+
+- **Was sich an RetroTouch geändert hat** (javap gegen beta.11):
+  - `RetroTouchLayout.MAX_STICKS = 8` mit `RetroTouchView.setMaxSticks`; ohne den Aufruf bleiben es zwei Sticks.
+  - `registerStickAction` mit einem `RetroTouchIcon`.
+  - `RetroTouchStickTouchListener` mit `onStickDown` und `onStickUp`. RetroTouch ruft sie auf dem gewöhnlichen
+    Listener auf, wenn er die Schnittstelle hat. `onStickDown` kommt vor der ersten Meldung eines Sticks, `onStickUp`
+    nach der letzten, auch wenn RetroTouch alle Finger loslässt (neues Layout, Reset); im Editor nicht.
+  - Unverändert sind das Layout-Format 2, sein Lesen und Schreiben (bis auf die Grenze), `RetroTouchControl`, Manifest,
+    Lizenz und `proguard.txt`.
+- **App:**
+  - `TouchControls`:
+    - `setMaxSticks(4)` (`CoreTouch.MAX_STICKS`): Bewegungs-, C-, Ziel- und Messer-Stick passen in ein Layout.
+    - Der Listener hat `onStickDown` und `onStickUp`.
+    - Ziel- und Messer-Stick bekommen im Symbol-Stil die Symbole von R (Fadenkreuz) und L (Messer); der C-Stick
+      bleibt ohne.
+  - `CoreTouch`: Ziel- und Messer-Stick halten R bzw. L von `stickDown` bis `stickUp`. Die Meldungen (`onStick`) geben
+    nur noch die Neigung.
+    - Entfallen ist die Krücke von Abschnitt 5: welcher Finger in welchem Ereignis aufsetzte, das (0, 0) ohne Finger,
+      `endEvent`.
+    - Für Spieler bleibt alles gleich: R oder L gehalten, solange der Finger liegt, auch ruhig in der Mitte; die
+      Neigung zielt; Loslassen gibt frei.
+- **Releasetext:** die New-Zeile zu Ziel- und Messer-Stick um die Symbole und die vier Sticks ergänzt (beides gab es in
+  0.99.18 nicht).
+- **Geprüft:**
+  - App-Tests 215 je Variante grün (core, classic, sideload). Neu:
+    - `TouchLayoutFileTest.fourSticksOutAndBack`: vier Sticks mit den gesicherten Spielständen hinaus und zurück,
+      RetroTouch zeigt alle vier;
+    - `anOldLayoutStillLoads`: ein Layout und eine Layout-Datei von vor beta.12 laden wie bisher;
+    - `TouchStyleTest`: die Symbole und `getMaxSticks() == 4`.
+  - Host-Tests: `CoreTouchTests` 370 Prüfungen (Ziel- und Messer-Stick über `stickDown`/`stickUp`, Meldungen ohne
+    Finger halten nichts, Layout-Wechsel unter dem Finger, alle vier Sticks zugleich), `CoreInputTests` 1861.
+  - `lintVitalCoreRelease` ohne Befund.
+  - Emulator (x86_64-Telefon, Debug-Hülle ohne Spielkern, eine Wegwerf-Zeile fürs gesendete Pad):
+    - im Editor vier Sticks gelegt, ein fünfter wird nicht angeboten; gespeichert im Format 2;
+    - nach einem Neustart dasselbe Layout, beim Laden nichts gedrückt;
+    - Ziel-Stick hält R auch ruhig in der Mitte, Neigung zielt, Loslassen gibt frei; Messer-Stick ebenso mit L;
+      C-Stick wie bisher;
+    - GC-Stil wie bisher.
+  - Bilder und Protokoll: `E:\Development\Android\builds\release-candidate\retrotouch-beta12\` (`pruefung.txt`).
+- **Nicht geprüft:** auf einem Gerät mit Spielkern; zwei Finger zugleich im Emulator (nur in den Host-Tests).
+
+### 14. Umbenennung in 1.0.0 (Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Du kannst sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche
+ja erst Freitag und teste bis dahin lokal.“
+
+- **Version:** versionName `1.0.0`, versionCode 122. Die Varianten hängen ihre Endung an wie bisher: `1.0.0-core`,
+  `1.0.0-sideload`; `car` ebenfalls `1.0.0-core`.
+- **Releasetext:** `v0.99.19-rc.md` per `git mv` zu `v1.0.0.md`.
+  - Titel „CubeEvil4 v1.0.0“; der Kopf ohne „Release Candidate“ und ohne „Expect bugs“; der Hinweis zur Sicherung der
+    Spielstände bleibt.
+  - Die APK-Namen im Abschnitt Update sind `CubeEvil4-1.0.0-Android.apk` und `…-sideload.apk`.
+  - Die Änderungen bleiben „Changes since v0.99.18“. Keine Wunschliste für 1.1.
+- **Kommentare:** Wo der Code „seit 0.99.19“ sagte (Sichtweite, `OfficialBuild`, Cheat-Seite, Patch-Kopf 0223), steht
+  jetzt 1.0.0. `AppUpdate.plain` hat neue Beispiele. Ebenso der Plan `gegner-randomizer-plan.md`.
+  - README und `lokal-bauen.md` nennen keine feste Version (`CubeEvil4-<version>-Android-sideload.apk`) und bleiben
+    unverändert.
+- **Update-Prüfung:** neuer Test `AppUpdateTest.theFirstReleaseWithoutSuffix`:
+  - `1.0.0-core`, `1.0.0-sideload` und `1.0.0` gleich den Tags `1.0.0`, `v1.0.0` und `1.0`;
+  - neuer als `0.99.18-rc` (auch mit `-core`) und als `0.99.19-rc`;
+  - älter als `1.0.1` und `1.1.0`.
+- **Kein Tag, kein Push auf `origin/master`:** Den Tag `1.0.0` setzt erst die Veröffentlichung am Freitag mit der
+  Freigabe des Inhabers.
+- **Geprüft am PC:**
+  - App-Tests 216 je Variante grün (core, classic, sideload; neu `theFirstReleaseWithoutSuffix`).
+  - `assembleCoreRelease` und `assembleSideloadRelease` bauen `1.0.0-core` bzw. `1.0.0-sideload` mit versionCode 122;
+    `lintVitalCoreRelease` ohne Befund.
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Patch 0223 mit dem geänderten Kopf angewendet.
+
+### 15. HD-Texturen: das Titelmenü in der Schrift des Spiels (Texturen-Sitzung, Projektinhaber, 16.11.2026)
+
+`origin/textures` f204f1f7 (auf 9247f05d) hineingemischt. Einzelheiten im Abschnitt des Texture Packers
+(„Titelmenü in der Schrift des Spiels“) und in `port/docs/textur-lader-plan.md`: Der Lader ersetzt die 33 Menüwörter
+des Titel- und Schwierigkeitsmenüs nie (`tex_pack.cpp`, `KeepsGameTexture`). Releasetext: eine Zeile unter Changed.
+
+- **Geprüft von der Texturen-Sitzung:** acht Disc-Fassungen; im Dorf dieselben 116 Ersetzungen; `gx_gl_check` (GLES)
+  0 Fehler; Android-Build.
+- **Geprüft hier nach dem Mischen:** `gx_gl_check` mit GLES **und Vulkan** (lavapipe) 0 Fehler, mit der neuen Gruppe
+  `TestHdKeptWords`; App-Tests core 216 grün; `assembleCoreRelease` baut. Nicht auf dem Gerät geprüft.
+- **Nachtrag: alle Menüwörter (`origin/textures` fefe91c5, per Fast-Forward auf 1c829194).** Entscheidung des
+  Projektinhabers: „Es sollen alle Menüwörter die Originalschrift behalten.“
+  - Neu `tex_pack_words.h` mit 677 Wortbildern aus den Menü-Dateien aller Discs; die 33 Wörter des Titelmenüs sind
+    darin aufgegangen.
+  - Die Datei enthält nur Kennungen (Prüfsumme der Bilddaten, Größe, Format), keine Bilddaten.
+  - Die Buchstaben-Schrift (Meldungen, Untertitel, Beschreibungen) ersetzt das Paket weiter (dieselben Buchstaben,
+    nur schärfer). Darüber entscheidet der Inhaber; nicht Teil dieses Schritts.
+  - Releasetext: die Zeile unter Changed jetzt für alle Menüs.
+  - Geprüft von der Texturen-Sitzung: vorher/nachher für alle 8 Disc-Fassungen, GLES und Vulkan 0 Fehler,
+    Android-Build.
+  - Geprüft hier: `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests core 216 grün;
+    `assembleCoreRelease` und `assembleSideloadRelease` bauen. Nicht auf dem Gerät geprüft.
+
+### 16. Framedrops: Bildwiederholrate falsch gemessen, 30 FPS auf 90 Hz (Spielerberichte über den Projektinhaber, 16.11.2026)
+
+Zwei Berichte von 0.99.18-rc: Xiaomi 2412DPC0AG (Mali-G720, 120 Hz LTPO) und Samsung SM-A175F (Mali-G57, nur 90 Hz).
+Analyse, Zusammenfassung für den Inhaber und Antwort für die Spieler: `E:\Development\Android\reports\framedrops-2026-11-16\analysis.md`.
+
+- **Ursache auf dem Xiaomi:** Der Kern maß die Vsync-Periode seit 0.99.9 mit einem gleitenden Wert, der bei einem
+  Abstand unter der halben Periode von vorn begann.
+  - Android meldete alle paar Sekunden einen Vsync ~2,2 ms nach dem vorigen (Choreographers Zeit für ein spätes Bild,
+    neben dem Raster dieses Bildschirms).
+  - Die Periode fiel auf 2,2 ms („448 Hz“) und kam nie zurück.
+  - Damit waren der 120-Hz-Rhythmus (0.99.13, `PresentPacer`; lief nur für 7 Bilder) und der 30-FPS-Rhythmus
+    (0.99.12) aus. 60 FPS zeigte der Bildschirm daher als 1, 2 und 3 Vsyncs im Wechsel.
+- **Behoben:**
+  - `picture_cadence.h` `VsyncPeriod`: Median der letzten 32 Abstände, wie `FramePacing` in der App.
+  - `FramePacing.step`: Ein Aufruf weniger als einen halben Vsync nach dem vorigen zählt nicht als eigener Vsync.
+  - `PictureHold` auch auf 85–95 Hz: 3 Vsyncs je Bild bei 30 FPS; ein Bild, das nach 1 oder 2 Vsyncs fertig ist,
+    wartet einen.
+- **Nicht geändert:**
+  - 60 FPS auf 90 Hz (geht nicht gleichmäßig; das Menü empfiehlt 30);
+  - Prozessorgrenze und Wärme des Samsung;
+  - die festen 3× mit 2 Samples des Xiaomi;
+  - MIUIs „QueueBuffer time out“;
+  - der neue Benchmark nach dem Update (lief vom Titelmenü aus, wie gewollt).
+- **Releasetext:** zwei Zeilen unter Fixed.
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan 0 Fehler, mit `TestVsyncPeriod` (120 Hz mit verrutschten und
+  späten Vsyncs: 8,333 ms; die alte Regel fällt auf den kurzen Abstand; folgt 120 → 60 → 90 Hz) und `TestPictureHold`
+  auf 90 Hz (ohne Halten 2/3/4 Vsyncs und 54 % daneben, mit Halten alle 3 und 0 %, 330 von 330 gezeigt; 60 Hz wie
+  vorher); beide auch im schnellen Lauf `RE4_CHECK_RULES=1`. `FramePacingTests` 4084 Prüfungen (die neue schlägt mit
+  dem alten Code an). App-Tests 216 je Variante grün, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät (120-Hz-Xiaomi/POCO, 90-Hz-Samsung).
+
+### 17. Cheat „Kostüme“: Normal / Leons Jacke / Spezial (für 1.0, Projektinhaber, 16.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Bei den CHEATS gibt es den Button für Spezialkostüme, dieser soll ein
+Toggle-Button werden und nur mehr 'Kostüme' heißen (auch ohne Untertitel '(nur Leon/Ashley)'). Der Zusatz nach dem
+Punkt 'Normal' ist der Standardfall, wo alles funktioniert wie im Spiel vorgesehen (Button nicht gehighlighted); dann
+soll es neu den Zusatz geben 'Leon's Jacke', wo Leon dann seine braune Jacke immer an hat und nicht im Laufe des
+Spiels durch sein schwarzes Shirt ersetzt; als drittes dann den Zusatz 'Spezial', was unser bisheriges
+'Spezialkostüme an' ist.“
+
+- **App:**
+  - `CoreMenu.costumeSwitch` ist ein Knopf, der wie Frame skip weiterschaltet: „Kostüme · Normal / Leons Jacke /
+    Spezial“, leuchtet außer bei Normal. Der Zusatz „(nur Leon/Ashley)“ ist weg.
+  - Spezial ist das Bit 256 der Cheats wie bisher; das alte „Spezialkostüme an“ zeigt also von selbst Spezial.
+  - Leons Jacke ist eine eigene Einstellung (`CoreActivity.LEON_JACKET` in `core_game`), weil alle 32 Bits der
+    Cheats belegt sind (das Bit des Zufallswerts der Gegenstände umzuwidmen hätte alte Einstellungen falsch gelesen).
+  - Weg in den Kern: `CoreBridge.setLeonJacket` → `re4_core_set_leon_jacket`, für den 32-bit-Kernprozess die Nachricht
+    `kLeonJacket` = 48.
+  - Texte in 11 Sprachen (Name, drei Werte, Satz im Hilfetext der Cheats).
+- **Kern** (`runtime/cheats.cpp`, Patch 0235):
+  - In der Geschichte gibt `PlSetCostume` Leon die Jacke (Kostüm 0), wo seine Regel Hemd (1) oder Weste (2) gäbe.
+    Das gilt auch für die Ersatzfiguren in seinem Kostüm. Die Ereignisse laden dann Leons `pl00` (`loadLeon`).
+  - Die Weste schützt mit dem Cheat über den Gegenstand selbst.
+  - Umschalten wirkt sofort wie beim Spezialkostüm: Der Raum startet dort neu, wo Leon steht (`switchNow`, nur wenn
+    sich sein Aussehen wirklich ändert; `jacketChange`).
+  - Spezial gewinnt. Separate Ways, The Mercenaries und Ashley sind unberührt.
+  - Kein Eintrag im Spielstand: Jedes Laden wählt das Kostüm neu (`PlSetCostume` in `game.cpp`).
+  - Testschalter `RE4_LEON_JACKET=1` und `RE4_TEST_LEON_JACKET="free+N:J,..."` (J 0/1, `s` Kostüm neu wählen,
+    `v` die Weste wie vom Händler).
+- **Releasetext:** eine Zeile unter Changed (der Knopf), eine unter New (Leons Jacke).
+- **Geprüft am PC** (Kern i686 -O2, Debug-Discs, r100; Skript `rc-measure/jacket_run.sh` im Notizordner):
+  - Jacke an, r106-Flag gesetzt, Jacke aus: Der Raum startet neu, Kostüm 1 (Hemd).
+  - Hemd (Kostüm 1), Jacke an: Kostüm 0.
+  - Weste und Jacke an: Kostüm 0, die Weste schützt. Jacke aus: Kostüm 2, schützt.
+  - Weste ohne Jacke (Kostüm 2), Jacke an: Kostüm 0, schützt.
+  - Spezial und Jacke zugleich: Kostüm 3.
+  - Kern- und Laufzeittests bestanden; Android-Kern ARM32 und ARM64 0 Fehler (mit dem 32-bit-Kernprozess); App-Tests
+    216 je Variante grün (`CoreMenuLayoutTest`: Normal > Leons Jacke > Spezial > Normal, das alte Bit 256 zeigt Spezial);
+    `check_translations.py` ohne Befund (471 Texte); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+  - Nebenbefund der Testumgebung: Nach dem Neustart eines Raums (auch beim bisherigen Spezialkostüm) kommt der
+    PC-Lauf mit Raumauswahl nicht mehr in die Hauptschleife („step 6“). Der bisherige Spezialkostüm-Wechsel verhält
+    sich dort genauso; auf dem Gerät ist er seit 0.98 im Einsatz. Deshalb je Lauf nur ein Wechsel.
+- **Nicht geprüft:** auf einem Gerät; die Ereignisse in Burg und Insel mit Jacke (Modell, Stoff) nur aus dem Code.
+
+### 18. Option „Schärfere Menütexte“ (Texturen-Sitzung, Projektinhaber, 16.11.2026)
+
+`origin/textures` 187a2648 (6bf588ef „Sharper menu text“ und das Hineinmischen von release-candidate 759daa46)
+hineingemischt. Einzelheiten im Abschnitt des Texture Packers und in `port/docs/textur-lader-plan.md`
+(`word_sharpen.cpp`). Kein Kern-Patch. Releasetext: eine Zeile unter New, die die Texturen-Sitzung vorgab; README:
+„sharper menu text“ in der Liste der Grafik-Optionen.
+
+- Beim Mischen keine Konflikte. Der Kostüm-Knopf (Abschnitt 17) und die neue Zeile im App-Menü bestehen nebeneinander;
+  `check_translations.py` ohne Befund (473 Texte).
+- **Geprüft hier nach dem Mischen:** `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler; App-Tests 216 je Variante
+  (core, classic, sideload); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät.
+
+### 19. Echtzeit-Schatten Stufe 6: Schatten anderer Figuren wandern nicht mehr mit Leon (Projektinhaber, 16./17.11.2026)
+
+`origin/realtime-shadows` 2511eec6 (58e55bc2 „each figure's shadow from where it stands“ und das Hineinmischen von
+release-candidate bf921151) per Fast-Forward. Einzelheiten im Abschnitt „Branch `realtime-shadows`“ oben, Stufe 6.
+Kein neuer Patch (die Haken von 0240 bleiben). Releasetext unverändert: Die Zeile zu den Schatten unter New stimmt
+weiter, und der Fehler gehört zu einer Funktion, die es in 0.99.18 nicht gab.
+
+- **Geprüft hier (Stand 2511eec6):**
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Android-Kern ARM32 und ARM64 0 Fehler;
+  - `gx_gl_check` mit GLES und Vulkan 0 Fehler;
+  - Schatten aus zeichnen wie vor allen Schatten: 212 von 212 Aufnahmen Byte für Byte gleich (wie Abschnitt 10);
+  - App-Tests 216 je Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund.
+- **Nicht geprüft:** auf einem Gerät.
+
+### 20. Cheat „Leons Jacke“: die Jacke in späteren Zwischensequenzen (Gerätetest des Projektinhabers, 17.11.2026)
+
+Wortlaut des Inhabers (über die Hauptsitzung): „Wenn man den Cheat aktiviert hat, dass Leon immer seine Jacke anhat,
+wird sie in späteren Zwischensequenzen nicht korrekt angezeigt oder fehlt teilweise.“ Sein Beispiel: die
+Zwischensequenz zum Messerkampf mit Krauser (Raum r317, Ereignis r317s00).
+
+- **Ursache:**
+  - Jede Zwischensequenz baut Leons Körper („pl0000“) mit denselben Teilen in derselben Reihenfolge, gleich zu Beginn
+    (alle 130 Ereignisse mit Leon, Auswertung der Szenendaten mit `rc-measure/jacket_scenes.py` im Notizordner).
+  - Teil 2 ist bei Kostüm 0 das Teil `ev000e` der Zwischensequenz: Vorderseite und Kragen der Jacke. Bei Hemd und
+    Weste tauscht das Spiel es gegen das kleine Teil `pl000e` aus Leons Archiv (`event.cpp ExePacket_SetParts`).
+  - Einige Szenenfunktionen, die für die Zeit mit Hemd gemacht sind, blenden in manchen Schnitten Teil 2 (mit Teil 6)
+    aus: r10bs20, r10bs21, r10bs22 (der See, das Seil), r20bs00 (Schnitte 0xD und 0xE), r227s00, r227s01, r227s02
+    (die QTE in der Burg), r317s00 (der Messerkampf, Schnitt 0). Keine andere Stelle im Spielcode blendet Teil 2 von
+    Leons Körper aus.
+  - Mit dem Cheat ist Teil 2 dort die Jackenvorderseite: Im Messerkampf zeigte die Jacke in Schnitt 0 nur Ärmel und
+    Rücken, ab Schnitt 1 (dort blendet die Szene Teil 2 wieder ein) war sie vollständig.
+- **Behebung (Patch 0236, `r10b.cpp`, `r20b.cpp`, `r227.cpp`, `r317.cpp`; `runtime/cheats.cpp
+  re4_cheat_leon_jacket_events`):**
+  - An den 9 Stellen, die Teil 2 von Leons Körper ausblenden, entfällt das Ausblenden, solange der Cheat die Jacke
+    zeigt, wo Leons Regel Hemd oder Weste gäbe. Teil 6 und alles andere bleibt wie im Spiel.
+  - Das gilt auch für eine Ersatzfigur in Leons Kostüm (ihre Szenen zeigen Leons Archiv, Patch 0203).
+  - Normal, Spezial, vor dem Ereignis in r106 (dort gibt die Regel ohnehin die Jacke), Separate Ways und The
+    Mercenaries: wie das Spiel (die Funktion gibt dort 0).
+  - Ein erster Versuch setzte die Jackenvorderseite gleich beim Entstehen des Körpers an. Das wirkte im Bild, verschob
+    aber die Reihenfolge der Teile, sodass die Szene ein anderes Teil (`ev0003`) ausblendete. Verworfen.
+- **Testschalter** `RE4_TEST_LEON_SHIRT=1`: setzt beim ersten Raum das Flag des Ereignisses in r106 und wählt das
+  Kostüm neu, wie es ein Spielstand eines späteren Kapitels hat. Nötig, weil der Debug-Start nach seiner eigenen
+  Kostümwahl Kostüm 1 erzwingt.
+- **Releasetext:** unverändert. Die Zeile „Cheat "Costumes · Leon's jacket"“ unter New ist neu in 1.0.0, der Fehler
+  gehört zu ihr.
+- **Geprüft am PC** (Kern i686 -O2, Debug-Discs, ohne HD-Paket; Skripte `rc-measure/jacket_events.sh` und
+  `jacket_cmp.sh` im Notizordner; Bilder in `E:\Development\Android\builds\release-candidate\leon-jacket-cutscenes\`):
+  - Messerkampf r317 (Leon an den Auslöser gestellt, QTEs automatisch, 60 Aufnahmen r317s00 und r317s01): Vor dem Fix
+    fehlten in Schnitt 0 Vorderseite und Kragen, mit dem Fix ist die Jacke vollständig (`r317-fix-*.png`, links
+    vorher, rechts nachher). Nur die 5 Aufnahmen aus Schnitt 0 unterscheiden sich (8 Zeichenaufrufe mehr: Vorderseite
+    und Kragen); die 60 Aufnahmen ohne Cheat (Hemd) sind vorher und nachher gleich.
+  - Szenendaten aller 146 Ereignisse der Debug-Discs: 130 mit Leon, alle mit derselben Teile-Folge zu Beginn; die
+    Suche im Spielcode findet nur die 9 Stellen oben, die Teil 2 von Leons Körper ausblenden.
+  - Gegenproben mit dem ersten Versuch (die jetzige Behebung ändert nur die 7 Szenenfunktionen): Startszenen von 22
+    Räumen aus Burg und Insel (r200, r206, r20b, r212–r215, r22a, r300, r30a–r30c, r310, r316, r317, r31c, r325,
+    r329–r333), Hemd und Jacke, je 14 Aufnahmen: Bild für Bild gleich wie vorher. Vor dem Ereignis in r106 (r100,
+    r101, r103 mit den Szenen r100s40–s43, r101s00): Normal und Jacke 42 von 42 Aufnahmen gleich.
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden; Android-Kern ARM32 und ARM64 0 Fehler. App unverändert
+    (App-Tests 216 je Variante, `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund).
+- **Nicht geprüft:** auf einem Gerät; mit HD-Paket; die Szenen am See (r10bs20–s22) und in der Burg (r20bs00 Schnitte
+  0xD/0xE, r227s00–s02) im Bild (am PC nicht ohne Weiteres auszulösen; dieselbe Stelle wie im Messerkampf, nur aus
+  dem Code); die Weste (Regel 2) und Ersatzfiguren im Bild.
+
+### 21. HD-Texturen: „Kostüme“ und „Waffen“ auf der Mods-Seite (Texturen-Sitzung, Projektinhaber, 17.11.2026)
+
+`origin/textures` 5c071141 („Mods page, "Costumes" and "Weapons" keep the game's own textures on request“, Basis
+c4334717) hineingemischt, nach dem Jacken-Fix (Abschnitt 20). Einzelheiten im Abschnitt des Texture Packers und in
+`port/docs/textur-lader-plan.md`. Kein Kern-Patch. Releasetext: eine Zeile unter New, die die Texturen-Sitzung vorgab.
+
+- Beim Mischen keine Konflikte (die Änderungen in `CoreMenu` liegen nur in der Mods-Seite).
+- README: ein Satz zu „Kostüme · Original“ / „Waffen · Original“ unter den HD-Texturpaketen.
+- **Geprüft hier nach dem Mischen:**
+  - `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler (mit `TestHdGroups`);
+  - `check_translations.py` ohne Befund (478 Texte); App-Tests 218 je Variante (core, classic, sideload, mit
+    `ModsPageTest`); `assembleCoreRelease` und `lintVitalCoreRelease` ohne Befund;
+  - Jacke und Kostüme zusammen (Hinweis der Texturen-Sitzung: 2 Krauser-Texturen gehören auch zum Jackenmodell):
+    Messerkampf r317s00/s01 mit Cheat „Leons Jacke“ (Aufnahmen aus Abschnitt 20), gezeichnet ohne Paket, mit dem HD
+    Project 512 und mit Paket und „Kostüme · Original“ (`RE4_TEX_PACK_SYNC=1`, `RE4_TEX_PACK_KEEP`): die Jacke in
+    allen drei vollständig, mit Paket 39–51 Ersetzungen je Bild, mit Kostüme Original 32–43 (Leons Texturen bleiben
+    die des Spiels). Bilder `r317-hd-*.png` (links ohne Paket, Mitte Paket, rechts Kostüme Original) im Ordner von
+    Abschnitt 20.
+- **Nicht geprüft:** auf einem Gerät; Krauser selbst mit Paket und Kostüme Original im Bild (in den Aufnahmen des
+  Messerkampfs nicht im Bild).
+
+### 22. Touch-Tastenstile RE, GC (neu), PS2 und XBOX mit RetroTouch 1.0.0-beta.13 (für 1.0, Projektinhaber, 17.11.2026)
+
+Branch `touch-styles` (Worktree `E:\Development\Android\RE4-touch-styles`, Basis 0f74f471). Entwürfe, Vorgabe des
+Inhabers (`owner-reference-beta13.png`) und Bilder der echten App: `E:\Development\Android\builds\retrotouch-styles\`
+(`app\`). Kein Kern-Patch.
+
+- **RetroTouch 1.0.0-beta.13** (AAR des Inhabers, `app/libs/retrotouch.aar`, sha256 af38675f...db; Notiz in
+  `app/build.gradle`): Skins (`RetroTouchSkin`, beliebig viele, der Stil-Knopf im Editor geht durch alle), Formen
+  KIDNEY/BUMPER/TRIGGER mit Drehung, Achteck-Gate, eigene Symbolfarbe, gefüllte und PlayStation-Symbole, Beschriftung
+  auf dem Stick-Knopf, Steuerkreuz aus vier Tasten, Beschriftung genau nach der Tinte mittig. Ohne Skins wie beta.12;
+  Layoutformat 2 unverändert, Hinweisdatei unverändert.
+- **Vier Skins** (`TouchStyle.skins`): RE wie bisher; GC (graue Bumper L/R, graue Bohnen X/Y um A gedreht, A grün,
+  B rot, Z, START, Menü, Steuerkreuz und Bewegungs-Stick lila, C-Stick gelb, Achteck-Gates); PS2 (schwarz, Kreuz blau,
+  Kreis rot, Quadrat rosa, Dreieck grün, L2/R2 als Trigger, R1 als Bumper, Steuerkreuz aus vier Tasten mit gefüllten
+  Pfeilen, „L3“/„R3“ auf den Sticks, SELECT); XBOX (dunkle Tasten mit farbigen Buchstaben, LT/RT Trigger, RB Bumper,
+  Steuerkreuz mit gefüllten Pfeilen, „LS“/„RS“, Ansicht-Taste als Menü). Belegung wie `CoreInput` und die HD-Tasten.
+  Jede Aktion hat in jedem Skin Inhalt und Farben (auch R3, Zoom, Ziel- und Messer-Stick).
+- **Wahl:** RetroTouch speichert den Skin (`button_skin_cubeevil4`, mit der Sicherung). Editor-Knopf RE → GC → PS2 →
+  XBOX; App-Menü (Steuerung → Tastenstil) vier Knöpfe, liest den Skin beim Öffnen. Alter GC-Stil (RetroTouch
+  `button_style_cubeevil4` = LABELS, ohne Skin): GC-Skin (`TouchControls.migrateOldGc`, auch nach einem Import).
+  Neue Spieler RE. Zwei neue Texte (PS2, XBOX) und der Hilfetext in 11 Sprachen.
+- **Zentrierung** (Emulator, `app\measure_app.py`, 4 Größen 2400×1080/420, 1920×1080/320, 1280×720/240,
+  1600×1200/280 × 4 Skins): alle Tasten höchstens 1 Bildpunkt neben der Mitte, auch L2/R1/LT/START/SELECT (mit
+  beta.12 bis 2 px). Trigger und Bohnen: RetroTouch setzt die Beschriftung auf die Mitte der Form (beim Trigger 5–6 px
+  unter der Mitte des Rahmens, sieht mittig aus).
+- **Geprüft:** App-Tests 226 je Variante (core, classic; `TouchStyleTest` neu: Skins, alter GC → GC, Editor-Knopf im
+  Kreis, App-Menü, Import, Inhalt jedes Skins); `check_translations.py` ohne Befund (480 Texte); `assembleCoreRelease`
+  (arm64-v8a und armeabi-v7a); `lintCoreRelease` nur die 7 alten Fehler in `CoreActivity`, `Cutout`, `PlayerBackup`.
+  Emulator (x86_64-Telefon, Debug-Hülle ohne Kern, Bauvariante ohne die Meldung „Kern fehlt“, nicht committet): vier
+  Skins im Spiel und im Editor, Zusatztasten in allen vier, Wechsel per Editor-Knopf.
+- **Nicht geprüft:** auf einem Gerät; das App-Menü im Emulator (öffnet ohne Kern nicht; Menübild aus
+  `CoreMenuShotTest` beim ersten Stand).
+- **Nachtrag (Rückmeldung des Inhabers zum GC-Skin, 17.11.2026 abends):** Steuerkreuz, START und Menü-Taste grau wie
+  L/R/X/Y statt lila; Z und die Sticks bleiben lila. Pfeile und Beschriftung lesbar und höchstens 1 px neben der Mitte
+  (Emulator, 2400×1080); App-Tests 226 je Variante. Bilder `app-*-GC.png`, `5-zusatz-GC.png`, `6-editor-zusatz-GC.png`.
+  Danach auch der Bewegungs-Stick grau (`GC_STICK`, etwas dunkler als L/R, das Gate mit 55 % noch dunkler als der
+  Knopf); Ziel- und Messer-Stick bleiben lila, der C-Stick gelb. Bild mit geneigtem Stick `app-spiel-GC-stick-geneigt.png`.
+- **In `release-candidate`** (17.11.2026, Merge von da0e4ff8, ohne Konflikt): Releasetext v1.0.0 eine Zeile unter
+  New (die Stile) und eine unter Changed (RetroTouch 1.0.0-beta.13), README (App-Menü-Liste und Abschnitt Touch
+  controls: vier Stile). Geprüft: App-Tests 226 je Variante (core, classic, sideload; 0 Fehler);
+  `check_translations.py` ohne Befund (480 Texte); `assembleCoreRelease` und `assembleSideloadRelease` (arm64-v8a und
+  armeabi-v7a), `lintVitalCoreRelease` und `lintVitalSideloadRelease` ohne Befund. **Emulator mit Kern**
+  (CubeEvil4_Phone36, Play-Abbild mit ARM-Übersetzung: der echte arm64-Kern läuft dort; Release-Hülle mit den
+  Kern-Bibliotheken von 0f74f471, Wegwerf-Schlüssel; von Disc 1 nur `sys/`, alle Dateien unter 1 MB und `files/ss/`,
+  137 MB, danach mit der App gelöscht; mit reinen Platzhalter-Discs stürzt der Kern in
+  `MessageControl::loadSystemFont` ab): Spiel bis zum Titel, App-Menü → Controls → Button style zeigt RE, GC, PS2,
+  XBOX (RE vorgewählt); PS2 gewählt → sofort im Spiel; Editor-Knopf zeigt „PS2“ und geht PS2 → XBOX → RE → GC → PS2;
+  XBOX im Editor gespeichert → das Menü zeigt XBOX; nach Neustart der App weiter XBOX. Bilder:
+  `E:\Development\Android\builds\release-candidate\touch-styles-core\` (`sheet-editor-cycle.jpg`). Nicht geprüft: auf
+  einem Gerät; der Wechsel vom alten GC-Stil auf einem echten Altbestand (nur in `TouchStyleTest`).
+
+## Version 0.99.18-rc (veröffentlicht 15.11.2026, Branch `release-candidate`, Basis b6025eb9 = Release 0.99.17-rc; Tag 0.99.18-rc = 9d46444b)
+
+Ab 0.99.18 gibt es für den Weg zu 1.0 nur noch einen Arbeitsbranch, `release-candidate` (angelegt vom
+Projektinhaber aus b6025eb9); seine Sitzung führt `master` in `E:\Development\Android\RE4-Fixed` vor (fast-forward),
+`origin/master` nur mit dem OK des Inhabers. Version 0.99.18-rc (versionCode 120), Releasetext
+`port/android-decomp/docs/releases/v0.99.18-rc.md` („Changes since v0.99.17.“, Known issues aus 0.99.17 übernommen).
+Release-APK `CubeEvil4-0.99.18-Android.apk`. Nächste freie Patchnummer weiter 0233.
+
+Aufgaben in dieser Reihenfolge (Hauptsitzung, 15.11.2026): 1. „Abbrechen“ statt „Abbruch“ in allen Sprachen;
+2. Sichtweite „Sehr kurz“ und „Weit“; 3. T4, HD-Texturen im Hintergrund laden.
+
+### 1. „Abbrechen“ statt „Abbruch“ (Projektinhaber, 15.11.2026)
+
+Der Inhaber will die Abbrechen-Taste jeder Frage als Verb, in jeder Sprache so wie Androids eigene Taste.
+
+- **Befund:** alle App-Fragen nehmen `ingame_cancel` (Neustart für Sprache und Renderer, Bericht, Import, Löschen
+  von HD-Texturen, `TextureImportActivity` …), nur „Delete All Data“ hat seit 0.99.15 eine eigene Taste
+  `ingame_wipe_cancel`. Einziges Hauptwort war das deutsche `ingame_cancel` „Abbruch“. Die anderen 10 Sprachen
+  sagen schon, was Android selbst auf die Taste schreibt (ar إلغاء, es/pt Cancelar, fr Annuler, hi रद्द करें,
+  in Batal, it Annulla, ru Отмена, zh 取消); ebenso „Import abbrechen“, „Rennen / Abbrechen“ und „B / Zurück:
+  abbrechen“ und ihre Gegenstücke. Androids eigene Taste (`android.R.string.cancel`, zwei Stellen) übersetzt Android
+  selbst. Die englischen Texte der Classic-App (`strings.xml`) und der Packer-App sagen „Cancel“.
+- **Geändert:** `values-de` `ingame_cancel` „Abbrechen“. `tools/check_translations.py` prüft neu, dass
+  `ingame_cancel` und `ingame_wipe_cancel` in jeder Sprache gleich lauten (`SAME`; mit dem alten deutschen Text
+  meldet es den Fehler).
+- **Geprüft am PC:** `check_translations.py` 448 Texte je Sprache ohne Befund; App-Tests 176 je Variante grün (Core
+  und Classic).
+- **Nicht geprüft:** auf einem Gerät (reine Textänderung).
+
+### 2. Sichtweite „Weit“ und „Sehr kurz“ (Projektinhaber, 15.11.2026)
+
+Namen vom Inhaber bestätigt („Ja, so“): **Weit · Normal · Mittel · Kurz · Sehr kurz** (Far, Normal, Medium, Short,
+Very short). Vorgabe: „Sehr kurz“ mit dichtem Nebel an der Sichtgrenze wie im OUYA-Zweig; „Weit“ nur mit einer
+sicheren Regel nach Messung, ohne kaputte oder unfertige Geometrie, Bereiche außerhalb der Karte oder Löcher, die das
+Original hinter seinem Nebel versteckt.
+
+- **Messung 1, Nebel aller Räume** (Raum-Rundgang über alle 126 Räume, Debug-Discs, i686, `RE4_VIEW_LOG=1`, Tabelle
+  `rc-fog_table.py` im Notizordner): 48 Räume zeichnen schon bei „Normal“ nur bis 20–60 % ihres Nebelendes
+  (`LightEnv.far_play_ratio` 0,3–0,8): Dorf r101/r40x 70 von 175 m (linearer Nebel dort 42 % dicht), Wald r100 43 von
+  107 m, See r107 29–118 m, Steinbruch r10f 330 von 825 m, r118 59 von 297 m, Insel r300 223–282 m, r30f 96 von 485 m,
+  vier Burgräume (r205, r209, r20b, r21b). Die übrigen Nebelräume (fast die ganze Burg und ein großer Teil der Insel)
+  zeichnen bis zum Nebelende (`far_play_ratio` 0).
+- **Messung 2, Bilder:** in allen 46 dieser Räume, die per Debug-Start erreichbar sind (r101 bleibt im Akten-Menü
+  stehen, dafür das gleiche Dorf r400–r409), läuft Leon 150 Bilder in den Raum und dreht sich dann einmal: 8 Bilder je
+  Stufe (`rc-view_shots.sh`, `rc-view_batch.sh` im Notizordner, Bilder über `gx_chunk_render` GLES), verglichen
+  Normal, „Weit“ (sichere Regel) und zum Vergleich „Nebel hinausgeschoben“ (Beginn und Ende × 1,5). 43 Räume wurden
+  frei (r104, r22b, r316 nicht).
+  - **Rauschen:** zwei Läufe mit gleicher Einstellung unterscheiden sich schon in 200–900 Bildpunkten je Bild (Wind,
+    Effekte).
+  - **„Weit“ mit sicherer Regel:** in 42 von 43 Räumen bleibt der Unterschied im Rauschen (mittel 200–600 Bildpunkte);
+    sichtbar im Wald r100 (ferne Baumstämme im Nebel statt einer hellen Lücke, bis 2160 Bildpunkte). Mehr
+    Zeichenaufrufe: See r107 +53 %, Burg r205 +33 %, r209 +23 %, r21b +16 %, r108 +13 %, r118/r11c/r30f +12 %,
+    sonst 0–4 % (Dinge hinter Felsen oder im fast dichten Nebel). Tabelle
+    `E:\Development\Android\builds\release-candidate\view-distance\far-measurements-46-rooms.txt`.
+  - **Nebel hinausgeschoben (nicht gebaut):** bis 68 000 von 229 000 Bildpunkten anders; auf der Insel r300 werden der
+    Wolkenhimmel und die fernen Ufer klar, im Wald der Hügel, im Dorf r111 der Zaun bis zum Ende. Kaputtes war in den
+    Bildern nicht zu sehen, aber genau das zeigt, was der Nebel des Originals verbirgt, und eine Drehung je Raum kann
+    nicht alle Blickwinkel prüfen: darum nicht genommen.
+- **Regel „Weit“:** der Nebel des Raums bleibt genau, wie er ist; nur die Sichtgrenze rückt hinaus bis dorthin, wo
+  dieser Nebel 95 % dicht ist (GX-Nebelkurven der Typen 2/4/5/6/7 wie im Renderer), nie über das Nebelende und nie
+  näher als die des Spiels. Bäume und Häuser tauchen nicht mehr aus halb dünnem Nebel auf; hinter dem Nebelende wird
+  nichts gezeichnet. Räume mit `far_play_ratio` 0 und Räume ohne Nebel bleiben gleich. Die Sichtgrenze wirkt nur aufs
+  Zeichnen (`trans_ot.cpp`, `CameraViewFrustumPtr`), nicht auf die Spiellogik. Ehrlich: eine kleine sichtbare
+  Änderung, die je nach Raum bis zur Hälfte mehr Zeichenaufrufe kostet; so steht es im Hilfetext.
+- **Regel „Sehr kurz“:** 35 % (die OUYA-Einstellung, dort vom Inhaber getestet), sonst wie Kurz; dazu endet der Nebel
+  der GPU an der Sichtgrenze (OUYA-Patch 0901, nicht näher als 6 m). Ohne das sah man im Dorf leeren Boden, wo die
+  Häuser verschwanden (Bild). Mittel und Kurz bleiben, wie sie seit 0.99.6 sind (`kDenseBelow` 50 %).
+- **Kern:** Patch 0223 ruft jetzt `re4_view_fog(Typ, far_play_ratio, &Beginn, &Ende, &Sichtgrenze)`; bei „Normal“
+  Bit für Bit die Werte des Spiels. `re4_core_set_view_distance` nimmt 20–300 %. Messschalter: `RE4_VIEW_LOG=1` (auch
+  „Normal“ ins Protokoll), `RE4_VIEW_DENSE=0/2`, `RE4_VIEW_FAR_MODE=scale`, `RE4_VIEW_FAR_DENSITY`.
+- **App:** `CoreBridge.VIEW_PERCENT` {100, 75, 50, 35, 150}, gespeicherte Werte 0–2 bleiben (3 Sehr kurz, 4 Weit,
+  Unbekanntes wird Normal); jeder Druck: Normal → Mittel → Kurz → Sehr kurz → Weit → Normal; aus (nicht gelb) bei Kurz
+  und Sehr kurz; Bloom bleibt bei Weit an (wie bei Normal). Benchmark-Zusammenfassung und Leistungsprofile kennen die
+  neuen Stufen (bisher auf 0–2 geklemmt). Texte `ingame_view_very_short`, `ingame_view_far`, neuer Hilfetext, 11
+  Sprachen. Protokoll „view distance to the core: Far/Very short …“.
+- **Bilder** (englisch beschriftet) in `E:\Development\Android\builds\release-candidate\view-distance\`:
+  `very-short-*` (Normal, Kurz, Sehr kurz ohne und mit dichtem Nebel), `far-*` (Normal, Weit, Nebel hinausgeschoben;
+  `far-lake-r107` gleiches Bild bei 53 % mehr Zeichenaufrufen).
+- **Geprüft am PC:** Kern i686 -O2 (`whole_build.sh`, Baum `~/re4-rc`) 0 Fehler, Stubs wie erwartet, `--runtime-test`
+  0 failed mit neuer Prüfung `viewfog` (Normal Bit für Bit, Kurz, Sehr kurz mit 6-m-Grenze, Weit für fünf
+  Nebelarten, Räume ohne Nebel und mit `far_play_ratio` 0); Kern für Android (`whole_build_android.sh --abi all`)
+  0 Fehler in beiden ABIs, Stubs wie erwartet; App-Tests 177 je Variante grün (Core und Classic; neu
+  `viewDistanceMovesThroughFiveStepsAndIsOffOnlyWhenShorter`, `viewDistanceLevelsKeepSavedValuesAndTheBloom`; alle
+  Seiten passen in allen Sprachen), `:app:externalNativeBuildCoreDebug` ohne neue Warnung; `check_translations.py`
+  450 Texte je Sprache ohne Befund.
+- **Nicht geprüft:** auf einem Gerät; EU- und US-Discs (der Kern rechnet aus denselben Raumdaten); Vulkan eigens (der
+  Kern zeichnet weniger oder mehr, für beide Renderer gleich); r101 selbst, r104, r22b, r316 (beim Debug-Start nicht
+  frei); je Raum nur eine Stelle und eine Drehung.
+
+### 3. T4: HD-Texturen im Hintergrund laden (Projektinhaber, 15.11.2026)
+
+Bisher las `GxCore::UploadHd` ein Ersatzbild beim ersten Gebrauch sofort auf dem Zeichen-Thread aus der Paketdatei
+(`TexPack::Read`, `pread`) und lud es hoch: der erste Blick in einen Raum wartete auf alle seine Ersatzbilder
+(Known issue seit 0.99.12). Plan: `port/docs/textur-lader-plan.md`, Schritt T4.
+
+- **Messung vorher** (am PC, Pakete des Inhabers aus `builds\textures`, nach WSL kopiert, Linux-Dateicache vor jedem Lauf
+  geleert; 300 aufeinanderfolgende GX-Bilder ab dem Raumstart, `RE4_GX_DUMP_SERIES`, gezeichnet mit `gx_chunk_render`
+  GLES; Skripte `rc-hd_series.sh`, `rc-hd_measure.sh`, `rc-hd_compare.ps1`, `rc-hd_table.py` im Notizordner): fast
+  alles fällt in das erste Bild des Raums, das beim Einblenden fast schwarz ist (Helligkeit 6 von 255) – aber kein
+  schwarzes Bild des Spiels (`VISetBlack`): Warten „bei schwarzem Bild“ wie im Plan hätte es nicht getroffen.
+- **Gebaut:**
+  - `re4gx::TexLoader` (`tex_pack.h/.cpp`): ein eigener Faden („re4-hd-load“, Priorität unter Spiel und Renderer) liest
+    die angefragten Ersatzbilder; höchstens 24 MB (32 bit) bzw. 64 MB (64 bit) gelesen und noch nicht hochgeladen, dann
+    wartet er (Speicher auf schwachen Geräten); `Cancel` verwirft Warteschlange und Fertiges.
+  - `GxCore::UploadHd`: findet es ein Ersatzbild, fragt es den Lader und gibt dem Spiel bis dahin dessen eigenes Bild
+    (keine Unschärfe-Stufe, das Original); das Budget des Grafikspeichers hält den Platz frei (`hdReserved`).
+  - `GxCore::ApplyHd` am Anfang jedes Bildes (nicht im Zwischenbild von 60 FPS): fertige Ersatzbilder auf die GPU und
+    an die Stelle des Originals, höchstens 4 ms je Bild, 12 ms solange 32 oder mehr warten (Raumanfang), 50 ms bei
+    schwarzem Bild (`RE4_TEX_PACK_APPLY_MS`). Ein Raumwechsel (Reset) oder ein anderes Paket verwirft Wartendes, ein
+    vom Spiel freigegebenes Bild auch (`Forget`).
+  - Die Ersatzbilder ändern nur den Sampler (`lodShift`), keinen Shader: das Einsetzen baut kein Programm und keine
+    Vulkan-Pipeline. Vulkan löscht das Original erst nach dem laufenden Bild (`Trash`).
+  - Protokoll („HD textures so far …; in the background: … read, … waiting, … dropped, the loader read … ms, longest
+    wait … ms“), `gx_chunk_render` je Bild „HD later: …“. `RE4_TEX_PACK_SYNC=1`: wie bisher (Vergleich).
+  - Nicht gebaut: das „Gedächtnis je Raum“ des Plans (Vorladen beim nächsten Besuch); nach der Messung nicht nötig.
+- **Messung vorher/nachher** (HD-Arbeit auf dem Zeichen-Thread: Lesen + Hochladen; je Raum das schlimmste Bild und
+  alles in den 300 Bildern; neu dazu: nach wie vielen Bildern alle Ersatzbilder da sind; Tabelle auch in
+  `E:\Development\Android\builds\release-candidate\hd-background\measurements.txt`):
+
+  | Raum | 512 bisher | 512 neu | 1024 bisher | 1024 neu |
+  |---|---|---|---|---|
+  | Bauernhof r103 | 1306 ms / 1917 ms | 15 ms / 156 ms, alle nach 14 Bildern | 2270 / 2797 ms | 34 / 606 ms, 40 Bilder |
+  | Burg r200 | 771 / 1845 ms | 31 / 215 ms, 15 Bilder | 1072 / 2412 ms | 24 / 614 ms, 25 Bilder |
+  | Insel r300 | 1526 / 2585 ms | 13 / 149 ms, 10 Bilder | 1128 / 2575 ms | 30 / 601 ms, 35 Bilder |
+  | Dorf r400 (Mercenaries) | 1959 / 2608 ms | 15 / 236 ms, 20 Bilder | 2720 / 3360 ms | 28 / 928 ms, 59 Bilder |
+
+  Neu bleibt auf dem Zeichen-Thread nur das Hochladen; am PC entpackt die Software-Grafik (llvmpipe) ETC2 selbst und
+  ist dabei langsam; ein Handy gibt ETC2 dem Grafikchip, wie es ist (schneller). Bei 30 Bildern je Sekunde sind alle
+  Ersatzbilder mit 512 nach 0,3–0,7 s da, mit 1024 nach 0,8–2 s, am PC durch das langsame Hochladen begrenzt, am
+  Handy durch das Lesen. Die Insel lief, während daneben die Vulkan-Prüfung mit zwei Kernen übersetzt wurde: ihre
+  Hochladezeiten können etwas zu hoch sein. Gesamtzeiten je Bild („Run“) taugen am PC nicht zum Vergleich: die
+  Software-Grafik baut im ersten Raumbild Shader, mit geleertem Dateicache sogar aus dem Programm-Cache neu
+  (Sekunden in beiden Fassungen).
+- **Gleiches Ergebnis:** das 150. und das letzte Bild jeder Serie sind mit beiden Wegen gleich (0 Bildpunkte anders, 4
+  Räume × 512/1024): am Ende stehen dieselben Ersatzbilder. Bilder des Einblendens (Bauernhof, 512, oben bisher, unten
+  neu): `builds\release-candidate\hd-background\farm-r103-fade-in-512.png`: die HD-Bilder kommen zwischen Bild 506 und
+  518 dazu, während die Szene noch dunkel ist.
+- **Geprüft am PC:** `gx_gl_check` (WSL, Baum `~/re4-rc`, GL und Vulkan mit lavapipe) 0 failed, neu
+  `TestHdBackground` mit einem Paket, das die Prüfung selbst schreibt (4×4-Spielbild blau, 8×8-Ersatz rot): erst das
+  Original, später der Ersatz, ein Reset verwirft das Wartende, Vulkan über den entpackten Ersatzweg; der Lader liest
+  höchstens bis zu seiner Grenze vor, `Cancel` leert ihn. Gegenprobe mit `RE4_TEX_PACK_SYNC=1` (der alte Weg): 5
+  Prüfungen schlagen an. App-Tests 177 je Variante grün, `:app:externalNativeBuildCoreDebug` (beide ABIs) ohne neue
+  Warnung. Der Spielkern ist unverändert.
+- **Nicht geprüft:** auf einem Gerät (Lesen vom Flash-Speicher, echtes ETC2-Hochladen, schwache Geräte mit wenig
+  Speicher, Vulkan auf dem Gerät); EU- und US-Discs (dieselbe Kennung je Bild, der Weg ist gleich); ein Raumwechsel
+  mitten im Spiel über eine Tür (gemessen ab dem Debug-Start eines Raums).
+
+### 4. Die Versionsnummer links vom Update-Knopf (Projektinhaber, 15.11.2026)
+
+Erster Wunsch: „Bitte ändere noch die Platzierung der Versionsnummer im Ingame Menü: die Version soll nun direkt im
+Button stehen [Aktuell] und darunter klein die Versionsnummer aber nicht mehr in Klammer.“ Gebaut als a197d95c (die
+Version klein unter „Aktuell“/„Update“ im Knopf). Danach geändert: „Die Versionsnummer doch nicht im Button sondern wie
+in der OUYA Version links vom Button.“ Gebaut nach dem OUYA-Menü (`OuyaMenu.java` auf `ouya-discarded`, nur gelesen).
+
+- **Titel:** nur noch der Name der Seite (bis 0.99.17 auf der Startseite „… (v0.99.17-rc)“ mit kleiner Version).
+- **Kopf:** `[Titel] … v0.99.18-rc  [Aktuell/Update] [Zurück zum Spiel]`: die Version (`version()` ohne „-core“, mit
+  „v“ wie im OUYA-Menü) 14 sp, nicht fett, grau, 18 dp vor den Knöpfen; kein Knopf. Sie steht auch da, wenn der
+  Update-Knopf ohne Antwort von GitHub (kein Internet) fehlt, dann direkt vor „Zurück zum Spiel“. Die Knöpfe sind wie in
+  0.99.17 (der Stand von a197d95c in den Knöpfen ist zurückgenommen). Sie steht auf jeder Seite des Menüs, wie der
+  Update-Knopf.
+- **Schmale Fenster** (`MenuLayout.Header`, Knöpfe unter dem Titel): die Knöpfe bekommen dort die Breite, die der
+  Zurück-Knopf übrig lässt, statt der halben (vorher brach „Back to the game“ bei 480 px um). Reicht die Zeile für
+  Version und Knöpfe nicht (z. B. 320–340 dp), steht die Version klein unter den Knöpfen an ihrem Ende, statt sie zu
+  zerdrücken.
+- **Geprüft am PC:** App-Tests 178 je Variante grün (Core und Classic); neu `CoreMenuRowsTest.versionLeftOfTheUpdateButton`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, ohne Antwort, aktuell, Update, 320–960 dp: der Kopf im
+  Fenster, die Version auf einer Zeile neben den Knöpfen, rechts nach links gespiegelt, unter ihnen nur in schmalen
+  Fenstern; ab 700 dp beide Knöpfe einzeilig), `updateButtonSitsLeftOfResumeAndComparesVersions` erweitert (Titel ohne
+  Version, „v0.99.18-rc“ links vom Update-Knopf, auch ohne ihn, kein Knopf). Bilder des Kopfes (Deutsch und Englisch,
+  je ohne Antwort, aktuell, Update; 900, 480 und 340 px breit) in
+  `E:\Development\Android\builds\release-candidate\menu-header\`.
+- **Nebenbefund (nicht geändert):** mit echten Textbreiten ragt auf der Startseite bei 320 dp und 130 % Schrift eine
+  Linie im Seiteninhalt (nicht im Kopf) rechts über den Rand; der Inhalt ist von dieser Änderung unberührt.
+- **Nicht geprüft:** auf einem Gerät.
+
+### 5. Sichtweite „Keine“ und Augen im Knopf (Projektinhaber, 15.11.2026)
+
+„"Sichtweite Sehr Kurz" wird zu "Sichtweite Keine" und der Button soll nur hier nicht gehighlighted sein. Alle anderen
+Einstellungen bleiben gehighlighted (von Weit bis Kurz). Kannst du außerdem (weil der Button eh die volle Breite hat)
+hinter den Text im Button je nach Sichtweite 4, 3, 2 oder 1 Augen-Icons machen und bei "Keine" ein durchgestrichenes
+Auge?“
+
+- **Name:** die Stufe „Sehr kurz“ (Abschnitt 2: 35 %, Nebel dicht an der Sichtgrenze) heißt jetzt „Keine“ (en None, es
+  Ninguna, fr Aucune, it Nessuna, pt Nenhuma, ru Нет, ar لا شيء, hi कोई नहीं, in Tidak ada, zh 无); die Stufe selbst
+  ist unverändert, ebenso der Schlüssel `ingame_view_very_short` und der gespeicherte Wert 3. Der Hilfetext sagt in
+  11 Sprachen, was sie tut, ohne dass „Keine“ nach „nichts gezeichnet“ klingt: die kürzeste, dichter Nebel schon in der
+  Nähe, für langsame Handys, was nah ist, wird wie immer gezeichnet.
+- **Hervorgehoben** (gelb) bei Weit, Normal, Mittel und Kurz, nicht bei Keine (`CoreBridge.viewOff`; bisher aus bei Kurz
+  und Sehr kurz).
+- **Augen hinter dem Text** (`CoreMenu.viewLabel`, `CoreMenu.Eyes`): Weit 4, Normal 3, Mittel 2, Kurz 1, Keine ein
+  durchgestrichenes Auge (`CoreBridge.viewEyes`). Lucide „eye“ und „eye-off“ als Vektorgrafiken
+  (`res/drawable/ic_eye.xml`, `ic_eye_off.xml`, die Pfade aus Lucides SVG, die Bögen ausgeschrieben); ISC-Lizenz in
+  `app/THIRD_PARTY_NOTICES.md` (neu, wie die von RetroTouch in `app/libs/`) und ein Satz in `LICENSE-PLATFORM.txt`.
+  Die Augen sind ein Stück nach einem Leerzeichen: so hoch wie die Buchstaben (115 % der Schriftgröße), in der Farbe
+  des Textes (sie folgen dem Zustand des Knopfes wie der Text), in einem schmalen Knopf auf der nächsten Zeile, nie
+  abgeschnitten; bei Arabisch stehen sie auf der linken Seite (nach dem Text). TalkBack liest nur den Text. Der Knopf
+  steht allein in einer einfachen Zeile über die ganze Breite (die Knopfzeilen sind ein GridLayout, das die Höhe bei
+  der Breite des ungebrochenen Textes misst).
+- **Geprüft am PC:** App-Tests 179 je Variante grün (Core und Classic); neu `viewDistanceMovesThroughFiveStepsWithEyes`
+  (Reihenfolge, Hervorhebung, Text, Augenzahl, TalkBack-Text) und `CoreMenuRowsTest.viewDistanceEyesNeverCutTheText`
+  (echte Textbreiten: 11 Sprachen, Schrift 100/130/150 %, 5 Stufen, 320–960 dp: nichts abgeschnitten, die Augen nach
+  dem Text, bei normaler Schrift ab 700 dp eine Zeile); `check_translations.py` ohne Befund. Bilder des Knopfes in allen
+  fünf Stufen (Deutsch und Englisch, 900 und 360 px breit) in
+  `E:\Development\Android\builds\release-candidate\view-distance-button\`.
+- **Nicht geprüft:** auf einem Gerät.
+
+### 6. Nur „Andiweli“, nicht der volle Name (Projektinhaber, 15.11.2026)
+
+- Der Startbildschirm (`MainActivity`, `core_author`, nur Englisch) sagt „By Andiweli“ statt des vollen Namens; ebenso
+  die Beschreibung des Startbildschirms in dieser Datei (Abschnitt zu MainActivity).
+- **Gesucht** (alle Dateien des Repositorys, auch Binärdateien und UTF-16; ohne die RetroTouch-AAR, deren
+  Lizenzzeile die Hauptsitzung mit dem Inhaber klärt): sonst nirgends der Vor- oder Nachname, auch nicht abgekürzt
+  oder in anderer Schreibweise, weder in den Texten der App noch im Launcher, in „Quelle und Updates“, den beiden
+  Packer-Apps oder der Versions-Ressource des Windows-Packers (`texpack.rc`: „CC0 (public domain)“, kein Name). Die
+  „Stürmer“ in den Abschnitten zu den Ganados mit Dynamit sind die angreifenden Gegner, kein Name.
+- **Geprüft am PC:** App-Tests 179 je Variante grün (Core und Classic).
+- **Nicht geprüft:** auf einem Gerät.
+
+## Branch `converter-tool`: Texture Packer 1.4 für Windows mit Fenster (14.11.2026, Basis f193f9e0 = 0.99.15-rc)
+
+Wunsch des Projektinhabers (14.11.2026): „zusätzlich zur Commandline Version auch eine richtige Windows Version mit
+Fenster“ (Fenster, Paket hineinziehen mit Hinweis, Optionen wie Konsole und Android, Speichern-Dialog, sichtbare
+Umwandlung, Erfolg/Fehler am Ende). Nur das PC-Programm; App und Android-Packer unverändert (Feature-Freeze).
+Beschreibung, Begründungen, Releasetext-Vorlage und alle Prüfungen: `port/docs/textur-packer-windows.md`.
+
+- **Zwei Dateien:** `CubeEvil4-TexturePacker.exe` ist jetzt das Fenster (Win32 mit GDI/GDI+, keine Laufzeit, 0,6 MB),
+  die bisherige Konsolen-Version heißt `CubeEvil4-TexturePacker-Console.exe`. Grund: eine Datei kann nicht beides
+  sauber (Konsolen-Programm: schwarzes Fenster blitzt beim Doppelklick; Fenster-Programm: die Befehlszeile wartet nicht).
+  Das Fenster mit Konsolen-Optionen verweist auf die Konsolen-Version (Rückgabewert 2).
+- **Code:** `port/tools/texpack/gui.cpp` (Fenster), `gui_text.h/.cpp` (90 Texte, nur Englisch: Projektinhaber
+  14.11.2026 „die windows app braucht nur englisch sein!“; die zuerst gebauten 11 Sprachen wieder entfernt), `pc.h`
+  (von Fenster und Konsole geteilt), `res/` (Symbol aus dem Android-Packer-Zeichen, Version, Manifest). Kern: Fortschritt mit Bildname und abgelehnten Bildern, Ergebnis mit Liste der abgelehnten Bilder,
+  `EstimateEach`; die `.c4tex` bleibt gleich. Version 1.4 (steht im Info-Text der Datei).
+- **Geprüft** (Windows-PC): `texpack_tests` 601 / mit Testbildern 966 ohne Fehler (auch GCC in WSL), `run_e2e.py` 36/36;
+  HD Project als ZIP mit Größe 256 im Fenster in 2 min 22 s, Byte für Byte gleich der Konsolen-Datei, gegen 1.3 nur 2
+  Bytes (Version, Datum); Abbrechen und Schließen löschen die halbe Datei; Speichern- und Öffnen-Dialoge; abgelehnte
+  Bilder mit Grund; hell und dunkel. Bilder (englisch):
+  `E:\Development\Android\builds\converter-tool\screenshots\`, `.exe` in `E:\Development\Android\builds\converter-tool\`.
+- **Nicht geprüft:** echtes Ziehen mit der Maus (die Sitzung darf die Maus nicht bewegen; geprüft mit demselben
+  Windows-Datenobjekt wie beim Ziehen), andere Skalierungen als 100 %, zweiter Monitor, Hoher Kontrast, Windows 10.
+- **Android-Packer-App 1.4** (Projektinhaber: „Ja, auf 1.4“): `versionName` 1.4, `versionCode` 2, gleicher Kern.
+  **Alle drei Werkzeuge nur Englisch** (Projektinhaber: „alle 3 tools sollen nur englisch sein“): die App hat nur noch
+  `res/values` (die 10 Sprachordner, `locales_config.xml`, `supportsRtl` und der Modus `packer` von
+  `tools/check_translations.py` entfernt); `PackerScreenTest` prüft, dass ein deutsches und ein arabisches Handy
+  dieselben englischen Texte von links nach rechts zeigen. Die Konsolen-Version hatte nie andere Sprachen. Debug-APK
+  `builds\converter-tool\CubeEvil4-TexturePacker-1.4.apk` (nicht auf einem Gerät geprüft).
+- **Zusammengeführt (14.11.2026):** nach dem Maustest des Projektinhabers („Ja, klappt“: das Paket mit der Maus ins
+  Fenster ziehen) und seinem OK („Ja, nach dem Test“) über `09915` (507e72b1) nach `master`; im Releasetext von
+  0.99.16.
+
+## Version 0.99.17-rc (veröffentlicht 15.11.2026, Branch `09917`, Basis 650b543e = Release 0.99.16-rc; Tag 0.99.17-rc = b6025eb9)
+
+Version 0.99.17-rc (versionCode 119), Releasetext `port/android-decomp/docs/releases/v0.99.17-rc.md` („Changes since
+v0.99.16.“, Known issues aus 0.99.16 übernommen, zwei neue). Nächste freie Patchnummer weiter 0233. Nur App.
+**Auf dem Gerät geprüft (Projektinhaber, 15.11.2026):** alles aus 0.99.17 läuft; die Punkte „Nicht geprüft“ der
+Abschnitte unten sind damit erledigt.
+
+### 1. Kamera-Aussparung neu: Bild über die Aussparung, Touch über den ganzen Bildschirm (Projektinhaber, 15.11.2026)
+
+Ein Nutzer nach 0.99.16: „The app was working normally in version 0.99.15, but the black border has returned in the
+new update!“ Der Projektinhaber: mit 0.99.15 war der Rand bei ihm weg; andere Nutzer mit Kameraloch sahen trotzdem
+einen Balken, RetroTouch ließ sich nicht in den Bereich der Kamera schieben, auf seinem Telefon standen Touch-Ebene und
+Editor-Leiste etwa 110 px vom linken Rand weg. Plan der Hauptsitzung, vom Inhaber freigegeben („Ja, so bauen“); die
+Umrechnung nach dem Vorschlag dieser Sitzung („Ja dann baue im 0.99.17 Subthread bitte so um wie von dir
+vorgeschlagen“), RetroTouch unverändert. Die Meldung vom Moto G22 (Abschnitt 3 von 0.99.15) ist damit wieder
+bearbeitet.
+
+- **Fenster:** `Cutout.extend` wie in bbfe48e2 (ab Android 11 `ALWAYS`, auf 9 und 10 `SHORT_EDGES`). Das App-Menü
+  rechnet seine Größe ohne den Streifen (`CoreMenu.resizeWindow`), die FPS-Anzeige hält wie bisher über `CornerInset`
+  Abstand.
+- **Touch über das ganze Fenster:** die Touch-Ebene hat keine Ränder mehr (0.99.15 rückte sie um die Aussparung ein);
+  Knöpfe lassen sich an jeden Rand und in den Kamera-Streifen ziehen.
+- **Bezug der Layouts (`TouchFrame`):** RetroTouch speichert Mitte, Breite und Höhe als Anteile seiner Ansicht. Bis
+  0.99.16 war das das Fenster ohne Streifen (der sichere Bereich), jetzt das ganze Fenster. Der sichere Bereich wandert
+  beim Drehen um 180° mit der Kamera auf die andere Seite, eine einmalige Umrechnung wäre nur in einer Lage genau.
+  Darum:
+  - **Standard-Layout:** bei jeder Änderung (erstes Layout, Drehen) in den sicheren Bereich der Kamera-Seite gelegt
+    (`TouchControls.layout(shoulder, w, h, safe)`): Mitten verschoben, runde und geformte Knöpfe gleich groß (ihre
+    Größe ist im Querformat die der Höhe), die Umsehen-Fläche so breit wie vorher. Ohne eigenes Layout liegt alles wie
+    bisher, nie unter der Kamera.
+  - **Layout von vor 0.99.17:** einmal (Marke `layout_cubeevil4_frame`) samt Editor-Zustand (Zahnrad) als altes
+    aufbewahrt (`layout_cubeevil4_safe`, `…_safe_editor`) und für jede Kamera-Seite umgerechnet in RetroTouchs
+    Schlüssel geschrieben: in beiden Lagen genau. Ändert der Spieler im Editor etwas (RetroTouchs gespeichertes Layout
+    weicht vom zuletzt geschriebenen `…_wrote` ab), gilt sein Layout ab dann fürs ganze Fenster und das alte fällt
+    weg; Öffnen und Schließen ohne Änderung lässt es alt. Das Zahnrad ebenso für sich.
+  - **Standard im Editor gespeichert** (nichts verschoben oder RESET; RetroTouch speichert bei jedem Schließen): wird
+    wieder entfernt, der Standard folgt der Kamera.
+  - **Touch-Layout-Datei** (Export, Import, auch im ZIP): Layouts des ganzen Fensters tragen `"frame": "window"`;
+    Dateien ohne die Angabe (alle vor 0.99.17 und ein noch altes Layout) gelten als sicherer Bereich, werden in ihn
+    eingepasst und wie ein altes Layout behandelt. Die Schlüssel beginnen mit `layout_`: die Einstellungen im ZIP
+    lassen sie aus (`PlayerBackup.outside`).
+- **Editor-Leiste:** RetroTouch 1.0.0-beta.10 zeichnet sie und die Zeile „DRAG / Selected“ immer über die volle Breite
+  (keine Schnittstelle für Ränder, `RetroTouchView` ist final). Bleibt so (Entscheidung des Inhabers); sie lässt
+  sich nach oben oder unten ziehen. Die Idee `setSafeInsets` geht an den RetroTouch-Chat des Inhabers; `app/libs`
+  und `E:\Development\Android\RetroTouch` unverändert. Steht in den Known issues. **Überholt:** mit RetroTouch
+  1.0.0-beta.11 hält die Leiste Abstand (Abschnitt 6).
+- **Diagnose:** eine Zeile `camera cutout: …` im Fehlerprotokoll (und so im Bericht), bei jeder Änderung: Fenstergröße
+  und -lage, Bildschirmgröße, sichere Abstände und Kamera-Seite, angefragter und tatsächlicher Fenstermodus, und ob
+  das Fenster über die Aussparung reicht oder einen Streifen freilässt (dann hält das Telefon die App mit einer
+  eigenen Einstellung fern, z. B. Samsung „Kameraaussparung“; steht in den Known issues). Dazu Zeilen, wenn ein altes
+  Layout umgerechnet wird oder nach dem Editor in den neuen Bezug wechselt.
+- **Geprüft am PC:** App-Tests 168 je Variante grün (Core und Classic); neu `CutoutTest` (5: Modus ab Android 11 und auf 10, sichere Abstände
+  links und rechts, die Zeile fürs Protokoll) und `TouchFrameTest` (10: beide Kamera-Seiten, Drehen um 180°
+  hin und zurück, altes Layout vor und nach einem Speichern im Editor, Standard-Layout auf beiden Seiten und nach dem
+  Speichern ohne Änderung, Zahnrad, Dateien beider Bezüge).
+- **Nicht geprüft:** auf einem Gerät mit Kameraloch (Bild über die Kante, Knöpfe in den Streifen ziehen, Drehen um
+  180° mit altem und neuem Layout, Editor-Leiste, App-Menü, die Protokollzeile bei einem Telefon mit eigener
+  Einstellung).
+
+### 2. Name der APK (Projektinhaber, 15.11.2026)
+
+Ab 0.99.17 heißt die APK im Release `CubeEvil4-<Version ohne -rc>-Android.apk` (0.99.17: `CubeEvil4-0.99.17-Android.apk`;
+die von 0.99.16 benennt der Inhaber selbst um). Tag und `versionName` bleiben `0.99.17-rc`. `AppUpdate` vergleicht seit
+0.99.6 nur den Tag mit dem `versionName` und nimmt irgendeine Datei auf „.apk“: keine Änderung nötig (geprüft von der
+Hauptsitzung). Geändert: der Update-Abschnitt in `v0.99.17-rc.md`; sonst nennt keine Datei (README, Doku, Skripte in
+`port/tools`, `port/scripts`) die Release-APK. Die veröffentlichten Releasetexte bis 0.99.16 bleiben, wie sie sind.
+
+### 3. Das Ingame-Menü gleitet hinein und hinaus (Projektinhaber, 15.11.2026)
+
+- `CoreMenu.onStart` gibt dem Fenster vor dem Anzeigen die Animation `CoreMenuSlide` (`res/anim/menu_slide_in.xml`:
+  aus einer Bildschirmhöhe unterhalb, 220 ms, abbremsend; `menu_slide_out.xml`: zurück nach unten, 200 ms,
+  beschleunigend). Android spielt sie am Fenster ab: gilt für jeden Weg hinein (SELECT, F1, Zahnrad, Zurück) und
+  hinaus; das Spiel läuft beim Schließen sofort weiter (der Dismiss-Listener kommt vor dem Ende der Animation), beim
+  Öffnen steht es wie bisher sofort. Jedes Öffnen ist ein neues Fenster, schnelles Auf-Zu-Auf stört sich nicht.
+- Android-Animationen aus (Animator-Dauer 0, `ValueAnimator.areAnimatorsEnabled`; unter Android 8 die Einstellung
+  selbst): `CoreMenuNoAnimation`, das Menü erscheint und geht sofort. Die Fensteranimationen selbst folgen außerdem
+  Androids Skala für Fensteranimationen.
+- Unterfenster (Fragen wie „Delete All Data“) behalten ihre Animation; die Größe des Menüs um die Kamera-Aussparung
+  (Abschnitt 1) ist davon unberührt. Nur die Haupt-App; die OUYA-App ist nicht berührt.
+
+### 4. Der Benchmark endet mit B nicht (Meldungen von Nutzern, über den Projektinhaber, 15.11.2026)
+
+- **Ursache:** `CoreActivity.dispatchKeyEvent` beendete den Benchmark nur bei Androids Tastencodes `BUTTON_B`, `BACK`
+  und `ESCAPE`. Das B der Touch-Steuerung (RetroTouch) ist kein Tastendruck: `CoreTouch.action` gibt es als
+  GameCube-Knopf an `CoreInput.touchButton`, also nur ans Spiel; der Benchmark sah es nie, obwohl seine Zeile
+  „B / Back: cancel“ sagt. Ebenso fiel durch: ein Controller-B, das die Tastenbelegung auf eine andere Taste legt
+  oder das mit „Swap A/B“ Androids A-Code sendet, und die B-Taste der Tastatur-Belegung.
+- **Behoben:** `BenchmarkFlow.cancels(Taste, GC-Knöpfe)`: Zurück, Esc, jede Taste, die über die Belegung des Controllers
+  (`CoreInput.gcButton`) oder der Tastatur (`keyboardButton`) das B des Spiels drückt, und Androids B-Code, wenn er
+  nichts drückt. Das Touch-B: `CoreActivity.benchTouch` bei jedem Touch-Ereignis (`CoreInput.touchHeld`, neu), ein
+  Druck beendet ihn; auch mit „B einrasten“. Eine Protokollzeile nennt, womit er beendet wurde. Ein eigenes Feld zum
+  Antippen war nicht nötig: das Touch-B ist sichtbar.
+
+### 5. Geprüft und offen (Abschnitte 2–4)
+
+- **Geprüft am PC:** App-Tests 175 je Variante grün (Core und Classic), `CoreInputTests` 1851; neu `BenchmarkCancelTest` (4: Zurück, Esc und das B des Spiels; Controller
+  mit und ohne „Swap A/B“; jede Taste der Tastatur-Belegung für B; das Touch-B) und `CoreMenuSlideTest` (3: Dauer und
+  Weg der beiden Animationen, die Stile, Animationen aus).
+- **Nicht geprüft:** auf einem Gerät (das Gleiten, Auf-Zu-Auf schnell hintereinander, Unterfenster, das Menü bei
+  Kameraloch; den Benchmark mit Touch-B, Controller und Tastatur beenden).
+
+### 6. RetroTouch 1.0.0-beta.11: Editor-Leiste und Zahnrad weg von der Kamera (Projektinhaber, 15.11.2026)
+
+„hier beta11, bitte um einbau“: die AAR aus der RetroTouch-Sitzung des Inhabers
+(`C:\Users\andiw\Downloads\RetroTouch-1.0.0-beta.11.aar`, 48 743 Bytes, SHA1 ed1aa1d4…) ersetzt
+`app/libs/retrotouch.aar`; der Ordner `E:\Development\Android\RetroTouch` bleibt unberührt.
+
+- **Geprüft gegen beta.10 (javap):** dieselben 20 Klassen; die öffentliche Schnittstelle aller Klassen gleich bis auf
+  das neue `RetroTouchView.setSafeInsets(int, int, int, int)`; Manifest, `proguard.txt`, `R.txt` und `META-INF/LICENSE`
+  gleich, die Hinweisdatei `retrotouch-THIRD_PARTY_NOTICES.md` bleibt. Im Bytecode nutzen die Abstände nur die
+  Leiste (`drawToolbar`, `toolbarTop`, `toolbarHeight`, `toolbarIndex`, `isInsideToolbar`, ihr Ziehen in
+  `movePointer`) und den Standardplatz des Zahnrads (`gearRect` nur bei `settingsX/Y` NaN); ein gespeicherter Platz
+  des Zahnrads und alle Knöpfe bleiben Anteile des ganzen Fensters. Wie vereinbart.
+- **Eingebaut:** `TouchControls.setSafeInsets` gibt die Abstände der Aussparung bei jeder Änderung (auch nach dem
+  Drehen um 180°) an `RetroTouchView.setSafeInsets`. Die Umrechnung (`TouchFrame`) bleibt: gespeicherte Plätze des
+  Zahnrads rechnet sie wie bisher um, der Standardplatz folgt jetzt von selbst der Kamera-Seite.
+- Releasetext: die Known-issues-Zeile zur Leiste über die volle Breite gestrichen, unter Fixed „The touch editor's bar
+  and the gear keep clear of the camera hole (RetroTouch 1.0.0-beta.11).“
+- **Geprüft am PC:** App-Tests 176 je Variante grün (Core und Classic); neu in `TouchFrameTest`: RetroTouch bekommt die Abstände links, nach dem
+  Drehen rechts und ohne Kamera wieder 0; der Standardplatz des Zahnrads rückt um den Streifen nach innen, ein
+  gespeicherter Platz bleibt (auch im Streifen).
+- **Nicht geprüft:** auf einem Gerät mit Kameraloch (Leiste, „DRAG“-Zeile und Zahnrad neben der Kamera).
+
+## Version 0.99.16-rc (veröffentlicht, Branch `09916`, Basis 507e72b1; Tag 0.99.16-rc = 650b543e)
+
+„sorry 0.99.15 ist ja schon released, wir sind schon bei 0.99.16“ (Projektinhaber, 14.11.2026): 0.99.15-rc ist bei
+den Testern (Stand f193f9e0); alles danach gehört zu 0.99.16, einer Version mit Fehlerbehebungen unter dem
+Feature-Freeze. Version 0.99.16-rc (versionCode 118), Releasetext `port/android-decomp/docs/releases/v0.99.16-rc.md`
+(„Changes since v0.99.15.“, Known issues aus 0.99.15 übernommen). Nächste freie Patchnummer weiter 0233.
+
+- **Bisher drin:** die Rücknahme der Kamera-Aussparung (c14ec500, Abschnitt 3 von 0.99.15), Texture Packer 1.4 für
+  Windows mit Fenster und die Android-Packer-App 1.4 nur Englisch (Branch `converter-tool`, oben), die README des
+  Projektinhabers (9f9f74fe).
+- `v0.99.15-rc.md` hat die Zeile zur Kamera-Aussparung wieder: 0.99.15 wurde mit dieser Änderung veröffentlicht.
+- Der Tag `0.99.15-rc` auf GitHub zeigte erst auf 62f8e946 (denselben Commit wie `0.99.14-rc`); die Hauptsitzung hat
+  ihn mit dem OK des Inhabers am 14.11.2026 auf f193f9e0 verschoben.
+
+## Version 0.99.15-rc (veröffentlicht 14.11.2026, Branch `09915`, Basis 62f8e946 = Release 0.99.14-rc; Stand f193f9e0)
 
 Version 0.99.15-rc (versionCode 117), Releasetext `port/android-decomp/docs/releases/v0.99.15-rc.md` („Changes since
 v0.99.14.“, Known issues aus 0.99.14 übernommen). Nächste freie Patchnummer 0233 (0232: „Sanftere QTEs“, Abschnitt 4). Aufgaben 1–3 nur App; ab Abschnitt 4
@@ -72,7 +1725,8 @@ erscheinen mit zwei Button "Abbrechen" und "Löschen" … 2. ganz unten benenne 
   Kartenverzeichnis und Systemdaten im Speicher und hätte sie beim nächsten Speichern zurückgeschrieben.
 - **„Quelle“ → „Quelle und Updates“** (Englisch „Source and updates“), Zusammenfassung „Speicherkarte, Discs,
   Berichte, Quelle & Updates“; 20 neue Texte, 1 Pluralform, alle 11 Sprachen (`check_translations.py` 440 Texte ohne
-  Befund). Die neue Frage sagt „Abbrechen“; die älteren Fragen der App sagen weiter „Abbruch“ (`ingame_cancel`).
+  Befund). Die neue Frage sagt „Abbrechen“; die älteren Fragen der App sagen weiter „Abbruch“ (`ingame_cancel`;
+  seit 0.99.18 auch „Abbrechen“, Abschnitt 1 von 0.99.18).
 - **Geprüft am PC:**
   - App-Tests beider Varianten je 146 grün (Core 0, Classic 2 übersprungen). Neu `PlayerBackupTest` (12): Einstellungen
     mit allen Typen zurück, Vulkan-Wächter und RetroTouch-Layout nicht in der Datei, Standard für Fehlendes, anderes
@@ -162,6 +1816,21 @@ etwa 76 Pixeln (beim Telefon 1600 × 720 etwa 95), keine Status- und keine Navig
   Abstände links und nach dem Drehen rechts, ohne Aussparung 0).
 - **Nicht geprüft:** auf einem Gerät mit Kameraloch (das Bild über die Kante, die Touch-Knöpfe, das Drehen um 180°,
   das App-Menü).
+- **Wieder ausgebaut (Entscheidung des Projektinhabers, 14.11.2026, über die Hauptsitzung):** „die änderung bezüglich der
+  notch-area dürfte probleme bereiten … ich denke es wäre besser die änderung dazu wieder auszubauen.“ Auf seinem
+  Telefon (Kamera links im Querformat) reichte das Bild bis zum Rand, die Touch-Knöpfe und die Leiste des
+  Touch-Editors blieben aber etwa 110 Pixel vom linken Rand weg (die Einrückung oben). `Cutout.java`, `CutoutTest` und
+  die Stellen in `CoreActivity` und `CoreMenu` sind entfernt (in 0.99.16; 0.99.15 war schon veröffentlicht), das
+  Verhalten ist wieder das von 0.99.14 (auf der
+  Kamera-Seite ein schwarzer Streifen, Touch-Knöpfe bis zu dessen Rand). Seine zweite Beobachtung, schwarze Ränder
+  links und rechts in der Speicherliste beim Laden trotz „Nativ“, kommt nicht von der Aussparung: die Ränder sind
+  gleich breit (ein 16:9-Kasten), und „Nativ“ zeigt Menüs, das Zielfernrohr und Filme mit Absicht im 16:9-Kasten,
+  nur das 3D beim Spielen wird breiter (`core_mode.cpp`, `re4mm::Native`, seit 07.11.2026). Geprüft am PC: App-Tests
+  153 je Variante grün (156 ohne die drei `CutoutTest`).
+- **Erledigt, ohne Änderung (Entscheidung des Projektinhabers, 14.11.2026):** „das moto problem kannst du streichen,
+  der user schaltet manuell am handy etwas um damit spiele die notch nutzen können.“ Der Nutzer schaltet in den
+  Einstellungen seines Telefons ein, dass Apps den Bereich der Kamera-Aussparung nutzen dürfen. Nicht auf der Liste
+  für 1.1.
 
 ### 4. QTEs in Professional entschärfen (Projektinhaber, 14.11.2026)
 
@@ -781,6 +2450,77 @@ Version er kommt, entscheidet der Inhaber später. Plan und Entscheidungen: `por
   Knopf-Paare ZIP/Ordner, Start/Abbruch, Bericht/Import nebeneinander, lange Texte zweizeilig. `PackerScreenTest`: 11
   Sprachen bei 360 dp, Schrift 100 und 130 %, drei Zustände: nichts abgeschnitten, gekürzt oder außerhalb, Paare gleich
   breit (Gegenprobe mit einzeiligen Knöpfen schlägt an). Bilder `builds\textures\pics\packer-*.png`.
+- **Titelmenü in der Schrift des Spiels (Meldung eines Spielers und des Inhabers, Entscheidung des Projektinhabers
+  16.11.2026; Basis `release-candidate` 9247f05d):** Mit dem HD Project hatte START (US) eine andere, dünne Schrift,
+  mit EU-Discs nur ASSIGNMENT ADA und THE MERCENARIES (englisch in allen Sprachen, im US-Paket enthalten). Ursache das
+  Paket: es malt nur einen Teil der Wörter neu, START in einer anderen Schrift, und kennt nur die US-Wörter; unsere
+  Kennungen sind dieselben wie Dolphins Dateinamen. Jetzt ersetzt der Lader die 33 Menüwörter des Titel- und
+  Schwierigkeitsmenüs nie (`KeepsGameTexture`, `tex_pack.cpp`; Liste aus allen `title.dat` von Debug, US, EU in fünf
+  Sprachen und JP; Größe, Format und Kennung der Bilddaten, jede Farbtabelle). Geprüft am PC: Titel-Dumps aller acht
+  Fassungen und das US-Schwierigkeitsmenü mit dem 512er-Paket: es fallen genau die Menüwörter weg (US/Debug 5, EU
+  englisch 5, EU deutsch/spanisch/italienisch 2, französisch 3, JP 4), alle anderen Ersetzungen bleiben gleich; im
+  Dorf (Debug-Dump) dieselben 116 Ersetzungen wie vorher. `gx_gl_check`-Gruppe `TestHdKeptWords` (START bleibt,
+  gleiche Kennung in anderer Größe oder anderem Format und andere 66×14-Bilder werden ersetzt; Gegenprobe ohne die
+  Liste: 2 Fehler). Bild `builds\textures\pics\title-menu-own-font.png`. Nicht auf dem Gerät geprüft.
+- **Alle Menüs in den Wörtern des Spiels (Entscheidung des Projektinhabers 16.11.2026: „Es sollen alle Menüwörter
+  die Originalschrift behalten.“; Basis `release-candidate` 1c829194):** `tex_pack_words.h` (677 Wort-Bilder,
+  sortiert, Suche halbiert) ersetzt die 33er-Liste. Gefunden durch Auslesen aller Menü-Dateien der Debug-, US-, EU-
+  und JP-Discs (`ss/<Sprache>`, `ss/Cmn`, `etc/core.das`, `etc/<Sprache>`, `memcard.das`: 1.946 Bilder, jedes
+  angesehen). Behalten: Bilder aus Buchstaben (auch mit Tasten-Symbol oder auf einem Schild) in Titel, Optionen/Pause,
+  Koffer, Karte, Händler, Gegenständen, Kapitelende, Ergebnissen, Schießstand, Mercenaries/Ada, Speichern/Laden,
+  Spiel-Anzeige (Namen, „EMPTY“), Hinweisseite. Weiter ersetzt: Symbole, Bilder, Rahmen, Logos, Ziffern, die
+  Buchstaben-Schrift, ganzseitige Dokument- und Titelbilder. Je Disc: Debug 148 Wörter (110 davon im HD Project),
+  US 148 (114), JP 187 (65), EU englisch 148 (114), deutsch 146 (15), französisch 146 (15), spanisch 148 (14),
+  italienisch 146 (13). Buchstaben-Schrift: das HD Project ersetzt nur `font/common_p.fnt` (US/Debug) mit denselben
+  Buchstaben, schärfer (`builds\textures\pics\letter-font-hd-pack.png`); unverändert, der Inhaber entscheidet.
+  Geprüft am PC: Titel- und Optionsmenü aller acht Fassungen, Koffer, Karte und Pause (Debug) sowie Koffer und Karte
+  (EU deutsch) vorher/nachher (`menus-own-words-title-options.png`, `menus-own-words-ingame.png`); im Dorf dieselben
+  71 Ersetzungen wie vorher, nur die Namensschilder der Anzeige bleiben original; `TestHdKeptWords` mit Wörtern aus
+  Optionen, Koffer, Kapitelende und Anzeige sowie Zeichen und Balken, die ersetzt bleiben (Gegenprobe: 6 Fehler).
+  Nicht auf dem Gerät geprüft.
+- **„Sharper menu text“ (1.0.0; Entscheidung des Projektinhabers 16.11.2026: „Bitte baue den Schärfefilter für die
+  Schrift auch in 1.0.0 ein.“; Test vorher auf `menu-words-upscale` 3a237eaa; Basis `release-candidate` f43d61c8):**
+  Die 677 Wort-Bilder aus `tex_pack_words.h` werden auf dem Gerät aus den eigenen Discs vergrößert und geschärft
+  (`word_sharpen.h/.cpp`): Kontur-Schärfung (Catmull-Rom vergrößert, dann je Farbkanal zwischen dem dunkelsten und
+  hellsten der vier Ausgangspunkte wie ein Distanzfeld gelesen, Kante etwa einen Bildpunkt breit; nur wo die vier
+  deutlich verschieden sind, Holzmaserung und Verläufe bleiben weich). 2× für alle Wörter, 4× für kleine Wörter (höchstens
+  64 Zeilen und 32.768 Bildpunkte) ab 3× Auflösung, große Textseiten bleiben 2×; unter 1,5× und im PSone-Modus nichts.
+  Wie T4: `GxCore::Upload` zeigt das eigene Bild und fragt den Thread `WordSharpener` (niedrige Priorität), `ApplyWords`
+  setzt fertige Wörter zu Beginn jedes Bildes ein (2 ms, mindestens eins; 50 ms bei schwarzem Bild), eigene kleinere
+  Stufen bis zur Spielgröße, `lodShift` wie bei HD-Ersatzbildern; GLES und Vulkan über denselben Weg. Grenzen: fertig und
+  noch nicht hochgeladen höchstens 16/48 MB (32/64 bit), auf der GPU höchstens 32/96 MB, darüber bleibt das eigene Bild;
+  nur die Wörter des offenen Bildschirms liegen auf der GPU (die übrigen gibt der Kern frei). Mit HD-Paket: Wörter bleiben
+  Buchstaben des Spiels (nur schärfer), die Buchstaben-Schrift des Pakets bleibt. Umschalten verwirft die Texturen, der
+  Kern schickt sie neu. Menü: Grafik, unter „Texture filter“, Schalter „Sharper menu text“ (an), Hilfetext, 11 Sprachen
+  (`check_translations.py` ohne Befund); `CoreBridge.setSharperText`, `RE4_WORD_SHARPEN=0/1` (App und `gx_chunk_render`),
+  `RE4_WORD_SHARPEN_SYNC=1` (sofort, für Einzelbilder). Geprüft am PC: aus = Bild für Bild gleich wie `release-candidate`
+  (32 von 32: Titel, Optionen, Koffer, Karte, Dorf; 1× und 2,5×; mit und ohne Paket); an: Titel, Optionen, Koffer (US/Debug
+  und EU deutsch) bei 2,5× und 3×, Ergebnisseite aus ihren echten Wort-Bildern zusammengesetzt (kein Bildschirmfoto: das
+  Kapitelende braucht einen Kern-Testhaken), Bilder `builds\textures\pics\sharper-menu-text\`. Kosten (Ryzen 7 5700X, ein
+  Kern): je Bildschirm 4–40 ms (2,5×) bzw. 17–50 ms (3×) im Hintergrund, zusätzlich 0,4–4 MB auf der GPU; alle Wörter einer
+  Disc 0,5–0,6 s (2×) bzw. 0,8–0,9 s (3×), 33–43 bzw. 68–85 MB, wenn alle zugleich geladen wären. `gx_gl_check`
+  GLES und Vulkan 0 Fehler (`TestWordSharpenParts`, `TestWordSharpen`: erst das eigene Bild, dann das schärfere, Reset,
+  aus, 1×, PSone; Gegenprobe ohne Schärfen 7 Fehler); Android-Bau beider ABIs, App-Tests je 216 ohne Fehler. Nicht auf dem
+  Gerät geprüft.
+- **Kostüme und Waffen auf der Mods-Seite (Wunsch des Projektinhabers 17.11.2026; Basis `release-candidate` c4334717):**
+  „Kostüme · Texturpaket/Original“ und „Waffen · Texturpaket/Original“ (Vorgabe Texturpaket): „Original“ behält mit
+  Paket die Texturen des Spiels für die spielbaren Figuren bzw. die Waffen. `tex_pack_groups.h` (239 Texturen: 188
+  Kostüme, 49 Waffen, 2 beides) aus den Modelldateien aller vier Disc-Arten: Kostüme `em/pl*.drs` der spielerseitigen
+  Figuren (Leon pl00/08/09/10 samt Jacke und Spezialkostüm, Ashley pl01/05/03/11/15/21, Ada pl0b/0c/02/12, HUNK pl06,
+  Krauser pl0a, Wesker pl0d) und `etc/pl010a.tpl`, `pl050a.tpl`; Waffen `em/wep*.drs` (in der Hand) und
+  `ss/Cmn/ss_wep*.dat` (im Koffer). Nicht dabei: Gegner, Saddler (pl04/07), Luis (pl14, Verbündeter, nicht spielbar),
+  pl0e/pl0f (Gegenstände). Geteilte Texturen schalten mit ihrer Gruppe um: 52 Kostüm- und 3 Waffen-Texturen kommen auch
+  in Zwischensequenzen vor (dieselben Figuren), 11 Kostüm- und 6 Waffen-Texturen auch in Gegner-Dateien (vor allem der
+  Krauser-Kampf em39 und zwei kleine Texturen von Leon/HUNK, die viele Gegner-Dateien enthalten), 1 Waffen-Textur in
+  Luis' Modell, 7 in Koffer-/Rätselbildern. Renderer: `TextureGroups`, `GxRenderer::SetTexturePackKeep`, eine Änderung
+  verwirft die Texturen (der Kern schickt sie neu): wirkt sofort, ohne Neustart. App: `TexturePacks.COSTUMES/WEAPONS`,
+  `CoreBridge.setTextureGroups`, `RE4_TEX_PACK_KEEP` (App und `gx_chunk_render`). Mods-Seite neu geordnet: links
+  Importieren, Schärfe, Löschen (im leisen Rot von „Alle Daten löschen“, Rückfrage wie bisher), rechts HD-Texturen,
+  Kostüme, Waffen; 5 Texte in 11 Sprachen. Geprüft am PC: beide auf Texturpaket = Bild für Bild wie `release-candidate`
+  (32 von 32 mit dem HD Project, 32 von 32 mit RE4 Ultimate 512); Dorf mit HD Project 71 → 63 (Kostüme Original) / 69
+  (Waffen Original) Ersetzungen, mit Ultimate 86 → 77 / 84; Bilder `builds\textures\pics\texture-toggles\`.
+  `gx_gl_check` GLES und Vulkan 0 Fehler (`TestHdGroups`; Gegenprobe ohne die Gruppen-Prüfung 3 Fehler), `ModsPageTest`
+  (Anordnung, Umschalten). Nicht auf dem Gerät geprüft.
 - **Noch offen:** T4 (Nachladen im Hintergrund, Gedächtnis je Raum; bisher lädt die App beim ersten Gebrauch sofort),
   T7 (Test-APK, Retroid), Messungen auf dem Gerät, Packer-App auf dem Retroid (ZIP und Ordner, Dauer, Übergabe).
 
@@ -12057,7 +13797,7 @@ Daten noch nicht gelaufen). Der Projektinhaber verzichtet auf ein eigenes Logo
   ebenso im Betreff des Fehlerberichts.
 - **Startbildschirm** (nur zu sehen, solange Disc 1 fehlt; sonst startet das
   Spiel sofort): zentriert „Resident Evil 4 Android“, darunter kleiner
-  „By Andreas ‘Andiweli’ Stürmer“, eine Linie, „Start game“, dann
+  „By Andiweli“, eine Linie, „Start game“, dann
   „Controls“ und „Select ISO/GCM files of the November 25, 2004 debug build“
   (ohne Punkt) jeweils zentriert zwischen zwei Linien mit der Tastenbelegung
   und dem Tausch-Schalter bzw. den Import-Zeilen darunter: „Import Disc 1“
@@ -16951,7 +18691,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0220 `r100.cpp` | Port-Fehler (Sofortwechsel der Spielfigur, `cheats.cpp switchNow`: Raum neu durch eine Tür in sich selbst, und damit auch der Rücksetzpunkt für „Retry“): `R100Init` liest die Startszene s40 (2,2 MB ARAM) nur noch, wenn `r100_StartEvent` läuft und sie freigibt (Raum-Flag 13 frei), und s03/s20 wieder, wenn Bereich 6 schon passiert ist (Flag 0; s03 bis zur Haus-Szene, Flag 3). Vorher fehlten die Haus-Szene („ARAM over: evd/r100s03.evd“) und nach einem Wechsel hinter Bereich 6 auch die Szene nach dem Ganado; EU-/US-`st1_0.rel` lesen genauso vor. In jedem Zustand, den das Spiel selbst erreicht, unverändert. Bericht eines Nutzers 07.11.2026 (Xiaomi, EU-Discs, 0.99.2) |
 | 0221 `r227.cpp` | Port-Fehler (Schnellspeicher der App überall im Raum): `r227_initGondola` stellt die Gondel (Objekt 0xA2, 6850 zwischen den Stationen) beim Laden (`SYS_LOAD_GAME`) nur noch oben ab, wenn der Spieler über der Mitte ihres Wegs steht (Starthöhe + 3425); aus r228 kommend wie bisher immer oben. Die Schreibmaschine des Raums (Bereich 1, Typ SAVE, Höhe 39 500) liegt über der oberen Station: Spielstände des Spiels selbst laden unverändert. Vorher nach dem Schnellladen unterhalb der Gondel: Gondel oben, unten trotzdem „Benutzen“. EU-`st2_3.rel` prüft genauso. Rückmeldung des Projektinhabers 08.11.2026 (Retroid, EU-Discs, 0.99.4) |
 | 0222 `game.cpp` | Port-Fehler (Patch 0195): `GameContinue` setzt nach `GameSave.load` die Ersatzfigur der Story (Ada, HUNK, Krauser, Wesker; `re4_story_char_continue`) wieder ein, bevor `PlSetCostume` und `ContinueWepData` den Spielertyp lesen. Der Continue-Punkt hält absichtlich Leon (`re4_story_char_save`); vorher las `ContinueWepData` eine seit dem Speichern gewechselte Waffe nach Leons Tabelle nach `WEP_DATA_ADDR` in Krausers Spielerarchiv mit seinem Modul `pl0a`, und `OSLink` stürzte ab. Nutzerbericht 09.11.2026 (Xiaomi peridot, 0.99.5: Absturz bei Tod oder Retry mit anderen Figuren) |
-| 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. |
+| 0223 `light.cpp` | Port-Funktion (Wunsch des Projektinhabers 09.11.2026, aus dem OUYA-Zweig, dort Patch 0900): Sichtweite im App-Menü (Potato-Modus). `cLightMgr::setFog` und `hokanMove` geben GX den Nebel aus `re4_view_distance` (`runtime/view_distance.cpp`: Beginn und Ende mal 1 / 0,75 / 0,5, das Ende nicht unter 6 m, Räume ohne Nebel unverändert) und setzen die Sichtgrenze auf dieses Ende; `LightEnv.Fog` bleibt. `hokanMove` setzt den Nebel neu, wenn das Menü umgeschaltet hat (`re4_view_distance_changed`): wirkt sofort. Bei „Normal“ genau wie das Spiel. **Seit 0.99.18:** ein Aufruf `re4_view_fog(Typ, far_play_ratio, &Beginn, &Ende, &Sichtgrenze)` liefert Nebel und Sichtgrenze; neu „Sehr kurz“ (35 %, Nebel der GPU dicht an der Sichtgrenze wie Patch 0901 des OUYA-Zweigs) und „Weit“ (Nebel des Raums, Sichtgrenze bis 95 % Dichte, nie über das Nebelende); Abschnitt 2 von 0.99.18. **Seit 0.99.19:** „Weit“ (160 %) = Nebelende mal 1,6, Beginn bleibt, Sichtgrenze dort, wo dieser Nebel 95 % dicht ist (nie näher als die des Spiels); „Mittel“ 65 % statt 75 %; Abschnitte 1 und 3 von 0.99.19. |
 | 0224 `cam_motion.cpp` | Port (undefiniertes Verhalten im Originalcode): `CameraMotion::move` beginnt `pos`, `at`, `fov` mit (0, 0, 0). Die Röntgen-Kameras von r330s00 (`etc_s00_0NN.fcv`) haben kein Ziel-Gelenk; das uninitialisierte `at` machte im Port die Kamera NaN, die Monitore des Operationsraums blieben grün. Nutzerbericht 09.11.2026 (zwei Bilder) |
 | 0225 `roomdata.cpp` | Port-Fehler (`.gci`-Import bis 0.99.6, `runtime/gci.cpp` drehte `RoomNo` als u16): `cRoomData::load`/`clear` drehen die Kennungen der Raum-Datensätze eines Spielstands zurück, wenn mit umgedrehten Kennungen mehr Räume passen als mit den eigenen (Spielstände der App bleiben unberührt). Vorher verloren importierte Spielstände 109 von 121 Räumen, r102/r201, r103/r301, r204/r402, r304/r403 tauschten ihre Merker (Garrador in r201 angekettet, Schlüssel fehlt). Nutzerbericht 09.11.2026 (17 `.gci`, EU) |
 | 0226 `r201.cpp` | Sicherheitsnetz neben 0225: Merker 0 von r201 („Garrador tot“) ohne sein Todes-Bit in der Gegnerliste (Eintrag 0x56) wird zurückgesetzt, der Garrador kommt frei (nicht bei Sprungpunkt 2). Für Spielstände, die nach einem alten Import in der App neu gespeichert wurden. Nutzerbericht 09.11.2026 |
@@ -16961,6 +18701,11 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0230 `pl_machine.cpp`, `pl_handgun.cpp`, `pl_rifle.cpp` | Adas Nachladen mit ihren eigenen Waffen auf jeder Stufe mit ihrer Bewegung der Stufe 0 (0.99.11, Abschnitt 1) |
 | 0231 `em_set.cpp` | Cheat „Random enemies“ (0.99.12, Entscheidung des Projektinhabers, `port/docs/gegner-randomizer-plan.md` Stufe 1): `EmSetFromList` fragt `runtime/enemy_random.cpp` beim Raumbeginn, ob ein Eintrag wie er ist, weggelassen oder als Kopie mit der Stelle eines anderen Eintrags des Raums erscheint, und am Ende, ob eine Kopie dazukommt (ihr Tod an einem leeren Eintrag); die gespeicherte Gegnerliste wird nie geschrieben. 0.99.13 (Stufe 1.5): am Ende fragt eine Schleife bis -1 (bis zu zwei Kopien). Port-Merkmal |
 | 0232 `r226.cpp`, `emrock.cpp`, `pl0f.cpp`, `objTrolley.cpp`, `em39.cpp`, `em2b.cpp`, `em32.cpp` | „Sanftere QTEs“ (0.99.15, Wunsch des Projektinhabers; Schalter der Komfortsteuerung, Standard an): die QTE-Abfragen des Schwierigkeitsrangs (74 Stellen: Statuen-Lauf, Felsbrocken, Schwimmen nach Del Lago, Lore, Krauser, El Gigantes Parasit, U-3) lesen `re4_qte_level()` (`runtime/qte_touch.cpp`): mit dem Schalter in Professional höchstens Rang 5 (Normals Start), sonst der Rang des Spiels; Schaden und Gegnerverhalten lesen weiter `pG->Game_level`. Port-Merkmal |
+| 0233 `pl_wep.cpp`, `cam_extra.cpp` | Cheat „Atemstopp beim Zielen“ / „Steady aim“ (0.99.19, Wunsch des Projektinhabers 16.11.2026): solange `runtime/cheats.cpp` `re4_steady_aim` es sagt (Bit 31 der Cheat-Schalter; die Schalter sind nur vor dem Lesen −1, die Prüfungen darauf seitdem genau `== -1`), hält `PlWepLockRand` das Ziel des Lasers dort, wo der Spieler es gelassen hat (kein Wandern darum herum), und `CameraScope::move` gibt dem Zielfernrohr (Gewehre, Minenwerfer) keine Atembewegung. Das Fernglas hat eine eigene Kamera und bleibt. Aus: wie das Spiel. |
+| 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
+| 0235 `pl_sub.cpp` | Cheat „Kostüme · Leons Jacke“ (1.0, Projektinhaber 16.11.2026): `PlSetCostume` gibt Leon (und einer Ersatzfigur in seinem Kostüm) Kostüm 0, die braune Jacke aus Kapitel 1, auch wo seine Regel das schwarze Hemd (1, nach dem Ereignis in r106) oder die Weste (2) gäbe, solange `runtime/cheats.cpp re4_cheat_leon_jacket` es sagt (an, Geschichte, nicht am Benchmark-Platz; das Spezialkostüm gewinnt). Der Schutz der Weste hängt im Spiel am Kostüm (`PlIsArmor`: 2 oder 3): mit dem Cheat schützt die Weste selbst (Gegenstand 0xFE), Profi-Modus wie bisher ohne. Separate Ways, The Mercenaries (`PlSetCostume` kehrt vorher zurück) und Ashleys Teil unberührt; ein Spielstand merkt sich nichts davon. Ohne den Cheat: wie das Spiel. |
+| 0236 `r10b.cpp`, `r20b.cpp`, `r227.cpp`, `r317.cpp` | Cheat „Leons Jacke“ in späteren Zwischensequenzen (1.0, Gerätetest des Projektinhabers 17.11.2026): Teil 2 von Leons Körper in Zwischensequenzen („pl0000“) ist bei Kostüm 0 die Jackenvorderseite mit Kragen (`ev000e`), bei Hemd und Weste das kleine `pl000e`. Szenen der Hemd-Zeit blenden Teil 2 in manchen Schnitten aus (r10bs20/s21/s22, r20bs00 Schnitte 0xD/0xE, r227s00/s01/s02, r317s00 Schnitt 0, der Messerkampf); mit dem Cheat fehlten dort Vorderseite und Kragen. Diese 9 Stellen blenden Teil 2 nicht aus, solange `runtime/cheats.cpp re4_cheat_leon_jacket_events` es sagt (Cheat an, Leons Regel gäbe Hemd oder Weste, Leon in Kostüm 0 oder eine Ersatzfigur in seinem Kostüm). Normal, Spezial, vor dem Ereignis in r106, die Extraspiele: wie das Spiel. |
+| 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,
 `port/tools/whole_make_patch.py NAME pfad/im/repo kopie` ausführen. Mehrere

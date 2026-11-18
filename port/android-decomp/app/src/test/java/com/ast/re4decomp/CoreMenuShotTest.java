@@ -48,6 +48,7 @@ public class CoreMenuShotTest {
         Configuration config = new Configuration(activity.getResources().getConfiguration());
         config.setLocale(Locale.forLanguageTag(language));
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+        CoreMenuLayoutTest.setVersion(activity, "0.99.18-rc-core");
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         Field rootField = CoreMenu.class.getDeclaredField("root"); rootField.setAccessible(true);
         Field bodyField = CoreMenu.class.getDeclaredField("body"); bodyField.setAccessible(true);
@@ -71,6 +72,92 @@ public class CoreMenuShotTest {
             canvas.drawRect(width - gap - 0.5f, 0, width - gap + 0.5f, picture.getHeight(), guide);
           }
           try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-" + names[page] + ".png"))) {
+            picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+          }
+        }
+        // the menu's header with the version left of the update button (0.99.18): up to date, an update, no answer from
+        // GitHub (the button hidden); 900 px wide, 480 (the buttons under the title) and 340 (no room beside them: the
+        // version under them)
+        show.invoke(menu, 0, false);
+        String[] states = {"offline", "current", "update"};
+        int[] codes = {AppUpdate.UNKNOWN, AppUpdate.CURRENT, AppUpdate.OLDER};
+        for (int s = 0; s < states.length; s++) {
+          menu.showUpdate(codes[s]);
+          for (int width : new int[] {900, 480, 340}) {
+            root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY));
+            root.layout(0, 0, width, 600);
+            View header = ((android.view.ViewGroup) root).getChildAt(0);
+            int height = header.getBottom() + 12;
+            Bitmap picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(picture);
+            canvas.drawColor(0xff191f1c);
+            canvas.save(); canvas.clipRect(0, 0, width, height); root.draw(canvas); canvas.restore();
+            try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-header-" + states[s] + "-" + width + ".png"))) {
+              picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+            }
+          }
+        }
+        menu.showUpdate(AppUpdate.UNKNOWN);
+        // the view distance button in its five levels with the eyes (0.99.18): the button alone, the page 900 px and
+        // 360 px wide (narrow: the eyes may go to the next line)
+        android.content.SharedPreferences graphics = activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS,
+            android.content.Context.MODE_PRIVATE);
+        int[] levels = {CoreBridge.VIEW_FAR, CoreBridge.VIEW_NORMAL, 1, CoreBridge.VIEW_SHORT, CoreBridge.VIEW_VERY_SHORT};
+        String[] levelNames = {"1-far", "2-normal", "3-medium", "4-short", "5-none"};
+        for (int l = 0; l < levels.length; l++) {
+          graphics.edit().putInt(CoreBridge.VIEW_DISTANCE, levels[l]).apply();
+          show.invoke(menu, 4, false);
+          for (int width : new int[] {900, 360}) {
+            body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            body.layout(0, 0, width, body.getMeasuredHeight());
+            Button view = firstButton(body, b -> b.getText().toString().startsWith(activity.getString(R.string.ingame_potato_view)));
+            Bitmap picture = Bitmap.createBitmap(view.getWidth() + 16, view.getHeight() + 16, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(picture);
+            canvas.drawColor(0xff191f1c);
+            canvas.translate(8, 8);
+            view.draw(canvas);
+            try (FileOutputStream out = new FileOutputStream(new File(folder,
+                language + "-view-" + levelNames[l] + "-" + width + ".png"))) {
+              picture.compress(Bitmap.CompressFormat.PNG, 100, out);
+            }
+          }
+        }
+        graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
+        // the Cheats & Mods page (1.0.0, the project owner's new order): a phone upright (360 px) and a handheld on
+        // its side (960 px)
+        show.invoke(menu, 5, false);
+        for (int width : new int[] {360, 960}) {
+          body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+              View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+          body.layout(0, 0, width, body.getMeasuredHeight());
+          Bitmap page = Bitmap.createBitmap(width, body.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+          Canvas canvas = new Canvas(page);
+          canvas.drawColor(0xff191f1c);
+          body.draw(canvas);
+          try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-cheats-" + width + ".png"))) {
+            page.compress(Bitmap.CompressFormat.PNG, 100, out);
+          }
+        }
+        // the note under "Source and updates" (0.99.18): the management page's end from its heading on, 900 px and a
+        // handheld's 360 px wide
+        show.invoke(menu, 6, false);
+        for (int width : new int[] {900, 360}) {
+          body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+              View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+          body.layout(0, 0, width, body.getMeasuredHeight());
+          View heading = null;
+          android.view.ViewGroup page = (android.view.ViewGroup) body;
+          for (int i = 0; i < page.getChildCount(); i++)
+            if (page.getChildAt(i) instanceof CoreMenu.Heading) heading = page.getChildAt(i);  // the last: the source's
+          int top = heading.getTop(), height = body.getMeasuredHeight() - top;
+          Bitmap picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+          Canvas canvas = new Canvas(picture);
+          canvas.drawColor(0xff191f1c);
+          canvas.translate(0, -top);
+          body.draw(canvas);
+          try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-source-note-" + width + ".png"))) {
             picture.compress(Bitmap.CompressFormat.PNG, 100, out);
           }
         }

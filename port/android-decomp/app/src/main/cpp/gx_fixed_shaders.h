@@ -733,6 +733,268 @@ constexpr char kBloomAddFs[] =
     "  o = vec4(texture(bloom, t).rgb * size.w + texture(core, t).rgb * glow.x, 0.0);\n"
     "}\n";
 
+// --- real-time shadows of the figures and objects (GxCore::ShadowMark) ----------------------------------------------
+// The casters' triangles (view space, three floats a corner) from the light: only their depth (the map's clip space:
+// the rows lx, ly, lz of the light's affine matrix; as rows, since the Vulkan renderer's constants have no mat4).
+// glz.x: 1 GL's clip depth (-w..w), 0 Vulkan's (0..w); the map holds the same 0..1 depth either way.
+// (stage 6: four rows, lw the clip w: a point light's map is a perspective one; GL's clip depth -w..w, Vulkan's 0..w)
+constexpr char kShadowDepthVs[] = "#version 300 es\n"
+                                  "layout(location = 0) in vec3 aPos;\n"
+                                  "uniform vec4 lx;\n"
+                                  "uniform vec4 ly;\n"
+                                  "uniform vec4 lz;\n"
+                                  "uniform vec4 lw;\n"
+                                  "uniform vec4 glz;\n"
+                                  "void main() {\n"
+                                  "  vec4 p = vec4(aPos, 1.0);\n"
+                                  "  vec4 c = vec4(dot(lx, p), dot(ly, p), dot(lz, p), dot(lw, p));\n"
+                                  "  c.z = mix(0.5 * c.z + 0.5 * c.w, c.z, glz.x);\n"
+                                  "  gl_Position = c;\n"
+                                  "}\n";
+constexpr char kShadowDepthFs[] = "#version 300 es\nprecision mediump float;\nvoid main() {}\n";
+// The same triangles with the scene's camera, as the GX vertex shader places them (gx_gl_shader.cpp: XF viewport and
+// projection, the pixel centre's twelfth), tested against the EFB's depth: `mark` where they are the visible surface
+// (red the figures, green the objects; blended by the larger, so both stay): kShadowMaskFs leaves a figure's own
+// pixels as they are and gives an object's only the figures' shadows, so that nothing stripes itself.
+constexpr char kShadowMarkVs[] =
+    "#version 300 es\n"
+    "layout(location = 0) in vec3 aPos;\n"
+    "uniform vec4 vp0;\n"  // xs ys zs ox
+    "uniform vec4 vp1;\n"  // oy zo W H
+    "uniform vec4 pr0;\n"  // p0 p1 p2 p3
+    "uniform vec4 pr1;\n"  // p4 p5
+    "uniform vec4 glz;\n"  // x: 1 GL's clip depth, 0 Vulkan's
+    "void main() {\n"
+    "  vec4 clip = vec4(pr0.x * aPos.x + pr0.y * aPos.z, pr0.z * aPos.y + pr0.w * aPos.z, pr1.x * aPos.z + pr1.y, -aPos.z);\n"
+    "  float W = vp1.z, H = vp1.w;\n"
+    "  gl_Position = vec4(((vp0.w - 342.0) * 2.0 / W - 1.0) * clip.w + vp0.x * 2.0 / W * clip.x,\n"
+    "                     ((vp1.x - 342.0) * 2.0 / H - 1.0) * clip.w + vp0.y * 2.0 / H * clip.y,\n"
+    "                     0.0, clip.w);\n"
+    "  float z01 = (vp0.z * clip.z + vp1.y * clip.w) / 16777215.0;\n"
+    "  gl_Position.z = mix(z01, 2.0 * z01 - clip.w, glz.x);\n"
+    "  gl_Position.xy -= gl_Position.w * vec2(1.0 / (6.0 * W), 1.0 / (6.0 * H));\n"
+    "}\n";
+constexpr char kShadowMarkFs[] = "#version 300 es\nprecision mediump float;\nuniform vec4 mark;\nout vec4 o;\n"
+                                 "void main() { o = mark; }\n";
+// One tile's darkening (0 lit .. 1 in full shadow) at the view-space surface e with its normal n (stage 5: the maps
+// share one depth atlas of 2 x 2 tiles; T.xy the tile's corner in the atlas, 0 or 0.5). Stage 6: a tile is a parallel
+// map or a point light's perspective one (TP.z 1; rows LX LY LZ LW, TP near, far along its axis, a texel's size per
+// unit of distance). e moved along n (B.z texels) into the tile's map, compared at 8 taps (B.w texels apart; each a 2 x 2
+// comparison of the hardware), every tap kept inside the tile, the depth bias B.x + B.y slope texels. The shadow
+// reaches T.z view units behind the caster the map holds there (raw: the atlas read without comparing): the room
+// itself casts nothing, so a shadow must not fall through a wall onto what lies far behind it. (A macro: no sampler
+// goes through a function's parameters, the Vulkan renderer's converter binds them by their declarations.)
+#define RE4_SHADOW_OCC(NAME, LX, LY, LZ, LW, B, T, TP)                                                              \
+  "float " NAME "(vec3 e, vec3 n, float slope, inout float rat) {\n"                                                \
+  "  bool persp = " TP ".z > 0.5;\n"                                                                                \
+  "  float w0 = dot(" LW ", vec4(e, 1.0));\n"                                                                       \
+  "  if (persp && w0 <= " TP ".x) return 0.0;\n"                                                                    \
+  "  float texel = persp ? w0 * " TP ".w : " TP ".w;\n"                                                             \
+  "  vec4 p = vec4(e + n * (" B ".z * texel), 1.0);\n"                                                              \
+  "  vec4 c4 = vec4(dot(" LX ", p), dot(" LY ", p), dot(" LZ ", p), dot(" LW ", p));\n"                             \
+  "  if (c4.w <= 1e-3) return 0.0;\n"                                                                               \
+  "  vec3 c = c4.xyz / c4.w * 0.5 + 0.5;\n"                                                                         \
+  "  if (any(lessThan(c, vec3(0.0))) || any(greaterThan(c, vec3(1.0)))) return 0.0;\n"                              \
+  "  vec2 lo = " T ".xy + vec2(look.w), hi = " T ".xy + vec2(0.5 - look.w);\n"                                    \
+  "  vec2 a = " T ".xy + c.xy * 0.5;\n"                                                                           \
+  "  float zn = " TP ".x, zf = " TP ".y;\n"                                                                         \
+  "  float raw0 = texture(raw, clamp(a, lo, hi)).r;\n"                                                              \
+  "  float dRec = persp ? c4.w : zn + c.z * (zf - zn);\n"                                                           \
+  "  float dCas = persp ? zn * zf / (zf - raw0 * (zf - zn)) : zn + raw0 * (zf - zn);\n"                             \
+  "  float reach = 1.0 - smoothstep(0.75 * " T ".z, " T ".z, dRec - dCas);\n"                                       \
+  "  if (reach <= 0.0) return 0.0;\n"                                                                             \
+  "  float perUnit = persp ? zn * zf / ((zf - zn) * dRec * dRec) : 1.0 / (zf - zn);\n"                              \
+  "  float ref = c.z - (" B ".x + " B ".y * slope) * texel * perUnit;\n"                                            \
+  "  vec2 r = vec2(" B ".w * 2.0 * look.w);\n"                                                                    \
+  "  float lit = texture(shd, vec3(clamp(a + vec2(-0.326, -0.406) * r, lo, hi), ref));\n"                          \
+  "  lit += texture(shd, vec3(clamp(a + vec2(-0.840, -0.074) * r, lo, hi), ref));\n"                               \
+  "  lit += texture(shd, vec3(clamp(a + vec2(-0.696, 0.457) * r, lo, hi), ref));\n"                                \
+  "  lit += texture(shd, vec3(clamp(a + vec2(-0.203, 0.621) * r, lo, hi), ref));\n"                                \
+  "  lit += texture(shd, vec3(clamp(a + vec2(0.962, -0.195) * r, lo, hi), ref));\n"                                \
+  "  lit += texture(shd, vec3(clamp(a + vec2(0.473, -0.480) * r, lo, hi), ref));\n"                                \
+  "  lit += texture(shd, vec3(clamp(a + vec2(0.519, 0.767) * r, lo, hi), ref));\n"                                 \
+  "  lit += texture(shd, vec3(clamp(a + vec2(0.185, -0.893) * r, lo, hi), ref));\n"                                \
+  "  float o = (1.0 - lit * 0.125) * reach;\n"                                                                      \
+  "  if (persp && o > 0.0) {\n"                                                                                     \
+  "    float rawNear = min(raw0, min(min(texture(raw, clamp(a + vec2(-0.326, -0.406) * r, lo, hi)).r,"              \
+  "                                   texture(raw, clamp(a + vec2(0.962, -0.195) * r, lo, hi)).r),"                 \
+  "                               min(texture(raw, clamp(a + vec2(-0.203, 0.621) * r, lo, hi)).r,"                  \
+  "                                   texture(raw, clamp(a + vec2(0.473, -0.480) * r, lo, hi)).r)));\n"             \
+  "    rat = min(rat, zn * zf / (zf - rawNear * (zf - zn)) / max(dRec, 1.0));\n"                                    \
+  "  }\n"                                                                                                           \
+  "  return o;\n"                                                                                                   \
+  "}\n"
+// One light's darkening at e: its weight (W; its light C here, all but the distance fall-off KEEP, the distance
+// DIST, the attenuation LB), its tile(s) where the surface faces it (TOL: towards the light); a point light's or a
+// spot's weight again with its fall-off at the caster (DIST times rat), and less where its shadow falls more than
+// 1.7 times as large as the caster (none from 3.3 times: a real lamp is no point; stage 7)
+#define RE4_SHADOW_LIGHT(W, TOL, C, KEEP, DIST, LB, OCC_EXPR)                                                       \
+  "  f = dot(n, " TOL ");\n"                                                                                        \
+  "  if ((" W " > 0.0 || " KEEP " > 0.0) && f > 0.0) {\n"                                                           \
+  "    float s = sqrt(max(0.0, 1.0 - f * f)) / max(f, 0.1);\n"                                                     \
+  "    float occ = 0.0, rat = 1.0;\n" OCC_EXPR                                                                      \
+  "    float w = " W ";\n"                                                                                          \
+  "    if (occ > 0.0 && rat < 1.0 && " DIST " > 0.0) {\n"                                                           \
+  "      float dc = " DIST " * rat;\n"                                                                              \
+  "      float cc = " KEEP " / (1.0 + " LB ".x * dc + " LB ".y * dc * dc);\n"                                       \
+  "      float tc = total - max(" C ", 0.0) + cc;\n"                                                                \
+  "      w = min(amb.y, cc / max(tc, 1e-4)) * clamp((tc - 0.15) / 0.75, 0.0, 1.0);\n"                                \
+  "    }\n"                                                                                                         \
+  "    if (" DIST " > 0.0) w *= smoothstep(0.3, 0.6, rat);\n"                                                       \
+  "    dark += w * occ * smoothstep(0.0, 0.3, f);\n"                                                                \
+  "  }\n"
+// The shadow mask, a texel per `grid` EFB texels of the scene's part (region): each texel's surface from the EFB
+// depth back into view space (the XF viewport and projection as the vertex shader uses them; vp1.z texels per
+// GameCube pixel), its normal from the nearer neighbours. Up to three lights (from the game core): lpN the place of
+// a point or spot light or the direction a parallel one travels (view space; w the kind: 0 parallel, 1 point, 2
+// spot), laN its colour's luminance (negative: a fixed weight, the marks of stages 1 to 5), strength, full up to and
+// gone from (view units), lbN GX attenuation k1, k2 and a spot's cut-off cosine, lcN a spot's axis. Stage 6
+// (16.11.2026): how much light each one gives (LightAt, trans_lit.cpp's fall-off) against all of it here (amb.x the
+// light that is the same everywhere) is how much its shadow takes away here, less in the dark; nothing depends on
+// where the player stands. A point light's or a spot's fall-off counts at the caster (its distance from the light
+// along the same ray, from the map: Occ's rat), the fade at its reach and a spot's cone here: so a figure's shadow
+// is as dark as the light on it, as at the player in stage 5, also where it falls further away. Light 0 casts from
+// the figures' tile t0 and the objects' t1, lights 1 and 2 from the figures' t2, t3. The darkening adds up (where
+// two lights are blocked the shadow is darker: the core shadow; where one, the half shadow), up to look.x. It fades
+// from look.y to look.z view units away. Where a figure is the visible surface (fig.r) nothing darkens: the game
+// lights its figures with lights of their own, and a figure shading itself striped it (r30f). Where an object is
+// (fig.g) only the figures' shadows fall. 1 where lit; the sky (depth 1) stays lit. Stage 7 (18.11.2026, the owner's
+// device test: some shadows too dark, others flickering wildly): the game's lights darken at most amb.y (0.6) each
+// and look.x (0.7) together; a lamp's shadow fades where it falls 1.7 to 3.3 times as large as its caster (a real
+// lamp is no point: a figure beside a candle lamp threw a giant shadow that swam with every breath); the caster's
+// distance is the nearest of five of the map's samples, so that an edge does not switch between the caster's light
+// and the floor's.
+constexpr char kShadowMaskFs[] =
+    "#version 300 es\n"
+    "precision highp float;\n"
+    "precision highp sampler2DShadow;\n"
+    "uniform highp sampler2D src;\n"
+    "uniform highp sampler2DShadow shd;\n"
+    "uniform highp sampler2D fig;\n"
+    "uniform highp sampler2D raw;\n"
+    "uniform vec4 region;\n"   // x y w h (EFB texels)
+    "uniform vec4 grid;\n"     // EFB texels per mask texel (x, y)
+    "uniform vec4 vp0;\n"
+    "uniform vec4 vp1;\n"
+    "uniform vec4 pr0;\n"
+    "uniform vec4 pr1;\n"
+    "uniform vec4 look;\n"     // the darkest the mask gets (1 - x), fade start, fade end (view units), half an atlas texel
+    "uniform vec4 amb;\n"      // the figures' ambient (luminance)
+    "uniform vec4 lx0;\n"
+    "uniform vec4 ly0;\n"
+    "uniform vec4 lz0;\n"
+    "uniform vec4 lw0;\n"
+    "uniform vec4 b0;\n"
+    "uniform vec4 t0;\n"
+    "uniform vec4 tp0;\n"
+    "uniform vec4 lx1;\n"
+    "uniform vec4 ly1;\n"
+    "uniform vec4 lz1;\n"
+    "uniform vec4 lw1;\n"
+    "uniform vec4 b1;\n"
+    "uniform vec4 t1;\n"
+    "uniform vec4 tp1;\n"
+    "uniform vec4 lx2;\n"
+    "uniform vec4 ly2;\n"
+    "uniform vec4 lz2;\n"
+    "uniform vec4 lw2;\n"
+    "uniform vec4 b2;\n"
+    "uniform vec4 t2;\n"
+    "uniform vec4 tp2;\n"
+    "uniform vec4 lx3;\n"
+    "uniform vec4 ly3;\n"
+    "uniform vec4 lz3;\n"
+    "uniform vec4 lw3;\n"
+    "uniform vec4 b3;\n"
+    "uniform vec4 t3;\n"
+    "uniform vec4 tp3;\n"
+    "uniform vec4 lp0;\n"
+    "uniform vec4 la0;\n"
+    "uniform vec4 lb0;\n"
+    "uniform vec4 lc0;\n"
+    "uniform vec4 lp1;\n"
+    "uniform vec4 la1;\n"
+    "uniform vec4 lb1;\n"
+    "uniform vec4 lc1;\n"
+    "uniform vec4 lp2;\n"
+    "uniform vec4 la2;\n"
+    "uniform vec4 lb2;\n"
+    "uniform vec4 lc2;\n"
+    "out vec4 o;\n"
+    "vec3 ViewAt(vec2 fc, out float d) {\n"
+    "  d = texelFetch(src, ivec2(fc), 0).r;\n"
+    "  vec2 gc = fc / vp1.z;\n"
+    "  float zz = (d * 16777215.0 - vp1.y) / vp0.z;\n"
+    "  float dist = pr1.y / (zz + pr1.x);\n"
+    "  vec2 ndc = vec2((gc.x - (vp0.w - 342.0)) / vp0.x, (gc.y - (vp1.x - 342.0)) / vp0.y);\n"
+    "  return vec3((ndc.x + pr0.y) * dist / pr0.x, (ndc.y + pr0.w) * dist / pr0.z, -dist);\n"
+    "}\n"
+    // the light one light gives at e (its colour's luminance times its fall-off there), the way towards it, its
+    // distance (0: parallel) and the light without the distance fall-off (the fade at its reach, a spot's cone)
+    "float LightAt(vec4 lp, vec4 la, vec4 lb, vec4 lc, vec3 e, out vec3 toL, out float dist, out float keep) {\n"
+    "  if (lp.w < 0.5) { toL = -lp.xyz; dist = 0.0; keep = la.x * la.y; return keep; }\n"
+    "  vec3 v = lp.xyz - e;\n"
+    "  float d = length(v);\n"
+    "  toL = v / max(d, 1.0);\n"
+    "  dist = d;\n"
+    "  float fade = d <= la.z ? 1.0 : (d >= la.w ? 0.0 : (la.w - d) / max(la.w - la.z, 1.0));\n"
+    "  keep = la.y * fade;\n"
+    "  if (lp.w > 1.5) keep *= clamp((dot(-toL, lc.xyz) - lb.z) / max(1.0 - lb.z, 1e-4), 0.0, 1.0);\n"
+    "  keep = la.x * max(keep, 0.0);\n"
+    "  return keep / (1.0 + lb.x * d + lb.y * d * d);\n"
+    "}\n" RE4_SHADOW_OCC("Occ0", "lx0", "ly0", "lz0", "lw0", "b0", "t0", "tp0")
+        RE4_SHADOW_OCC("Occ1", "lx1", "ly1", "lz1", "lw1", "b1", "t1", "tp1")
+        RE4_SHADOW_OCC("Occ2", "lx2", "ly2", "lz2", "lw2", "b2", "t2", "tp2")
+        RE4_SHADOW_OCC("Occ3", "lx3", "ly3", "lz3", "lw3", "b3", "t3", "tp3")
+    "void main() {\n"
+    "  o = vec4(1.0);\n"
+    "  vec2 fc = region.xy + floor((gl_FragCoord.xy - 0.5) * grid.xy + 0.5 * grid.xy) + 0.5;\n"
+    "  float d, d1, d2, d3, d4;\n"
+    "  vec3 e = ViewAt(fc, d);\n"
+    "  vec2 mk = texelFetch(fig, ivec2(fc), 0).rg;\n"
+    "  if (d >= 0.9999995 || mk.r > 0.5) return;\n"
+    "  float fade = 1.0 - smoothstep(look.y, look.z, -e.z);\n"
+    "  if (fade <= 0.0) return;\n"
+    "  vec3 ex1 = ViewAt(fc + vec2(1.0, 0.0), d1), ex0 = ViewAt(fc - vec2(1.0, 0.0), d2);\n"
+    "  vec3 ey1 = ViewAt(fc + vec2(0.0, 1.0), d3), ey0 = ViewAt(fc - vec2(0.0, 1.0), d4);\n"
+    "  vec3 dx = abs(ex1.z - e.z) < abs(e.z - ex0.z) ? ex1 - e : e - ex0;\n"
+    "  vec3 dy = abs(ey1.z - e.z) < abs(e.z - ey0.z) ? ey1 - e : e - ey0;\n"
+    "  vec3 n = cross(dx, dy);\n"
+    "  if (dot(n, n) < 1e-12) return;\n"
+    "  n = normalize(n);\n"
+    "  if (dot(n, e) > 0.0) n = -n;\n"
+    // each light's share of the light here (all of it: the ambient and the three), less in the dark (none below 0.15
+    // of a white light, full from 0.9)
+    "  vec3 to0, to1, to2;\n"
+    "  float dl0, dl1, dl2, kl0, kl1, kl2;\n"
+    "  float c0 = LightAt(lp0, la0, lb0, lc0, e, to0, dl0, kl0), c1 = LightAt(lp1, la1, lb1, lc1, e, to1, dl1, kl1);\n"
+    "  float c2 = LightAt(lp2, la2, lb2, lc2, e, to2, dl2, kl2);\n"
+    "  float total = amb.x + max(c0, 0.0) + max(c1, 0.0) + max(c2, 0.0);\n"
+    "  float lit = clamp((total - 0.15) / 0.75, 0.0, 1.0);\n"
+    "  float w0 = la0.x < 0.0 ? -la0.x : min(amb.y, c0 / max(total, 1e-4)) * lit;\n"
+    "  float w1 = la1.x < 0.0 ? -la1.x : min(amb.y, c1 / max(total, 1e-4)) * lit;\n"
+    "  float w2 = la2.x < 0.0 ? -la2.x : min(amb.y, c2 / max(total, 1e-4)) * lit;\n"
+    "  float dark = 0.0, f;\n"
+    RE4_SHADOW_LIGHT("w0", "to0", "c0", "kl0", "dl0", "lb0",
+                     "    if (t0.w > 0.5) occ = Occ0(e, n, s, rat);\n"
+                     "    if (t1.w > 0.5 && mk.g < 0.5) occ = max(occ, Occ1(e, n, s, rat));\n")
+    RE4_SHADOW_LIGHT("w1", "to1", "c1", "kl1", "dl1", "lb1", "    if (t2.w > 0.5) occ = Occ2(e, n, s, rat);\n")
+    RE4_SHADOW_LIGHT("w2", "to2", "c2", "kl2", "dl2", "lb2", "    if (t3.w > 0.5) occ = Occ3(e, n, s, rat);\n")
+    "  o = vec4(vec3(1.0 - min(dark * fade, look.x)), 1.0);\n"
+    "}\n";
+#undef RE4_SHADOW_OCC
+#undef RE4_SHADOW_LIGHT
+// The mask times the EFB's colour (blending: destination colour, zero; alpha not written), smoothed from its texels.
+constexpr char kShadowApplyFs[] = "#version 300 es\n"
+                                  "precision mediump float;\n"
+                                  "uniform sampler2D mask;\n"
+                                  "uniform vec4 region;\n"
+                                  "out vec4 o;\n"
+                                  "void main() {\n"
+                                  "  float m = texture(mask, (gl_FragCoord.xy - region.xy) / region.zw).r;\n"
+                                  "  o = vec4(m, m, m, 1.0);\n"
+                                  "}\n";
+
 // CRT, the screen (instead of kPresentFs): the box's picture through a curved glass (shape.xy) with rounded
 // corners (shape.z, in box heights) and darker edges (shape.w); each game line a beam (beam.xy: its width, wider
 // where bright; beam.z: the brightness the gaps take), the glow on top (beam.w); the phosphors' mask in screen

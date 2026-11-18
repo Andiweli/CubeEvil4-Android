@@ -13,14 +13,14 @@
     <string name="ingame_potato">Modo Potato</string>
     <string name="ingame_potato_weather">Efectos climáticos</string>
     <string name="ingame_potato_special">Efectos especiales</string>
-    <string name="ingame_potato_help">Efectos climáticos: bancos de niebla, lluvia, salpicaduras de agua. Efectos especiales: vapor, calima, agua. Efectos de partículas: sangre, polvo, humo, salpicaduras, chispas y fuego; Menos dibuja la mitad, Ninguno los quita todos salvo el fuego y las explosiones, que quedan a la mitad como aviso. Sombras y luz: desactivado quita las sombras (también en las escenas), los destellos y los rayos de luz; las salas conservan su iluminación. Cada ajuste ahorra trabajo gráfico en dispositivos menos potentes; el punto del impacto, las pistas, el láser y todos los efectos de las escenas se mantienen.</string>
+    <string name="ingame_potato_help">Cada interruptor ahorra trabajo gráfico en dispositivos menos potentes. Partículas: Menos dibuja la mitad, Ninguno solo deja el fuego y las explosiones. Sombras y luz en Desactivado quita las sombras, los destellos y los rayos de luz; las salas conservan su iluminación. El punto del impacto, las pistas y el láser se mantienen siempre.</string>
     <string name="ingame_comfort">Controles de comodidad</string>
     <string name="ingame_auto_aim">Apuntado automático</string>
     <string name="ingame_always_run">Correr siempre</string>
     <string name="ingame_far_camera">Cámara lejana</string>
     <string name="ingame_auto_aim_help">Apuntado automático: al levantar el arma, la mira salta al enemigo más cercano delante de ti y lo sigue un momento (la ayuda de puntería del propio juego).</string>
     <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
-    <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon al caminar y al estar quieto. Al apuntar y en sitios estrechos se acerca como antes; entre ambos se mueve con suavidad.</string>
+    <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon; al apuntar y en sitios estrechos se acerca como antes.</string>
     <string name="ingame_perf_section">Rendimiento</string>
     <string name="ingame_potato_particles">Efectos de partículas</string>
     <string name="ingame_particles_normal">Normal</string>
@@ -31,11 +31,11 @@
     <string name="ingame_skip_normal">Normal</string>
     <string name="ingame_skip_aggressive">Agresivo</string>
     <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
-    <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; también ahorra tiempo de procesador y es mucho más rápido en móviles con un procesador lento.</string>
+    <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; mucho más rápido en móviles con un procesador lento.</string>
     <string name="ingame_gentle_qte">QTE más suaves (Professional)</string>
-    <string name="ingame_cheat_section_player">Jugador e inventario</string>
+    <string name="ingame_cheat_section_player">Jugador</string>
     <string name="ingame_cheat_section_weapons">Armas</string>
-    <string name="ingame_cheat_section_game">Juego</string>
+    <string name="ingame_cheat_section_game">General e inventario</string>
     <string name="ingame_cheat_health">Salud infinita</string>
     <string name="ingame_cheat_ammo">Munición infinita</string>
     <string name="ingame_cheat_invisible">Invisibilidad</string>
@@ -49,7 +49,7 @@
     <string name="ingame_cheat_mine">Lanzaminas</string>
     <string name="ingame_cheat_rocket">Lanzacohetes</string>
     <string name="ingame_cheat_qte">QTE automáticos</string>
-    <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; la partida guardada no los conserva. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Los botones cambian tu partida: el arma, el maletín y el dinero quedan en tu próxima partida guardada. QTE automáticos pulsa por ti los botones de cada secuencia de acción rápida. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal, como al terminar el juego; tu próxima partida guardada los conserva. Invisibilidad: los enemigos no te ven ni te atacan; los jefes y las escenas fijas aún pueden hacerlo.</string>
+    <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; las partidas guardadas no los conservan. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Invisibilidad: los enemigos te ignoran; los jefes y las escenas fijas, no. Puntería estable: el láser y la mira telescópica no oscilan. Trajes: Chaqueta de Leon mantiene a Leon con su chaqueta marrón todo el juego; Especial viste a Leon y Ashley con sus trajes especiales. Los botones cambian tu partida: las armas, el maletín y el dinero quedan en tu próxima partida guardada. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal.</string>
     <string name="ingame_cheat_done">Hecho: %1$s.</string>
     <string name="ingame_cheat_already">Ya lo tienes: %1$s.</string>
     <string name="ingame_cheat_raised">Ya lo tienes: %1$s, ahora con sus niveles máximos.</string>
@@ -82,8 +82,17 @@
     <string name="ingame_instant_load_warning">Se perderá el progreso sin guardar. ¿Cargar el guardado instantáneo?</string>
     <string name="ingame_replace">Reemplazar</string>
     <string name="ingame_cheat_random_items">Objetos aleatorios</string>
-    <string name="ingame_cheat_random_items_help">Objetos aleatorios: los objetos que hay en las salas de la historia (munición, hierbas y otros objetos de curación, granadas, pesetas, tesoros) se reparten de nuevo en cada sala en la que entres a partir de entonces, y una sala da siempre los mismos objetos hasta que lo desactives y lo vuelvas a activar. Las llaves, las armas, los documentos y demás objetos de la historia siguen como están, así que siempre se puede terminar el juego. Lo que ya recogiste sigue recogido; los enemigos, barriles y cajas mantienen su propio botín. No en Assignment Ada ni en The Mercenaries.</string>
+    <string name="ingame_cheat_random_items_help">Objetos aleatorios: la munición, las hierbas, las granadas, las pesetas y los tesoros de las salas de la historia se reparten de nuevo; una sala conserva sus objetos hasta que lo desactives y lo vuelvas a activar. Las llaves, las armas y demás objetos de la historia se quedan, así que siempre se puede terminar el juego. No en Assignment Ada ni en The Mercenaries.</string>
     <string name="ingame_cheat_extras">Desbloquear juegos extra</string>
+    <string name="ingame_cheat_steady">Puntería estable</string>
+    <string name="ingame_cheat_costume">Trajes</string>
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Chaqueta de Leon</string>
+    <string name="ingame_cheat_costume_special">Especial</string>
+    <string name="ingame_aim_invert_v">Invertir vertical</string>
+    <string name="ingame_perf_cores">Usar núcleos de rendimiento</string>
+    <string name="ingame_perf_help">Núcleos de rendimiento: el juego usa los núcleos más rápidos del dispositivo a frecuencias más altas. Más fluido en muchos móviles, pero el dispositivo se calienta más. Predeterminado: decide Android.</string>
+    <string name="ingame_map_keyboard">Teclado y ratón</string>
     <string name="ingame_cheat_extras_text">Assignment Ada y The Mercenaries están desbloqueados (también Professional, como al terminar el juego). El menú principal los muestra tras reiniciar. Se pierde el progreso desde tu última partida guardada.</string>
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada y The Mercenaries aparecerán en el menú principal tras el próximo reinicio.</string>
     <string name="ingame_cheat_extras_already">Ya desbloqueados: Assignment Ada y The Mercenaries están en el menú principal.</string>
@@ -119,7 +128,7 @@
     <string name="ingame_button_style">Estilo de botones</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: un símbolo de lo que hace cada botón (por defecto); GC: las letras con los colores de GameCube, como antes. El editor (el engranaje arriba a la derecha) tiene el mismo interruptor.</string>
+    <string name="ingame_button_style_help">RE: símbolos de lo que hace cada botón (por defecto). GC, PS2 y XBOX: los botones de esos mandos. El botón de estilo del editor (el engranaje arriba a la derecha) pasa por los cuatro.</string>
     <string name="ingame_touch_help">Auto: visibles sin mando; un toque los muestra y un botón los oculta. Forzar: siempre visibles. Ocultar: ocultos mientras haya un mando conectado. MENU = SELECT.</string>
     <string name="ingame_latch">Fijar L y R</string>
     <string name="ingame_latch_b">Fijar B</string>
@@ -146,5 +155,7 @@
     <string name="ouya_light_detail">Iluminación detallada</string>
     <string name="ouya_light_help">Iluminación detallada: desactivada, el entorno se ilumina una vez por objeto en lugar de en cada punto (los personajes mantienen la suya); bastante más rápido en la OUYA, el suelo y los árboles se ven algo más planos. Se aplica al instante.</string>
     <string name="ouya_source_only">Esta versión y la versión completa para Android de CubeEvil4 solo están disponibles aquí.\nEvita las descargas desde otros sitios o plataformas de juegos.</string>
-    <string name="ouya_gentle_qte_help">QTE más suaves: en Professional, los eventos de botones (esquivar, la pelea a cuchillo, pulsar rápido) dan tanto tiempo y piden tantas pulsaciones como en Normal; el daño y los enemigos siguen como en Professional.</string>
+    <string name="ouya_invert_help">Invertir vertical: apuntar arriba y abajo al revés, con el mando, el teclado y los controles táctiles (la opción del propio juego).</string>
+    <string name="ouya_keyboard_help">Teclado y ratón: W A S D mueven (y apuntan), Mayús corre, E actúa, el botón derecho del ratón apunta, el izquierdo dispara, R recarga mientras apuntas, C saca el cuchillo, Q llama a Ashley, Tab abre el maletín, M el mapa, Esc las opciones, F1 este menú. I J K L giran la cámara, la rueda del ratón hace zoom en la mira. Las flechas, Intro y Retroceso sirven en los menús del juego. El puntero del ratón no apunta.</string>
+    <string name="ouya_gentle_qte_help">QTE más suaves: en Professional, los eventos de botones dan tanto tiempo y piden tantas pulsaciones como en Normal; el daño y los enemigos siguen como en Professional.</string>
 </resources>

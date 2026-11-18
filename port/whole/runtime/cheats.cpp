@@ -22,6 +22,11 @@
 //                       attacks, is set with it. Bosses and room scripts that attack by themselves still can.
 // 1024 random items     (wish of the project owner, 07.11.2026, issue #161) the items lying in the story's rooms
 //                       dealt anew, the seed in bits 11..30 (the app's; patch 0218, re4_item_random below)
+// bit 31 steady aim     (wish of the project owner, 16.11.2026: "Atemstopp beim Zielen") the aim does not sway: the
+//                       laser sight's drift (patch 0233, pl_wep.cpp PlWepLockRand) and the scope's breathing
+//                       (cam_extra.cpp CameraScope::move, the rifles' and the Mine Thrower's scope) left out;
+//                       re4_steady_aim below. The switches hold -1 only before they are read (a player type 7 does
+//                       not exist), so bit 31 is a switch as the others.
 //  16 extra games       kept on by the app after button 4: the unlock below set again in every frame,
 //                       so a system file read from the card without it (the player has not saved since)
 //                       does not take it back; the next save writes it to the card (system file)
@@ -93,16 +98,24 @@ extern "C" void re4_qte_auto(int on);                          // runtime/qte_to
 
 int re4CheatPerform(int what);
 int PlSetCostume();  // pl_sub.cpp
+int PlIsArmor();     // pl_sub.cpp
+extern "C" long re4_trace_free_at(void);  // runtime/state_trace.cpp (RE4_TEST_LEON_JACKET)
 
 namespace {
 
 enum { kHealth = 1, kAmmo = 2, kOneHit = 4, kAutoQte = 8, kExtras = 16, kCharShift = 5, kChar = 7 << kCharShift,
        kCostume = 256, kInvisible = 512, kItemRandom = 1024, kSeedShift = 11, kSeedMask = 0xFFFFF << kSeedShift,
        kAll = 31 | kChar | kCostume | kInvisible | kItemRandom | kSeedMask };
+const int kSteadyAim = (int) 0x80000000u;  // bit 31 (patch 0233)
+const int kAllBits = kAll | kSteadyAim;
 
 std::atomic<int> gWanted(-1);  // the app's switches, -1 before RE4_CHEATS was read
 int gApplied;                  // what the game frames have set so far
 std::atomic<int> gQueued(0);   // a button pressed while the game ran (the hook does it)
+// the cheat "Leon's jacket" (1.0, patch 0235; re4_core_set_leon_jacket), -1 before RE4_LEON_JACKET was read; the
+// state the last PlSetCostume ran with (-1 none yet)
+std::atomic<int> gJacket(-1);
+int gJacketSeen = -1;
 int gHooked;
 // pl_type's names (the log, the story's player character)
 const char* const kCharName[8] = {"Leon", "Ashley", "Ada", "HUNK", "Krauser", "Wesker", "?", "?"};
@@ -421,6 +434,9 @@ void apply(int wanted)
         if ((wanted ^ gApplied) & kCostume) {
             re4_log("cheat: special costume %s", wanted & kCostume ? "on" : "off");
         }
+        if ((wanted ^ gApplied) & kSteadyAim) {
+            re4_log("cheat: steady aim %s", wanted & kSteadyAim ? "on" : "off");
+        }
         if ((wanted ^ gApplied) & kInvisible) {
             re4_log("cheat: invisibility %s", wanted & kInvisible ? "on" : "off");
         }
@@ -478,18 +494,20 @@ void repairPartnerLife()
 }
 
 void switchNow();
+void testJacket(unsigned frame);
 
-void hook(unsigned)
+void hook(unsigned frame)
 {
     int wanted = gWanted.load(std::memory_order_acquire);
-    if (wanted < 0) {
+    if (wanted == -1) {
         const char* v = getenv("RE4_CHEATS");
-        wanted = v ? (int) strtol(v, 0, 0) & kAll : 0;
+        wanted = v ? (int) strtoul(v, 0, 0) & kAllBits : 0;
         int expected = -1;
         gWanted.compare_exchange_strong(expected, wanted);
         wanted = gWanted.load(std::memory_order_acquire);
     }
     apply(wanted);
+    testJacket(frame);
     switchNow();
     int what = gQueued.exchange(0, std::memory_order_acq_rel);
     if (what) {
@@ -560,9 +578,9 @@ int gCostumeGiven;      // 1 while the cheat gave the special costume (game_cost
 int wantedBits()
 {
     int wanted = gWanted.load(std::memory_order_acquire);
-    if (wanted < 0) {
+    if (wanted == -1) {
         const char* v = getenv("RE4_CHEATS");
-        wanted = v ? (int) strtol(v, 0, 0) & kAll : 0;
+        wanted = v ? (int) strtoul(v, 0, 0) & kAllBits : 0;
     }
     return wanted;
 }
@@ -626,6 +644,93 @@ int leonCostume()
         return 2;
     }
     return ScfFlagChk(pG, SCF_R106_EVENT) ? 1 : 0;
+}
+
+// The cheat "Leon's jacket" (1.0, the project owner, 16.11.2026: the cheat page's "Costumes": Normal / Leon's jacket /
+// Special; patch 0235): the app's choice (re4_core_set_leon_jacket), else RE4_LEON_JACKET=1
+bool jacketWanted()
+{
+    int j = gJacket.load(std::memory_order_acquire);
+    if (j == -1) {
+        const char* v = getenv("RE4_LEON_JACKET");
+        j = v && *v == '1' ? 1 : 0;
+    }
+    return j == 1;
+}
+
+// It holds Leon in the brown jacket of chapter 1 (PlSetCostume, patch 0235): in the story only (the extra games keep
+// their own; PlSetCostume returns before for them), not at the benchmark's place (its save's costume, the same for
+// everyone); the special costume (game_costume 1) wins in PlSetCostume itself
+bool jacketActive()
+{
+    return jacketWanted() && !re4_bench_freeze() && pG && storyGame();
+}
+
+// Leon's costume as PlSetCostume gives it now: his rule (leonCostume) with the jacket where it gives the shirt (1) or
+// the vest's outfit (2)
+int leonLook()
+{
+    const int c = leonCostume();
+    return (c == 1 || c == 2) && jacketActive() ? 0 : c;
+}
+
+// The jacket was switched since the last PlSetCostume and the story's Leon (or a stand-in in his costume) would look
+// otherwise now: the next room start gives it (switchNow starts the room again at once)
+bool jacketChange()
+{
+    if (!pG || !storyGame() || gJacketSeen < 0 || (jacketActive() ? 1 : 0) == gJacketSeen) {
+        return false;
+    }
+    if (pG->pl_type != 0 && !(standIn() && pG->pl_type != 2)) {
+        return false;
+    }
+    return leonLook() != pG->pl_costume;
+}
+
+// RE4_TEST_LEON_JACKET="free+N:J[,free+M:J]..." (up to four): N game frames after the player is free, the jacket
+// becomes J (0 / 1) as the app's switch sets it, or with J "s" his costume is chosen anew (PlSetCostume), as the r106
+// event does when he takes off his jacket and the sub screen when he got the vest (the PC check of patch 0235; the
+// sub screen's PlChangeData reads his data from the disc, which waits for a task and cannot run in this hook: his
+// model follows at the room's next start); with J "v" he gets the bulletproof vest (0xFE) as the merchant gives it
+// (cItemMgr::get; RE4_TEST_FILL_CASE puts items into the case's grid, where the vest has no place)
+void testJacket(unsigned frame)
+{
+    static int count = -1, next = 0;
+    static long after[4];
+    static int value[4];  // 0 / 1, -1 "s", -2 "v"
+    if (count < 0) {
+        count = 0;
+        const char* v = getenv("RE4_TEST_LEON_JACKET");
+        char what[4];
+        while (v && count < 4 && sscanf(v, "free+%ld:%1s", &after[count], what) == 2) {
+            value[count++] = what[0] == 's' ? -1 : what[0] == 'v' ? -2 : what[0] == '1' ? 1 : 0;
+            v = strchr(v, ',');
+            v = v ? v + 1 : 0;
+        }
+    }
+    if (next >= count) {
+        return;
+    }
+    const long freeAt = re4_trace_free_at();
+    if (!pG || freeAt < 0 || (long) frame < freeAt + after[next]) {
+        return;
+    }
+    const int v = value[next++];
+    if (v == -2) {
+        ItemMgr.get(0xFE, 1);
+        re4_log("run: the vest given (RE4_TEST_LEON_JACKET) at frame %u: %d of item 0xfe", frame, ItemMgr.num(0xFE, 0));
+        return;
+    }
+    if (v < 0) {
+        PlSetCostume();
+        re4_log("run: Leon's costume chosen anew (RE4_TEST_LEON_JACKET) at frame %u: costume %d, his rule %d, the "
+                "jacket %s, the vest protects %s", frame, pG->pl_costume, leonCostume(), jacketActive() ? "on" : "off",
+                PlIsArmor() ? "yes" : "no");
+        return;
+    }
+    re4_log("run: Leon's jacket %s (RE4_TEST_LEON_JACKET) at frame %u: costume %d, his rule %d, the vest protects %s",
+            v ? "on" : "off", frame, pG->pl_costume, leonCostume(), PlIsArmor() ? "yes" : "no");
+    gJacket.store(v, std::memory_order_release);
 }
 
 // Patch 0211: 1 for the characters whose player archive has no rocket where the Ganados take theirs (index 0x70
@@ -693,8 +798,8 @@ void switchNow()
     if (!pG || !pPL || !storyGame()) {
         return;
     }
-    int want = wantedBits() & (kChar | kCostume);
-    if (nextType() == pG->pl_type && !costumeChange()) {
+    int want = (wantedBits() & (kChar | kCostume)) | (jacketWanted() ? 0x40000000 : 0);
+    if (nextType() == pG->pl_type && !costumeChange() && !jacketChange()) {
         tried = -1;
         return;
     }
@@ -706,8 +811,9 @@ void switchNow()
     Vec pos = pPL->pos;
     Vec ang = pPL->ang;
     SceAtExecRoomJump(G_ROOM_ID, &pos, &ang, pG->Part);
-    re4_log("cheat: the story's player becomes %s%s at once: r%03x starts again at (%.0f %.0f %.0f)%s",
+    re4_log("cheat: the story's player becomes %s%s%s at once: r%03x starts again at (%.0f %.0f %.0f)%s",
             kCharName[nextType()], costumeChange() ? (wantedCostume() ? " in the special costume" : " in the normal costume") : "",
+            jacketChange() ? (jacketActive() ? " in Leon's jacket" : " in Leon's own costume") : "",
             (unsigned) G_ROOM_ID, pos.x, pos.y, pos.z,
             pG->Rno0 == 4 ? "" : " - not now (Ashley too far?), from the next room on");
 }
@@ -1284,18 +1390,25 @@ extern "C" {
 int re4_invisible(void)
 {
     const int wanted = gWanted.load(std::memory_order_relaxed);
-    return wanted > 0 && (wanted & kInvisible) ? 1 : 0;
+    return wanted != -1 && (wanted & kInvisible) ? 1 : 0;
+}
+
+// Patch 0233 (pl_wep.cpp, cam_extra.cpp): the cheat "Steady aim" (any thread; the game frames read it).
+int re4_steady_aim(void)
+{
+    const int wanted = wantedBits();
+    return wanted != -1 && (wanted & kSteadyAim) ? 1 : 0;
 }
 
 void re4_cheats_set(int bits)
 {
-    gWanted.store(bits & kAll, std::memory_order_release);
+    gWanted.store(bits & kAllBits, std::memory_order_release);
 }
 
 int re4_cheats_wanted(void)
 {
     int w = gWanted.load(std::memory_order_acquire);
-    return w < 0 ? 0 : w;
+    return w == -1 ? 0 : w;
 }
 
 // A button while the game runs: done by the next game frame (returns 3 = queued).
@@ -1338,6 +1451,18 @@ void re4_story_char_room(void)
         }
         return;
     }
+    // RE4_TEST_LEON_SHIRT=1 (the PC check of patch 0235): Leon's costume by PlSetCostume at the first room, after the
+    // r106 event (the black shirt) as the save of a later chapter has it. The debug start (title.cpp) sets costume 1
+    // and the flag itself for a room after r106, after PlSetCostume: the cheat's jacket would not show there
+    static bool shirtDone;
+    static const char* shirtTest = getenv("RE4_TEST_LEON_SHIRT");
+    if (shirtTest && *shirtTest == '1' && !shirtDone && pG->pl_type == 0) {
+        shirtDone = true;
+        ScfFlagOn(pG, SCF_R106_EVENT);
+        PlSetCostume();
+        re4_log("run: Leon's costume as after the r106 event (RE4_TEST_LEON_SHIRT): costume %d from r%03x on, the "
+                "jacket %s", pG->pl_costume, (unsigned) pG->room_id, jacketActive() ? "on" : "off");
+    }
     int costume = wantedCostume();
     if (costume >= 0 && costume != pG->game_costume) {
         re4_log("cheat: the %s costume from r%03x on", costume ? "special" : "normal", (unsigned) pG->room_id);
@@ -1345,6 +1470,14 @@ void re4_story_char_room(void)
         PlSetCostume();
     }
     gCostumeGiven = costume == 1;
+    // the cheat "Leon's jacket" switched (patch 0235): his costume anew before ReadPlayerData reads his data
+    if (jacketChange()) {
+        const int was = pG->pl_costume;
+        PlSetCostume();
+        re4_log("cheat: Leon's jacket %s from r%03x on: costume %d (was %d, his rule %d), the vest protects %s",
+                jacketActive() ? "on" : "off", (unsigned) pG->room_id, pG->pl_costume, was, leonCostume(),
+                PlIsArmor() ? "yes" : "no");
+    }
     int want = wantedChar();
     int type = pG->pl_type;
     if (type == 0 && want) {
@@ -1362,7 +1495,7 @@ void re4_story_char_room(void)
         pG->pl_flag |= 1;
     }
     if (standIn()) {
-        loadLeon(leonCostume());
+        loadLeon(leonLook());
         loadStandInSet(pG->pl_type);
         if (pG->pl_type == 2) {
             loadAdaGrips();
@@ -1526,6 +1659,45 @@ int re4_story_char_leon_costume(void)
 int re4_story_char_costume(void)
 {
     return standIn() ? leonCostume() : -1;
+}
+
+// Patch 0235 (pl_sub.cpp PlSetCostume, PlIsArmor): the cheat "Leon's jacket" holds Leon in the jacket of chapter 1
+// (the game frames; PlSetCostume notes the state it ran with, for jacketChange)
+int re4_cheat_leon_jacket(void)
+{
+    const bool on = jacketActive();
+    gJacketSeen = on ? 1 : 0;
+    return on ? 1 : 0;
+}
+
+// Patch 0236 (r10b.cpp, r20b.cpp, r227.cpp, r317.cpp): the cutscenes' Leon wears the jacket where his rule gives the
+// shirt or the vest, so his event part 2 is the jacket's front and collar (ev000e), not the shirt's small part
+// (pl000e) that some of those scenes hide: the cheat, his rule 1 or 2, and the event body from his archive in the
+// jacket (Leon in costume 0, or a stand-in, whose scenes show Leon's archive, loadLeon(leonLook())). Before the r106
+// event (his rule 0), Special (3): 0.
+int re4_cheat_leon_jacket_events(void)
+{
+    if (!pG || !jacketActive() || pG->game_costume == 1) {
+        return 0;
+    }
+    const int rule = leonCostume();
+    if (rule != 1 && rule != 2) {
+        return 0;
+    }
+    if (pG->pl_type == 0) {
+        return pG->pl_costume == 0 ? 1 : 0;
+    }
+    return standIn() ? 1 : 0;
+}
+
+// The app (CoreBridge.setLeonJacket, 1.0): the cheat page's "Costumes · Leon's jacket" (any thread); the story's
+// Leon changes at once as with the special costume (switchNow)
+void re4_core_set_leon_jacket(int on)
+{
+    const int now = on ? 1 : 0;
+    if (gJacket.exchange(now, std::memory_order_acq_rel) != now) {
+        re4_log("core: Leon's jacket %s", now ? "on" : "off");
+    }
 }
 
 // 1 when weapon number `no` is none of the stand-in's own: Leon's file is read (read.cpp ReadWepData),

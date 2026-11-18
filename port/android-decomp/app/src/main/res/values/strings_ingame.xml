@@ -38,15 +38,15 @@
     <string name="ingame_flares">Lens flares</string>
     <string name="ingame_flares_lens">Lens flares</string>
     <string name="ingame_flares_both">Halos + lens flares</string>
-    <string name="ingame_flares_help">Lens flares: faint coloured rings across the picture from the brightest lights, as a camera lens makes them. Halos + lens flares: also a soft glow with a fine star at candles, torches and lamps.</string>
+    <string name="ingame_flares_help">Lens flares: faint coloured rings from the brightest lights, as a camera lens makes them. Halos + lens flares: also a soft glow at candles, torches and lamps.</string>
     <string name="ingame_bloom">Bloom</string>
-    <string name="ingame_bloom_help">Bloom: the brightest parts of the scene (lamps, fire, sunlight) glow softly over their surroundings; dark rooms stay dark, the HUD and menus stay sharp. Off while a Potato mode setting is on.</string>
+    <string name="ingame_bloom_help">Bloom: the brightest parts (lamps, fire, sunlight) glow softly; the HUD and menus stay sharp. Off while a Potato mode setting is on.</string>
     <string name="ingame_dof">Depth of field</string>
     <string name="ingame_info_hud">Information HUD</string>
     <string name="ingame_hud_fps">FPS game / display</string>
     <string name="ingame_hud_hz">Display Hz</string>
     <string name="ingame_hud_time">H:M:S since game start</string>
-    <string name="ingame_hud_help">H:M:S is the game\'s own play time: every save keeps it (typewriter and instant save), as on the GameCube. Time in this menu or with the app in the background does not count.</string>
+    <string name="ingame_hud_help">H:M:S is the game\'s own play time, kept in every save as on the GameCube. Time in this menu or in the background does not count.</string>
     <string name="ingame_fps_bottom_left">Bottom left</string>
     <string name="ingame_fps_bottom_centre">Bottom centre</string>
     <string name="ingame_fps_top_left">Top left</string>
@@ -56,7 +56,7 @@
     <string name="ingame_vertex_ring">Vertex ring buffer</string>
     <string name="ingame_perf_default">Default</string>
     <string name="ingame_perf_cores">Use performance cores</string>
-    <string name="ingame_perf_help">Performance cores: the game and the graphics run on the phone\'s fastest cores and ask Android for higher clocks. Smoother on many phones, but it needs more CPU power and the device gets warmer. Default: Android decides.</string>
+    <string name="ingame_perf_help">Performance cores: the game runs on the device\'s fastest cores at higher clocks. Smoother on many phones, but the device gets warmer. Default: Android decides.</string>
     <string name="ingame_potato">Potato mode</string>
     <string name="ingame_potato_weather">Weather effects</string>
     <string name="ingame_potato_special">Special effects</string>
@@ -69,8 +69,22 @@
     <string name="ingame_view_normal">Normal</string>
     <string name="ingame_view_medium">Medium</string>
     <string name="ingame_view_short">Short</string>
-    <string name="ingame_potato_help">Weather effects: fog banks, rain, water spray. Special effects: steam, heat shimmer, water. Particle effects: blood, dust, smoke, splashes, sparks and fire; Less draws half of them, None leaves out all but fire and explosions, which stay at half as a warning. Shadows &amp; light: off leaves out shadows (also in cut scenes), lens glows and light shafts; the rooms keep their lighting. Each saves graphics work on weaker devices; the spot where a shot hits, hints, the laser and every effect in cut scenes stay.</string>
-    <string name="ingame_view_help">View distance: Medium and Short bring the distance fog nearer, and what lies beyond it is not drawn. That helps where the processor or the number of objects holds the game back, on slower phones at a low resolution: in the village about half of the objects go. At a high resolution the graphics chip is busy with the pixels and gains little. Rooms without distance fog, and those whose fog lies far beyond what you see (the castle, the island), stay as they are.</string>
+    <string name="ingame_view_very_short">None</string>
+    <string name="ingame_view_far">Far</string>
+    <string name="ingame_potato_help">Each switch saves graphics work on weaker devices. Particles: Less draws half of them, None keeps only fire and explosions. Shadows &amp; light off removes shadows, lens glows and light shafts; the rooms keep their lighting. Hits, hints and the laser always stay.</string>
+    <string name="ingame_view_help">View distance: Medium, Short and None bring the fog nearer and leave out what lies behind it; that helps slower phones at a low resolution. None is the shortest, for slow phones. Far moves the fog further away: you see further, but it costs the most. Rooms without distance fog stay as they are.</string>
+    <string name="ingame_rt_shadows">Real-time shadows</string>
+    <string name="ingame_rt_shadows_figures">Characters</string>
+    <string name="ingame_rt_shadows_objects">Characters and objects</string>
+    <string name="ingame_rt_shadows_help">Real-time shadows: Leon, his companions and the enemies cast real shadows instead of round spots; Characters and objects adds doors, crates, barrels and other moving things. They follow the game’s own lights – torches, lamps, the sky, lightning – and stay faint in the dark. Cut scenes keep the game’s own shadows. On by default only on strong devices after the benchmark; it costs some graphics work.</string>
+    <!-- under the row when the device is not capable enough to have them on by default (RealtimeShadows.deviceCheck): the reason -->
+    <string name="ingame_rt_shadows_not_recommended">Not recommended for this device (%1$s).</string>
+    <string name="ingame_rt_shadows_why_gpu_unknown">graphics chip not known yet</string>
+    <string name="ingame_rt_shadows_why_gpu">graphics chip not strong enough</string>
+    <string name="ingame_rt_shadows_why_benchmark">no benchmark yet</string>
+    <string name="ingame_rt_shadows_why_benchmark_low">the benchmark’s levels are too low</string>
+    <string name="ingame_rt_shadows_why_cpu">processor at its limit</string>
+    <string name="ingame_rt_shadows_why_memory">less than 4 GB of memory</string>
     <string name="ingame_resolution_line">Resolution: %1$d × %2$d pixels (level %3$s) · screen %4$d × %5$d · applies when the menu closes. Higher levels need more power.</string>
     <string name="ingame_resolution_line_auto">Resolution: %1$d × %2$d pixels (level %3$s, Dynamic) · screen %4$d × %5$d · applies when the menu closes. Dynamic goes a level lower while the GPU cannot keep up.</string>
 
@@ -83,7 +97,9 @@
     <string name="ingame_button_style">Button style</string>
     <string name="ingame_button_icons">RE</string>
     <string name="ingame_button_labels">GC</string>
-    <string name="ingame_button_style_help">RE: a symbol for what each button does (the default); GC: the letters in the GameCube\'s colours, as before. The editor (the gear at the top right) has the same switch.</string>
+    <string name="ingame_button_ps2">PS2</string>
+    <string name="ingame_button_xbox">XBOX</string>
+    <string name="ingame_button_style_help">RE: symbols for what each button does (the default). GC, PS2 and XBOX: the buttons of those controllers. The style button in the editor (the gear at the top right) goes through all four.</string>
     <string name="ingame_comfort">Comfort Controls</string>
     <string name="ingame_gyro">Gyro-Aiming</string>
     <string name="ingame_gyro_none">Gyro-Aiming (no gyroscope)</string>
@@ -96,19 +112,21 @@
     <string name="ingame_far_camera">Far camera</string>
     <string name="ingame_auto_aim_help">Auto aim: when you raise your weapon, the aim jumps to the nearest enemy in front of you and follows it for a moment (the game\'s own lock-on).</string>
     <string name="ingame_always_run_help">Always run: Leon runs whenever you move; hold the run button (e.g. B) to walk instead.</string>
+    <string name="ingame_body_turn">Turn Leon with mouse / look area</string>
+    <string name="ingame_body_turn_help">Turn Leon with mouse / look area: moving the mouse or swiping the touch look area sideways turns Leon himself; up and down moves the camera as before. Aiming is unchanged.</string>
     <string name="ingame_gentle_qte">Gentler QTEs (Professional)</string>
-    <string name="ingame_gentle_qte_help">Gentler QTEs: in Professional the quick-time events (dodging, the knife fight, pressing a button fast) give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s. A finger on the picture presses a quick-time prompt\'s buttons as it touches the screen, in every difficulty.</string>
-    <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon while walking and standing. Aiming and tight spots bring it close as before; it moves smoothly in between.</string>
+    <string name="ingame_gentle_qte_help">Gentler QTEs: in Professional the quick-time events give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s. A finger on the picture presses a prompt\'s buttons at once, in every difficulty.</string>
+    <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon; when aiming and in tight spots it comes close as before.</string>
     <string name="ingame_touch_aim">Touch Aiming</string>
     <string name="ingame_aim_move_stick">Move Stick</string>
     <string name="ingame_aim_touch_area">Touch Area</string>
     <string name="ingame_aim_c_stick">C Stick</string>
-    <string name="ingame_touch_aim_help">Touch Aiming: while L or R holds a weapon ready, the touch area aims by swipes on the right half (the aim follows your finger and stops when it stops) or the touch C stick aims like a stick (add it with the gear at the top right). Move Stick: as on the GameCube.</string>
-    <string name="ingame_touch_zoom_help">Zoom in a scope or the binoculars by touch: drag up or down on the right half (with Move Stick or C Stick aiming) or on the touch C stick, or add the zoom buttons + and − with the gear at the top right (they zoom while held).</string>
+    <string name="ingame_touch_aim_help">Touch Aiming: while L or R holds a weapon, swipe on the right half to aim, or use the touch C stick (add it with the gear at the top right). Move Stick: as on the GameCube. AIM and KNIFE sticks (gear): a finger on them holds R or L, their tilt aims.</string>
+    <string name="ingame_touch_zoom_help">Zoom the scope or the binoculars by touch: drag up or down on the right half or on the touch C stick, or add the zoom buttons + and − with the gear at the top right.</string>
     <string name="ingame_gyro_sensitivity">Gyro sensitivity</string>
     <string name="ingame_gyro_invert_v">Invert vertical</string>
     <string name="ingame_gyro_invert_h">Invert horizontal</string>
-    <string name="ingame_alternate_help">Alternate Controls: L1 = Knife, L2 = Aim (aim with the right stick), R1 = Inventory (Weapons/Recovery), R2 = Fire / use the knife, Y = Map. A, B, X (Ashley) and START as before.</string>
+    <string name="ingame_alternate_help">Alternate Controls: L1 = Knife, L2 = Aim (aim with the right stick), R1 = Inventory (Weapons/Recovery), R2 = Fire / use the knife, Y = Map. A, B, X (Ashley) and START as before. Rifle scope: left stick up/down zooms.</string>
     <string name="ingame_knife_swipe">Knife by Swipe</string>
     <string name="ingame_knife_swipe_help">Knife by Swipe: a quick swipe across the picture draws the knife and slashes; swipe upward or downward to slash high or low.</string>
     <string name="ingame_latch_help">Latch: one press (button or touch) holds L, R or B until the next press (B latched: Leon keeps running).</string>
@@ -116,14 +134,14 @@
     <string name="ingame_aim_speed">Aim speed</string>
     <string name="ingame_motion">Motion Controls</string>
     <string name="ingame_controller_section">Controller, Keyboard and Mouse</string>
-    <string name="ingame_aim_help">Invert vertical and Aim speed: for aiming the knife and the weapons by touch or with a controller, not with the gyro. Invert vertical applies to the mouse too (aiming and binoculars); its speed is the Mouse Sensitivity. Invert vertical sets the game\'s own option.</string>
+    <string name="ingame_aim_help">Invert vertical and Aim speed: for aiming by touch or with a controller, not with the gyro. Invert vertical applies to the mouse too and sets the game\'s own option.</string>
     <string name="ingame_update">Update</string>
     <string name="ingame_up_to_date">Up to date</string>
     <string name="ingame_update_page">The newest release opens on GitHub: download the APK there and install it.</string>
 
     <!-- Memory card -->
     <string name="ingame_card">Memory card (slot A)</string>
-    <string name="ingame_card_help">Export Player Data: your saves as .gci (for Dolphin or GameCube) with a touch layout of your own as CubeEvil4-touch-layout.json, or everything in one .zip (saves, instant save, RetroTouch and the app\'s settings). The import brings it back. Delete All Data empties the memory card.</string>
+    <string name="ingame_card_help">Export Player Data: your saves as .gci (for Dolphin or GameCube), or everything in one .zip (saves, instant save, RetroTouch and settings). Import brings it back. Delete All Data empties the memory card.</string>
     <string name="ingame_card_busy">The card is in use (the game saves or loads) or the game is still loading – close the menu and open it again in a moment.</string>
     <string name="ingame_card_none">No memory card.</string>
     <string name="ingame_export">Export Player Data (.gci)</string>
@@ -150,6 +168,13 @@
     <!-- Source -->
     <string name="ingame_source">Source and updates</string>
     <string name="ingame_source_line">More on this port at %1$s</string>
+    <!-- the note under the link (wish of the project owner, 15.11.2026): CubeEvil4, Android and OUYA/Potato stay as they are in every language -->
+    <string name="ingame_source_only">CubeEvil4 for Android and OUYA/Potato is only available here.</string>
+    <string name="ingame_source_avoid">Avoid downloading it from other sites or game platforms.</string>
+    <!-- the warning of a release build signed with another key than the author's, at each start (UnofficialWarning; the project owner, 16.11.2026): CubeEvil4 and the GitHub address stay as they are -->
+    <string name="ingame_unofficial_title">Unofficial version</string>
+    <string name="ingame_unofficial_text">This app is not signed with its developer’s signature and may have been modified. The official CubeEvil4 is only available at github.com/Andiweli/CubeEvil4-Android.</string>
+    <string name="ingame_unofficial_ok">I understand</string>
     <string name="ingame_no_browser">No browser on this device</string>
 
     <!-- the FPS display (the screen's rate follows, " · 60 Hz") -->
@@ -240,7 +265,7 @@
     <string name="ingame_volume">Volume</string>
     <string name="ingame_music_volume">Music</string>
     <string name="ingame_effects_volume">Sound effects</string>
-    <string name="ingame_volume_help">Music is the background music; sound effects are everything else in the game (shots, voices, steps). The movies keep their sound as it is. The two buttons switch the music or the sound effects off entirely; switched on again, they play at the volume above.</string>
+    <string name="ingame_volume_help">Music is the background music; sound effects are everything else (shots, voices, steps). Movies keep their sound. The two buttons switch the music or the sound effects off entirely.</string>
     <string name="ingame_smooth_help">Extra in-between pictures. The game logic stays at 30 frames/s.</string>
     <string name="ingame_smooth60_uneven">This screen runs at %1$d Hz: 60 FPS cannot be shown evenly on it and may stutter. 30 FPS (60 FPS off) runs smoother here.</string>
     <string name="ingame_instant_save">Save</string>
@@ -267,11 +292,13 @@
     <string name="ingame_fxaa">FXAA</string>
     <string name="ingame_tv_filter">Original GameCube TV filter</string>
     <string name="ingame_fxaa_help">Smooths jagged edges in a last step. Works with or without MSAA; the picture gets slightly softer.</string>
+    <string name="ingame_sharper_text">Sharper menu text</string>
+    <string name="ingame_sharper_text_help">Sharper menu text draws the game’s own menu words with crisp edges at high resolutions, in every language.</string>
     <string name="ingame_psx">Retro pixel filter</string>
     <string name="ingame_filter">Filter</string>
     <string name="ingame_filter_help">Filters change the look of the whole picture and can be combined.</string>
     <string name="ingame_sharpen">Sharpen</string>
-    <string name="ingame_sharpen_help">Sharpen brings back the detail of textures that gets soft when the picture is enlarged to the screen (mostly in the wide picture formats). Movies stay as they are.</string>
+    <string name="ingame_sharpen_help">Sharpen brings back texture detail that gets soft when the picture is enlarged (mostly in the wide formats). Movies stay as they are.</string>
     <string name="ingame_crt">CRT</string>
     <string name="ingame_crt_help">CRT: the picture as an old tube TV showed it, with lines, a curved screen and a soft glow. The touch controls and the minimap stay sharp.</string>
     <string name="ingame_colour">Colour</string>
@@ -280,12 +307,12 @@
     <string name="ingame_colour_strength">Strength</string>
     <string name="ingame_colour_help">Warm film brings out the browns and golds; Survival horror pales the colours and hardens the contrast. Strength sets how much.</string>
     <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
-    <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out at most every second picture while it falls behind; this also saves processor time and is much faster on phones with a slow processor.</string>
-    <string name="ingame_vk_bandwidth_help">Vulkan only: after the picture is cleared, the graphics chip no longer loads it again, which saves memory bandwidth on Mali and Adreno chips. The picture stays the same.</string>
+    <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out up to every second picture while it falls behind; much faster on phones with a slow processor.</string>
+    <string name="ingame_vk_bandwidth_help">Vulkan only: saves memory bandwidth on Mali and Adreno chips; the picture stays the same.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
-    <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow graphics driver (e.g. Mali GPUs) and may cost a little on others. No effect while 60 FPS is on.</string>
-    <string name="ingame_vertex_ring_help">Sends each picture\'s vertex data to the graphics chip through one buffer that stays mapped, instead of a new buffer every picture. Can save time on Mali GPUs and uses a little more graphics memory. Takes effect at once.</string>
-    <string name="ingame_vulkan_perf_help">With Vulkan, Merge draw calls and Vertex ring buffer are greyed out and not used: Vulkan always sends the vertex data through a buffer that stays mapped, and its draw calls are cheap, so merging would only add pipelines to build. Your choice comes back with OpenGL ES.</string>
+    <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow driver (e.g. Mali GPUs); no effect with 60 FPS.</string>
+    <string name="ingame_vertex_ring_help">Sends the vertex data through one buffer that stays mapped instead of a new one every picture. Can save time on Mali GPUs; uses a little more graphics memory.</string>
+    <string name="ingame_vulkan_perf_help">With Vulkan, Merge draw calls and Vertex ring buffer are greyed out: Vulkan does not need them. Your choice comes back with OpenGL ES.</string>
     <string name="ingame_game_language">Game language</string>
     <string name="ingame_language_device">Device language</string>
     <string name="ingame_language_help">The language of the game\'s texts and subtitles. Device language: the device\'s language if the game has it, English otherwise. A change restarts the game.</string>
@@ -311,7 +338,7 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Attaché case L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheats_help">The switches stay on until you switch them off; your save does not keep them. Some attacks still kill Leon at once (a chainsaw, a grab, a boulder). The buttons change your game: the weapon, the case and the money stay in your next save. Automatic QTEs presses the buttons of every quick-time prompt for you. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu, as after finishing the game; your next save keeps them. Invisibility: enemies take no notice of you and do not attack; bosses and scripted scenes still can.</string>
+    <string name="ingame_cheats_help">The switches stay on until you switch them off; saves do not keep them. Some attacks still kill Leon at once (chainsaw, grab, boulder). Invisibility: enemies ignore you, bosses and scripted scenes do not. Steady aim: the laser and the scope do not sway. Costumes: Leon\'s jacket keeps Leon in his brown jacket for the whole game; Special dresses Leon and Ashley in their special outfits. The buttons change your game: weapons, the case and the money stay in your next save. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s already owned: now at its highest levels.</string>
@@ -321,17 +348,20 @@
     <string name="ingame_cheat_unsupported">This game core has no cheats.</string>
     <string name="ingame_cheat_qte">Automatic QTEs</string>
     <string name="ingame_cheat_random_items">Random items</string>
-    <string name="ingame_cheat_random_items_help">Random items: the items lying in the story\'s rooms (ammo, herbs and other recovery items, grenades, pesetas, treasures) are dealt anew in every room you enter from then on, and a room always gives the same items until you switch this off and on again. Keys, weapons, files and other story items stay as they are, so the game can always be finished. Items you already picked up stay picked up; enemies, barrels and boxes keep their own drops. Not in Assignment Ada and The Mercenaries.</string>
+    <string name="ingame_cheat_random_items_help">Random items: ammo, herbs, grenades, pesetas and treasures lying in the story\'s rooms are dealt anew; a room keeps its items until you switch this off and on again. Keys, weapons and other story items stay, so the game can always be finished. Not in Assignment Ada and The Mercenaries.</string>
     <string name="ingame_cheat_random_enemies">Random enemies</string>
-    <string name="ingame_cheat_random_enemies_help">Random enemies: in many rooms the ordinary Ganados stand at other places a few metres from their own, and rooms with 10 or more of them get one fewer or one more (20 or more: up to two; where the game counts its enemies only the places change). The village at the start of chapter 1 and rooms whose events need certain enemies stay as they are, as do bosses, the merchant, Ashley, Luis, special enemies and waves, so the game can always be finished. A room looks the same each time until you switch this off and on again; saves stay the game\'s own. From the next room on; not in Assignment Ada, The Mercenaries and Ashley\'s part.</string>
+    <string name="ingame_cheat_random_enemies_help">Random enemies: the ordinary Ganados start at random places anywhere in the room they can walk, and big groups get one or two more or fewer. Bosses, special enemies, Ganados with a fixed role and waves stay as they are, so the village at the start changes little and the game can always be finished. From the next room on; not in Assignment Ada, The Mercenaries and Ashley\'s part.</string>
     <string name="ingame_cheat_extras">Unlock extra games</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
     <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>
     <string name="ingame_cheat_character">Player character</string>
-    <string name="ingame_cheat_costume">Special costumes</string>
-    <string name="ingame_cheat_costume_note">(Leon/Ashley only)</string>
-    <string name="ingame_cheat_character_help">The character takes Leon\'s place in the story at once: the room loads again where you stand (during a cutscene, from the next room on). Leon\'s case, life and money stay; weapons the character has no model of its own for show Leon\'s. Krauser brings his bow: each room start gives it back and fills his arrows up to 40; with anyone else it leaves the case, and saves never keep it. Wesker brings his silencer the same way and puts it on the handgun; it too leaves the case with anyone else and is never saved. Both come only where the case has room; otherwise at the next room start. Ashley\'s part stays Ashley\'s, cutscenes and radio calls still show Leon. Your saves always keep Leon, so they load as whoever is chosen here. Characters other than Leon are not made for the main game, so choosing one shows a warning first: \"I understand\" switches, Back keeps your current character. Special costumes: Leon and Ashley (and Ada as a stand-in) wear their special outfits, also at once.</string>
+    <string name="ingame_cheat_costume">Costumes</string>
+    <!-- the costume's three values (CoreMenu.costumeSwitch, 1.0): the game's own, Leon keeps his brown jacket, the special costumes -->
+    <string name="ingame_cheat_costume_normal">Normal</string>
+    <string name="ingame_cheat_costume_jacket">Leon\'s jacket</string>
+    <string name="ingame_cheat_costume_special">Special</string>
+    <string name="ingame_cheat_character_help">The character takes Leon\'s place at once (the room loads again where you stand). Leon\'s case, life and money stay; cutscenes and radio calls still show Leon, and Ashley\'s part stays Ashley\'s. Krauser brings his bow and Wesker his silencer while they are chosen. Your saves always keep Leon. Characters other than Leon are not made for the main game, so a warning comes first.</string>
     <string name="ingame_cheat_character_warning">Warning: This character is not meant for the main game. Bugs can and will occur, and they cannot be avoided!</string>
     <string name="ingame_understood">I understand</string>
     <string name="ingame_later">Later</string>
@@ -339,13 +369,13 @@
     <string name="ingame_controller_config_help">Button Mapping: put every action of the game on keys of your controller or keyboard.</string>
     <string name="ingame_stick_dead_zone">Stick dead zone</string>
     <string name="ingame_stick_range">Stick range</string>
-    <string name="ingame_stick_help">Stick dead zone: small movements of a controller stick around its centre are ignored (for a stick that drifts or trembles). Stick range: a stick pushed this far already counts as pushed all the way, so Leon walks, runs and turns reliably even if your stick does not reach its edge. The defaults leave the sticks as they are. The touch controls are not affected.</string>
+    <string name="ingame_stick_help">Stick dead zone: small movements around the centre are ignored (for a drifting stick). Stick range: a stick pushed this far counts as pushed all the way, so Leon walks and runs reliably. The defaults leave the sticks as they are; the touch controls are not affected.</string>
     <string name="ingame_vibration">Vibration</string>
     <string name="ingame_vibration_device">Device</string>
     <string name="ingame_vibration_controller">Controller</string>
-    <string name="ingame_vibration_help">Where you feel the game\'s vibration. Auto: in a connected controller that has its own motors (Android 12 and later), otherwise in this phone or handheld. Device: always in this phone or handheld. Controller: only in the controller (nothing if it has no motors; before Android 12 in this device). Off: no vibration. The game\'s own option Vibration can still switch it off.</string>
+    <string name="ingame_vibration_help">Where you feel the vibration. Auto: in a controller with its own motors (Android 12 and later), otherwise in this device. Device: always in this device. Controller: only in the controller. The game\'s own Vibration option can still switch it off.</string>
     <string name="ingame_controller_default">Default Layout</string>
-    <string name="ingame_controller_help">Choose an action, then press its key. An action of two keys (fire, reload, slash) asks for the key to hold first, then the second. A key another action had goes to that one\'s old key. The game\'s menus keep the default; its prompts still show the GameCube buttons.</string>
+    <string name="ingame_controller_help">Choose an action, then press its key. An action of two keys (fire, reload, slash) asks for the key to hold first. A key taken from another action gives that one your old key. The game\'s menus and prompts keep the GameCube buttons.</string>
     <string name="ingame_controller_alternate_note">Alternate Controls are on: they keep their own layout; this one applies once they are off.</string>
     <string name="ingame_act_menu">App Menu (held: debug menu)</string>
     <string name="ingame_act_menu_app">App Menu</string>
@@ -379,21 +409,22 @@
     <string name="ingame_map_hold">Hold the first key …</string>
     <string name="ingame_map_press">Press a key …</string>
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
-    <string name="ingame_mouse_help">The mouse (Android 8 and later) belongs to the game while it runs: moving it turns the camera, while aiming it moves the aim and in the binoculars the view. Its wheel zooms the scope and the binoculars (up zooms in). The app menu (F1) frees the pointer.</string>
-    <string name="ingame_keyboard_c_help">The knife: hold its key and move the mouse to aim it, as with the weapons. The C stick\'s keys (I, K, J, L unless you change them) turn the camera and zoom the scope and the binoculars (up zooms in, down out), as the mouse wheel does.</string>
+    <string name="ingame_mouse_help">The mouse (Android 8 and later) controls the game while it runs: it turns the camera and moves the aim; the wheel zooms the scope and the binoculars. The app menu (F1) frees the pointer.</string>
+    <string name="ingame_keyboard_c_help">The knife: hold its key and aim with the mouse. The C stick\'s keys (I, K, J, L by default) turn the camera and zoom the scope and the binoculars.</string>
     <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>
     <!-- 0.98.4: cheat sections, invisibility, depth of field levels, player view -->
     <string name="ingame_cheat_invisible">Invisibility</string>
-    <string name="ingame_cheat_section_player">Player &amp; Inventory</string>
+    <string name="ingame_cheat_steady">Steady aim</string>
+    <string name="ingame_cheat_section_player">Player</string>
     <string name="ingame_cheat_section_weapons">Weapons</string>
-    <string name="ingame_cheat_section_game">Game</string>
+    <string name="ingame_cheat_section_game">General &amp; inventory</string>
     <string name="ingame_dof_light">Light</string>
     <string name="ingame_dof_strong">Strong</string>
     <string name="ingame_player_view">Player View</string>
     <string name="ingame_fov">Field of view (FoV)</string>
-    <string name="ingame_fov_help">Field of view: widens (+) or narrows (−) the shoulder camera\'s view by up to 15 degrees, while walking and while aiming; 0° is the game\'s own. Cutscenes, the scope and the binoculars stay as they are.</string>
+    <string name="ingame_fov_help">Field of view: widens (+) or narrows (−) the shoulder camera by up to 15 degrees; 0° is the game\'s own. Cutscenes, the scope and the binoculars stay as they are.</string>
     <!-- 0.98.4: the benchmark (Display -> GRAPHICS) -->
     <string name="ingame_benchmark">Benchmark</string>
     <string name="ingame_benchmark_start">Start</string>
@@ -415,7 +446,7 @@
     <string name="ingame_profile_recommended">★ recommended</string>
     <string name="ingame_profile_measured">Measured: 30 FPS up to %1$s, 60 FPS up to %2$s · limited by %3$s.</string>
     <string name="ingame_profile_not_measured">Not measured yet: the profiles follow this device\'s data. The benchmark makes them fit.</string>
-    <string name="ingame_profile_help">A profile sets the resolution, 60 FPS, frame skip, anti-aliasing, FXAA, texture filter, performance cores and Potato mode for this device. Changing one of these by hand makes it Custom; Custom stays saved while you try a profile.</string>
+    <string name="ingame_profile_help">A profile sets the resolution, 60 FPS, frame skip, anti-aliasing, FXAA, texture filter, performance cores and Potato mode for this device. Changing one of them by hand makes it Custom, which stays saved.</string>
     <string name="ingame_limit_gpu">the graphics chip</string>
     <string name="ingame_limit_cpu">the processor</string>
     <string name="ingame_limit_both">the graphics chip, the processor close to its limit</string>
@@ -450,14 +481,14 @@
     <!-- the renderer (port/docs/vulkan-bauplan.md E7) -->
     <string name="ingame_renderer">Renderer</string>
     <string name="ingame_renderer_gles">OpenGL ES</string>
-    <string name="ingame_renderer_vulkan">Vulkan (experimental)</string>
+    <string name="ingame_renderer_vulkan">Vulkan</string>
     <string name="ingame_renderer_help">Vulkan can be faster on some devices, above all with Mali graphics. Should it not start, the game goes back to OpenGL ES by itself. A change restarts the game.</string>
     <string name="ingame_renderer_restart_text">The new renderer is used after a restart of the game. Progress since your last save is lost.</string>
     <string name="ingame_renderer_unavailable">Vulkan needs Android 10 and graphics with Vulkan 1.1; this device draws with OpenGL ES.</string>
     <string name="ingame_vulkan_failed">Vulkan could not start on this device. The game draws with OpenGL ES.</string>
     <string name="ingame_vulkan_crashed">The game ended while it started with Vulkan. It now starts with OpenGL ES; Vulkan can be chosen again in the menu (Display).</string>
     <string name="ingame_shader_cache">Shader cache</string>
-    <string name="ingame_shader_cache_help">The game keeps the shaders it built, so a scene does not stutter a second time. Clear them only if graphics errors appear after an update: the game then builds them anew, and the first scenes can stutter.</string>
+    <string name="ingame_shader_cache_help">The game keeps the shaders it built so scenes do not stutter again. Clear them only if graphics errors appear after an update; the first scenes may then stutter once.</string>
     <string name="ingame_shader_clear">Clear shader cache</string>
     <string name="ingame_shader_clear_text">The game restarts and deletes the built shaders. It builds them anew as you play, so the first scenes can stutter. Progress since your last save is lost.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
@@ -469,6 +500,11 @@
     <string name="ingame_hd_full">Full</string>
     <string name="ingame_hd_half">Half</string>
     <string name="ingame_hd_delete">Delete texture pack</string>
+    <string name="ingame_hd_costumes">Costumes</string>
+    <string name="ingame_hd_weapons">Weapons</string>
+    <string name="ingame_hd_pack">Texture pack</string>
+    <string name="ingame_hd_original">Original</string>
+    <string name="ingame_hd_groups_help">Costumes and Weapons: Original keeps the game’s own textures of the playable characters (Leon, Ashley, Ada, HUNK, Krauser, Wesker) or of the weapons, even with a texture pack.</string>
     <string name="ingame_hd_delete_yes">Delete</string>
     <string name="ingame_hd_none">HD textures: no texture pack imported.</string>
     <string name="ingame_hd_info">HD textures: %1$s · %2$s images · %3$s · made %4$s</string>
@@ -486,7 +522,7 @@
     <string name="ingame_hd_damaged">The file is damaged. Copy it to the device again or convert it again.</string>
     <string name="ingame_hd_cancelled">Import cancelled. The texture pack before it stays.</string>
     <string name="ingame_hd_read_failed">The file could not be read: %1$s</string>
-    <string name="ingame_hd_help">HD textures replace the game\'s images with sharper ones from a texture pack in the Dolphin format. CubeEvil4 includes no textures and links to none: use only packs you obtained yourself and may use. Convert the pack with the CubeEvil4 Texture Packer (on a PC or with its Android app) and import the .c4tex file here; afterwards you can delete that file. The pack is kept in a folder of its own and never changes your discs, saves or memory cards; switch it off or delete it at any time. Sharpness Half needs less graphics memory on weaker devices. The Retro pixel filter keeps the game\'s own textures.</string>
+    <string name="ingame_hd_help">HD textures replace the game\'s images with sharper ones from a Dolphin texture pack. CubeEvil4 includes no textures and links to none: use only packs you obtained yourself and may use. Convert the pack with the CubeEvil4 Texture Packer (PC or Android) and import the .c4tex file here; it never changes your discs or saves. Sharpness Half needs less graphics memory.</string>
     <string name="ingame_hd_import_from">Import the texture pack “%1$s” (%2$s)?</string>
     <string name="ingame_hd_import_busy">A texture pack is being imported already. Try again when it is done.</string>
     <string name="ingame_hd_import_on">HD textures are on. You can switch them off or delete the pack in the app menu (SELECT) under Cheats &amp; Mods.</string>

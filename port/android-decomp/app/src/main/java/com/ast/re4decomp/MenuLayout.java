@@ -48,6 +48,22 @@ final class MenuLayout {
       addView(button, lp);
     }
 
+    /** An empty cell (the cheat page's player characters, the project owner, 16.11.2026: "Unter dem Button von Leon
+     *  bleibt der Platz also frei"): it keeps its place while the row has all its columns and goes away when a narrow
+     *  window folds the row, so no hole is left there; the controller's focus never stops on it. */
+    void addGap() {
+      View gap = new View(getContext());
+      gap.setTag(GAP_TAG);
+      gap.setFocusable(false);
+      gap.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      gap.setVisibility(View.INVISIBLE);
+      addButton(gap);
+    }
+
+    private static boolean isGap(View v) {
+      return GAP_TAG.equals(v.getTag());
+    }
+
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
       int available = Math.max(1, MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight());
       int needed = dp(getContext(), 64);
@@ -55,6 +71,7 @@ final class MenuLayout {
         View child = getChildAt(i);
         child.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        if (isGap(child)) continue;
         int padding = child.getPaddingLeft() + child.getPaddingRight();
         int text = child.getMeasuredWidth() - padding;
         needed = Math.max(needed, (text + lines - 1) / lines + padding + dp(getContext(), 2 * GAP));
@@ -64,19 +81,30 @@ final class MenuLayout {
       if (measuredColumns != columns) {
         setColumnCount(UNDEFINED);
         setRowCount(UNDEFINED);
+        int cell = 0;
         for (int i = 0; i < getChildCount(); i++) {
-          LayoutParams lp = (LayoutParams) getChildAt(i).getLayoutParams();
-          lp.columnSpec = spec(i % columns, FILL, 1f);
-          lp.rowSpec = spec(i / columns, FILL);
-          getChildAt(i).setLayoutParams(lp);
+          View child = getChildAt(i);
+          if (isGap(child)) {
+            // an empty cell only while the row has all its columns
+            boolean keep = columns == maxColumns;
+            child.setVisibility(keep ? View.INVISIBLE : View.GONE);
+            if (!keep) continue;
+          }
+          LayoutParams lp = (LayoutParams) child.getLayoutParams();
+          lp.columnSpec = spec(cell % columns, FILL, 1f);
+          lp.rowSpec = spec(cell / columns, FILL);
+          child.setLayoutParams(lp);
+          cell++;
         }
         setColumnCount(columns);
-        setRowCount((getChildCount() + columns - 1) / columns);
+        setRowCount(Math.max(1, (cell + columns - 1) / columns));
         measuredColumns = columns;
       }
       super.onMeasure(widthSpec, heightSpec);
     }
   }
+
+  private static final String GAP_TAG = "MenuLayout.gap";
 
   /**
    * Buttons as a piano (the resolution, wish of the project owner, 27.10.2026): the first `whites`
@@ -211,34 +239,59 @@ final class MenuLayout {
     }
   }
 
-  /** Back / title / resume in one row; narrow windows put the title above the two actions. */
+  /** Back / title / resume in one row; narrow windows put the title above the two actions. `note` (may be null; the
+   *  installed version since 0.99.18, as in the OUYA menu: wish of the project owner, 15.11.2026) sits left of the
+   *  actions with 18 dp room; where a narrow window leaves it no room there, small under them, at their end. */
   static final class Header extends ViewGroup {
-    private boolean horizontal;
-    private final View back, title, resume;
+    private boolean horizontal, noteBelow;
+    private final View back, title, note, resume;
 
     Header(Context context, View back, View title, View resume) {
+      this(context, back, title, null, resume);
+    }
+
+    Header(Context context, View back, View title, View note, View resume) {
       super(context);
       this.back = back;
       this.title = title;
+      this.note = note;
       this.resume = resume;
-      addView(back); addView(title); addView(resume);
+      addView(back); addView(title);
+      if (note != null) addView(note);
+      addView(resume);
+    }
+
+    private boolean hasNote() { return note != null && note.getVisibility() != GONE; }
+
+    private int actionsHeight() {
+      return Math.max(back.getVisibility() == GONE ? 0 : back.getMeasuredHeight(), resume.getMeasuredHeight());
     }
 
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
-      int width = MeasureSpec.getSize(widthSpec), gap = dp(getContext(), 16);
+      int width = MeasureSpec.getSize(widthSpec), gap = dp(getContext(), 16), noteGap = dp(getContext(), 18);
       float textScale = Math.max(1f, getResources().getConfiguration().fontScale);
       horizontal = width >= dp(getContext(), 680 * textScale);
       int actionsWidth = Math.max(1, (width - gap) / 2);
       int actionSpec = MeasureSpec.makeMeasureSpec(actionsWidth, MeasureSpec.AT_MOST);
       int freeHeight = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
       if (back.getVisibility() != GONE) back.measure(actionSpec, freeHeight);
-      resume.measure(actionSpec, freeHeight);
       int backWidth = back.getVisibility() == GONE ? 0 : back.getMeasuredWidth() + gap;
-      int titleWidth = horizontal ? Math.max(1, width - backWidth - resume.getMeasuredWidth() - gap) : width;
+      int noteWidth = 0;
+      if (hasNote()) {
+        note.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST), freeHeight);
+        noteWidth = note.getMeasuredWidth() + noteGap;
+      }
+      // beside the title half the width; under it (a narrow window) what the back button leaves of the row, so
+      // "Back to the game" and the update button do not break letter by letter
+      resume.measure(horizontal ? actionSpec
+          : MeasureSpec.makeMeasureSpec(Math.max(1, width - backWidth), MeasureSpec.AT_MOST), freeHeight);
+      noteBelow = hasNote() && !horizontal && backWidth + noteWidth + resume.getMeasuredWidth() > width;
+      int titleWidth = horizontal ? Math.max(1, width - backWidth - resume.getMeasuredWidth() - gap - noteWidth) : width;
       title.measure(MeasureSpec.makeMeasureSpec(titleWidth, MeasureSpec.EXACTLY), freeHeight);
-      int actionsHeight = Math.max(back.getVisibility() == GONE ? 0 : back.getMeasuredHeight(), resume.getMeasuredHeight());
+      int actionsHeight = Math.max(actionsHeight(), hasNote() && !noteBelow ? note.getMeasuredHeight() : 0);
       int height = horizontal ? Math.max(title.getMeasuredHeight(), actionsHeight)
-          : title.getMeasuredHeight() + dp(getContext(), 8) + actionsHeight;
+          : title.getMeasuredHeight() + dp(getContext(), 8) + actionsHeight
+              + (noteBelow ? dp(getContext(), 4) + note.getMeasuredHeight() : 0);
       setMeasuredDimension(width, resolveSize(height, heightSpec));
     }
 
@@ -253,6 +306,16 @@ final class MenuLayout {
       if (back.getVisibility() != GONE) place(back, 0, horizontal ? (getHeight() - back.getMeasuredHeight()) / 2 : actionsTop);
       place(title, horizontal ? titleStart : 0, horizontal ? (getHeight() - title.getMeasuredHeight()) / 2 : 0);
       place(resume, getWidth() - resume.getMeasuredWidth(), horizontal ? (getHeight() - resume.getMeasuredHeight()) / 2 : actionsTop);
+      if (hasNote()) {
+        int noteWidth = note.getMeasuredWidth(), noteHeight = note.getMeasuredHeight();
+        if (noteBelow) {
+          place(note, getWidth() - noteWidth, actionsTop + actionsHeight() + dp(getContext(), 4));
+        } else {
+          int start = getWidth() - resume.getMeasuredWidth() - dp(getContext(), 18) - noteWidth;
+          place(note, start, horizontal ? (getHeight() - noteHeight) / 2
+              : actionsTop + (resume.getMeasuredHeight() - noteHeight) / 2);
+        }
+      }
     }
   }
 }

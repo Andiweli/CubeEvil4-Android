@@ -14,6 +14,9 @@
 
 **[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
+> [!NOTE]
+> There is also a fork that is more focused on modding the hell out of the game.  
+> [Manuk Bulan's fork of CubeEvil4](https://github.com/manuk-bulan/Manuk-CubeEvil4-Android) is for you in case you want to mod the game more than my port.
 
 **CubeEvil4** is a non-commercial hobby project: an unofficial fan port that lets you play your own
 copy of the GameCube version of Resident Evil 4 natively on Android. It does not recreate the game;
@@ -84,7 +87,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 
 | Class | SoC | GPU | Suitability |
 |:-----:|-----|-----|-------------|
-| **A** | Snapdragon 8 Elite Gen 6 / Extreme Gen 6 | Adreno 845 (and Extreme variant) | Remake-level, high resolution, ray tracing experiments |
+| **A** | Snapdragon 8 Elite Gen 6 / Extreme Gen 6 | Adreno 845 (and Extreme variant) | Remake-level, high resolution |
 | **A** | Snapdragon 8 Elite Gen 5 | Adreno 840 | as above, currently widespread |
 | **A** | Snapdragon 8 Elite (Gen 1) | Adreno 830 | as above |
 | **A** | MediaTek Dimensity 9500 / 9600 Pro | Mali-G1 Ultra | as above, driver testing required |
@@ -139,6 +142,18 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 3. Choose **Start game**. If your controller's face buttons are labelled the other way round,
    tick "Swap A/B and X/Y" on the start screen.
 
+**Data folder**
+
+- CubeEvil4 keeps its data (imported discs, memory card, instant save, texture packs, error logs) in
+  its own folder, `Android/data/com.ast.cubeevil4/files`. Uninstalling the app deletes that folder.
+- The **sideload** APK (`CubeEvil4-<version>-Android-sideload.apk`) can keep them in a folder of your
+  choice instead, for example on an SD card: on the start screen, under **Data folder**, choose
+  **Choose folder** (with both discs imported, open the start screen through app menu → Management →
+  Import other discs). Android then asks for **All files access** (Android 11 and later; the storage
+  permission on Android 7 to 10): CubeEvil4 needs it to read and write outside its own folder.
+  CubeEvil4 offers to move the existing data along; **Restore default** goes back to its own folder.
+- The sideload APK and the normal one are the same app: either installs over the other.
+
 **SELECT button**
 
 - **Press SELECT** (with touch controls: **MENU**): the app menu, in your phone's language where
@@ -146,9 +161,9 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   Italian, Portuguese, Russian and Spanish so far; on Android 13 and later also per app under
   Settings → Apps → CubeEvil4 → Language); with the European discs also the game language
   (a change restarts the game); graphics (resolution Dynamic or 1×–4× in half steps,
-  anti-aliasing, texture filter, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, FPS
+  anti-aliasing, texture filter, sharper menu text, picture 4:3 (GC), 4:3, 16:9 or Stretched, depth of field, real-time shadows, FPS
   display, 60 FPS (experimental), Force Performance: Default or Use performance cores, Potato mode: weather and
-  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style RE or GC; comfort
+  special effects off), sound (music and sound effects volume), controls (touch controls Auto, Force or Suppress, button style RE, GC, PS2 or XBOX; comfort
   controls: Alternate Controls, gyro aiming with its sensitivity and inversion, knife by swipe,
   Latch L and R, Latch B, Auto aim, Always run; Controller Configuration), cheats (infinite health, infinite ammo,
   one-hit kill, a fully upgraded Killer7, the attaché case L, +1,000,000 PTAS), memory card (export
@@ -185,9 +200,10 @@ controller is connected). In the inventory you can tap items, files and the map,
 right to change the tab. When a quick-time prompt flashes up (L+R, A+B, mash A …), a tap on it (or
 anywhere on the picture) presses its buttons; tap again and again to mash. The editor (gear) can
 add an **R3** button (graphics capture for error reports, as on a controller).
-Button style (app menu → Controls → Button style, or the style button in the editor): **RE**
-(the default: a symbol for what each button does, in dark brown and gold) or **GC** (the letters
-in the GameCube's colours, as before); the switch takes effect at once and keeps your layout.
+Button style (app menu → Controls → Button style, or the style button in the editor, which goes
+through all four): **RE** (the default: a symbol for what each button does, in dark brown and
+gold), **GC** (the GameCube's shapes and colours), **PS2** or **XBOX** (the buttons of those
+controllers); the switch takes effect at once and keeps your layout.
 
 **Comfort controls** (app menu → Controls)
 
@@ -206,15 +222,19 @@ The controller (or the device) vibrates where the game uses the rumble, if it ca
 
 CubeEvil4 can replace the game's textures with sharper ones from a texture pack in the Dolphin format
 (`tex1_<width>x<height>_<hash>_<format>.dds/.png/.jpg`), as Dolphin does. **CubeEvil4 includes no textures,
-offers none and links to none.** Use only packs you obtained yourself and may use. The packer reads DDS (BC1, BC2,
+offers none and links to none.** Use only packs you obtained yourself and may use.
+A compatible HD Texture pack is `Resident Evil 4 HD Project GameCube` by SpiderCop @ Dolphin-Emu Forum.
+The packer reads DDS (BC1, BC2,
 BC3, BC4, BC5, BC7 and uncompressed; not BC6H), PNG and JPG (baseline and progressive; not CMYK). When a pack has the
 same texture as several files, it takes the DDS, then the PNG, then the JPG.
 
 1. Convert the pack with the **CubeEvil4 Texture Packer**, on a Windows PC or on the device itself:
-   - **Windows:** `CubeEvil4-TexturePacker.exe` (a file of its own on the release page; source in
-     `port/tools/texpack`). Start it, drag the pack's folder or its ZIP file into its window and choose the
-     size: 256 (about 0.27 GB for a full pack, saves memory on weak phones), 512 (recommended, about 0.72 GB)
-     or 1024 (about 2.3 GB, for strong devices).
+   - **Windows:** `CubeEvil4-TexturePacker.exe` (a file of its own on the release page, no installation;
+     source in `port/tools/texpack`). Double-click it, drag the pack's folder or its ZIP file into its window
+     (or choose it there) and pick the size: 256 (about 0.27 GB for a full pack, saves memory on weak phones),
+     512 (recommended, about 0.72 GB) or 1024 (about 2.3 GB, for strong devices). Then choose where to save the
+     file; the window shows what it is doing and, at the end, a summary.
+     `CubeEvil4-TexturePacker-Console.exe` does the same on the command line.
    - **Android:** the app **CubeEvil4 Texture Packer** (an APK of its own on the release page, Android 7 and
      later; source in `port/android-decomp/packer`). Choose the pack's ZIP file or folder, the size and the
      storage; it shows the file's size and about how long it takes on this device (a phone needs far longer
@@ -227,7 +247,9 @@ same texture as several files, it takes the DDS, then the PNG, then the JPG.
    packer's button. The app keeps it in a folder of its own; it never touches your discs, saves or memory
    cards. Afterwards you can delete the file in Download or the copy you made.
 3. Switch the HD textures on or off at any time, choose "Sharpness: Half" on weaker devices, or delete the
-   pack. Textures the pack does not have, and pictures the game makes itself, stay as they are.
+   pack. Textures the pack does not have, and pictures the game makes itself, stay as they are. With
+   "Costumes · Original" or "Weapons · Original" the playable characters or the weapons keep the game's own
+   textures.
 
 ## Building the app
 
@@ -239,7 +261,8 @@ No disc images or game files ever go into the repository.
    does the same through WSL). The libraries land in
    `port/android-decomp/app/src/core/jniLibs/` (not in git).
 2. Open `port/android-decomp` in Android Studio, choose the build variant **coreRelease** and
-   build a signed APK (Build → Generate Signed App Bundle or APK).
+   build a signed APK (Build → Generate Signed App Bundle or APK). The sideload APK with the data
+   folder of your choice is the build variant **sideloadRelease**, signed the same way.
 3. Install the APK, start **CubeEvil4** and import Disc 1 and Disc 2 (ISO, GCM or RVZ of the
    European, US or Japanese retail release).
 

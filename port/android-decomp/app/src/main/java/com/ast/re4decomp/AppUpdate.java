@@ -42,12 +42,24 @@ final class AppUpdate {
 
   static int state() { return state; }
 
-  /** The installed version as the releases name it ("0.95.2-beta", the core build's "-core" left out). */
+  /** The installed version as the releases name it ("0.95.2-beta", the build's "-core" or "-sideload" left out). */
   static String installed(Context c) {
     try {
-      String v = c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName;
-      return v != null && v.endsWith("-core") ? v.substring(0, v.length() - 5) : v;
+      return plain(c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName);
     } catch (android.content.pm.PackageManager.NameNotFoundException e) { return null; }
+  }
+
+  /**
+   * A version without the flavour's suffix, as the releases on GitHub name it: "1.0.0-core" and "1.0.0-sideload"
+   * (the flavour "sideload", 1.0.0: the same release, its own APK) are both "1.0.0"; anything else as it is.
+   */
+  static String plain(String v) {
+    if (v == null) return null;
+    for (String flavour : new String[] {"-core", "-sideload"}) {
+      if (v.regionMatches(true, v.length() - flavour.length(), flavour, 0, flavour.length()))
+        return v.substring(0, v.length() - flavour.length());
+    }
+    return v;
   }
 
   /**
@@ -56,7 +68,7 @@ final class AppUpdate {
    * same suffix word with a number counts that number ("1.0-rc10" after "1.0-rc2"); different words are the
    * same version ("0.99.0-beta" and "0.99.0-rc": the APK of 0.99.0 is named "-beta", its release "-rc";
    * until 0.99.0 the words were compared as text and "beta" stayed older than "rc", the update came again
-   * after every install: owner's report 07.11.2026). Case, a leading "v" and the build's "-core" do not
+   * after every install: owner's report 07.11.2026). Case, a leading "v" and the build's "-core" or "-sideload" do not
    * count; a version that is no version ("", "latest") is never older.
    */
   static int compare(String a, String b) {
@@ -75,11 +87,11 @@ final class AppUpdate {
     return Long.signum(number(s[1]) - number(t[1]));
   }
 
-  /** {numbers, suffix} of a version, lower case, without "v", "-core" and blanks; null when it has no number. */
+  /** {numbers, suffix} of a version, lower case, without "v", "-core", "-sideload" and blanks; null when it has no number. */
   private static String[] split(String v) {
     v = v == null ? "" : v.trim().toLowerCase(java.util.Locale.ROOT);
     if (v.startsWith("v")) v = v.substring(1).trim();
-    if (v.endsWith("-core")) v = v.substring(0, v.length() - 5);
+    v = plain(v);
     int dash = v.indexOf('-');
     String numbers = dash < 0 ? v : v.substring(0, dash), rest = dash < 0 ? "" : v.substring(dash + 1);
     if (!numbers.matches("\\d+(\\.\\d+)*")) return null;

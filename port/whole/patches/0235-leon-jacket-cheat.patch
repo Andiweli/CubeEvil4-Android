@@ -1,0 +1,46 @@
+# Port patch, a new cheat (1.0, the project owner, 16.11.2026: "dann soll es neu den Zusatz geben 'Leon's Jacke',
+# wo Leon dann seine braune Jacke immer an hat und nicht im Laufe des Spiels durch sein schwarzes Shirt ersetzt"; the
+# cheat page's "Costumes": Normal / Leon's jacket / Special). Leon's costume by his rule (PlSetCostume): 0 the brown
+# jacket of chapter 1, 1 the black shirt after the r106 event (the end of chapter 2-3), 2 the outfit with the
+# bulletproof vest (item 0xFE), 3 the special costume. With the cheat (runtime/cheats.cpp re4_cheat_leon_jacket: on, the
+# story, not the special costume, not the benchmark's place) the jacket where his rule gives 1 or 2; the events,
+# the cloth and the model then take costume 0 as in chapter 1. The vest's protection hangs on the costume
+# (PlIsArmor: 2 or 3): with the cheat the vest itself (item 0xFE) protects. The extra games (Separate Ways, The
+# Mercenaries; PlSetCostume returns before) and Ashley's part (pl_type 1) are untouched; a save keeps nothing of it
+# (each load runs PlSetCostume). Without the cheat: as the game.
+--- a/src/game/pl_sub.cpp
++++ b/src/game/pl_sub.cpp
+@@ -66,6 +66,8 @@
+ /* PORT (patch 0195): the story's player character of the cheat menu (runtime/cheats.cpp) */
+ extern "C" int re4_story_char_leon_costume(void);
+ extern "C" int re4_story_char_costume(void);
++/* PORT (patch 0235): the cheat "Leon's jacket" (runtime/cheats.cpp) */
++extern "C" int re4_cheat_leon_jacket(void);
+ 
+ int PlSetCostume()
+ {
+@@ -83,6 +85,12 @@
+             } else {
+                 pG->pl_costume = 0;
+             }
++            /* PORT (patch 0235): the cheat "Leon's jacket": the brown jacket of chapter 1 for the whole game, also
++               where the game gives the black shirt (after r106) or the vest's own outfit (PlIsArmor keeps the
++               vest's protection) */
++            if (re4_cheat_leon_jacket()) {
++                pG->pl_costume = 0;
++            }
+         } else {
+             pG->pl_costume = 3;
+         }
+@@ -1053,6 +1061,11 @@
+         /* PORT (patch 0195): a stand-in of the story wears Leon's vest when he would */
+         return re4_story_char_costume() >= 2;
+     }
++    /* PORT (patch 0235): with the cheat "Leon's jacket" he wears the jacket (costume 0), and the vest he has still
++       protects as in its own outfit */
++    if (re4_cheat_leon_jacket() && ItemMgr.num(0xFE, 0)) {
++        return 1;
++    }
+     return pG->pl_costume == 2 || pG->pl_costume == 3;
+ }
+ 
