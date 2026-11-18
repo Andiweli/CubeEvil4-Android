@@ -594,7 +594,7 @@ Raufklettern an der Leiter geworfen.“ Dumps: `E:\Development\Android\reports\s
 
 ## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
 
-Version **1.0.0** (versionCode 122; bis zur Umbenennung am 16.11.2026 0.99.19-rc, versionCode 121), Releasetext
+Version **1.0.0** (versionCode 123, raised from 122 on 18.11.2026 by the owner for his AAOS build; bis zur Umbenennung am 16.11.2026 0.99.19-rc, versionCode 121), Releasetext
 `port/android-decomp/docs/releases/v1.0.0.md` (bis dahin `v0.99.19-rc.md`; „Changes since v0.99.18.“, Known issues
 aus 0.99.18 übernommen). Release-APKs `CubeEvil4-1.0.0-Android.apk` und `CubeEvil4-1.0.0-Android-sideload.apk`. Die
 Abschnitte unten nennen den Releasetext noch mit seinem alten Namen.
@@ -1103,7 +1103,7 @@ beantwortet die drei Lücken aus Abschnitt 5.
 Wortlaut des Inhabers (über die Hauptsitzung): „Du kannst sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche
 ja erst Freitag und teste bis dahin lokal.“
 
-- **Version:** versionName `1.0.0`, versionCode 122. Die Varianten hängen ihre Endung an wie bisher: `1.0.0-core`,
+- **Version:** versionName `1.0.0`, versionCode 123 (122 until 18.11.2026: the owner raised it for his AAOS build, an earlier build already had 122). Die Varianten hängen ihre Endung an wie bisher: `1.0.0-core`,
   `1.0.0-sideload`; `car` ebenfalls `1.0.0-core`.
 - **Releasetext:** `v0.99.19-rc.md` per `git mv` zu `v1.0.0.md`.
   - Titel „CubeEvil4 v1.0.0“; der Kopf ohne „Release Candidate“ und ohne „Expect bugs“; der Hinweis zur Sicherung der
