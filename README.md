@@ -5,14 +5,13 @@
 ![Beta](https://img.shields.io/badge/Status-Beta-E67E22)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![ARM 32/64-bit](https://img.shields.io/badge/ARM-32%2F64--bit-0091BD?logo=arm&logoColor=white)
-![OpenGL ES 3.0+](https://img.shields.io/badge/OpenGL%20ES-3.0%2B-5586A4?logo=opengl&logoColor=white)
-![Vulkan](https://img.shields.io/badge/Vulkan-AC162C?logo=vulkan&logoColor=white)
+![API](https://img.shields.io/badge/API-OpenGL%20ES%203.0%2B%20/%20Vulkan-5586A4?logo=api&logoColor=white)
 ![Input](https://img.shields.io/badge/Input-Touch%2FGamepad%2FKeyb%2BMouse-9A1B1C)
 
 
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
 
-**[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
+**[REQUIREMENTS](#requirements) | [HOW TO](#how-to-use) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [RELEASES](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
 > [!NOTE]
 > There is also a fork that is more focused on modding the hell out of the game.  
@@ -67,7 +66,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   middleware with picture and ADX sound.
 - Releases: the European retail release (`G4BP08`) with its five languages, chosen in the app menu
   (default: your phone's language), the US retail release (`G4BE08`, English) and the Japanese retail
-  release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the same memory card.
+  release (`G4BJ08`, in Japanese). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube); imports also
   take a whole Dolphin card (`.raw`, `.gcp`), a ZIP file and European saves.
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
