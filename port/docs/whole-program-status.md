@@ -71,7 +71,7 @@ Einzelheiten: `port/docs/gegner-randomizer-plan.md` Abschnitt 10; Bericht für d
     für Eintrag 21 (auch ohne Cheat, gleiche Werte; `re-door.sh`): das Prüfprotokoll liest ein Objekt mitten im Laden.
   - **Nicht geprüft:** auf einem Gerät; ganze Kapitel durchgespielt.
 
-## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8, Stufe 7 am 18.11.2026 auf 249dc807)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8, Stufe 7 am 18.11.2026 auf 249dc807, Stufe 8 am 18.11.2026 auf eddc5cea)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
 dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
@@ -549,6 +549,48 @@ Ich habe ein paar GX-Dumps angefügt.“ Dumps: `E:\Development\Android\reports\
   kennen keine Wände). Steht eine Lampe mitten zwischen Figuren, fasst ihre Karte höchstens 140° (die Mitte ihrer
   Richtungen); was außerhalb steht, wirft von ihr nichts. Bewegt sich die Kamera, wird die Karte jedes Bild neu
   angepasst (Ränder können um einen Texel flimmern; kein Schatten wandert).
+
+**Stufe 8 (18.11.2026, auf eddc5cea): Kein Schatten mehr von unten an Wände und Leitern.** Fehler für 1.0, gemeldet vom
+Inhaber nach dem Gerätetest, Wortlaut: „Hier wird bei mir in Raum r10e der Schatten seltsam an Wände und beim
+Raufklettern an der Leiter geworfen.“ Dumps: `E:\Development\Android\reports\shadows-r10e-2026-11-18\raw\gx-dumps\`
+(4 Folgen zu je 12 Bildern).
+
+- **Ursache:** In allen vier Folgen werfen zwei parallele Lichter des Spiels, die von unten nach oben scheinen (Weg in
+  Kamera-Koordinaten y +0,54 bis +0,67). Das sind Fülllichter, mit denen das Spiel die Figuren von unten und von der
+  Seite aufhellt, keine Sonne und kein Mond. Als Schattenwerfer projizierten sie Leon nach oben: ein umgedrehter Umriss
+  über ihm an der Holzwand unter der Laterne, sein Körper groß an der Wand neben der Leiter und oben an der Wand des
+  Obergeschosses.
+- **Kern** (`runtime/rt_shadow.cpp`): Ein paralleles Licht wirft nur noch, wenn es von oben kommt: sein Weg in der Welt
+  muss mindestens etwa 14° abwärts gehen (`kFromAbove`, y unter -0,25). Fülllichter von unten oder der Seite leuchten
+  weiter und zählen zum Licht, das überall gleich ist. Das Lichter-Log (`RE4_SHADOW_LIGHTS`) nennt den Weg jedes
+  parallelen Lichts und vermerkt „from below or the side: no shadow“.
+- **Anderswo:** Alle 126 Räume vom Debug-Start aus mit dem Lichter-Log: In r103, r107, r108, r109, r10d, r113, r11c
+  und r304 hätte ein solches Licht geworfen (Wege von y -0,22 bis +0,88; r10d: ein starkes Licht genau von unten, 0,65 m
+  neben Leon; r11c: ein flaches Mondlicht fast von der Seite). Die Lichter, die von oben werfen, gehen bis y -0,26
+  hinab (Sonne in r11d); die Blitze in r118 und r119 kommen von oben (y -0,71 bis -0,83) und werfen weiter.
+- **Geprüft am PC:**
+  - Die vier Dump-Folgen des Inhabers: vorher (der Renderer von eddc5cea, wie auf dem Gerät) Leons Umriss umgedreht
+    über ihm an der Wand unter der Laterne, groß an der Wand neben der Leiter und oben im Obergeschoss; nachher (dieselben
+    Dumps, die Lichter von unten so, wie der neue Kern sie schickt: sie leuchten nur, Schalter
+    `RE4_GX_SHADOW_DEBUG_DROPUP` nur in einer Prüfkopie) ist keiner davon mehr da, die Laterne wirft weiter.
+  - Im Spiel, Kern von Stufe 7 gegen Stufe 8, dieselben Bilder, derselbe Renderer (Pixel mindestens 0,8 % dunkler als
+    ohne Schatten): r103 4690 0 53356 37185 632 0 0 → 4690 0 0 0 632 0 0; r10d 10836 1279 0 0 0 18414 6757 406 → 5982 0 0
+    0 0 9125 4153 0.
+  - `gx_gl_check` GLES und Vulkan 0 Fehler (am Renderer nichts geändert).
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet; `whole_build_android.sh --abi all`
+    0 Fehler (ARM32 und ARM64, Stubs wie erwartet).
+  - Raum-Rundgang mit eingeschalteten Schatten (`RE4_POTATO=96`, 126 Räume, je 6000 Bilder): **126 von 126 ohne
+    Fehler, ALLES OK**.
+  - Schatten aus wie vor den Schatten: 88 von 88 Bildern Byte für Byte gleich (21 ohne Marke in den Stufen 0, 1, 2, 25
+    mit Marke in Stufe 0, gegen c2f5dcda).
+  - App: `externalNativeBuildCoreDebug` (beide ABIs) gebaut, `testCoreDebugUnitTest` 226 Tests ohne Fehler (zwei übersprungen).
+- **Releasetext v1.0.0:** Die Zeile zu den Echtzeit-Schatten sagt jetzt auch, dass Fülllichter von unten keine
+  Schatten mehr an Wände und Leitern werfen.
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage8\`: `device-00` bis `device-03` (je fünf Bilder
+  einer Folge: oben das Gerät, darunter die Maske, nachher, dessen Maske; dunkel = Schatten; wo nachher kein Licht mehr
+  wirft, zeigt die Maske das Bild ohne Schatten), `game-r103.png` und `game-r10d.png`.
+- **Nicht geprüft:** Gerät (Retroid); die Stelle in r10e selbst im Spiel (der Debug-Start erreicht die Leiter nicht;
+  geprüft an den Dumps des Inhabers).
 
 ## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
 
