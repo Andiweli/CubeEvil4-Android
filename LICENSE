@@ -1,3 +1,18 @@
+Licences in this repository (from CubeEvil4 1.0.0)
+
+- The upstream decompilation's own tools, configuration and documentation
+  (configure.py, tools/, config/, docs/ and the other files outside port/):
+  CC0 1.0, the text below.
+- The Android port CubeEvil4 in port/: GNU General Public License version 3
+  or later, with an additional permission for the game code. See port/LICENSE;
+  the plain licence text is also in LICENSE-GPL.
+- The original game code (src/, include/) and the Nintendo SDK and CRI
+  middleware (src/lib/): under neither licence. They stay the property of
+  Capcom, Nintendo and CRI Middleware.
+- Code published before 1.0.0, including earlier branches on GitHub, stays
+  under the terms it was published with (CC0 for the project's own work).
+
+
 Scope
 
 This license covers only what was written for this project: the build scripts,
