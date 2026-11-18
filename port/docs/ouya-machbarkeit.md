@@ -824,3 +824,8 @@ Echtzeit-Schatten (Grafik der Haupt-App), Zielen mit dem Mauszeiger, freie Taste
 - Texte: `menu_strings.py` holt die neuen Schlüssel der Haupt-App, `menu_strings_management.json` hat die zwei neuen
   OUYA-Hilfetexte in 11 Sprachen; `check_translations.py` ohne Befund.
 
+- **Geprüft (18.11.2026, PC):** Kern für Android 4.1 ohne Fehler (nur das bekannte `__cxa_thread_atexit_impl` der
+  C++-Bibliothek fehlt in API 16); App mit Gradle gebaut, Lint ohne `NewApi`; `check.sh` alle Szenen bestanden, die
+  Grafik übersetzt für Android 4.1; `re4_host --runtime-test` 0 Fehler; `compare_frames.sh` (r100 und r101 mit dem
+  neuen Kompaktformat 0x40) direkt, genau und wie auf dem Tegra 3 je 0 abweichende Bilder. Auf der OUYA, mit Tastatur
+  und Maus und auf einem Touch-Gerät noch nicht getestet.
