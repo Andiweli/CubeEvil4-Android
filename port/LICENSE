@@ -44,8 +44,8 @@ What it does not cover
 - What port/android-decomp/LICENSE-PLATFORM.txt released under the MIT License
   stays available under it too; its notice stays as it is.
 
-CubeEvil4 releases up to 0.99.18-rc were published under CC0 1.0, and for those
-releases that stays as it is.
+Code published before 1.0.0, including earlier branches on GitHub, stays under
+the terms it was published with (CC0 for the project's own work).
 
 
 Additional permission under section 7 of the GNU GPL version 3

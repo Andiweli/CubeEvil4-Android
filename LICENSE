@@ -9,8 +9,8 @@ Licences in this repository (from CubeEvil4 1.0.0)
 - The original game code (src/, include/) and the Nintendo SDK and CRI
   middleware (src/lib/): under neither licence. They stay the property of
   Capcom, Nintendo and CRI Middleware.
-- CubeEvil4 releases up to 0.99.18-rc were published under CC0 1.0; for them
-  that stays as it is.
+- Code published before 1.0.0, including earlier branches on GitHub, stays
+  under the terms it was published with (CC0 for the project's own work).
 
 
 Scope

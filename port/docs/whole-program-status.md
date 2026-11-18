@@ -647,7 +647,10 @@ erkennen kann. Die Wurzel-`LICENSE` behält den CC0-Text für die Teile des Upst
 config/, docs/), oben eine kurze Übersicht. Nicht unter der GPL: der Spielcode, SDK und CRI, Spieldaten, Code
 anderer in `port/` (third_party, Gradle Wrapper, Lucide) und RetroTouch (MIT, verträgt sich mit der GPL, darum nicht
 in der Ausnahme; die Zeile in `app/build.gradle` unverändert). Was `port/android-decomp/LICENSE-PLATFORM.txt` unter
-MIT gestellt hat, bleibt auch unter MIT, die Datei unverändert. Versionen bis 0.99.18-rc bleiben CC0. README:
+MIT gestellt hat, bleibt auch unter MIT, die Datei unverändert. Code, der vor 1.0.0 veröffentlicht wurde, auch in
+früheren Branches auf GitHub (origin/release-candidate bis 0939f61f, mehrere Feature-Branches), bleibt unter den
+Bedingungen, mit denen er veröffentlicht wurde (CC0 für die eigene Arbeit; die README von 0.99.18 nannte die
+App-Hülle CC0); Nachtrag der Hauptsitzung am selben Abend statt „Versionen bis 0.99.18-rc bleiben CC0“. README:
 Abschnitt „License“ mit Tabelle, der Punkt „Our own work“ unter „Legal“ angepasst; Releasetext eine Zeile unter
 Changed. Die App zeigt keinen Lizenztext, darum keine neuen Texte. Der Branch `ouya-discarded` ist unberührt; er
 bekommt die Lizenz, wenn 1.0.0 dort hineingemischt wird.

@@ -387,8 +387,9 @@ is that the output bytes never change.
 
 The license covers only this project's own code. It does not cover Capcom's game, which you must
 own. In short: whoever shares a modified build of CubeEvil4 must share its source code too, under
-the same license; the additional permission lets that build contain the game code. CubeEvil4
-releases up to 0.99.18-rc were published under CC0 1.0 and stay so.
+the same license; the additional permission lets that build contain the game code. Code
+published before 1.0.0, including earlier branches on GitHub, stays under the terms it was
+published with (CC0 for the project's own work).
 
 ## Legal
 
