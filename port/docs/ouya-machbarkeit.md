@@ -781,10 +781,46 @@ Abschnitt einer Bibliothek für sich; in die OUYA-eigene Fassung mit dem Weg fü
   Breite Bildschirme (Retroid): `android.max_aspect`/`maxAspectRatio` 2.4, `resizeableActivity`, Vollbild mit
   ausgeblendeten Systemleisten (ab Android 4.4 dauerhaft) und ab Android 9 bis in die Kamera-Aussparung; vorher bekam
   die App für Android 4.1 höchstens das Seitenverhältnis 1,86 (graue Streifen). Auf den Geräten noch nicht geprüft.
-- **Update-Knopf** (15.11.2026, Wunsch des Projektinhabers): links neben â€žZurÃ¼ck zum Spielâ€œ (und der Version) wie in
-  der Haupt-App: grÃ¼n â€žAktuellâ€œ (aus) oder rot â€žUpdateâ€œ (Ã¶ffnet die Release-Seite auf GitHub; ohne Browser die
+- **Update-Knopf** (15.11.2026, Wunsch des Projektinhabers): links neben „Zurück zum Spiel“ (und der Version) wie in
+  der Haupt-App: grün „Aktuell“ (aus) oder rot „Update“ (öffnet die Release-Seite auf GitHub; ohne Browser die
   Adresse als Hinweis). `OuyaUpdate` sucht in den 15 neuesten Releases die neueste OUYA-APK (`CubeEvil4-0.99-OUYA.apk`
-  oder `CubeEvil4-Potato-1.0.apk`) und vergleicht ihre Versionsnummer mit der installierten; schaltet fÃ¼r Android 4.1
-  TLS 1.2 ein. Ohne Antwort (kein Internet) bleibt die letzte Antwort stehen, anfangs â€žAktuellâ€œ (Wunsch des
+  oder `CubeEvil4-Potato-1.0.apk`) und vergleicht ihre Versionsnummer mit der installierten; schaltet für Android 4.1
+  TLS 1.2 ein. Ohne Antwort (kein Internet) bleibt die letzte Antwort stehen, anfangs „Aktuell“ (Wunsch des
   Projektinhabers). Neue Berechtigung `INTERNET`. Ob die OUYA GitHub mit ihren alten Zertifikaten erreicht, ist nicht
-  geprÃ¼ft; wenn nicht, bleibt â€žAktuellâ€œ.
+  geprüft; wenn nicht, bleibt „Aktuell“.
+
+### 1.0.0 der Haupt-App übernommen (18.11.2026)
+
+Wunsch des Projektinhabers (17.11.2026): aus 1.0.0 „Ruhiges Zielen“, „Kostüme“, die besseren Übersetzungen und
+RetroTouch mit den neuen Tastenstilen; dazu für Tastatur, Maus und sehr alte Handys Spielen mit Tastatur und Maus,
+„Vertikal umkehren“ und „Leistungskerne nutzen“. Nicht übernommen: zufällige Gegner, die neue Sichtweite „Weit“,
+Echtzeit-Schatten (Grafik der Haupt-App), Zielen mit dem Mauszeiger, freie Tastenbelegung, dynamische Auflösung.
+
+- **Abgleich:** `origin/release-candidate` (0939f61f) in `ouya-discarded` zusammengeführt (83ae7499). Konflikte:
+  `re4_core_ipc.h` (Nachrichten 46–48 der Haupt-App neben der OUYA-Nummer 90) und `re4_gx_frame.h`: die Haupt-App
+  vergibt die Grafik-Op 9 an `RE4_GX_OP_SHADOW`; die Kompakt-Formate der OUYA (`RE4_GX_OP_COMPACT_FORMAT`) haben
+  jetzt 0x40. Ältere Mitschnitte im Kompaktformat passen damit nicht mehr (neu erzeugen mit
+  `port/ouya/tools/compare_frames.sh`).
+- **Nebel:** Patch 0901 entfällt. Die Haupt-App macht den Nebel der GPU seit 0.99.18 selbst an der Sichtgrenze dicht
+  (Patch 0223, `re4_view_fog`), aber nur unter 50 %; die OUYA-App setzt `RE4_VIEW_DENSE=2` (bei jeder kürzeren
+  Sichtweite dicht, wie 0901). Gleiches Verhalten, gleiche 6-m-Untergrenze.
+- **Cheats:** „Ruhiges Zielen“ (Bit 31, Patch 0233) und „Kostüme“ Normal / Leons Jacke / Spezial (Bit 256 bzw.
+  `leonJacket`, Patches 0235/0236; `RE4_LEON_JACKET` beim Start, danach `re4ipc_set_leon_jacket`) in der zweiten Reihe
+  wie in der Haupt-App; Koffer und Geld stehen jetzt unter „Allgemein & Inventar“.
+- **RetroTouch 1.0.0-beta.13** (aus der Haupt-App; geprüft gegen die API-Liste: keiner seiner 236 Bezüge auf Android
+  ist neuer als Android 4.1): die vier Tastenstile RE, GC, PS2 und XBOX als Skins (`TouchStyle` aus der Haupt-App, ohne
+  die Knöpfe R3, Zoom und die Ziel-/Messer-Sticks, die das OUYA-Layout nicht hat). Wer den alten GC-Stil hatte, bekommt
+  den GC-Skin. Im Menü vier Knöpfe in einer Reihe.
+- **Tastatur und Maus** (`OuyaKeyboard`, Belegung der Haupt-App ohne deren Tastenbelegungsseite): W A S D laufen
+  (und zielen), Umschalt rennen, E Aktion, rechte Maustaste zielen, + links schießen, + R nachladen, C Messer, + links
+  zustechen, Q Ashley, Tab Koffer, M Karte, Esc Optionen des Spiels, F1 das Menü (F1 und Esc schließen es auch), I J K L
+  Kamera bzw. Zoom; Pfeiltasten, Enter und Rücktaste immer. Das Mausrad zoomt Zielfernrohr und Fernglas
+  (`re4ipc_zoom`). Der Mauszeiger zielt nicht: Android hält ihn erst ab Android 8 für eine App fest. Eine rechte
+  Maustaste, die Android als „Zurück“ meldet, zählt als rechte Maustaste. Hilfetext im Menü unter „Komfort“.
+- **Vertikal umkehren** (Bit 0 der Ziel-Einstellung, die Option des Spiels selbst, gilt für Controller, Tastatur und
+  Touch) und **Leistungskerne nutzen** (`re4ipc_set_fast_cores`: Spiel- und GX-Thread auf die schnellen Kerne; der
+  GL-Thread der App mit `re4_cpu_info.h` ebenso, Leistungshinweis ab Android 13). Beide aus voreingestellt; auf der
+  OUYA bewirken die Leistungskerne nichts (vier gleiche Kerne).
+- Texte: `menu_strings.py` holt die neuen Schlüssel der Haupt-App, `menu_strings_management.json` hat die zwei neuen
+  OUYA-Hilfetexte in 11 Sprachen; `check_translations.py` ohne Befund.
+
