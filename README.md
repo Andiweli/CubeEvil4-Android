@@ -11,7 +11,7 @@
 
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
 
-**[REQUIREMENTS](#requirements) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
+**[REQUIREMENTS](#requirements) | [HOW TO USE](#how-to-use) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
 > [!NOTE]
 > There is also a fork that is more focused on modding the hell out of the game.  
