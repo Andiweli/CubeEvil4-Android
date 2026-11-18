@@ -2,7 +2,7 @@
 
 # CubeEvil4
 
-![Beta](https://img.shields.io/badge/Status-Beta-E67E22)
+![Release](https://img.shields.io/badge/Status-Release-2EA44F)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![ARM 32/64-bit](https://img.shields.io/badge/ARM-32%2F64--bit-0091BD?logo=arm&logoColor=white)
 ![API](https://img.shields.io/badge/API-OpenGL%20ES%203.0%2B%20/%20Vulkan-5586A4?logo=api&logoColor=white)
@@ -115,7 +115,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
+| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`) | – |
 
 
 ## How to use?
@@ -128,9 +128,8 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
 - Your own disc images (ISO, GCM or RVZ) of **both** discs of the European retail release
-  (`G4BP08`), of the US retail release (`G4BE08`) or of the Japanese retail release (`G4BJ08`, also
-  the Korean fan translation), and enough free storage to import them. Both discs must be of the
-  same release.
+  (`G4BP08`), of the US retail release (`G4BE08`) or of the Japanese retail release (`G4BJ08`), and
+  enough free storage to import them. Both discs must be of the same release.
 
 **First start**
 
