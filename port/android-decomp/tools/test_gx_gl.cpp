@@ -4317,6 +4317,138 @@ void TestSmoothPacer() {
   for (int i = 0; i < 6; i++, t += 1.0 / 30.0)
     p.Chunk(t, true, nullptr);
   Check(!p.Off() && p.Offs() == 1, "pacer: the catch-up right after a pause does not count");
+
+  // (1.0.0, reports/fps-drops-2026-11-18) a phone that slows down when warm: the renderer behind with 45 % of the
+  // chunks all the while. Each pause longer when 60 FPS fails again soon after it came back: 5, 15, 30, 60, 60 s.
+  struct Run {
+    re4gx::SmoothPacer q;
+    std::vector<std::string> lines;
+    double t = 0.0;
+    unsigned n = 0;
+    // a chunk at 30 a second, the renderer behind with `share` of them (in twentieths, spread evenly)
+    void Step(double share) {
+      const bool behind = static_cast<double>(n++ % 20) < share * 20.0 - 0.5;
+      // (two pictures a chunk while on: 20 % of them 22 ms, the others 12 ms)
+      for (int k = 0; k < 2; k++)
+        q.Picture(t + k / 60.0, (n * 2 + k) % 5 == 0 ? 22.0 : 12.0);
+      std::string why;
+      q.Chunk(t, behind, &why);
+      if (!why.empty())
+        lines.push_back(why);
+      t += 1.0 / 30.0;
+    }
+    double UntilOff(double share, double most) {
+      const double from = t;
+      while (!q.Off() && t - from < most)
+        Step(share);
+      return t - from;
+    }
+    double UntilOn(double most) {
+      const double from = t;
+      while (q.Off() && t - from < most)
+        Step(0.45);
+      return t - from;
+    }
+    bool Last(const char *text) const { return !lines.empty() && lines.back().find(text) != std::string::npos; }
+    bool Any(const char *text) const {
+      for (const std::string &l : lines)
+        if (l.find(text) != std::string::npos)
+          return true;
+      return false;
+    }
+  };
+  {
+    Run r;
+    r.UntilOff(0.45, 10.0);
+    Check(r.q.Off() && r.Last("for 5 s (an even 30, step 1 of 4, 1 times so far; 60 FPS ran 2 s since it started"),
+          "pacer steps: the first pause 5 s (step 1)");
+    Check(r.Last("; pictures 14.0 ms, 90 % within 22.0 ms)"), "pacer steps: the give-up line tells the pictures' times");
+    const double first = r.UntilOn(100.0);
+    Check(first > 4.9 && first < 5.1 && r.Last("on again (the 5 s are over; behind again within 30 s: 15 s at an even 30, "
+                                               "step 2 of 4)"),
+          "pacer steps: on again after 5 s, the line tells the next step");
+    double pauses[5] = {};
+    bool soon = true;
+    for (double &pause : pauses) {
+      const double on = r.UntilOff(0.45, 60.0);
+      soon = soon && on > 3.5 && on < 4.5;  // (2 s of grace, 2 s to count 60 chunks)
+      pause = r.UntilOn(100.0);
+    }
+    Check(soon, "pacer steps: behind again 4 s after each pause");
+    const bool steps = pauses[0] > 14.9 && pauses[0] < 15.1 && pauses[1] > 29.9 && pauses[1] < 30.1 &&
+                       pauses[2] > 59.9 && pauses[2] < 60.1 && pauses[3] > 59.9 && pauses[3] < 60.1;
+    Check(steps && r.Any("for 15 s (an even 30, step 2 of 4") && r.Any("for 30 s (an even 30, step 3 of 4") &&
+              r.Any("for 60 s (an even 30, step 4 of 4") && r.Any("since it came back"),
+          "pacer steps: 15, 30, 60 s, then 60 s again");
+    // 60 FPS without a pause for 30 s after it came back: the first step again
+    r.lines.clear();
+    for (int i = 0; i < 31 * 30; i++)
+      r.Step(0.0);
+    Check(r.q.Step() == 1 && r.Any("30 s without a pause since it came back: the next pause is 5 s again"),
+          "pacer steps: 30 s of 60 FPS end the steps, with a line");
+    r.UntilOff(0.45, 10.0);
+    Check(r.Last("for 5 s (an even 30, step 1 of 4"), "pacer steps: the pause after that 5 s again");
+  }
+  {
+    // a strong phone: behind only now and then, minutes apart: every pause 5 s, as before 1.0.0
+    Run r;
+    bool five = true;
+    for (int k = 0; k < 4; k++) {
+      for (int i = 0; i < 120 * 30; i++)
+        r.Step(0.0);
+      r.UntilOff(0.35, 10.0);
+      five = five && r.Last("for 5 s (an even 30, step 1 of 4");
+      r.UntilOn(10.0);
+    }
+    Check(five && r.q.Offs() == 4, "pacer steps: give-ups minutes apart stay at 5 s");
+  }
+  {
+    // breaks while a pause of step 2 runs: the app menu closing and a stall leave it, a new room ends it (the step
+    // stays: behind again soon, step 3)
+    Run r;
+    r.UntilOff(0.45, 10.0);
+    r.UntilOn(10.0);
+    r.UntilOff(0.45, 10.0);
+    Check(r.q.Off() && r.q.Step() == 2, "pacer breaks: a pause of 15 s (step 2)");
+    for (int i = 0; i < 90; i++)
+      r.Step(0.45);
+    std::string why;
+    r.q.Break(r.t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kMenu, &why);
+    Check(r.q.Off() && why.empty(), "pacer breaks: the app menu closed: a pause of step 2 goes on");
+    r.q.Break(r.t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kStall, &why);
+    Check(r.q.Off() && why.empty(), "pacer breaks: a stall: a pause of step 2 goes on");
+    r.q.Break(r.t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kRoom, &why);
+    Check(!r.q.Off() && why.find("on again (a new room, 12 s early;") != std::string::npos && r.q.Step() == 2,
+          "pacer breaks: a new room: on again at once, the step stays");
+    const double on = r.UntilOff(0.45, 20.0);
+    Check(on > 5.5 && on < 6.5 && r.Last("for 30 s (an even 30, step 3 of 4"),
+          "pacer breaks: behind again after the room's 4 s of grace: step 3");
+    // the benchmark's new start: the first step again
+    r.q.Restart(r.t);
+    Check(!r.q.Off() && r.q.Step() == 1, "pacer breaks: Restart (the benchmark): on, step 1");
+    r.UntilOff(0.45, 10.0);
+    Check(r.Last("for 5 s (an even 30, step 1 of 4"), "pacer breaks: after Restart the pause is 5 s");
+    // the app menu closing in a pause of the first step ends it, as before 1.0.0
+    why.clear();
+    r.q.Break(r.t + 1.0, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kMenu, &why);
+    Check(!r.q.Off() && why.find("on again (the app menu closed;") != std::string::npos,
+          "pacer breaks: the app menu closed in a pause of 5 s: on again");
+  }
+  {
+    // the tester's 10 minutes (behind with 45 % all the while): before 1.0.0 66 pauses, 5 of every 9 s at 30 and the
+    // other 4 s uneven; now about 12, more than 85 % of the time an even 30
+    Run r;
+    r.q.TakeMinute();
+    for (int i = 0; i < 600 * 30; i++)
+      r.Step(0.45);
+    const re4gx::SmoothPacer::Minute m = r.q.TakeMinute();
+    const double even = m.even / (m.sixty + m.even);
+    Check(m.switches >= 10 && m.switches <= 14 && m.switches == r.q.Offs() && even > 0.85 &&
+              m.sixty + m.even > 599.0 && m.sixty + m.even < 601.0,
+          "pacer steps: 10 minutes behind with 45 %: about 12 switches to 30, an even 30 most of the time");
+    const re4gx::SmoothPacer::Minute none = r.q.TakeMinute();
+    Check(none.sixty == 0.0 && none.even == 0.0 && none.switches == 0, "pacer: TakeMinute starts from 0 again");
+  }
 }
 
 // Larger draws of the same look keep the game's order (Retroid report 26.10.2026: with fast turns
@@ -5657,6 +5789,7 @@ int main() {
       TestPictureCadence();  // (1.0.0: the pictures' pacing, no GPU either)
       TestVsyncPeriod();
       TestPictureHold();
+      TestSmoothPacer();  // (1.0.0: the pauses' steps of 60 FPS, no GPU either)
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }

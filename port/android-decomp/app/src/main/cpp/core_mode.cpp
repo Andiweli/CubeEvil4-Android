@@ -2425,7 +2425,14 @@ bool drawGx() {
     if (roomStart || (breakPaused && !paused)) {
       const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
       autoLevel.Restart(t);
-      if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      // (1.0.0) a room's start ends a pause of the in-between pictures at once, the app menu closing only one of 5 s
+      if (!benchForcing()) {
+        std::string why;
+        smoothPacer.Break(t, re4gx::AutoLevel::kQuiet,
+                          roomStart ? re4gx::SmoothPacer::BreakKind::kRoom : re4gx::SmoothPacer::BreakKind::kMenu, &why);
+        if (!why.empty() && smoothOn)
+          LOG("%s", why.c_str());
+      }
       // (0.99.14) where Dynamic stands at each room's start: the level, its steps, the rooms remembered
       if (roomStart && autoLevelOn && !benchForcing())
         LOG("%s; now r%03x", autoLevel.Summary(t).c_str(), static_cast<unsigned>(frame.room));
@@ -2611,6 +2618,9 @@ bool drawGx() {
     }
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count();
     renderHint.Report(static_cast<long long>(ms * 1e6));
+    // (1.0.0) the pictures' times for the line when 60 FPS gives up (SmoothPacer)
+    if (smoothOn && !benchForcing())
+      smoothPacer.Picture(std::chrono::duration<double>(now.time_since_epoch()).count(), ms);
     // the menu's "Force Performance": to the core (the game thread) and for this thread
     const int fast = optFastCores.load();
     if (api.setFastCores && fast != fastSent) {
@@ -2677,7 +2687,54 @@ bool drawGx() {
     if (ms > 250.0) {
       const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
       autoLevel.Restart(t);
-      if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      if (!benchForcing()) {
+        std::string why;
+        smoothPacer.Break(t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kStall, &why);
+        if (!why.empty() && smoothOn)
+          LOG("%s", why.c_str());
+      }
+    }
+    // (1.0.0) 60 FPS once a minute: the seconds with in-between pictures and at an even 30, the switches to 30, and the
+    // render thread's core: its highest clock in the minute (a look a second) and the clock it may reach now. A phone
+    // that slows down when warm lowers that limit while Android still says no heat (reports/fps-drops-2026-11-18).
+    static double minuteAt = -1.0, clockAt = -1.0;
+    static unsigned clockMaxKHz = 0;
+    if (!smoothOn || benchForcing()) {
+      minuteAt = -1.0;  // (a minute anew when 60 FPS is on again)
+    } else {
+      const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      if (minuteAt < 0.0) {
+        minuteAt = t;
+        smoothPacer.TakeMinute();
+        clockMaxKHz = 0;
+      }
+      if (t - clockAt >= 1.0) {
+        clockAt = t;
+        const int cpu = sched_getcpu();
+        if (cpu >= 0)
+          clockMaxKHz = std::max(clockMaxKHz, re4cpu::CurrentKHz(cpu));
+      }
+      if (t - minuteAt >= 60.0) {
+        const re4gx::SmoothPacer::Minute m = smoothPacer.TakeMinute();
+        if (m.sixty + m.even > 0.0) {
+          const int cpu = sched_getcpu();
+          const unsigned allowed = cpu >= 0 ? re4cpu::AllowedKHz(cpu) : 0;
+          const unsigned top = cpu >= 0 && cpu < re4cpu::Layout::kMax ? re4cpu::GetLayout().maxKHz[cpu] : 0;
+          char limit[96];
+          if (allowed && top)
+            std::snprintf(limit, sizeof(limit), "its limit now %u of %u MHz", allowed / 1000, top / 1000);
+          else if (allowed)
+            std::snprintf(limit, sizeof(limit), "its limit now %u MHz", allowed / 1000);
+          else
+            std::snprintf(limit, sizeof(limit), "its limit not readable");
+          LOG("60 FPS in the last %.0f s: %.0f s with in-between pictures, %.0f s at an even 30, switches to 30: %u "
+              "(step %d of %d now); the render thread's core %d at up to %u MHz, %s",
+              t - minuteAt, m.sixty, m.even, m.switches, smoothPacer.Step(), re4gx::SmoothPacer::kSteps, cpu,
+              clockMaxKHz / 1000, limit);
+        }
+        minuteAt = t;
+        clockMaxKHz = 0;
+      }
     }
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;

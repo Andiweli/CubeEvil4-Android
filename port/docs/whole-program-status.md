@@ -565,6 +565,20 @@ mit RetroTouch 1.0.0-beta.13, Abschnitt 22), danach e6d4e388 (GC-Skin grau, 249d
 Stufe 7 (`origin/realtime-shadows` 4653a5f2, Abschnitt „Stufe 7“ beim Branch `realtime-shadows` oben) per
 Fast-Forward übernommen; die Zeile „Real-time shadows“ im Releasetext um zwei Sätze ergänzt (nicht mehr zu dunkel
 unter Lampen, kein Flackern beim Drehen der Kamera, riesige Schatten einer Lampe direkt neben einer Figur blenden aus).
+Am 18.11.2026 außerdem die 60-FPS-Pausen in Stufen (Ja des Inhabers zu Möglichkeit A aus
+`E:\Development\Android\reports\fps-drops-2026-11-18\proposal.md`, über die Hauptsitzung): Ein Xiaomi-Tester (rodin,
+1.0.0-sideload) wechselte nach 8 Minuten alle 9 s zwischen 60 und 30, 155-mal, weil das Handy den Kern des
+Render-Threads auf 1,0–1,4 GHz bremste (Android meldete keine Hitze). `SmoothPacer` (`gx_auto_level.h`) macht jetzt
+Pausen von 5, 15, 30 und 60 s: eine Stufe höher, wenn 60 FPS binnen 30 s nach dem Wiederkommen erneut scheitert, nach
+30 s 60 FPS ohne Pause wieder 5 s. Ein neuer Raum beendet eine Pause sofort (Stufe bleibt); App-Menü zu und Hänger über
+250 ms beenden nur eine Pause der ersten Stufe; der Benchmark (`Restart`) beginnt bei Stufe 1. Neue Log-Zeilen
+(`core_mode.cpp`): beim Aufgeben Stufe, Laufzeit seit dem Wiederkommen, Bildzeit im Mittel und 90 %; beim Wiederkommen
+der Grund; einmal pro Minute „60 FPS in the last 60 s: … with in-between pictures, … at an even 30, switches to 30: …
+(step N of 4 now); the render thread's core N at up to … MHz, its limit now … of … MHz“ (`scaling_max_freq`, wenn
+lesbar). Leistungshinweis 16,7 ms (Möglichkeit E) und 30er-Takt in der Pause (F) erst nach 1.0. Geprüft:
+`TestSmoothPacer` erweitert (Stufen, Zurücksetzen, Raum/Menü/Hänger, Benchmark, Bildzeiten, 10 Minuten wie beim Tester:
+12 statt 66 Pausen, über 85 % gleichmäßige 30; jetzt auch in `RE4_CHECK_RULES=1`), `gx_gl_check`, `FramePacingTests`,
+App-Tests, Release-Build beider ABIs. Nicht geprüft: auf einem Gerät (Kurztest auf dem Retroid durch den Inhaber).
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
