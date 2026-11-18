@@ -5,8 +5,7 @@
 ![Beta](https://img.shields.io/badge/Status-Beta-E67E22)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![ARM 32/64-bit](https://img.shields.io/badge/ARM-32%2F64--bit-0091BD?logo=arm&logoColor=white)
-![OpenGL ES 3.0+](https://img.shields.io/badge/OpenGL%20ES-3.0%2B-5586A4?logo=opengl&logoColor=white)
-![Vulkan](https://img.shields.io/badge/Vulkan-AC162C?logo=vulkan&logoColor=white)
+![API](https://img.shields.io/badge/API-OpenGL%20ES%203.0%2B%20/%20Vulkan-5586A4?logo=api&logoColor=white)
 ![Input](https://img.shields.io/badge/Input-Touch%2FGamepad%2FKeyb%2BMouse-9A1B1C)
 
 
