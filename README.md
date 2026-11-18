@@ -66,7 +66,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   middleware with picture and ADX sound.
 - Releases: the European retail release (`G4BP08`) with its five languages, chosen in the app menu
   (default: your phone's language), the US retail release (`G4BE08`, English) and the Japanese retail
-  release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the same memory card.
+  release (`G4BJ08`, in Japanese). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube); imports also
   take a whole Dolphin card (`.raw`, `.gcp`), a ZIP file and European saves.
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
