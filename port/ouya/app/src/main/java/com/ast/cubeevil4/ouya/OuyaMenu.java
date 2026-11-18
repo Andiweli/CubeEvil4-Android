@@ -266,10 +266,10 @@ final class OuyaMenu extends Dialog {
         choices(s(R.string.ingame_frame_skip), new String[] {s(R.string.ingame_off), s(R.string.ingame_skip_normal),
                 s(R.string.ingame_skip_aggressive)}, new int[] {0, 1, 2}, Settings.frameSkip(prefs),
                 Settings.FRAME_SKIP_LEVEL);
-        // "Use performance cores" (1.0.0, wish of the project owner, 17.11.2026; off by default)
-        LinearLayout cores = buttonsRow();
+        // "Use performance cores" (1.0.0, wish of the project owner, 17.11.2026; off by default): one switch under
+        // the frame skip's three, indented by the label column and as wide as the three (the project owner, 18.11.2026)
+        LinearLayout cores = captionRow("");
         toggle(cores, R.string.ingame_perf_cores, Settings.FAST_CORES);
-        cores.addView(new View(getContext()), cell());
         help(R.string.ingame_skip_normal_help);
         help(R.string.ingame_skip_aggressive_help);
         help(R.string.ingame_perf_help);
