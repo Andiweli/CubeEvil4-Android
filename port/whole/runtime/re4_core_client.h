@@ -80,6 +80,7 @@ void re4ipc_body_turn(float yaw);
 void re4ipc_set_leon_jacket(int on);
 void re4ipc_zoom(int notches);
 void re4ipc_set_enemy_random(int seed);
+void re4ipc_set_more_enemies(int seed);  // 1.1.0
 void re4ipc_set_gentle_qte(int on);
 int re4ipc_rt_shadows(void);
 void re4ipc_swipe(int dir);

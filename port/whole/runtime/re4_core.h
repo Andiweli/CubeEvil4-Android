@@ -381,6 +381,8 @@ void re4_core_zoom(int notches);
 /* The cheat "Random enemies" (cores since 12.11.2026, 0.99.12; runtime/enemy_random.cpp, patch 0231): its seed
  * (20 bits), 0 off; from the next room on. Any thread. */
 void re4_core_set_enemy_random(int seed);
+/* 1.1.0: the cheat "More enemies" (runtime/enemy_random.cpp): its seed, 0 off; from the next room. Any thread. */
+void re4_core_set_more_enemies(int seed);
 /* "Gentler QTEs" (cores since 14.11.2026, 0.99.15; runtime/qte_touch.cpp re4_qte_level, patch 0232): on, the quick-time
  * events of Professional take the time windows and press counts of Normal; damage, enemies and the rest stay
  * Professional's. Any thread. */

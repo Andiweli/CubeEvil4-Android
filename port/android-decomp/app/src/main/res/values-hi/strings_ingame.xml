@@ -412,6 +412,8 @@
     <string name="ingame_cheat_section_world">दुश्मन और माहौल</string>
     <string name="ingame_health_bars">दुश्मनों की हेल्थ बार</string>
     <string name="ingame_health_bars_help">दुश्मनों की हेल्थ बार: हर दुश्मन के ऊपर एक छोटी पट्टी उसकी सेहत दिखाती है (हरी, एक चौथाई से कम पर पीली, दसवें हिस्से से कम पर लाल); कटसीन और मेनू में नहीं।</string>
+    <string name="ingame_more_enemies">ज़्यादा दुश्मन</string>
+    <string name="ingame_more_enemies_help">ज़्यादा दुश्मन: किसी कमरे के सामान्य Ganado लगभग 40 प्रतिशत ज़्यादा, बेतरतीब जगहों पर, हर कठिनाई पर; अगले कमरे से। बॉस, ख़ास दुश्मन, लहरें और वे कमरे जहाँ दरवाज़ा सभी दुश्मनों के गिरने का इंतज़ार करता है, वैसे ही रहते हैं; सिर्फ़ कहानी में।</string>
     <string name="ingame_dof_light">हल्का</string>
     <string name="ingame_dof_strong">तेज़</string>
     <string name="ingame_player_view">खिलाड़ी का दृश्य</string>

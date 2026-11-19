@@ -144,6 +144,8 @@ final class CoreMenu extends Dialog {
     void enemyRandomChanged(int seed);
     /** "Enemy health bars" (1.1.0, ENEMIES AND WORLD; CoreActivity.HEALTH_BARS holds it). */
     void healthBarsChanged(boolean on);
+    /** "More enemies" (1.1.0, ENEMIES AND WORLD): a new seed each time it goes on, 0 off (CoreActivity.MORE_ENEMIES). */
+    void moreEnemiesChanged(int seed);
     /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games, 5..9 weapons), off the main thread:
      *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
@@ -2006,7 +2008,11 @@ final class CoreMenu extends Dialog {
     MenuLayout.Buttons world = cheatRow(2);
     toggle(world, R.string.ingame_health_bars, game.getBoolean(CoreActivity.HEALTH_BARS, false),
         on -> host.healthBarsChanged(on));
+    // "More enemies" beside it (1.1.0, wish of the project owner, 19.11.2026): a seed of its own, a new one each time
+    toggle(world, R.string.ingame_more_enemies, game.getInt(CoreActivity.MORE_ENEMIES, 0) != 0, on ->
+        host.moreEnemiesChanged(on ? 1 + new java.util.Random().nextInt((1 << 20) - 1) : 0));
     help(R.string.ingame_health_bars_help);
+    help(R.string.ingame_more_enemies_help);
     help(R.string.ingame_cheats_help);
     help(R.string.ingame_cheat_random_items_help);
     help(R.string.ingame_cheat_random_enemies_help);

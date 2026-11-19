@@ -122,6 +122,7 @@ struct CoreApi {
   void (*bodyTurn)(float){};  // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
+  void (*setMoreEnemies)(int){};  // optional (cores since 1.1.0): the cheat "More enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
   void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
   void (*mouseMenu)(float, float, int){};  // optional (cores since 1.1.0): the mouse in the game's menus
@@ -480,6 +481,7 @@ void loadCore(JNIEnv *env) {
   api.bodyTurn = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_body_turn"));
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
+  api.setMoreEnemies = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_more_enemies"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
   api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
   api.mouseMenu = reinterpret_cast<void (*)(float, float, int)>(dlsym(api.main, "re4_core_mouse_menu"));
@@ -3209,6 +3211,7 @@ void useCoreProcess(const std::string &why) {
   api.bodyTurn = re4ipc_body_turn;
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
+  api.setMoreEnemies = re4ipc_set_more_enemies;
   api.setGentleQte = re4ipc_set_gentle_qte;
   api.setLeonJacket = re4ipc_set_leon_jacket;
   api.mouseMenu = re4ipc_mouse_menu;
@@ -4028,6 +4031,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLeonJacke
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGentleQte(JNIEnv *, jclass, jboolean on) {
   if (api.setGentleQte) api.setGentleQte(on ? 1 : 0);
+}
+
+// "More enemies" (1.1.0): its seed, 0 off (runtime/enemy_random.cpp).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMoreEnemies(JNIEnv *, jclass, jint seed) {
+  if (api.setMoreEnemies) api.setMoreEnemies(seed);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setEnemyRandom(JNIEnv *, jclass, jint seed) {

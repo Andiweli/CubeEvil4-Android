@@ -430,6 +430,8 @@
     <string name="ingame_cheat_section_world">Enemies and world</string>
     <string name="ingame_health_bars">Enemy health bars</string>
     <string name="ingame_health_bars_help">Enemy health bars: a small bar above each enemy shows its health (green, yellow below a quarter, red below a tenth); not in cutscenes and menus.</string>
+    <string name="ingame_more_enemies">More enemies</string>
+    <string name="ingame_more_enemies_help">More enemies: about 40 percent more of a room\'s ordinary Ganados, at random places, on every difficulty; from the next room. Bosses, special enemies, waves and rooms where a door waits for all enemies to fall stay as they are; only in the story.</string>
     <string name="ingame_dof_light">Light</string>
     <string name="ingame_dof_strong">Strong</string>
     <string name="ingame_player_view">Player View</string>

@@ -167,6 +167,29 @@ Start `RE4_SKIP_INTRO=1` mit (Wirkung ab dem nächsten Start; ein Testskript-Wer
   (`skip-intro-fade-in.png`). **Nicht geprüft:** auf einem Gerät; ein echter Kopfschuss mit Plaga (die Testhilfe
   ersetzt den Schuss, der Ausbruch selbst ist der des Spiels).
 
+### 8. Cheat „Mehr Gegner“ (Wunsch des Projektinhabers, 19.11.2026)
+
+„neben dem neuen Button für die Gegner-Healthbars einen weiteren Button 'Mehr Gegner', der – unabhängig von der
+aktuellen Schwierigkeitsstufe – rund 40% mehr Gegner (gerechnet auf die verfügbaren Gegner im Raum) dazugeneriert.
+Positionen zufällig.“ Schalter neben „Lebensbalken bei Gegnern“ (aus; `GAME_PREFS` `moreEnemiesSeed`, ein neuer Seed bei
+jedem Einschalten), Hilfe in 11 Sprachen (492 Texte), `CoreBridge.setMoreEnemies` (IPC `kSetMoreEnemies` = 51).
+- `runtime/enemy_random.cpp` (Plan von „Zufällige Gegner“, Patch 0231, kein neuer Patch): in einem **offenen** Raum
+  Kopien der gewöhnlichen Ganados, die jetzt kommen (Modelle geladen): 40 % der Ganados beim Raumstart (gerundet,
+  `kMaxCopies` jetzt 16), Platz über die Wege des Raums (Stufe 2: 10 m von Leon, Boden, Wände, Bereiche) oder daneben
+  (Stufe 1.5), Tod auf einem leeren Listeneintrag. Allein bewegt der Schalter niemanden; mit „Zufällige Gegner“
+  zusammen ein Plan (dessen ± zuerst). Nur bei freien Gegner-Arbeitsplätzen (für noch Kommendes + 4 frei).
+- **Entscheidungen (eigene Empfehlung):** nur Geschichte (nicht Ada, Mercenaries, Ashleys Teil, Stufe 4); keine Kopien
+  in Räumen, deren Skript Gegner zählt/fegt/benennt (52 „nur Plätze“, z. B. die Dorf-Belagerung r101, wo die Glocke
+  nach einer Zahl Toter kommt) und in Bossräumen (11); Wellen (`EmSetFromList2`) unverändert; Drops wie im Spiel;
+  Spielstände: Kopien sind beim Wiederbetreten gleich (gleicher Seed), ein Kopien-Tod bleibt über den leeren Eintrag
+  gespeichert.
+- **Geprüft am PC** (`wt-more_tours.sh`, Bilder `builds\workthread-1.1.0\more-enemies-map-*.png`): Rundgang 126 Räume
+  Debug mit „Mehr Gegner“ ALLES OK (34 Räume mit Plan, 45 Kopien geplant, keine gescheitert); Debug mit beiden
+  Schaltern und Listen-Prüfung ALLES OK; EU 125 von 126, r333 stürzt im Prüfprotokoll ab (Altbefund, auch ohne Cheat
+  in diesem Stand bestätigt). Zählung: r111 8 → 11, r11a 11 → 15, r113 8 → 11, r225 12 → 17, r303 2 → 3, r304 3 → 4;
+  r103 bekommt keine (Liste 0 hat keinen leeren Eintrag für den Tod einer Kopie). **Nicht geprüft:** auf einem Gerät;
+  ganze Kapitel.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

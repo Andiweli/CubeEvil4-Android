@@ -126,6 +126,7 @@ struct Core {
     void (*bodyTurn)(float);      // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
     void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
     void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
+    void (*setMoreEnemies)(int);  // optional (cores since 1.1.0): "More enemies"
     void (*setGentleQte)(int);    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
     void (*setLeonJacket)(int);   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
     void (*mouseMenu)(float, float, int);  // optional (cores since 1.1.0): the mouse in the game's menus
@@ -807,6 +808,7 @@ bool loadCore(std::string& problem)
     bind(core.zoom, "re4_core_zoom", false);
     bind(core.bodyTurn, "re4_core_body_turn", false);
     bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
+    bind(core.setMoreEnemies, "re4_core_set_more_enemies", false);
     bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
     bind(core.setLeonJacket, "re4_core_set_leon_jacket", false);
     bind(core.mouseMenu, "re4_core_mouse_menu", false);
@@ -991,6 +993,9 @@ void serve()
             if (core.bodyTurn) core.bodyTurn(yaw);
             break;
         }
+        case kSetMoreEnemies:
+            if (core.setMoreEnemies) core.setMoreEnemies(h.a);
+            break;
         case kSetEnemyRandom:
             if (core.setEnemyRandom) core.setEnemyRandom(h.a);
             break;

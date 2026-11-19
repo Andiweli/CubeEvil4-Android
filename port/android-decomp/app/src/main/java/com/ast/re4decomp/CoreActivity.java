@@ -167,6 +167,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String ENEMY_SEED = "enemySeed";
   /** "Enemy health bars" (1.1.0, GAME_PREFS; CoreBridge.setHealthBars): off by default. */
   static final String HEALTH_BARS = "enemyHealthBars";
+  /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
+  static final String MORE_ENEMIES = "moreEnemiesSeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
       REQUEST_EXPORT_ZIP = 6;
   // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
@@ -531,6 +533,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       int enemySeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(ENEMY_SEED, 0);
       if (enemySeed != 0) Log.i(TAG, "cheats: random enemies with seed " + enemySeed);
       CoreBridge.setEnemyRandom(enemySeed);
+      int moreSeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(MORE_ENEMIES, 0);
+      if (moreSeed != 0) Log.i(TAG, "cheats: more enemies with seed " + moreSeed);
+      CoreBridge.setMoreEnemies(moreSeed);
       boolean bars = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(HEALTH_BARS, false);
       if (bars) Log.i(TAG, "enemy health bars on");
       CoreBridge.setHealthBars(bars);
@@ -1231,6 +1236,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(ENEMY_SEED, seed).apply();
       Log.i(TAG, "cheats: random enemies " + (seed != 0 ? "on with seed " + seed : "off"));
       CoreBridge.setEnemyRandom(seed);
+    }
+
+    @Override public void moreEnemiesChanged(int seed) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(MORE_ENEMIES, seed).apply();
+      Log.i(TAG, "cheats: more enemies " + (seed != 0 ? "on with seed " + seed : "off"));
+      CoreBridge.setMoreEnemies(seed);
     }
 
     @Override public void healthBarsChanged(boolean on) {
