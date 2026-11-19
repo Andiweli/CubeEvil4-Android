@@ -1,7 +1,12 @@
-// Ashley catches up (1.1.0, wish of the project owner, 19.11.2026): holding the partner command key (the
-// game's X, Key 0x200: "Wait" / "Follow me"; the controller's X, the keyboard's Q, the touch controls' X) for two
-// seconds puts Ashley right behind Leon, and she follows him. A short press keeps its own use: cPlLeon::checkXbutton
-// toggles wait / follow at the press, as before; the hold only adds the catch-up at its end (once a hold).
+// Ashley catches up (1.1.0, wish of the project owner, 19.11.2026): a double press of the partner command key (the
+// game's X, Key 0x200: "Wait" / "Follow me"; the controller's X, the keyboard's Q, the touch controls' X), the second
+// press within kDoubleFrames (12 game frames, 0.4 s) of the first, puts Ashley right behind Leon, and she follows him
+// (the owner's second wish of the day: a double press instead of the first version's 2 s hold, which stays as a quiet
+// extra). A single press keeps its own use without any delay: cPlLeon::checkXbutton toggles wait / follow at the
+// press, as before (a second press within its 8 frames it ignores); the double press then makes her follow in any
+// case, also when she is already close. She does not pop up: she fades in over kFadeFrames (15 game frames, 0.5 s)
+// through cModel::invisible_factor2, the factor the game's own fades use besides invisible_factor (her attached
+// objects take it from her), drawn by the game's GX with GLES and Vulkan alike.
 //
 // Only where it is safe, else nothing happens (one log line says why):
 //  - the game runs with the player free: no event or film (STA_EVENT), no sub screen (STA_SUB_SCRN);
@@ -39,6 +44,8 @@ namespace {
 
 constexpr u64 kAshleyKey = 0x200;        // the partner command (cPlLeon::checkXbutton)
 constexpr unsigned kHoldFrames = 60;     // the hold: two seconds of the game's 30 frames a second
+constexpr unsigned kDoubleFrames = 12;   // a double press: the second within 0.4 s of the first
+constexpr unsigned kFadeFrames = 15;     // the fade-in: 0.5 s
 constexpr float kFloorStep = 400.0f;     // the floor behind Leon within 40 cm of his
 float gNearEnough = 1500.0f;             // closer than 1.5 m: nothing to do (RE4_ASHLEY_CATCHUP_MIN for tests)
 constexpr u32 kBadFloor = SAT_ATTR_FALL | SAT_ATTR_CLIFF | SAT_ATTR_FALL_FANCE | SAT_ATTR_JUMPOVER | SAT_ATTR_HIDE |
@@ -122,6 +129,10 @@ bool behindLeon(Vec* out, float* dist)
 }
 
 unsigned gHeld;       // the game frames the key has been held
+unsigned gFrames;     // game frames counted by the hook
+long gLastPress = -1000;  // the frame of the last single press
+cSubChar* gFading;    // Ashley while she fades in
+unsigned gFade;       // frames of the fade done
 bool gHoldDone;       // this hold already did its work (or was refused)
 unsigned gLines;
 
@@ -133,7 +144,15 @@ void line(const char* what)
     }
 }
 
-void catchUp()
+// she follows (the double press: whatever the two presses toggled)
+void follow(cSubChar* sub)
+{
+    if (SubCharGetStatus() & 0x40000000) {  // waiting (cPlLeon::checkXbutton)
+        SubCharCtrl(1, 0);
+    }
+}
+
+void catchUp(bool twice)
 {
     if (!pG || !pPL || pG->Rno0 != 3 || StaFlagChk(pG, STA_EVENT) || StaFlagChk(pG, STA_SUB_SCRN)) {
         line("nothing (no free player: an event, a film or a sub screen)");
@@ -147,15 +166,22 @@ void catchUp()
     const float dx = sub->pos.x - pPL->pos.x, dz = sub->pos.z - pPL->pos.z;
     const float away = sqrtf(dx * dx + dz * dz);
     if (away < gNearEnough && absOf(sub->pos.y - pPL->pos.y) < kFloorStep) {
+        if (twice) {
+            follow(sub);
+        }
         if (gLines < 40) {
             gLines++;
-            re4_log("ashley: hold of the partner key: nothing (Ashley is already close, %.1f m)", away / 1000.0f);
+            re4_log("ashley: %s: Ashley is already close (%.1f m)%s", twice ? "double press" : "hold", away / 1000.0f,
+                    twice ? ", she follows" : "");
         }
         return;
     }
     Vec spot;
     float dist;
     if (!behindLeon(&spot, &dist)) {
+        if (twice) {
+            follow(sub);
+        }
         line("nothing (no safe floor behind Leon)");
         return;
     }
@@ -164,18 +190,54 @@ void catchUp()
     Vec ang = sub->ang;
     ang.y = pPL->ang.y;
     sub->setAng(&ang);
-    SndCall(1, 0x37, &pPL->pos, 0, 0, 0);  // the call "follow me" (cPlLeon::checkXbutton)
+    // the fade-in from nothing (the hook raises it a frame at a time)
+    sub->invisible_factor2 = 0.0f;
+    gFading = sub;
+    gFade = 0;
+    if (!twice) {
+        SndCall(1, 0x37, &pPL->pos, 0, 0, 0);  // the call "follow me" (the double press: the game's own calls)
+    }
     if (gLines < 40) {
         gLines++;
-        re4_log("ashley: caught up, %.1f m behind Leon (she was %.1f m away), room r%03x", dist / 1000.0f,
+        re4_log("ashley: caught up (%s), %.1f m behind Leon (she was %.1f m away), room r%03x, fading in", twice ? "double press" : "hold", dist / 1000.0f,
                 away / 1000.0f, (unsigned) pG->room_id);
     }
 }
 
+// the fade-in, a step a frame; ended at once when she is gone or in a scene of her own
+void fade()
+{
+    if (!gFading) {
+        return;
+    }
+    if (gFading != SUB_CHAR() || gFading->hp <= 0) {
+        gFading = 0;
+        return;
+    }
+    gFade++;
+    if (gFade >= kFadeFrames || StaFlagChk(pG, STA_EVENT)) {
+        gFading->invisible_factor2 = 1.0f;
+        gFading = 0;
+        return;
+    }
+    gFading->invisible_factor2 = (f32) gFade / (f32) kFadeFrames;
+}
+
 // once a game frame (runtime/pad.cpp PADRead): game frames, not the clock, so a slow moment or a PC test that
-// runs faster than real time counts the same game time
+// runs faster than real time counts the same game time (Key: the last frame's)
 void hook(unsigned)
 {
+    gFrames++;
+    fade();
+    if (Key.trg & kAshleyKey) {
+        if ((long) gFrames - gLastPress <= (long) kDoubleFrames) {
+            gLastPress = -1000;
+            gHoldDone = true;  // not the hold's catch-up as well
+            catchUp(true);
+        } else {
+            gLastPress = (long) gFrames;
+        }
+    }
     if (!(Key.on & kAshleyKey)) {
         gHeld = 0;
         gHoldDone = false;
@@ -185,7 +247,7 @@ void hook(unsigned)
         return;
     }
     gHoldDone = true;
-    catchUp();
+    catchUp(false);
 }
 
 struct Install {

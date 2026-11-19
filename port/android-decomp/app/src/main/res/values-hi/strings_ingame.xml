@@ -353,7 +353,7 @@
     <string name="ingame_later">बाद में</string>
     <string name="ingame_controller_config">बटन मैपिंग</string>
     <string name="ingame_controller_config_help">बटन मैपिंग: गेम की हर क्रिया को अपने कंट्रोलर या कीबोर्ड की कुंजियों पर रखें।</string>
-    <string name="ingame_ashley_hold_help">Ashley कहीं अटक गई? उसका बटन (रुको / साथ चलो) 2 सेकंड दबाए रखें: वह लियोन के ठीक पीछे खड़ी होगी और उसके साथ चलेगी।</string>
+    <string name="ingame_ashley_hold_help">Ashley कहीं अटक गई? उसका बटन (रुको / साथ चलो) जल्दी से दो बार दबाएँ: वह लियोन के ठीक पीछे दिखेगी और उसके साथ चलेगी।</string>
     <string name="ingame_stick_dead_zone">स्टिक डेड ज़ोन</string>
     <string name="ingame_stick_range">स्टिक रेंज</string>
     <string name="ingame_stick_help">स्टिक डेड ज़ोन: बीच के आसपास की छोटी हलचल अनदेखी की जाती है (अपने आप खिसकने वाली स्टिक के लिए)। स्टिक रेंज: इतनी दबाई गई स्टिक पूरी दबाई गई मानी जाती है, ताकि Leon भरोसे से चले और दौड़े। डिफ़ॉल्ट मान स्टिक को वैसे ही रहने देते हैं; टच कंट्रोल पर इसका असर नहीं होता।</string>

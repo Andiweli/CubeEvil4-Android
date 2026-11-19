@@ -353,7 +353,7 @@
     <string name="ingame_later">Später</string>
     <string name="ingame_controller_config">Tastenbelegung</string>
     <string name="ingame_controller_config_help">Tastenbelegung: jede Aktion des Spiels auf Tasten deines Controllers oder deiner Tastatur legen.</string>
-    <string name="ingame_ashley_hold_help">Ashley hängt irgendwo fest? Halte ihren Knopf (Warten / Folgen) 2 Sekunden: Sie steht dann direkt hinter Leon und folgt ihm.</string>
+    <string name="ingame_ashley_hold_help">Ashley hängt irgendwo fest? Drücke ihren Knopf (Warten / Folgen) zweimal schnell: Sie erscheint direkt hinter Leon und folgt ihm.</string>
     <string name="ingame_stick_dead_zone">Stick-Totzone</string>
     <string name="ingame_stick_range">Stick-Reichweite</string>
     <string name="ingame_stick_help">Stick-Totzone: Kleine Bewegungen um die Mitte werden ignoriert (für einen Stick, der wandert). Stick-Reichweite: So weit gedrückt zählt der Stick als ganz gedrückt, damit Leon sicher geht und läuft. Die Standardwerte lassen die Sticks, wie sie sind; die Touch-Steuerung ist nicht betroffen.</string>

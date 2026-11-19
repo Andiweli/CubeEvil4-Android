@@ -358,7 +358,7 @@
     <string name="ingame_later">Plus tard</string>
     <string name="ingame_controller_config">Configuration des touches</string>
     <string name="ingame_controller_config_help">Configuration des touches : placez chaque action du jeu sur des touches de votre manette ou de votre clavier.</string>
-    <string name="ingame_ashley_hold_help">Ashley est bloquée ? Maintiens son bouton (Attendre / Suivre) 2 secondes : elle se place juste derrière Leon et le suit.</string>
+    <string name="ingame_ashley_hold_help">Ashley est bloquée ? Appuie deux fois vite sur son bouton (Attendre / Suivre) : elle apparaît juste derrière Leon et le suit.</string>
     <string name="ingame_stick_dead_zone">Zone morte du stick</string>
     <string name="ingame_stick_range">Portée du stick</string>
     <string name="ingame_stick_help">Zone morte du stick\u00A0: les petits mouvements autour du centre sont ignorés (pour un stick qui dérive). Portée du stick\u00A0: un stick poussé jusque-là compte comme poussé à fond, pour que Leon marche et coure sans à-coups. Les valeurs par défaut laissent les sticks tels quels\u00A0; les commandes tactiles ne sont pas concernées.</string>

@@ -9,7 +9,12 @@
 // ortho projection over the viewport, vertex colours, no texture), so GLES, Vulkan and HD texture packs see the same.
 //
 //  - Health: the enemy's own hp / hp_max (cEm); without hp_max (0) the highest hp seen for that enemy is the max.
-//    Green above 25 %, yellow up to 25 %, red up to 10 %.
+//    Green above 25 %, yellow up to 25 %, red up to 10 %. In the Plaga phase (the project owner, 19.11.2026: "wenn der
+//    LasPlagas ausbricht durchgehend Orange") orange all the time, its length still the life left: a Ganado that lost
+//    its head and grows the parasite (em10's lost-head routine: Parasite_on 1 and hp 3000, more than its hp_max, which
+//    is why the bar was full again; the highest hp seen is its max from then on) or carries it (pParasite), the
+//    parasite enemy itself (id 0x25) and the humanoid with the parasite head once it is out (em3c, Be_flg 0x800
+//    "parasite set", em3cSetParasite). (cEm::flag 0x20 is no sign: the room lists give it to Ganados with heads.)
 //  - Which: the enemies (ids 0x10..0x3F) apart from the friendly and the things: the merchant 0x18, the village dog
 //    0x21, crows 0x23, the lake fish 0x27, chickens 0x28, traps 0x2A, the trucks and mine carts 0x3B, the support
 //    helicopter 0x3D, the shooting-gallery targets 0x3E; never the player or the partner. Alive (hp > 0), drawn by
@@ -32,6 +37,8 @@
 #include "light.h"
 #include "math_sub_decl.h"
 #include "gx.h"
+#include "em3c.h"
+#include "em10.h"
 #include "vec.h"
 #include "re4_gx_fifo.h"
 
@@ -56,6 +63,7 @@ constexpr float kFar = 30000.0f;  // 30 m
 struct Bar {
     f32 x, y, w, h;  // the bar's box in the viewport's units (its centre at x, its top at y)
     f32 frac;        // health 0..1
+    u8 plaga;        // the Plaga phase: orange
 };
 
 struct Frame {
@@ -83,6 +91,22 @@ bool listed(int id)
     default:
         return true;
     }
+}
+
+// The Plaga phase (the head lost, the parasite out), see the head comment
+bool plagaPhase(cEm* e)
+{
+    if (e->id >= 0x10 && e->id <= 0x20 && e->id != 0x18) {
+        const FREE_EM10* w = EM10_WK(e);
+        return w->Parasite_on != 0 || w->pParasite != 0;
+    }
+    if (e->id == 0x25) {
+        return true;
+    }
+    if (e->id == 0x3C) {
+        return (EM3C_WK(e)->Be_flg & 0x800) != 0;
+    }
+    return false;
 }
 
 int maxOf(u32 slot, cEm* e)
@@ -188,7 +212,9 @@ void draw(void* data)
         const f32 split = x0 + b.w * b.frac;
         quad(split, y0, x1, y1, 60, 60, 60, 200);
         u8 r = 70, g = 200, bl = 60;  // green
-        if (b.frac <= 0.10f) {
+        if (b.plaga) {
+            r = 245, g = 130, bl = 20;  // orange: the Plaga phase
+        } else if (b.frac <= 0.10f) {
             r = 225, g = 40, bl = 30;  // red
         } else if (b.frac <= 0.25f) {
             r = 235, g = 200, bl = 40;  // yellow
@@ -247,6 +273,37 @@ void testHp()
     }
 }
 
+// For the pictures on the PC: RE4_TEST_HB_PLAGA="F": at game frame F the nearest Ganado gets what em10's lost-head routine gives it: Parasite_on 1, hp 3000
+// and Parasite_wait 1, so the game itself makes the parasite come out the next frame (em10SetParasite); its head stays
+void testPlaga()
+{
+    static long frame = getenv("RE4_TEST_HB_PLAGA") ? strtol(getenv("RE4_TEST_HB_PLAGA"), 0, 10) : -1;
+    if (frame < 0 || (long) pG->Frame_cnt < frame) {
+        return;
+    }
+    frame = -1;
+    cEm* pick = 0;
+    for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (!e || !e->isAlive() || e->hp <= 0 || e->id < 0x10 || e->id > 0x20 || e->id == 0x18) {
+            continue;
+        }
+        if (!pick || e->l_pl < pick->l_pl) {
+            pick = e;
+        }
+    }
+    if (!pick) {
+        re4_log("health bars: RE4_TEST_HB_PLAGA: no Ganado");
+        return;
+    }
+    FREE_EM10* w = EM10_WK(pick);
+    w->Parasite_on = 1;
+    w->Parasite_wait = 1;
+    pick->hp = 3000;
+    re4_log("health bars: RE4_TEST_HB_PLAGA: Ganado id 0x%02x type %d %.1f m away: the parasite comes out (hp 3000 of "
+            "%d)", pick->id, (int) pick->type, sqrtf(pick->l_pl) / 1000.0f, pick->hp_max);
+}
+
 unsigned gLines, gSums;
 // why enemies were left out (a line every 300 frames while any is listed)
 struct Count {
@@ -277,6 +334,7 @@ void re4_health_bars(void)
         return;
     }
     testHp();
+    testPlaga();
     Frame* f = (Frame*) GetPrimBuff(sizeof(Frame));
     if (!f) {
         return;
@@ -339,6 +397,7 @@ void re4_health_bars(void)
         b.h = h;
         f32 frac = (f32) e->hp / (f32) max;
         b.frac = frac < 0.0f ? 0.0f : frac > 1.0f ? 1.0f : frac;
+        b.plaga = plagaPhase(e) ? 1 : 0;
         bool known = false;
         for (unsigned k = 0; k < gLines && k < 64; k++) {
             known |= gLogged[k] == e;
@@ -346,9 +405,24 @@ void re4_health_bars(void)
         if (!known && gLines < 64) {
             gLogged[gLines++] = e;
             re4_log("health bars: r%03x frame %u: enemy id 0x%02x type %d hp %d/%d (max %s) at %.1f m, bar at "
-                    "(%.0f %.0f) %.0fx%.1f", (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, (unsigned) e->id,
+                    "(%.0f %.0f) %.0fx%.1f%s", (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, (unsigned) e->id,
                     (int) e->type, (int) e->hp, max, e->hp_max > 0 ? "hp_max" : "highest seen", dist / 1000.0f,
-                    b.x, b.y, w, h);
+                    b.x, b.y, w, h, b.plaga ? ", the Plaga phase (orange)" : "");
+        }
+        // the Plaga phase coming (once an enemy, while the frame's lines last)
+        static const cEm* plagaLogged[32];
+        static unsigned plagaLines;
+        if (b.plaga && plagaLines < 32) {
+            bool seen = false;
+            for (unsigned k = 0; k < plagaLines; k++) {
+                seen |= plagaLogged[k] == e;
+            }
+            if (!seen) {
+                plagaLogged[plagaLines++] = e;
+                re4_log("health bars: r%03x frame %u: enemy id 0x%02x type %d in the Plaga phase, hp %d/%d: orange",
+                        (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, (unsigned) e->id, (int) e->type,
+                        (int) e->hp, max);
+            }
         }
     }
     if (gCount.listed && pG->Frame_cnt % 300 == 0 && gSums < 40) {

@@ -140,6 +140,33 @@ Start `RE4_SKIP_INTRO=1` mit (Wirkung ab dem nächsten Start; ein Testskript-Wer
   ebenso; 9000 Bilder Leerlauf: demo0 und demo1 laufen abwechselnd zu Ende, dazwischen das Menü. **Nicht geprüft:** auf
   einem Gerät; KR-Discs.
 
+### 7. Rückmeldung des Projektinhabers zu Ashley, Plaga-Balken und Intro (19.11.2026)
+
+„Funktioniert alles sehr gut. Die Tasten-Updates habe ich noch nicht getestet.“ Drei Wünsche:
+- **Ashley per Doppeldruck mit Einblenden** (`runtime/ashley_catchup.cpp`): zweiter Druck der Partner-Taste innerhalb
+  12 Spielbilder (0,4 s) = holen; danach folgt sie in jedem Fall (auch wenn sie schon nah ist: `SubCharCtrl(1)` falls
+  sie wartet; das Spiel selbst ignoriert einen zweiten Druck innerhalb 8 Bildern). Der Einzeldruck bleibt ohne
+  Verzögerung (das Spiel schaltet beim Drücken um). Das Halten 2 s bleibt als stilles Extra. Einblenden über 15 Bilder
+  (0,5 s) mit `cModel::invisible_factor2` (Ashleys Code fasst ihn nicht an, angehängte Objekte übernehmen ihn), über
+  das GX des Spiels, also GLES und Vulkan. Kein eigener Ruf-Ton beim Doppeldruck (das Spiel ruft schon). Hilfe
+  `ingame_ashley_hold_help` neu in 11 Sprachen.
+- **Plaga-Phase orange** (`runtime/health_bars.cpp`): Ganado mit verlorenem Kopf und Parasit (em10 Kopfverlust:
+  `Parasite_on` 1, hp 3000 statt z. B. 800 – deshalb war der Balken wieder voll) oder mit Parasit (`pParasite`), der
+  Parasit selbst (id 0x25), em3c mit Parasitenkopf (`Be_flg` 0x800). Orange die ganze Zeit, Länge = verbleibendes
+  Leben (Max = höchstes gesehenes hp, also die 3000). `cEm::flag` 0x20 ist kein Zeichen (die Raumlisten setzen es bei
+  Zeloten mit Kopf). Testhilfe `RE4_TEST_HB_PLAGA=F` (nächster Ganado: was der Kopfverlust setzt, dann bricht das
+  Spiel den Parasiten selbst aus).
+- **Intro überspringen: Einblenden** (Patch 0242): `FadeSet` schwarz → durchsichtig über 18 Bilder (0,6 s). Die
+  Farbe als `GXColor` mit Bytes: neue Zeilen bekommen keine `RE4_BE`-Ansicht von `FadeColor.w` (die erste Fassung war
+  darum durchsichtig rot statt schwarz). Schwarze Zeit davor: Mit Speicherkarte ist die Kartenprüfung bei Spielbild 51
+  fertig, der Titel bei 56 (etwa 1,9 s); die Prüfung hat feste Wartezeiten ihrer Meldungen (15/30 Bilder) und liest
+  die Systemdaten (Sprache, Optionen) – nicht gekürzt. Davor liegt der Start der App selbst (Bibliotheken, Disc).
+- **Geprüft am PC:** r210 Doppeldruck (8 Bilder Abstand): Ashley 0,9 m hinter Leon, Einblenden über 5 Bilder sichtbar
+  (`builds\workthread-1.1.0\ashley-double-press-fade-in-r210.png`); r208 Plaga: Ausbruch mit Blut, Balken orange
+  (`healthbars-plaga-orange-*.png`, GLES und Vulkan); Titel: Helligkeit 1 → 12 → 23 → 35 → 50 → 59 über 0,6 s
+  (`skip-intro-fade-in.png`). **Nicht geprüft:** auf einem Gerät; ein echter Kopfschuss mit Plaga (die Testhilfe
+  ersetzt den Schuss, der Ausbruch selbst ist der des Spiels).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
