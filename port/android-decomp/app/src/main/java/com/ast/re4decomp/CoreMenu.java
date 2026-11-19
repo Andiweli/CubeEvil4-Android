@@ -1080,6 +1080,11 @@ final class CoreMenu extends Dialog {
     fpsLabel(fps, fpsLabels[fpsNow], fpsNow != 0);
     parts.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
     hudHelp.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
+    // "Skip intro" (1.1.0, wish of the project owner, 19.11.2026: "Beim Start sollen die Introscreens gar nicht gezeigt
+    // werden sondern sofort das Menu"): the game's logos before the title menu, from the next start (RE4_SKIP_INTRO)
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_skip_intro,
+        graphics.getBoolean(CoreActivity.SKIP_INTRO, false), on -> graphics.edit().putBoolean(CoreActivity.SKIP_INTRO, on).apply());
+    help(R.string.ingame_skip_intro_help);
   }
   /** One of the Information HUD's check boxes (InfoHud): on until cleared, the HUD takes it at once. */
   private CheckBox hudBox(MenuLayout.Buttons parent, int label, String part) {

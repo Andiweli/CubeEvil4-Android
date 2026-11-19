@@ -38,6 +38,8 @@
     <string name="ingame_hud_hz">Hz de pantalla</string>
     <string name="ingame_hud_time">H:M:S desde el inicio</string>
     <string name="ingame_hud_help">H:M:S es el tiempo de juego del propio juego, que cada partida guardada conserva, como en GameCube. El tiempo en este menú o en segundo plano no cuenta.</string>
+    <string name="ingame_skip_intro">Saltar la intro</string>
+    <string name="ingame_skip_intro_help">Saltar la intro: al iniciar, el juego va directamente a su menú principal, sin los logotipos ni el aviso de salud (desde el próximo inicio).</string>
     <string name="ingame_fps_bottom_left">Abajo a la izquierda</string>
     <string name="ingame_fps_bottom_centre">Abajo en el centro</string>
     <string name="ingame_fps_top_left">Arriba a la izquierda</string>

@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0242 (0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+Nächste freie Patch-Nummer: 0243 (0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -120,6 +120,25 @@ from a user's ModernTPS mod“). Esc bleibt Pause, kein F2, die Maus im Koffer k
   (Beschreibung Controller → Audio → Exit). r103: 5 Pistolenschüsse, dann Nachladen ohne Zielen: Magazin wieder 10,
   Vorrat 20 → 15; bei vollem Magazin nichts. App baut, App-Tests grün, Übersetzungen 488 Texte.
   **Nicht geprüft:** auf einem Gerät mit echter Maus und Tastatur; die EU-Schwierigkeitswahl mit der Maus.
+
+### 6. „Intro überspringen“ (Wunsch des Projektinhabers, 19.11.2026, Patch 0242)
+
+„Beim Start sollen die Introscreens gar nicht gezeigt werden sondern sofort das Menu.“ Schalter unten in Anzeige →
+Optionale Features (aus; `core_graphics` `skipIntro`), Hilfe in 11 Sprachen (490 Texte). Die App gibt dem Kern beim
+Start `RE4_SKIP_INTRO=1` mit (Wirkung ab dem nächsten Start; ein Testskript-Wert gewinnt).
+- **Patch 0242** (`title.cpp` titleWait, Zustand 1) + `runtime/title_skip.cpp`: an der Stelle, an der das Spiel selbst
+  nach einem Soft-Reset die Logos überspringt (`pRK->logo_skip_enable`), auch beim ersten Start; die Titelmelodie, die
+  sonst `titleLogo` bei `LOGO_CALL_FRAME` startet (`SndCall(6, 4)`), sofort. Geladen ist dort schon alles: titleWait
+  wartet vorher auf die Speicherkarten-Prüfung (`CardCheckDone`, Systemdaten mit Sprache und Optionen), die
+  Titel-Soundbank (`title.snd`) und `title.dat` mit Texturen; der Sprung liegt hinter diesen Wartestellen.
+- **Übersprungen:** „Licensed by Nintendo“ (Zustand 2), der Gesundheitshinweis (3), die Logos Capcom, CRI und Dolby mit
+  dem Einblenden des Titels (4). **Bleibt:** der Startbildschirm der App („By Andiweli“, Import, Datenordner), die
+  Warnung für inoffizielle Builds und die Import-Warnungen, eine Speicherkarten-Meldung des Spiels (z. B. keine Karte),
+  die Demofilme nach 600 Bildern Leerlauf im Titelmenü (wie im Spiel, danach zurück ins Menü).
+- **Geprüft am PC** (`wt-skip_run.sh`, Bilder `builds\workthread-1.1.0\skip-intro-*.png`): Debug-Discs mit Schalter
+  Titelmenü bei Bild 380 statt 1100, Titelmelodie ab dem Menü (gleich lang wie ohne Schalter), EU-, US- und JP-Discs
+  ebenso; 9000 Bilder Leerlauf: demo0 und demo1 laufen abwechselnd zu Ende, dazwischen das Menü. **Nicht geprüft:** auf
+  einem Gerät; KR-Discs.
 
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 

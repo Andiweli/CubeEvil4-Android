@@ -39,6 +39,8 @@
     <string name="ingame_hud_hz">Hz da tela</string>
     <string name="ingame_hud_time">H:M:S desde o início</string>
     <string name="ingame_hud_help">H:M:S é o tempo de jogo do próprio jogo, guardado em cada salvamento como no GameCube. O tempo neste menu ou em segundo plano não conta.</string>
+    <string name="ingame_skip_intro">Pular introdução</string>
+    <string name="ingame_skip_intro_help">Pular introdução: ao iniciar, o jogo vai direto ao menu de título, sem os logotipos e o aviso de saúde (a partir do próximo início).</string>
     <string name="ingame_fps_bottom_left">Canto inferior esquerdo</string>
     <string name="ingame_fps_bottom_centre">Inferior ao centro</string>
     <string name="ingame_fps_top_left">Canto superior esquerdo</string>

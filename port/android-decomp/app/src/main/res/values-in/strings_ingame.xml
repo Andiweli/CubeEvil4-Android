@@ -39,6 +39,8 @@
     <string name="ingame_hud_hz">Hz layar</string>
     <string name="ingame_hud_time">J:M:D sejak awal permainan</string>
     <string name="ingame_hud_help">J:M:D adalah waktu bermain milik game itu sendiri, disimpan di setiap simpanan seperti di GameCube. Waktu di menu ini atau di latar belakang tidak dihitung.</string>
+    <string name="ingame_skip_intro">Lewati intro</string>
+    <string name="ingame_skip_intro_help">Lewati intro: saat mulai, game langsung ke menu judul tanpa logo dan peringatan kesehatan (mulai saat berikutnya dijalankan).</string>
     <string name="ingame_fps_bottom_left">Kiri bawah</string>
     <string name="ingame_fps_bottom_centre">Tengah bawah</string>
     <string name="ingame_fps_top_left">Kiri atas</string>

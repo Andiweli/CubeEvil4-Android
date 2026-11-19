@@ -38,6 +38,8 @@
     <string name="ingame_hud_hz">Гц экрана</string>
     <string name="ingame_hud_time">Ч:М:С с начала игры</string>
     <string name="ingame_hud_help">Ч:М:С — собственное время игры, его хранит каждое сохранение, как на GameCube. Время в этом меню или в фоне не считается.</string>
+    <string name="ingame_skip_intro">Пропустить вступление</string>
+    <string name="ingame_skip_intro_help">Пропустить вступление: при запуске игра сразу открывает главное меню, без логотипов и предупреждения о здоровье (со следующего запуска).</string>
     <string name="ingame_fps_bottom_left">Внизу слева</string>
     <string name="ingame_fps_bottom_centre">Внизу по центру</string>
     <string name="ingame_fps_top_left">Вверху слева</string>

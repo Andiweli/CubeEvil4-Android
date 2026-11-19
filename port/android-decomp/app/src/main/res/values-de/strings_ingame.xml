@@ -38,6 +38,8 @@
     <string name="ingame_hud_hz">Display-Hz</string>
     <string name="ingame_hud_time">H:M:S ab Spielstart</string>
     <string name="ingame_hud_help">H:M:S ist die Spielzeit des Spiels, die jeder Spielstand behält, wie auf dem GameCube. Zeit in diesem Menü oder im Hintergrund zählt nicht.</string>
+    <string name="ingame_skip_intro">Intro überspringen</string>
+    <string name="ingame_skip_intro_help">Intro überspringen: Beim Start geht das Spiel sofort ins Titelmenü, ohne Logos und Gesundheitshinweis (ab dem nächsten Start).</string>
     <string name="ingame_fps_bottom_left">Unten links</string>
     <string name="ingame_fps_bottom_centre">Unten mittig</string>
     <string name="ingame_fps_top_left">Oben links</string>

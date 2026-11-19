@@ -39,6 +39,8 @@
     <string name="ingame_hud_hz">屏幕 Hz</string>
     <string name="ingame_hud_time">自游戏开始的 时:分:秒</string>
     <string name="ingame_hud_help">时:分:秒是游戏自身的游戏时间，与 GameCube 上一样保存在每个存档中。在此菜单中或在后台的时间不计入。</string>
+    <string name="ingame_skip_intro">跳过开场</string>
+    <string name="ingame_skip_intro_help">跳过开场：启动时游戏直接进入标题菜单，不显示标志和健康警告（下次启动起生效）。</string>
     <string name="ingame_fps_bottom_left">左下</string>
     <string name="ingame_fps_bottom_centre">下方居中</string>
     <string name="ingame_fps_top_left">左上</string>

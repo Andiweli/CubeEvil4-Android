@@ -42,6 +42,8 @@
     <string name="ingame_hud_hz">هرتز الشاشة</string>
     <string name="ingame_hud_time">س:د:ث منذ بدء اللعبة</string>
     <string name="ingame_hud_help">س:د:ث هو وقت اللعب الخاص باللعبة، ويحتفظ به كل حفظ كما على GameCube. الوقت في هذه القائمة أو في الخلفية لا يُحتسب.</string>
+    <string name="ingame_skip_intro">&#x200F;تخطي المقدمة</string>
+    <string name="ingame_skip_intro_help">&#x200F;تخطي المقدمة: عند البدء تنتقل اللعبة مباشرةً إلى قائمة العنوان، دون الشعارات وتحذير الصحة (من التشغيل التالي).</string>
     <string name="ingame_fps_bottom_left">أسفل اليسار</string>
     <string name="ingame_fps_bottom_centre">أسفل الوسط</string>
     <string name="ingame_fps_top_left">أعلى اليسار</string>

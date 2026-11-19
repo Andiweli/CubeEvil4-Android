@@ -47,6 +47,8 @@
     <string name="ingame_hud_hz">Display Hz</string>
     <string name="ingame_hud_time">H:M:S since game start</string>
     <string name="ingame_hud_help">H:M:S is the game\'s own play time, kept in every save as on the GameCube. Time in this menu or in the background does not count.</string>
+    <string name="ingame_skip_intro">Skip intro</string>
+    <string name="ingame_skip_intro_help">Skip intro: at the start the game goes straight to its title menu, without the logos and the health warning (from the next start).</string>
     <string name="ingame_fps_bottom_left">Bottom left</string>
     <string name="ingame_fps_bottom_centre">Bottom centre</string>
     <string name="ingame_fps_top_left">Top left</string>

@@ -153,6 +153,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars, 5 Native). */
   static final String GRAPHICS_PREFS = "core_graphics";
+  /** "Skip intro" (1.1.0, GRAPHICS_PREFS): the game's logos before the title menu are left out (RE4_SKIP_INTRO=1). */
+  static final String SKIP_INTRO = "skipIntro";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
@@ -348,6 +350,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
       Log.i(TAG, "game language: " + gameLanguageNow);
+    }
+    // "Skip intro" (1.1.0): the core goes from the memory card check straight to the title menu (runtime/title_skip,
+    // patch 0242); a test script's setting wins
+    if (!settings.contains("RE4_SKIP_INTRO=")
+        && getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(SKIP_INTRO, false)) {
+      coreSettings += ";RE4_SKIP_INTRO=1";
+      Log.i(TAG, "skip intro: on (the game's logos before the title menu are left out)");
     }
     // the app's own folder (on the shared storage, else internal), where test switches write (RE4_AUDIO_WAV)
     AppStorage.base(this);

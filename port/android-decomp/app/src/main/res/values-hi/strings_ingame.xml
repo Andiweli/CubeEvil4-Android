@@ -38,6 +38,8 @@
     <string name="ingame_hud_hz">डिस्प्ले Hz</string>
     <string name="ingame_hud_time">घं:मि:से गेम शुरू होने से</string>
     <string name="ingame_hud_help">घं:मि:से गेम का अपना खेल-समय है, जिसे हर सेव रखता है, जैसे GameCube पर। इस मेनू में या बैकग्राउंड में बिताया समय नहीं गिना जाता।</string>
+    <string name="ingame_skip_intro">इंट्रो छोड़ें</string>
+    <string name="ingame_skip_intro_help">इंट्रो छोड़ें: शुरू होते ही गेम सीधे टाइटल मेनू पर जाता है, लोगो और स्वास्थ्य चेतावनी के बिना (अगली शुरुआत से)।</string>
     <string name="ingame_fps_bottom_left">नीचे बाएँ</string>
     <string name="ingame_fps_bottom_centre">नीचे बीच में</string>
     <string name="ingame_fps_top_left">ऊपर बाएँ</string>
