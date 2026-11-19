@@ -410,6 +410,9 @@
     <string name="ingame_cheat_section_player">Joueur</string>
     <string name="ingame_cheat_section_weapons">Armes</string>
     <string name="ingame_cheat_section_game">Général et inventaire</string>
+    <string name="ingame_cheat_section_world">Ennemis et environnement</string>
+    <string name="ingame_health_bars">Barres de vie des ennemis</string>
+    <string name="ingame_health_bars_help">Barres de vie des ennemis : une petite barre au-dessus de chaque ennemi montre sa santé (verte, jaune sous un quart, rouge sous un dixième) ; pas dans les cinématiques ni les menus.</string>
     <string name="ingame_dof_light">Léger</string>
     <string name="ingame_dof_strong">Fort</string>
     <string name="ingame_player_view">Vue du joueur</string>

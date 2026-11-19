@@ -996,6 +996,8 @@ std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFar
 // the menu's "Vibration" not Off (CoreBridge.setGameVibration, 1.1.0): bits 4/5 of the aim bits, the game's own
 // vibration switch follows it (runtime/aim_options.cpp); -1 before the app sent it (bit 5 clear)
 std::atomic<int> optGameVibration{-1};
+// the menu's "Enemy health bars" (CoreBridge.setHealthBars, 1.1.0): bit 20 of the aim bits (runtime/health_bars.cpp)
+std::atomic<int> optHealthBars{0};
 // the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
 // degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
 std::atomic<int> optFov{0};
@@ -2658,6 +2660,7 @@ bool drawGx() {
     const int vibration = optGameVibration.load();
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
                     | (vibration < 0 ? 0 : vibration ? 0x30 : 0x20)  // bits 4/5 the game's vibration (1.1.0)
+                    | (optHealthBars.load() ? 1 << 20 : 0)            // bit 20 the enemy health bars (1.1.0)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
@@ -3684,6 +3687,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGameVibra
 // process always -1).
 extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(JNIEnv *, jclass) {
   return api.aimFromGame ? api.aimFromGame() : -1;
+}
+
+// The menu's "Enemy health bars" (1.1.0, Cheats & Mods): drawGx tells the core (bit 20 of the aim bits).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setHealthBars(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optHealthBars.exchange(want) != want) LOG("health bars: %s (the menu)", want ? "on" : "off");
 }
 
 // 1.1.0: "vibration" changed in the game's own options since the last call (-1: no; with the core in its own

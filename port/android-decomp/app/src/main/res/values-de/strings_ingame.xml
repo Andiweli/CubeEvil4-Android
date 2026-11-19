@@ -405,6 +405,9 @@
     <string name="ingame_cheat_section_player">Spieler</string>
     <string name="ingame_cheat_section_weapons">Waffen</string>
     <string name="ingame_cheat_section_game">Allgemein und Inventar</string>
+    <string name="ingame_cheat_section_world">Gegner und Umgebung</string>
+    <string name="ingame_health_bars">Lebensbalken bei Gegnern</string>
+    <string name="ingame_health_bars_help">Lebensbalken bei Gegnern: Ein kleiner Balken über jedem Gegner zeigt seine Gesundheit (grün, unter einem Viertel gelb, unter einem Zehntel rot); nicht in Zwischensequenzen und Menüs.</string>
     <string name="ingame_dof_light">Leicht</string>
     <string name="ingame_dof_strong">Stark</string>
     <string name="ingame_player_view">Spielersicht</string>

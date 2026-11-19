@@ -405,6 +405,9 @@
     <string name="ingame_cheat_section_player">खिलाड़ी</string>
     <string name="ingame_cheat_section_weapons">हथियार</string>
     <string name="ingame_cheat_section_game">सामान्य और इन्वेंटरी</string>
+    <string name="ingame_cheat_section_world">दुश्मन और माहौल</string>
+    <string name="ingame_health_bars">दुश्मनों की हेल्थ बार</string>
+    <string name="ingame_health_bars_help">दुश्मनों की हेल्थ बार: हर दुश्मन के ऊपर एक छोटी पट्टी उसकी सेहत दिखाती है (हरी, एक चौथाई से कम पर पीली, दसवें हिस्से से कम पर लाल); कटसीन और मेनू में नहीं।</string>
     <string name="ingame_dof_light">हल्का</string>
     <string name="ingame_dof_strong">तेज़</string>
     <string name="ingame_player_view">खिलाड़ी का दृश्य</string>

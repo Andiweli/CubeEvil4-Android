@@ -403,6 +403,9 @@
     <string name="ingame_cheat_section_player">玩家</string>
     <string name="ingame_cheat_section_weapons">武器</string>
     <string name="ingame_cheat_section_game">通用与物品栏</string>
+    <string name="ingame_cheat_section_world">敌人与环境</string>
+    <string name="ingame_health_bars">敌人血条</string>
+    <string name="ingame_health_bars_help">敌人血条：每个敌人头上的小条显示其生命值（绿色，低于四分之一为黄色，低于十分之一为红色）；过场动画和菜单中不显示。</string>
     <string name="ingame_dof_light">轻度</string>
     <string name="ingame_dof_strong">强烈</string>
     <string name="ingame_player_view">玩家视角</string>

@@ -408,6 +408,9 @@
     <string name="ingame_cheat_section_player">Jugador</string>
     <string name="ingame_cheat_section_weapons">Armas</string>
     <string name="ingame_cheat_section_game">General e inventario</string>
+    <string name="ingame_cheat_section_world">Enemigos y entorno</string>
+    <string name="ingame_health_bars">Barras de vida de enemigos</string>
+    <string name="ingame_health_bars_help">Barras de vida de enemigos: una pequeña barra sobre cada enemigo muestra su salud (verde, amarilla por debajo de un cuarto, roja por debajo de una décima parte); no en escenas ni menús.</string>
     <string name="ingame_dof_light">Suave</string>
     <string name="ingame_dof_strong">Fuerte</string>
     <string name="ingame_player_view">Vista del jugador</string>

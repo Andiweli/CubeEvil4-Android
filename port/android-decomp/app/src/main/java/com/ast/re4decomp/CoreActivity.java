@@ -161,6 +161,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String LEON_JACKET = "leonJacket";
   /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
   static final String ENEMY_SEED = "enemySeed";
+  /** "Enemy health bars" (1.1.0, GAME_PREFS; CoreBridge.setHealthBars): off by default. */
+  static final String HEALTH_BARS = "enemyHealthBars";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
       REQUEST_EXPORT_ZIP = 6;
   // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
@@ -517,6 +519,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       int enemySeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(ENEMY_SEED, 0);
       if (enemySeed != 0) Log.i(TAG, "cheats: random enemies with seed " + enemySeed);
       CoreBridge.setEnemyRandom(enemySeed);
+      boolean bars = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(HEALTH_BARS, false);
+      if (bars) Log.i(TAG, "enemy health bars on");
+      CoreBridge.setHealthBars(bars);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -1208,6 +1213,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(ENEMY_SEED, seed).apply();
       Log.i(TAG, "cheats: random enemies " + (seed != 0 ? "on with seed " + seed : "off"));
       CoreBridge.setEnemyRandom(seed);
+    }
+
+    @Override public void healthBarsChanged(boolean on) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putBoolean(HEALTH_BARS, on).apply();
+      Log.i(TAG, "enemy health bars " + (on ? "on" : "off"));
+      CoreBridge.setHealthBars(on);
     }
 
     @Override public void restartGame() {

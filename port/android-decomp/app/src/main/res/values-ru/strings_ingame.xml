@@ -411,6 +411,9 @@
     <string name="ingame_cheat_section_player">Игрок</string>
     <string name="ingame_cheat_section_weapons">Оружие</string>
     <string name="ingame_cheat_section_game">Общее и инвентарь</string>
+    <string name="ingame_cheat_section_world">Враги и окружение</string>
+    <string name="ingame_health_bars">Полоски здоровья врагов</string>
+    <string name="ingame_health_bars_help">Полоски здоровья врагов: небольшая полоска над каждым врагом показывает его здоровье (зелёная, жёлтая ниже четверти, красная ниже десятой части); не в роликах и меню.</string>
     <string name="ingame_dof_light">Слабая</string>
     <string name="ingame_dof_strong">Сильная</string>
     <string name="ingame_player_view">Вид игрока</string>

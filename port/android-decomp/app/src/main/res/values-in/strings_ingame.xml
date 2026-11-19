@@ -401,6 +401,9 @@
     <string name="ingame_cheat_section_player">Pemain</string>
     <string name="ingame_cheat_section_weapons">Senjata</string>
     <string name="ingame_cheat_section_game">Umum &amp; inventaris</string>
+    <string name="ingame_cheat_section_world">Musuh dan lingkungan</string>
+    <string name="ingame_health_bars">Bar nyawa musuh</string>
+    <string name="ingame_health_bars_help">Bar nyawa musuh: bar kecil di atas setiap musuh menunjukkan nyawanya (hijau, kuning di bawah seperempat, merah di bawah sepersepuluh); tidak di adegan dan menu.</string>
     <string name="ingame_dof_light">Ringan</string>
     <string name="ingame_dof_strong">Kuat</string>
     <string name="ingame_player_view">Pandangan Pemain</string>

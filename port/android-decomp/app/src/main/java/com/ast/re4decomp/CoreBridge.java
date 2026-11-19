@@ -138,6 +138,8 @@ public final class CoreBridge {
   public static native void setGameVibration(boolean on);
   /** The game's own options changed "vibration" since the last call (1.1.0): -1, else 0 / 1. */
   public static native int vibrationFromGame();
+  /** "Enemy health bars" (1.1.0, Cheats & Mods): a bar above each living enemy (runtime/health_bars.cpp). */
+  public static native void setHealthBars(boolean on);
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
    *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
    *  off; the core's runtime/potato.cpp). */

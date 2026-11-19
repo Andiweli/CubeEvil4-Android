@@ -140,6 +140,8 @@ final class CoreMenu extends Dialog {
     /** The cheat "Random enemies" (0.99.12): a new seed each time it goes on, 0 off (CoreActivity.ENEMY_SEED holds
      *  it). */
     void enemyRandomChanged(int seed);
+    /** "Enemy health bars" (1.1.0, ENEMIES AND WORLD; CoreActivity.HEALTH_BARS holds it). */
+    void healthBarsChanged(boolean on);
     /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games, 5..9 weapons), off the main thread:
      *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
@@ -1988,6 +1990,12 @@ final class CoreMenu extends Dialog {
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
+    // ENEMIES AND WORLD (1.1.0, wish of the project owner, 19.11.2026): "Enemy health bars", off by default
+    heading(R.string.ingame_cheat_section_world);
+    MenuLayout.Buttons world = cheatRow(2);
+    toggle(world, R.string.ingame_health_bars, game.getBoolean(CoreActivity.HEALTH_BARS, false),
+        on -> host.healthBarsChanged(on));
+    help(R.string.ingame_health_bars_help);
     help(R.string.ingame_cheats_help);
     help(R.string.ingame_cheat_random_items_help);
     help(R.string.ingame_cheat_random_enemies_help);

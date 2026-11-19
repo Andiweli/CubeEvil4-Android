@@ -70,6 +70,31 @@ Nächste freie Patch-Nummer: 0238.
   Auto gewählt), Übersetzungen ok (483 Texte). **Nicht geprüft:** mit einem echten Controller-Gyro (am PC unmöglich);
   die Richtungen (Vorzeichen) muss ein DualSense-Tester mit dem Protokoll bestätigen.
 
+### 4. Lebensbalken bei Gegnern (Wunsch des Projektinhabers, 19.11.2026; Vorbild RE4-Remake, Patch 0238)
+
+- Menü: Cheats und Mods, neuer Abschnitt **GEGNER UND UMGEBUNG** direkt nach ALLGEMEIN UND INVENTAR, Schalter
+  „Lebensbalken bei Gegnern“ (aus; `GAME_PREFS` `enemyHealthBars`), Hilfe; 3 Texte in 11 Sprachen (486 Texte).
+  `CoreBridge.setHealthBars` → `core_mode.cpp` Bit 20 der Ziel-Bits → `runtime/aim_options.cpp` →
+  `re4_health_bars_set` (auch mit dem Kern im eigenen Prozess, der die Ziel-Bits weitergibt).
+- **Patch 0238** (`src/game/game.cpp`, nach `Cckpt.move()`): ruft je Spielbild `runtime/health_bars.cpp`. Dort für
+  jeden lebenden Gegner (ids 0x10–0x3F ohne Händler 0x18, Dorfhund 0x21, Krähen 0x23, Fisch 0x27, Hühner 0x28, Fallen
+  0x2A, Lastwagen/Loren 0x3B, Hilfshubschrauber 0x3D, Schießstand-Ziele 0x3E; nie Spieler oder Partner; hp > 0,
+  `isTrans`) ein Balken 25 cm über dem höchsten Teil des Modells, darüber gemittelt; Breite nach Abstand (14–44 von 512),
+  bis 30 m, vor der Kamera, im Bild, freie Linie (Raum-Kollision) von der Kamera; liegt der Kopf über dem Bildrand
+  (Boss direkt davor), am oberen Rand. Gesundheit `hp / hp_max`, ohne `hp_max` das höchste gesehene hp. Grün > 25 %,
+  gelb ≤ 25 %, rot ≤ 10 %. Nicht bei `STA_EVENT`, `STA_SUB_SCRN`, `SYS_TRANS_STOP`, `SYS_DOORDEMO`, Film, `Rno0` ≠ 3.
+- Gezeichnet über einen Eintrag in der HUD-Tabelle 0x13 (die `otType` der Cockpit-Einheiten) an ihrer höchsten Stelle,
+  die die Tabelle zuerst ausführt: nach Welt, Effekten und Bildfiltern (0x12, Tiefenunschärfe), vor dem HUD. GX wie
+  das Spiel selbst (`Draw_tile`-Art: Ortho über den Viewport, Vertexfarben, Mischen, keine Tiefe), also GLES, Vulkan,
+  HD-Pakete gleich. Logzeilen „health bars: …“ (jeder Gegner einmal, alle 300 Bilder: wie viele gezeigt/weggelassen).
+  Testhilfe `RE4_TEST_HB_HP="F:HP,..."` (k-ter nächster Gegner bekommt Leben HP).
+- **Geprüft am PC** (`wt-hb_run.sh`, `wt-hb_shots.sh`; Bilder `builds\workthread-1.1.0\healthbars-*.png`, GLES und
+  Vulkan/lavapipe): r208 Burg (Debug und EU, grün/gelb/rot), r101 Dorf-Belagerung (keine Balken in der Zwischensequenz,
+  im Handbuch-Menü, hinter dem vernagelten Fenster, auf dem Todesbildschirm; Balken über den Köpfen, sobald sie
+  hereinkommen, auch beim Packen), r332 Endboss (hp 8000/8000, Balken im Kampf, keiner in der Szene), Boss-Räume r10b,
+  r119, r11e, r11f, r221, r224, r228, r31b, r31c (Log). i686 und Android-Kern (beide ABIs) bauen, App-Tests grün.
+  **Nicht geprüft:** auf einem Gerät; 60 FPS mit Zwischenbildern (die Balken sind 2D wie das HUD).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

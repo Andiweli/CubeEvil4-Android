@@ -422,6 +422,9 @@
     <string name="ingame_cheat_section_player">اللاعب</string>
     <string name="ingame_cheat_section_weapons">الأسلحة</string>
     <string name="ingame_cheat_section_game">عام والمخزون</string>
+    <string name="ingame_cheat_section_world">&#x200F;الأعداء والبيئة</string>
+    <string name="ingame_health_bars">&#x200F;أشرطة صحة الأعداء</string>
+    <string name="ingame_health_bars_help">&#x200F;أشرطة صحة الأعداء: شريط صغير فوق كل عدو يُظهر صحته (أخضر، وأصفر تحت الربع، وأحمر تحت العُشر)؛ لا يظهر في المشاهد السينمائية والقوائم.</string>
     <string name="ingame_dof_light">خفيف</string>
     <string name="ingame_dof_strong">قوي</string>
     <string name="ingame_player_view">رؤية اللاعب</string>

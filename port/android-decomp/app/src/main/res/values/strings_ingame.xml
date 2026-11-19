@@ -423,6 +423,9 @@
     <string name="ingame_cheat_section_player">Player</string>
     <string name="ingame_cheat_section_weapons">Weapons</string>
     <string name="ingame_cheat_section_game">General &amp; inventory</string>
+    <string name="ingame_cheat_section_world">Enemies and world</string>
+    <string name="ingame_health_bars">Enemy health bars</string>
+    <string name="ingame_health_bars_help">Enemy health bars: a small bar above each enemy shows its health (green, yellow below a quarter, red below a tenth); not in cutscenes and menus.</string>
     <string name="ingame_dof_light">Light</string>
     <string name="ingame_dof_strong">Strong</string>
     <string name="ingame_player_view">Player View</string>

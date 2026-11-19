@@ -1,0 +1,15 @@
+# Port patch (1.1.0, wish of the project owner, 19.11.2026): enemy health bars, the app menu's Cheats & Mods,
+# ENEMIES AND WORLD, "Enemy health bars" (off by default). Once a game frame, right after the HUD's move, when the
+# frame's ordering tables are filled, runtime/health_bars.cpp queues a bar above each living enemy into the HUD's
+# own table (0x13, before its units). Off: it returns at once, as the game.
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -736,6 +736,8 @@
+     }
+     LightAreaUpdate();
+     Cckpt.move();
++    extern void re4_health_bars_call(); /* port (patch 0238): runtime/health_bars.cpp, enemy health bars */
++    re4_health_bars_call();
+     if (!FlagChkSign(pG->Debug_flg, DBG_TEST_MODE)) {
+         SubScreenCall();
+     }
