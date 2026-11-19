@@ -121,6 +121,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
   // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
   static final String GYRO_INVERT_V = "gyroInvertVertical", GYRO_INVERT_H = "gyroInvertHorizontal";
+  // the menu's "Gyro from" (GyroAim.setSource, 1.1.0): Auto (a controller's own gyroscope first), Device, Controller
+  static final String GYRO_SOURCE = "gyroSource";
   // the menu's switch "Knife by Swipe" (watchTap: a swipe while playing draws the knife and slashes; on)
   static final String KNIFE_SWIPE = "knifeSwipe";
   // the menu's "Invert vertical" and "Aim speed" of aiming by touch and controllers, not the gyro (wish of the
@@ -447,6 +449,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       });
     }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
+    gyroAim.setSource(inputPrefs.getInt(GYRO_SOURCE, GyroAim.SOURCE_AUTO));
+    gyroAim.setController(lastPad >= 0 ? InputDevice.getDevice(lastPad) : null);
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
@@ -1046,6 +1050,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     @Override public void gyroChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(GYRO_AIM, on).apply();
       gyroAim.setEnabled(on);
+    }
+
+    @Override public void gyroSourceChanged(int source) {
+      int s = GyroAim.clampSource(source);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(GYRO_SOURCE, s).apply();
+      gyroAim.setSource(s);
     }
 
     @Override public void latchChanged(boolean on) {
@@ -2853,6 +2863,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     padMotors = null;
     padAmplitude = false;
     InputDevice d = lastPad >= 0 ? InputDevice.getDevice(lastPad) : null;
+    // the gyro aiming's controller too (1.1.0): its own gyroscope, when it has one
+    if (gyroAim != null) gyroAim.setController(d);
     VibratorManager m = null;
     int motors = 0;
     boolean amplitude = true, external = false;

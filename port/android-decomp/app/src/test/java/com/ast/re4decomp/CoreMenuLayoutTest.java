@@ -409,6 +409,12 @@ public class CoreMenuLayoutTest {
       assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
       assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
+      // "Gyro from" (1.1.0): Auto, Device, Controller under the directions, Auto chosen
+      Button gyroDevice = findButton((ViewGroup) body.getChildAt(rowIndex(gyroInvert, body) + 1),
+          activity.getString(R.string.ingame_vibration_device));
+      assertNotNull("gyro from under the directions", gyroDevice);
+      assertEquals(3, ((ViewGroup) gyroDevice.getParent()).getChildCount());
+      assertTrue("gyro from Auto", ((Button) ((ViewGroup) gyroDevice.getParent()).getChildAt(0)).isSelected());
       // then the comfort controls: under the latches "Auto aim" with "Always run", then "Invert vertical" with
       // "Aim speed", then touch aiming
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
@@ -428,7 +434,13 @@ public class CoreMenuLayoutTest {
       assertEquals(0, ((android.widget.SeekBar) deadZone).getProgress());
       assertEquals(10, ((android.widget.SeekBar) range).getMax());
       assertEquals(10, ((android.widget.SeekBar) range).getProgress());
-      Button device = findButton(body, activity.getString(R.string.ingame_vibration_device));
+      // the vibration's "Device" below the controller heading ("Gyro from" above has one too, 1.1.0)
+      Button device = null;
+      for (int i = devices + 1; device == null && i < body.getChildCount(); i++) {
+        if (body.getChildAt(i) instanceof ViewGroup) {
+          device = findButton((ViewGroup) body.getChildAt(i), activity.getString(R.string.ingame_vibration_device));
+        }
+      }
       assertNotNull(device);
       assertEquals(4, ((ViewGroup) device.getParent()).getChildCount());
       assertTrue("Auto chosen", ((Button) ((ViewGroup) device.getParent()).getChildAt(0)).isSelected());

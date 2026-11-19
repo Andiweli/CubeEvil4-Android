@@ -52,6 +52,24 @@ Nächste freie Patch-Nummer: 0238.
   **Nicht geprüft:** auf einem Gerät; die Fälle getragen/gefangen/versteckt (am PC nicht nachgestellt, die Bedingungen
   sind die des Spiels selbst).
 
+### 3. Gyro-Zielen mit dem Gyrosensor des Controllers (Wahl des Projektinhabers „Gyro A“, 19.11.2026)
+
+- Anlass: DualSense-Nutzer (Bericht wie Abschnitt 1). Android meldet beim DualSense die Quelle „Sensor“
+  (sources 0x0510251b enthält 0x04000000). Ab Android 12 liest `InputDevice.getSensorManager()` die Sensoren eines
+  Controllers (wie Dolphin).
+- `GyroAim`: zweite Quelle, der Gyrosensor des zuletzt benutzten Controllers (`setController` aus
+  `CoreActivity.chooseRumble`, also bei Start, Controllerwechsel, Entfernen). Menü „Gyro von“ (Steuerung, unter den
+  Invertier-Schaltern; `ingame_gyro_source` + Hilfe in 11 Sprachen, Knöpfe „Auto/Gerät/Controller“ aus den
+  vorhandenen Texten): Auto = Controller, wenn er einen hat, sonst das Gerät; Einstellung `gyroSource`. Achsen des
+  Controllers ohne Bildschirmdrehung (x = hoch/runter, y = links/rechts, z unbenutzt), sonst alles wie bisher:
+  Empfindlichkeit, Invertieren, Filter, wirkt im Kern nur beim Zielen. „Gyro-Zielen“ ist jetzt auch ohne Gyrosensor im
+  Gerät schaltbar, wenn ein Controller einen hat.
+- Fehlerprotokoll für Tester: „gyro aiming: controller "…" has a gyroscope: …“, „listening to the controller …“,
+  die ersten 5 Messwerte und bis zu 12 deutliche Drehungen („mostly x/y/z, positive/negative“).
+- **Geprüft:** App baut, 228 App-Tests grün (CoreMenuLayoutTest: die Zeile „Gyro von“ unter den Richtungen, drei Knöpfe,
+  Auto gewählt), Übersetzungen ok (483 Texte). **Nicht geprüft:** mit einem echten Controller-Gyro (am PC unmöglich);
+  die Richtungen (Vorzeichen) muss ein DualSense-Tester mit dem Protokoll bestätigen.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

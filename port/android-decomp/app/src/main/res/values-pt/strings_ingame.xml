@@ -116,6 +116,8 @@
     <string name="ingame_gyro_sensitivity">Sensibilidade do giroscópio</string>
     <string name="ingame_gyro_invert_v">Inverter vertical</string>
     <string name="ingame_gyro_invert_h">Inverter horizontal</string>
+    <string name="ingame_gyro_source">Giroscópio de</string>
+    <string name="ingame_gyro_source_help">Giroscópio de: Auto usa o giroscópio do controle com que você joga, se ele tiver um (por exemplo DualSense ou DualShock 4; Android 12 ou superior); senão, o deste aparelho. Aparelho ou Controle usa sempre esse. O giroscópio só mira enquanto Leon ergue uma arma.</string>
     <string name="ingame_alternate_help">Controles alternativos: L1 = Faca, L2 = Mirar (com o analógico direito), R1 = Inventário (Armas/Cura), R2 = Atirar / usar a faca, Y = Mapa. A, B, X (Ashley) e START como antes. Luneta do rifle: analógico esquerdo para cima/baixo dá zoom.</string>
     <string name="ingame_knife_swipe">Faca ao deslizar</string>
     <string name="ingame_knife_swipe_help">Faca ao deslizar: um deslize rápido sobre a imagem saca a faca e golpeia; deslize para cima ou para baixo para golpear alto ou baixo.</string>

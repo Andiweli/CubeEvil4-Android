@@ -116,6 +116,8 @@
     <string name="ingame_gyro_sensitivity">Sensitivitas giroskop</string>
     <string name="ingame_gyro_invert_v">Balik vertikal</string>
     <string name="ingame_gyro_invert_h">Balik horizontal</string>
+    <string name="ingame_gyro_source">Giroskop dari</string>
+    <string name="ingame_gyro_source_help">Giroskop dari: Otomatis memakai giroskop controller yang kamu pakai bermain jika ada (misalnya DualSense atau DualShock 4; Android 12 ke atas), jika tidak memakai milik perangkat ini. Perangkat atau Controller selalu memakai yang itu. Giroskop tetap hanya membidik saat Leon mengangkat senjata.</string>
     <string name="ingame_alternate_help">Kontrol Alternatif: L1 = Pisau, L2 = Bidik (bidik dengan stik kanan), R1 = Inventaris (Senjata/Pemulihan), R2 = Tembak / gunakan pisau, Y = Peta. A, B, X (Ashley) dan START seperti sebelumnya. Teropong senapan: stik kiri ke atas/bawah untuk zoom.</string>
     <string name="ingame_knife_swipe">Pisau dengan Usapan</string>
     <string name="ingame_knife_swipe_help">Pisau dengan Usapan: usapan cepat melintasi gambar mencabut pisau dan menebas; usap ke atas atau ke bawah untuk menebas tinggi atau rendah.</string>

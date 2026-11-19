@@ -74,6 +74,8 @@ final class CoreMenu extends Dialog {
     void touchLookChanged(int look);
     /** The switch "Use Gyro-Aiming" (the preferences hold it). */
     void gyroChanged(boolean on);
+    /** "Gyro from" (1.1.0): GyroAim.SOURCE_AUTO / _DEVICE / _CONTROLLER (the preferences hold it). */
+    void gyroSourceChanged(int source);
     /** The switch "Alternate Controls" (the preferences hold it). */
     void alternateChanged(boolean on);
     /** The button mapping of the controller or the keyboard (ActionMap.kind); the host keeps it. */
@@ -1140,11 +1142,13 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_motion);
     boolean gyro = GyroAim.available(getContext()), gyroOn = gyro && input.getBoolean(CoreActivity.GYRO_AIM, false);
     Button[] invert = new Button[2];
+    Button[][] sources = new Button[1][];
     View[][] sensitivity = new View[1][];
     sensitivity[0] = switchWithSlider(gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, gyroOn, enabled -> {
       host.gyroChanged(enabled);
       sensitivity[0][1].setEnabled(enabled); sensitivity[0][2].setEnabled(enabled);
       for (Button b : invert) b.setEnabled(enabled);
+      if (sources[0] != null) for (Button b : sources[0]) b.setEnabled(enabled);
     }, R.string.ingame_gyro_sensitivity, GyroAim.MIN_SENSITIVITY, GyroAim.MAX_SENSITIVITY, GyroAim.SENSITIVITY_STEP,
         GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f)), value -> host.gyroSensitivityChanged(value));
     sensitivity[0][0].setEnabled(gyro);
@@ -1156,6 +1160,14 @@ final class CoreMenu extends Dialog {
     invert[1] = toggle(directions, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
         value -> host.gyroInvertChanged(false, value));
     for (Button b : invert) b.setEnabled(gyroOn);
+    // "Gyro from" (1.1.0, the project owner's choice "Gyro A"): this device's gyroscope or a controller's own
+    sources[0] = quarterChoices(R.string.ingame_gyro_source, new String[] {s(R.string.ingame_touch_auto),
+        s(R.string.ingame_vibration_device), s(R.string.ingame_vibration_controller)},
+        new int[] {GyroAim.SOURCE_AUTO, GyroAim.SOURCE_DEVICE, GyroAim.SOURCE_CONTROLLER},
+        GyroAim.clampSource(input.getInt(CoreActivity.GYRO_SOURCE, GyroAim.SOURCE_AUTO)),
+        value -> host.gyroSourceChanged(value));
+    for (Button b : sources[0]) b.setEnabled(gyroOn);
+    help(R.string.ingame_gyro_source_help);
     heading(R.string.ingame_comfort);
     MenuLayout.Buttons first = buttonsRow(body);
     toggle(first, R.string.ingame_alternate, input.getBoolean(CoreActivity.ALT_CONTROLS, false), on -> host.alternateChanged(on));
