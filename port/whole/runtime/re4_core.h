@@ -298,7 +298,7 @@ void re4_core_quick_reload(void);
 /* 1.1.0 (runtime/photo_mode.cpp, patch 0243): photo mode. op 1 enter with `mask` (1 HUD, 2 Leon, 4 the partner,
  * 8 the enemies hidden), 0 leave, 2 the mask alone; the chunks say whether it is on (RE4_GX_CHUNK_PHOTO) or was
  * refused (RE4_GX_CHUNK_PHOTO_REFUSED). re4_core_photo_input: the free camera's input while it is on (a: move x,
- * move z, rise, turn as s8 from the low byte; b: tilt s8, speed byte 0 normal 1 slow 2 fast, bit 16 back to the
+ * move z, rise, turn as s8 from the low byte; b: tilt s8, speed byte 0 normal 1 slow 2 fast, bits 17-20 the camera effect (0 normal, 1 wide, 2 tele, 3 dolly zoom, 4 Dutch angle, 5 orbit), bit 16 back to the
  * start; c: turn and tilt deltas, s16 each in 1/8192 rad, added once). Any thread. */
 void re4_core_photo_mode(int op, int mask);
 void re4_core_photo_input(int a, int b, int c);

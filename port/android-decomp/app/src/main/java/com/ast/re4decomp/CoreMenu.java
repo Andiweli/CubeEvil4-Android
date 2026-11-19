@@ -146,6 +146,10 @@ final class CoreMenu extends Dialog {
     void healthBarsChanged(boolean on);
     /** "More enemies" (1.1.0, ENEMIES AND WORLD): a new seed each time it goes on, 0 off (CoreActivity.MORE_ENEMIES). */
     void moreEnemiesChanged(int seed);
+    /** "Photo mode" switched on and photo mode not on yet: the header's button starts it (1.1.0, the way on touch). */
+    default boolean photoAvailable() { return false; }
+    /** The header's "Photo mode": the menu closes, photo mode comes. */
+    default void startPhotoMode() { }
     /** A cheat button (1 Killer7, 2 attache case L, 3 money, 4 extra games, 5..9 weapons), off the main thread:
      *  CoreBridge.cheatAction's answer. */
     int cheatAction(int what);
@@ -258,11 +262,22 @@ final class CoreMenu extends Dialog {
     // until GitHub answered
     update = button(s(R.string.ingame_update), v -> { if (host != null) host.openUpdate(); });
     update.setVisibility(View.GONE);
+    // "Photo mode" left of them (1.1.0, the owner's second device test of 19.11.2026): with the option on, the way into
+    // photo mode on touch (L3 and P on a controller and a keyboard); not while photo mode is on already
+    Button photoStart = button(s(R.string.ingame_photo_start), v -> {
+      if (host == null) return;
+      dismiss();
+      host.startPhotoMode();
+    });
+    photoStart.setVisibility(host != null && host.photoAvailable() ? View.VISIBLE : View.GONE);
     LinearLayout actions = row();
     LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
         ViewGroup.LayoutParams.WRAP_CONTENT);
     gap.setMarginEnd(dp(8));
-    actions.addView(update, gap); actions.addView(resume);
+    LinearLayout.LayoutParams gap2 = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT);
+    gap2.setMarginEnd(dp(8));
+    actions.addView(photoStart, gap2); actions.addView(update, gap); actions.addView(resume);
     // the installed version left of them, small, with some room (the project owner, 15.11.2026, "wie in der OUYA
     // Version links vom Button"; until 0.99.17 in brackets after the start page's title): "v0.99.18-rc", also while the
     // update button is hidden (no internet); MenuLayout.Header places it (under the buttons where a narrow window
@@ -1086,11 +1101,12 @@ final class CoreMenu extends Dialog {
     // werden sondern sofort das Menu"): the game's logos before the title menu, from the next start (RE4_SKIP_INTRO)
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_skip_intro,
         graphics.getBoolean(CoreActivity.SKIP_INTRO, false), on -> graphics.edit().putBoolean(CoreActivity.SKIP_INTRO, on).apply());
-    help(R.string.ingame_skip_intro_help);
-    // "Photo mode" (1.1.0, wish of the project owner, 19.11.2026): SELECT twice (F1, MENU on touch) freezes the game
-    // and frees the camera (PhotoMode); with it on a single SELECT opens this menu a moment later
+    // "Photo mode" (1.1.0, wish of the project owner, 19.11.2026): L3, the keyboard's P or this menu's button freeze the
+    // game and free the camera (PhotoMode); right under "Skip intro", the help texts of both below them (the owner's
+    // second device test: "direkt unter dem darüberliegenden Button, ohne Zwischentext")
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_photo_mode,
         graphics.getBoolean(CoreActivity.PHOTO_MODE, false), on -> graphics.edit().putBoolean(CoreActivity.PHOTO_MODE, on).apply());
+    help(R.string.ingame_skip_intro_help);
     help(R.string.ingame_photo_mode_help);
   }
   /** One of the Information HUD's check boxes (InfoHud): on until cleared, the HUD takes it at once. */

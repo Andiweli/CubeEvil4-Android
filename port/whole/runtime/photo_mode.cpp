@@ -11,8 +11,11 @@
 //  - The free camera (pG->Camera, its whole CAMERA saved and put back): it starts where the game's camera is, the
 //    app's input moves it (controller: left stick forward, back, sideways, right stick turns and tilts, the D-pad up
 //    and down since the owner's device test of 19.11.2026; the mouse turns and tilts); slow
-//    and fast; it stays within kRange of Leon and inside the world: the game's camera and sight collision stop it at
-//    walls, floors and ceilings (it slides along them), and it never goes where no floor is below.
+//    and fast; it stays inside the world (since the owner's second device test of 19.11.2026 anywhere in the room, no
+//    leash to Leon): the game's camera and sight collision stop it at walls, floors and ceilings (it slides along
+//    them), and it never goes where no floor is below. Camera effects (the app's L and R): normal, wide angle,
+//    telephoto, dolly zoom (the field of view follows the distance to Leon, so he keeps his size), Dutch angle (a
+//    tilted horizon), orbit (it circles Leon slowly, looking at him).
 //  - Hidden on request (mask): 1 the HUD (Disp_flg: cockpit, the IdSys units, messages, the action prompts), 2 Leon
 //    (and his weapons), 4 the partner, 8 the enemies (the ids the health bars list, runtime/health_bars.cpp: no
 //    merchant, animals, traps, vehicles). A figure is hidden by its be_flag bit 1 (setTrans(0)): the game then neither
@@ -56,7 +59,7 @@ extern "C" void re4_log(const char* fmt, ...);
 extern "C" int re4_movie_playing(void);  // runtime/movie_status.cpp
 extern "C" void re4_gx_photo(int on, int refused);  // runtime/gx_decode.cpp
 extern "C" void re4_sound_volume_mute(int on);  // runtime/sound_volume.cpp
-bool re4_hb_enemy_id(int id);  // runtime/health_bars.cpp
+bool re4_hb_enemy(const cEm* e);  // runtime/health_bars.cpp
 void re4_health_bars_call();   // runtime/health_bars.cpp (drawn with the HUD)
 
 namespace {
@@ -67,7 +70,7 @@ constexpr f32 kDt = 1.0f / 30.0f;      // a game frame
 constexpr f32 kMove = 2200.0f;         // units (mm) a second at full stick
 constexpr f32 kTurn = 1.75f;           // radians a second
 constexpr f32 kTilt = 1.2f;
-constexpr f32 kRange = 8000.0f;        // from Leon's chest
+enum { kFxNormal, kFxWide, kFxTele, kFxDolly, kFxDutch, kFxOrbit, kFxCount };
 constexpr f32 kPitchMax = 1.45f;       // about 83 degrees
 constexpr f32 kDeltaUnit = 1.0f / 8192.0f;  // the app's turn deltas
 constexpr f32 kPad = 300.0f;           // the camera keeps this far from walls, floors and ceilings
@@ -88,6 +91,9 @@ u32 gStopBak, gDispBak;
 int gMaskNow = -1;
 Vec gPos, gStartPos, gAnchor;
 f32 gYaw, gPitch, gStartYaw, gStartPitch, gFovy;
+int gFx, gFxNow = -1;   // the camera effect asked for / in use
+f32 gDollyD0;           // dolly zoom: the distance to Leon when it began
+const char* const kFxName[kFxCount] = {"normal", "wide angle", "telephoto", "dolly zoom", "Dutch angle", "orbit"};
 unsigned gFrames, gLines;
 
 constexpr int kMaxHidden = 160;
@@ -187,7 +193,7 @@ void applyMask(int mask)
     }
     if (mask & kEnemies) {
         for (cEm* e = EmMgr.getActiveWork(); e; e = (cEm*) e->getNext()) {
-            if ((cModel*) e != (cModel*) pPL && e != pSUB && re4_hb_enemy_id(e->id)) {
+            if ((cModel*) e != (cModel*) pPL && e != pSUB && re4_hb_enemy(e)) {
                 hide(e);
             }
         }
@@ -214,13 +220,21 @@ void applyMask(int mask)
 // The game's own collision between two points: the camera's (SatMgr flag 0x8000 with the mask of the game's camera,
 // cam_ctrl.cpp: the walls and the invisible bounds its own camera stops at) and the sight and shot collision
 // (EatMgr 0x800: what can be seen, floors and ceilings too)
+const char* gWhy = "";  // what stopped the last move (the log)
 bool blocked(const Vec& a, const Vec& b)
 {
     Vec p = a, q = b, hit;
-    if (SatMgr.hitCheck(&p, &q, &hit, 0, 0x8000, 0x1C2810)) return true;
+    if (SatMgr.hitCheck(&p, &q, &hit, 0, 0x8000, 0x1C2810)) {
+        gWhy = "the camera's collision";
+        return true;
+    }
     p = a;
     q = b;
-    return EatMgr.hitCheck(&p, &q, 0, 0, 0x800, 0) != 0;
+    if (EatMgr.hitCheck(&p, &q, 0, 0, 0x800, 0) != 0) {
+        gWhy = "a wall, floor or object";
+        return true;
+    }
+    return false;
 }
 
 // Above a floor within kFloorSearch (the void outside a map has none), at least half of kPad over it unless it rises
@@ -240,7 +254,12 @@ bool canMove(const Vec& a, const Vec& b)
     if (len < 0.01f) return true;
     const f32 k = (len + kPad) / len;
     const Vec far = {a.x + dx * k, a.y + dy * k, a.z + dz * k};
-    return !blocked(a, far) && overFloor(b, dy > 0.0f);
+    if (blocked(a, far)) return false;
+    if (!overFloor(b, dy > 0.0f)) {
+        gWhy = "no floor below (the edge of the world) or the floor too near";
+        return false;
+    }
+    return true;
 }
 
 unsigned gStops;  // moves the collision stopped (logged now and then)
@@ -264,8 +283,10 @@ void moveTo(const Vec& want)
     gPos = t;
     if (gStops++ % 90 == 0 && gLines < 60) {
         gLines++;
-        re4_log("photo mode: the camera stops at a wall, floor or the edge of the world at %.0f %.0f %.0f", (double) gPos.x,
-                (double) gPos.y, (double) gPos.z);
+        re4_log("photo mode: the camera stops at %.0f %.0f %.0f (%s), %.1f m from Leon", (double) gPos.x, (double) gPos.y,
+                (double) gPos.z, gWhy,
+                (double) (sqrtf((gPos.x - pPL->pos.x) * (gPos.x - pPL->pos.x) + (gPos.z - pPL->pos.z) * (gPos.z - pPL->pos.z)) /
+                          1000.0f));
     }
 }
 
@@ -280,14 +301,55 @@ void lookFrom(CAMERA* cam)
     if (gPitch < -kPitchMax) gPitch = -kPitchMax;
 }
 
+f32 distToLeon()
+{
+    const f32 dx = gPos.x - gAnchor.x, dy = gPos.y - gAnchor.y, dz = gPos.z - gAnchor.z;
+    return sqrtf(dx * dx + dy * dy + dz * dz);
+}
+
 void setCamera()
 {
     CAMERA* cam = &pG->Camera;
     const f32 cp = cosf(gPitch);
     Vec target = {gPos.x + 1000.0f * cp * sinf(gYaw), gPos.y + 1000.0f * sinf(gPitch), gPos.z + 1000.0f * cp * cosf(gYaw)};
-    CameraSetWithRoll(cam, &gPos, &target, 0.0f, gFovy);
-    cam->Distance = 1000.0f;
+    f32 fovy = gFovy, roll = 0.0f;
+    switch (gFx) {
+    case kFxWide:
+        fovy = gFovy * 1.6f;
+        break;
+    case kFxTele:
+        fovy = gFovy * 0.45f;
+        break;
+    case kFxDolly: {
+        // Leon keeps his size: tan(fov/2) * distance stays as it was when the effect began
+        const f32 d = distToLeon();
+        const f32 t = tanf(gFovy * 0.5f * 0.017453293f) * gDollyD0 / (d > 300.0f ? d : 300.0f);
+        fovy = 2.0f * atanf(t) / 0.017453293f;
+        break;
+    }
+    case kFxDutch:
+        roll = 0.30f;  // about 17 degrees
+        break;
+    case kFxOrbit:
+        target = gAnchor;
+        break;
+    default:
+        break;
+    }
+    fovy = fovy < 8.0f ? 8.0f : fovy > 110.0f ? 110.0f : fovy;
+    CameraSetWithRoll(cam, &gPos, &target, roll, fovy);
+    cam->Distance = PSVECDistance(&cam->param.Campos, &cam->param.Target);
     C_MTXLookAt(cam->v_mat, &cam->param.Campos, &cam->Up, &cam->param.Target);
+    // the field of view of the world only: the view matrix's x and y scaled by tan(old / 2) / tan(new / 2). The game
+    // draws its HUD and the letterbox bars with the same projection (a wider projection shrank the HUD and brought the
+    // bars, normally outside the picture, into it); the culling follows param.Fovy (VIEW::move)
+    if (fovy != gFovy) {
+        const f32 k = tanf(gFovy * 0.5f * 0.017453293f) / tanf(fovy * 0.5f * 0.017453293f);
+        for (int c = 0; c < 4; c++) {
+            cam->v_mat[0][c] *= k;
+            cam->v_mat[1][c] *= k;
+        }
+    }
     View.move();
 }
 
@@ -315,6 +377,8 @@ void enter()
     gReset.store(0);
     gHiddenN = 0;
     gMaskNow = -1;
+    gFx = kFxNormal;
+    gFxNow = -1;
     gActive = true;
     gFrames = 0;
     re4_gx_photo(1, 0);
@@ -350,6 +414,23 @@ void moveCamera()
     const f32 mx = byteAt(a, 0) / 127.0f, mz = byteAt(a, 8) / 127.0f, rise = byteAt(a, 16) / 127.0f;
     const f32 yawRate = byteAt(a, 24) / 127.0f, pitchRate = byteAt(b, 0) / 127.0f;
     const int speed = (b >> 8) & 0xFF;
+    const int fx = (b >> 17) & 0xF;
+    gFx = fx < kFxCount ? fx : kFxNormal;
+    if (gFx != gFxNow) {
+        if (gFx == kFxDolly) {
+            gDollyD0 = distToLeon();
+        }
+        if (gFx == kFxOrbit) {
+            // facing Leon from where it is (the orbit looks at him)
+            const f32 dx = gAnchor.x - gPos.x, dz = gAnchor.z - gPos.z;
+            gYaw = atan2f(dx, dz);
+        }
+        if (gLines < 60) {
+            gLines++;
+            re4_log("photo mode: camera effect %s", kFxName[gFx]);
+        }
+        gFxNow = gFx;
+    }
     const f32 mul = speed == 1 ? 0.25f : speed == 2 ? 3.0f : 1.0f;
     if (gReset.exchange(0)) {
         gPos = gStartPos;
@@ -369,13 +450,12 @@ void moveCamera()
     want.x += (sy * mz - cy * mx) * step;
     want.z += (cy * mz + sy * mx) * step;
     want.y += rise * step;
-    Vec off = {want.x - gAnchor.x, want.y - gAnchor.y, want.z - gAnchor.z};
-    const f32 len = sqrtf(off.x * off.x + off.y * off.y + off.z * off.z);
-    if (len > kRange) {
-        const f32 k = kRange / len;
-        want.x = gAnchor.x + off.x * k;
-        want.y = gAnchor.y + off.y * k;
-        want.z = gAnchor.z + off.z * k;
+    if (gFx == kFxOrbit) {
+        // around Leon, about 12 degrees a second, at the distance and height it has; the sticks still move it
+        const f32 rx = want.x - gAnchor.x, rz = want.z - gAnchor.z;
+        const f32 a = 0.21f * kDt, ca = cosf(a), sa = sinf(a);
+        want.x = gAnchor.x + rx * ca - rz * sa;
+        want.z = gAnchor.z + rx * sa + rz * ca;
     }
     // walls, floors and the edge of the world stop it (the owner's device test of 19.11.2026: under the floor and
     // out of bounds sideways)
@@ -475,7 +555,7 @@ extern "C" void re4_photo_mode_request(int op, int mask)
 extern "C" void re4_photo_mode_input(int a, int b, int c)
 {
     gStickA.store(a);
-    gStickB.store(b & 0xFFFF);
+    gStickB.store(b & ~0x10000);
     if (b & 0x10000) gReset.store(1);
     if (c) {
         gYawDelta.fetch_add((s16) (c & 0xFFFF));

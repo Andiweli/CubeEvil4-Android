@@ -293,6 +293,30 @@ die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_RE
    Am PC: r200 „hud: an event … shown“. Die Minimap selbst zeichnet nur die App (nicht im PC-Bild).
    **Nicht geprüft:** auf einem Gerät.
 
+### 13. Gerätetest des Projektinhabers, dritte Runde (19./20.11.2026)
+
+1. **Menü:** „Fotomodus“ direkt unter „Intro überspringen“, beide Hilfetexte darunter.
+2. **Grauer Balken über dem Händler (Nachtwald):** dort ist der Händler kein 0x18, sondern die Händler-Form der
+   Ganado-Module 0x13/0x14/0x1E (Typ 6: Händler-Mantel `Em18ClothMove`, inaktiv, Leben 1 von 1000; r104, r10f, r11c,
+   Burg r204/r20f/r211/r214/r225/r227, Insel r301/r305/r315/r31d). Jetzt `traderForm` ausgenommen (wie der
+   Zufallsgenerator `ordinary` sie schon ausnahm). Zusätzlich: Balken nur noch für eine feste Liste echter Gegnertypen
+   (Ganados, Plaga-Hunde, Parasiten, Bosse, Rüstungen …), kein Balken bei Leben > Maximum, nie ein leerer Balken (eine
+   lebende Figur behält 1 px Rot; ein fast leerer wird geloggt: „nearly empty bar: id … type … hp … of …“). Suchlauf
+   126 Räume Debug und EU: einziger Fall r10f 0x13 Typ 6 (der Händler); danach keiner. Figuren mit Balken: 0x11–0x1F,
+   0x25, 0x36, 0x3C; ohne: Händler 0x18, Partner, Krähen, Kühe, Hühner, Fledermäuse, Fallen, Fahrzeuge, Zielscheiben.
+3. **SELECT wieder sofort:** kein Doppeldruck mehr. Fotomodus: **L3** (Controller), **P** (Tastatur), Knopf
+   „Fotomodus“ oben im App-Menü (Touch); bei eingeschaltetem Fotomodus gehören L3 und P ihm (auch wenn sie belegt
+   sind). Im Fotomodus öffnet SELECT/F1 das App-Menü über dem stehenden Bild (Filter, Effekte), danach geht es weiter;
+   L3, P, B, Esc, Zurück, ✕ beenden.
+4. **Kamera:** keine 8-m-Leine mehr (das war das „nicht weit weg“); Kollision wie bisher, Logzeile mit Grund und
+   Abstand zu Leon. **L/R** schalten Effekte (Maus: Rad, Tastatur 5/6, Touch: ◆): Normal, Weitwinkel (×1,6),
+   Tele (×0,45), Dolly-Zoom (Leon behält seine Größe), Schräglage (17°), Umkreisen (12°/s um Leon). Der Bildwinkel
+   wirkt nur auf die Welt (Kameramatrix x/y skaliert; über die Projektion schrumpfte das HUD und die sonst
+   unsichtbaren Kino-Balken kamen ins Bild). Langsam/schnell nur noch auf der Tastatur (Alt/Shift).
+- **Geprüft am PC:** Bilder `builds\workthread-1.1.0\photo-effects-r208.png` (alle sechs Effekte),
+  `photo-r103-far-from-leon.png` (20 m von Leon), `healthbars-r10f-merchant-no-bar.png`; Texte 510 in 11 Sprachen,
+  App (Gradle, Unit-Tests). **Nicht geprüft:** L3/P/Menüknopf, Menü im Fotomodus, Overlay – nur auf dem Gerät.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

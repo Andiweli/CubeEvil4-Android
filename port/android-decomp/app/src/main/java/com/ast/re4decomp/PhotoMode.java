@@ -20,17 +20,19 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Photo mode (1.1.0, wish of the project owner, 19.11.2026; Display, Optional features, off by default). A double
- * press of SELECT (the keyboard's F1, the touch controls' MENU) asks the core for it (runtime/photo_mode.cpp): the game
+ * Photo mode (1.1.0, wish of the project owner, 19.11.2026; Display, Optional features, off by default). L3 (the
+ * keyboard's P, the app menu's "Photo mode" on touch; until the owner's second device test of 19.11.2026 a double
+ * press of SELECT, which delayed the menu) asks the core for it (runtime/photo_mode.cpp): the game
  * stands as with its option screen, a free camera moves, the HUD, Leon, Ashley and the enemies can be hidden. This
  * class keeps its state, sends the camera's input (CoreBridge.photoInput) every 16 ms and draws the small overlay:
  * the four switches, a line of controls, a close button for touch; it fades out after four seconds without a button,
  * so screenshots (Android's own) stay clean. The touch controls are hidden meanwhile; on touch the left half moves
  * (a drag like a stick), the right half looks, a second finger goes up and down, a tap brings the overlay back.
  * <p>Controller: left stick moves, right stick turns and tilts, D-pad up/down rises and sinks (swapped after the
- * owner's device test of 19.11.2026), L slow, R fast, X HUD, Y Leon,
+ * owner's device test of 19.11.2026), L and R the camera effect (before and next), X HUD, Y Leon,
  * A Ashley, Z enemies, START the camera back, B (or SELECT) leaves. Keyboard: WASD or the arrows move, the mouse looks,
- * E/Space up, Q/C down, Shift fast, Alt slow, 1-4 the switches, R back, Esc (or F1) leaves.
+ * E/Space up, Q/C down, Shift fast, Alt slow, 1-4 the switches, 5/6 or the wheel the effect, R back, Esc or P leaves;
+ * SELECT (F1) opens the app menu over the standing picture (filters, effects), photo mode goes on after it.
  */
 final class PhotoMode {
   interface Host {
@@ -43,8 +45,11 @@ final class PhotoMode {
   }
 
   static final int HUD = 1, LEON = 2, PARTNER = 4, ENEMIES = 8;
-  /** The second press must follow the first's release within this (CoreActivity.select delays the menu by it). */
-  static final long DOUBLE_MS = 300;
+  /** The camera effects (runtime/photo_mode.cpp kFx*): normal, wide angle, telephoto, dolly zoom, Dutch angle, orbit. */
+  static final int EFFECTS = 6;
+  private static final int[] EFFECT_NAMES = {R.string.ingame_photo_fx_normal, R.string.ingame_photo_fx_wide,
+      R.string.ingame_photo_fx_tele, R.string.ingame_photo_fx_dolly, R.string.ingame_photo_fx_dutch,
+      R.string.ingame_photo_fx_orbit};
   private static final long ASK_MS = 800, FADE_AFTER_MS = 4000, FADE_MS = 500, TICK_MS = 16;
   private static final int PAD = 0, KEYS = 1, TOUCH = 2;
   private static final String TAG = CoreActivity.TAG;
@@ -57,6 +62,8 @@ final class PhotoMode {
   private long askedAt, onAt, shownAt;
   private int mask;  // what is hidden
   private int lastButtons;
+  private int effect;
+  private boolean lastL, lastR;
   private int kind = PAD;
   private final Set<Integer> keys = new HashSet<>();
   private float yawDelta, pitchDelta;  // radians, from the mouse and a finger, sent with the next tick
@@ -122,7 +129,11 @@ final class PhotoMode {
   private void on() {
     state = 2;
     onAt = SystemClock.uptimeMillis();
-    lastButtons = host.pad()[0];
+    int[] p = host.pad();
+    lastButtons = p[0];
+    lastL = (p[0] & CoreInput.GC_L) != 0 || p[5] > 127;
+    lastR = (p[0] & CoreInput.GC_R) != 0 || p[6] > 127;
+    effect = 0;
     host.touchControlsHidden(true);
     view.setVisibility(View.VISIBLE);
     show();
@@ -132,6 +143,13 @@ final class PhotoMode {
   private void show() {
     shownAt = SystemClock.uptimeMillis();
     view.invalidate();
+  }
+
+  /** The next (+1) or the one before (-1) camera effect. */
+  void effect(int step) {
+    effect = (effect + step + EFFECTS) % EFFECTS;
+    if (lines++ < 40) Log.i(TAG, "photo mode: camera effect " + effect);
+    show();
   }
 
   private void toggle(int bit) {
@@ -163,6 +181,8 @@ final class PhotoMode {
       case KeyEvent.KEYCODE_3: toggle(PARTNER); return;
       case KeyEvent.KEYCODE_4: toggle(ENEMIES); return;
       case KeyEvent.KEYCODE_R: reset = true; show(); return;
+      case KeyEvent.KEYCODE_5: effect(-1); return;
+      case KeyEvent.KEYCODE_6: effect(1); return;
       case KeyEvent.KEYCODE_H: show(); return;
       default: break;
     }
@@ -234,7 +254,19 @@ final class PhotoMode {
       float turn = p[3] / CoreInput.C_RAW, tilt = p[4] / CoreInput.C_RAW;
       float rise = ((b & CoreInput.GC_UP) != 0 ? 1f : 0f) - ((b & CoreInput.GC_DOWN) != 0 ? 1f : 0f);
       // L and R: the digital click or the analog trigger past half way
-      boolean slow = (b & CoreInput.GC_L) != 0 || p[5] > 127, fast = (b & CoreInput.GC_R) != 0 || p[6] > 127;
+      // L and R (the digital click or the analog trigger past half way): the camera effect before / next
+      boolean nowL = (b & CoreInput.GC_L) != 0 || p[5] > 127, nowR = (b & CoreInput.GC_R) != 0 || p[6] > 127;
+      if (nowL && !lastL) {
+        kind = PAD;
+        effect(-1);
+      }
+      if (nowR && !lastR) {
+        kind = PAD;
+        effect(1);
+      }
+      lastL = nowL;
+      lastR = nowR;
+      boolean slow = false, fast = false;
       // the keyboard
       if (!keys.isEmpty()) {
         float kx = (held(KeyEvent.KEYCODE_D, KeyEvent.KEYCODE_DPAD_RIGHT) ? 1f : 0f)
@@ -258,7 +290,7 @@ final class PhotoMode {
       if (riseId >= 0) rise = -(riseY - riseY0) / radius;
       int speed = slow && !fast ? 1 : fast && !slow ? 2 : 0;
       int a = s8(mx) | s8(mz) << 8 | s8(rise) << 16 | s8(turn) << 24;
-      int bw = s8(tilt) | speed << 8 | (reset ? 0x10000 : 0);
+      int bw = s8(tilt) | speed << 8 | (reset ? 0x10000 : 0) | effect << 17;
       int c = s16(yawDelta) | s16(pitchDelta) << 16;
       reset = false;
       yawDelta = pitchDelta = 0;
@@ -274,7 +306,7 @@ final class PhotoMode {
   private final class Overlay extends View {
     private final Paint box = new Paint(Paint.ANTI_ALIAS_FLAG), chip = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint text = new TextPaint(Paint.ANTI_ALIAS_FLAG), small = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF[] chips = {new RectF(), new RectF(), new RectF(), new RectF()};
+    private final RectF[] chips = {new RectF(), new RectF(), new RectF(), new RectF(), new RectF()};
     private final RectF close = new RectF();
     private final int[] bits = {HUD, LEON, PARTNER, ENEMIES};
     private final int[] labels = {R.string.ingame_photo_hud, R.string.ingame_photo_leon, R.string.ingame_photo_partner,
@@ -315,9 +347,10 @@ final class PhotoMode {
       float x = 16 * d, y = 16 * d;
       float cw = text.measureText(title) + 2 * pad;
       float chipH = 30 * d;
-      float[] widths = new float[4];
-      for (int i = 0; i < 4; i++) {
-        widths[i] = small.measureText("○ " + getResources().getString(labels[i])) + 2 * pad;
+      float[] widths = new float[5];
+      String fxLabel = "◆ " + getResources().getString(EFFECT_NAMES[effect]);
+      for (int i = 0; i < 5; i++) {
+        widths[i] = small.measureText(i < 4 ? "○ " + getResources().getString(labels[i]) : fxLabel) + 2 * pad;
         cw += widths[i] + gap;
       }
       canvas.drawRoundRect(new RectF(x, y, x + cw + gap, y + chipH + 2 * gap), 10 * d, 10 * d, box);
@@ -334,6 +367,12 @@ final class PhotoMode {
         canvas.drawText(label, cx + pad, y + gap + chipH / 2 - (small.ascent() + small.descent()) / 2, small);
         cx += widths[i] + gap;
       }
+      // the camera effect (a tap: the next one)
+      chips[4].set(cx, y + gap, cx + widths[4], y + gap + chipH);
+      chip.setColor(effect == 0 ? 0xFF555555 : 0xFF1E5AA8);
+      chip.setAlpha(Math.round(alpha * 0xE0));
+      canvas.drawRoundRect(chips[4], chipH / 2, chipH / 2, chip);
+      canvas.drawText(fxLabel, cx + pad, y + gap + chipH / 2 - (small.ascent() + small.descent()) / 2, small);
       // the close button (any input: it is the touch way out, harmless otherwise)
       float r = 20 * d;
       close.set(w - 16 * d - 2 * r, 16 * d, w - 16 * d, 16 * d + 2 * r);
@@ -385,6 +424,10 @@ final class PhotoMode {
                 toggle(bits[k]);
                 return true;
               }
+            }
+            if (chips[4].contains(x, y)) {
+              effect(1);
+              return true;
             }
           }
           if (moveId >= 0 || lookId >= 0) {

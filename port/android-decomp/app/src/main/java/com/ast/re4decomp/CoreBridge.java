@@ -149,7 +149,7 @@ public final class CoreBridge {
    *  mask alone; false with a core without it (runtime/photo_mode.cpp). */
   public static native boolean photoMode(int op, int mask);
   /** The free camera's input in photo mode: a = move x, move z, rise, turn (bytes from the low one, -127..127);
-   *  b = tilt (byte), speed (byte: 0 normal, 1 slow, 2 fast), bit 16 back to the start; c = turn and tilt by the
+   *  b = tilt (byte), speed (byte: 0 normal, 1 slow, 2 fast), bit 16 back to the start, bits 17-20 the camera effect; c = turn and tilt by the
    *  mouse or a finger (s16 each, 1/8192 rad, low = turn). */
   public static native void photoInput(int a, int b, int c);
   /** 1: photo mode is on (the pictures say so); 2: a request was refused since the last call. */

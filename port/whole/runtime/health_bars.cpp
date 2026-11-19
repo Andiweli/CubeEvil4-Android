@@ -83,19 +83,34 @@ struct Seen {
 };
 Seen gSeen[256];
 
+// Only the enemy types the game's list editor names (t_emlist.cpp) and that fight Leon: a list of what gets a bar, not
+// of what does not (the owner's device test of 19.11.2026: a grey bar over the merchant; whatever it was, a type
+// outside this list never gets one): the Ganados 0x10..0x20 without the merchant 0x18, the Plaga dogs 0x22, the
+// parasites 0x25, the giant 0x2B, the insect boss and its kind 0x2C/0x2D, 0x2E, Del Lago 0x2F, the bosses and big
+// enemies 0x30..0x39 (no 0x33, 0x37: other forms of 0x34), the gunship 0x3A, the armours 0x3C. Never: the merchant,
+// the dog 0x21, crows 0x23, snakes 0x24, cows 0x26, fish 0x27, chickens 0x28, bats 0x29, traps 0x2A, vehicles 0x3B,
+// the support helicopter 0x3D, targets 0x3E, the partners and the player (ids below 0x10).
 bool listed(int id)
 {
-    if (id < 0x10 || id > 0x3F) {
-        return false;
+    if (id >= 0x10 && id <= 0x20) {
+        return id != 0x18;
     }
     switch (id) {
-    // (1.1.0, the owner: "Bei Tieren zeige auch keine Healthbar an": also the snakes 0x24, cows 0x26 and bats 0x29)
-    case 0x18: case 0x21: case 0x23: case 0x24: case 0x26: case 0x27: case 0x28: case 0x29: case 0x2A: case 0x3B:
-    case 0x3D: case 0x3E:
-        return false;
-    default:
+    case 0x22: case 0x25: case 0x2B: case 0x2C: case 0x2D: case 0x2E: case 0x2F: case 0x30: case 0x31: case 0x32:
+    case 0x34: case 0x35: case 0x36: case 0x38: case 0x39: case 0x3A: case 0x3C:
         return true;
+    default:
+        return false;
     }
+}
+
+// The merchant as a Ganado figure: type 6 of the modules 0x13, 0x14 and 0x1E wears the merchant's cloth (em10.cpp
+// Em18ClothMove), stands inactive and has 1 life left (r104, r10f, r11c, the castle and the island; the owner's device
+// test of 19.11.2026: the grey bar over the merchant in the night forest, r10f). The randomizer leaves it out as well
+// (enemy_random.cpp ordinary).
+bool traderForm(const cEm* e)
+{
+    return e->type == 6 && (e->id == 0x13 || e->id == 0x14 || e->id == 0x1E);
 }
 
 // The Plaga phase (the head lost, the parasite out), see the head comment
@@ -385,8 +400,8 @@ static void nearby(const Vec& cam)
         }
         const bool own = (cEm*) e == (cEm*) pPL || e == pSUB;
         len += snprintf(line + len, sizeof(line) - len, " 0x%02x%s%s", (unsigned) e->id,
-                        (cEm*) e == (cEm*) pPL ? "(player)" : e == pSUB ? "(partner)" : "",
-                        !own && listed(e->id) ? "+bar" : "");
+                        (cEm*) e == (cEm*) pPL ? "(player)" : e == pSUB ? "(partner)" : traderForm(e) ? "(merchant)" : "",
+                        !own && listed(e->id) && !traderForm(e) ? "+bar" : "");
         n++;
     }
     if (n) {
@@ -447,12 +462,12 @@ void re4_health_bars(void)
     nearby(cam);
     for (u32 i = 0; i < EmMgr.getArrayNum() && f->n < kMaxBars; i++) {
         cEm* e = EmMgr.fastAt(i);
-        if (!e || !e->isAlive() || !listed(e->id) || (cEm*) e == (cEm*) pPL || e == pSUB || e->hp <= 0 ||
+        if (!e || !e->isAlive() || !listed(e->id) || traderForm(e) || (cEm*) e == (cEm*) pPL || e == pSUB || e->hp <= 0 ||
             !e->isTrans()) {
             continue;
         }
         const int max = maxOf(i, e);
-        if (max <= 0) {
+        if (max <= 0 || e->hp > max) {
             continue;
         }
         gCount.listed++;
@@ -497,6 +512,18 @@ void re4_health_bars(void)
         b.h = h;
         f32 frac = (f32) e->hp / (f32) max;
         b.frac = frac < 0.0f ? 0.0f : frac > 1.0f ? 1.0f : frac;
+        // never an empty, grey bar: a living enemy keeps at least a pixel of red; one that would look empty is
+        // logged (id, type, life, its max and where that came from) for an error report
+        if (b.frac * b.w < 1.0f) {
+            static unsigned thin;
+            if (thin < 20) {
+                thin++;
+                re4_log("health bars: r%03x frame %u: nearly empty bar: id 0x%02x type %d hp %d of %d (%s) at %.1f m",
+                        (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, (unsigned) e->id, (int) e->type, (int) e->hp,
+                        max, e->hp_max > 0 && e->hp <= e->hp_max ? "hp_max" : "highest seen", dist / 1000.0f);
+            }
+            b.frac = b.w > 0.0f ? 1.0f / b.w : 0.0f;
+        }
         b.plaga = plagaPhase(e) ? 1 : 0;
         bool known = false;
         for (unsigned k = 0; k < gLines && k < 64; k++) {
@@ -543,6 +570,12 @@ void re4_health_bars(void)
 bool re4_hb_enemy_id(int id)
 {
     return listed(id);
+}
+
+// ... and with the merchant's Ganado form left out
+bool re4_hb_enemy(const cEm* e)
+{
+    return listed(e->id) && !traderForm(e);
 }
 
 // Patch 0238 declares it at block scope in game.cpp (C++ linkage there)

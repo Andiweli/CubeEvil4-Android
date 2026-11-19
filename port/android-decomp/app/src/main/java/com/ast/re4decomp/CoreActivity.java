@@ -213,15 +213,6 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private TouchControls touchControls;
   /** Photo mode (1.1.0): its state, the camera's input and its overlay. */
   private PhotoMode photo;
-  /** Photo mode on: a single SELECT opens the menu only after PhotoMode.DOUBLE_MS without a second press. */
-  private final Runnable selectSingle = () -> {
-    selectReleasedAt = -1;
-    openMenu();
-  };
-  /** When SELECT was let go last (uptime ms) while a second press may still follow; -1 none. (Not Long.MIN_VALUE: "now
-   *  minus it" overflowed to a negative number, and every single press counted as the second one: the owner's device
-   *  test of 19.11.2026, the menu could no longer be reached.) */
-  private long selectReleasedAt = -1;
   private GyroAim gyroAim;
   private boolean touchEditing;
   private String startProblem = "";
@@ -973,39 +964,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** SELECT (a controller's key or the touch controls' MENU) went down or up. */
   private void select(boolean down) {
-    // photo mode on (or asked for): SELECT leaves it
-    if (photo != null && photo.busy()) {
-      if (down) photo.leave("SELECT");
-      selectDown = false;
-      main.removeCallbacks(selectHold);
-      return;
-    }
+    // (1.1.0: the double press for photo mode delayed the menu, the owner's second device test of 19.11.2026: "es
+    // sollte wieder instant klappen"; photo mode is on L3 / P / the menu's button now, SELECT always the menu, also in
+    // photo mode: its filters and effects over the standing picture)
     if (down) {
-      // the second press of a double press (photo mode switched on in the menu): photo mode instead of the menu
-      if (photoWanted() && selectReleasedAt >= 0 && SystemClock.uptimeMillis() - selectReleasedAt <= PhotoMode.DOUBLE_MS) {
-        main.removeCallbacks(selectSingle);
-        selectReleasedAt = -1;
-        selectDown = false;
-        photo.request("SELECT twice");
-        return;
-      }
       selectDown = true;
       selectHeld = false;
       main.removeCallbacks(selectHold);
-      main.postDelayed(selectHold, SELECT_HOLD_MS);
+      if (photo == null || !photo.busy()) main.postDelayed(selectHold, SELECT_HOLD_MS);
     } else if (selectDown) {
-      // let go before the second: the menu (with photo mode switched on a moment later: a second press may follow)
+      // let go before the second: the menu
       selectDown = false;
       main.removeCallbacks(selectHold);
-      if (selectHeld) return;
-      if (photoWanted()) {
-        selectReleasedAt = SystemClock.uptimeMillis();
-        main.removeCallbacks(selectSingle);
-        main.postDelayed(selectSingle, PhotoMode.DOUBLE_MS);
-      } else {
-        openMenu();
-      }
+      if (!selectHeld) openMenu();
     }
+  }
+
+  /** L3, the keyboard's P or the menu's button with "Photo mode" switched on: photo mode on, or off again. */
+  private void photoKey(String how) {
+    if (photo.busy()) photo.leave(how);
+    else photo.request(how);
   }
 
   /** The menu's "Photo mode" (Display, Optional features) is on. */
@@ -1290,6 +1268,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(ENEMY_SEED, seed).apply();
       Log.i(TAG, "cheats: random enemies " + (seed != 0 ? "on with seed " + seed : "off"));
       CoreBridge.setEnemyRandom(seed);
+    }
+
+    @Override public boolean photoAvailable() { return photoWanted() && !photo.busy(); }
+
+    @Override public void startPhotoMode() {
+      // after the menu's dismissal (the core runs again first)
+      main.postDelayed(() -> { if (menu == null && !photo.busy()) photo.request("the menu's button"); }, 150);
     }
 
     @Override public void moreEnemiesChanged(int seed) {
@@ -2300,10 +2285,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return true;
     }
     boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
-    // photo mode on: every key stays with it (SELECT, F1, Esc, B and Back leave it)
+    // "Photo mode" switched on: L3 and the keyboard's P are its own (whatever the button mapping gives them)
+    if (menu == null && photoWanted() && ((!keyboard && code == KeyEvent.KEYCODE_BUTTON_THUMBL)
+        || (keyboard && code == KeyEvent.KEYCODE_P))) {
+      if (first) photoKey(keyboard ? "P" : "L3");
+      return true;
+    }
+    // photo mode on: every key stays with it (Esc, B and Back leave it; SELECT and F1 open the app menu over it)
     if (photo != null && photo.active()) {
       if (input.appFunctionOf(code, keyboard) == CoreInput.APP_MENU) {
-        if (first) photo.leave(keyboard ? "F1" : "SELECT");
+        if (first) select(true);
+        else if (e.getAction() == KeyEvent.ACTION_UP) select(false);
         return true;
       }
       if (code == KeyEvent.KEYCODE_BACK) {
@@ -2911,13 +2903,17 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // photo mode: the mouse looks around; a button with the app menu's key leaves
     if (photo != null && photo.active()) {
       for (int bit = 1; bit <= 16; bit <<= 1) {
-        if ((changed & bit) != 0 && (state & bit) != 0
-            && input.appFunctionOf(ActionMap.mouseButton(bit), true) == CoreInput.APP_MENU) {
-          photo.leave("the mouse's menu button");
+        if ((changed & bit) != 0 && input.appFunctionOf(ActionMap.mouseButton(bit), true) == CoreInput.APP_MENU) {
+          select((state & bit) != 0);
           return;
         }
       }
       int action = e.getActionMasked();
+      if (action == MotionEvent.ACTION_SCROLL) {
+        float v = e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+        if (v != 0) photo.effect(v > 0 ? 1 : -1);
+        return;
+      }
       if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
         float dx = e.getX(), dy = e.getY();
         for (int h = 0; h < e.getHistorySize(); h++) {
@@ -3587,8 +3583,6 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     keepGameVibration();
     selectDown = false;
     main.removeCallbacks(selectHold);
-    main.removeCallbacks(selectSingle);
-    selectReleasedAt = -1;
     if (photo != null) photo.leave("the app went to the background");
     stopBeat();
     if (gyroAim != null) gyroAim.pause();
