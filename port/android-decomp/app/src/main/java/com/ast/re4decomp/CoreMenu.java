@@ -1087,6 +1087,11 @@ final class CoreMenu extends Dialog {
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_skip_intro,
         graphics.getBoolean(CoreActivity.SKIP_INTRO, false), on -> graphics.edit().putBoolean(CoreActivity.SKIP_INTRO, on).apply());
     help(R.string.ingame_skip_intro_help);
+    // "Photo mode" (1.1.0, wish of the project owner, 19.11.2026): SELECT twice (F1, MENU on touch) freezes the game
+    // and frees the camera (PhotoMode); with it on a single SELECT opens this menu a moment later
+    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_photo_mode,
+        graphics.getBoolean(CoreActivity.PHOTO_MODE, false), on -> graphics.edit().putBoolean(CoreActivity.PHOTO_MODE, on).apply());
+    help(R.string.ingame_photo_mode_help);
   }
   /** One of the Information HUD's check boxes (InfoHud): on until cleared, the HUD takes it at once. */
   private CheckBox hudBox(MenuLayout.Buttons parent, int label, String part) {

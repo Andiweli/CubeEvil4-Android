@@ -268,6 +268,8 @@ u32 gViNext;        // physical address of the XFB the VI shows next (0: never s
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
 std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
 std::atomic<bool> gMovie(false);  // a movie plays (re4_gx_movie): RE4_GX_CHUNK_MOVIE
+std::atomic<bool> gPhoto(false);  // photo mode is on (re4_gx_photo, 1.1.0): RE4_GX_CHUNK_PHOTO
+std::atomic<bool> gPhotoRefused(false);  // a request for it was refused: the next chunk RE4_GX_CHUNK_PHOTO_REFUSED
 // the picture format "Native" (re4_gx_wide): the first load of the camera's projection in this chunk was the wide
 // one (1), the game's 4:3 (0), none yet (-1): RE4_GX_CHUNK_WIDE
 std::atomic<int> gWide(-1);
@@ -664,6 +666,12 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         }
         if (gMovie.load()) {
             v.flags |= RE4_GX_CHUNK_MOVIE;
+        }
+        if (gPhoto.load()) {
+            v.flags |= RE4_GX_CHUNK_PHOTO;
+        }
+        if (gPhotoRefused.exchange(false)) {
+            v.flags |= RE4_GX_CHUNK_PHOTO_REFUSED;
         }
         if (wide == 1) {
             v.flags |= RE4_GX_CHUNK_WIDE;
@@ -2422,6 +2430,14 @@ void re4_gx_still(int on)
 void re4_gx_movie(int on)
 {
     gMovie.store(on != 0);
+}
+
+void re4_gx_photo(int on, int refused)
+{
+    gPhoto.store(on != 0);
+    if (refused) {
+        gPhotoRefused.store(true);
+    }
 }
 
 // The picture format "Native" (runtime/picture.cpp re4_view_load, patch 0214): whether the camera's projection

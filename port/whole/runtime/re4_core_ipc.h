@@ -88,6 +88,8 @@ enum MsgType : uint32_t {
                            // replies -1 "unknown command")
     kBodyTurn = 47,        // a = Leon's turn in radians as float bits (no reply; re4_core_body_turn, 1.0)
     kLeonJacket = 48,      // a = on: the cheat "Leon's jacket" (no reply; re4_core_set_leon_jacket, 1.0)
+    kPhotoInput = 53,      // a, b, c = the free camera's input (no reply; re4_core_photo_input, 1.1.0)
+    kPhotoMode = 52,       // a = op (1 on, 0 off, 2 mask), b = the mask (no reply; re4_core_photo_mode, 1.1.0)
     kSetMoreEnemies = 51,  // a = the seed of "More enemies", 0 off (no reply; re4_core_set_more_enemies, 1.1.0)
     kQuickReload = 50,     // one reload without the aim (no reply; re4_core_quick_reload, 1.1.0)
     kMouseMenu = 49,       // a, b = the pointer's u, v as float bits, c = a click (no reply; re4_core_mouse_menu, 1.1.0)

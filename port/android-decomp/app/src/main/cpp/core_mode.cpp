@@ -127,6 +127,8 @@ struct CoreApi {
   void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
   void (*mouseMenu)(float, float, int){};  // optional (cores since 1.1.0): the mouse in the game's menus
   void (*quickReload)(void){};    // optional (cores since 1.1.0): one reload without the aim
+  void (*photoMode)(int, int){};  // optional (cores since 1.1.0): photo mode
+  void (*photoInput)(int, int, int){};
   int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -486,6 +488,8 @@ void loadCore(JNIEnv *env) {
   api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
   api.mouseMenu = reinterpret_cast<void (*)(float, float, int)>(dlsym(api.main, "re4_core_mouse_menu"));
   api.quickReload = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_quick_reload"));
+  api.photoMode = reinterpret_cast<void (*)(int, int)>(dlsym(api.main, "re4_core_photo_mode"));
+  api.photoInput = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_photo_input"));
   api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -596,6 +600,8 @@ std::atomic<int> optInvalidate{-1}, optTiled{0}, optHalfDof{1};
 std::atomic<unsigned> optSerial{0};
 unsigned optApplied = ~0u;
 std::atomic<bool> corePaused{false};
+// photo mode (1.1.0) as the chunks say: on, and a request refused (CoreBridge.photoState takes it)
+std::atomic<bool> photoOn{false}, photoRefused{false};
 // Android's thermal status and headroom (ThermalWatch, 0.99.15; set by CoreBridge.setThermal from the app's main thread,
 // read by the render thread): Dynamic's lines name them, so a report shows whether a step down came with heat
 std::atomic<int> thermalStatus{-2};
@@ -2569,6 +2575,9 @@ bool drawGx() {
     // whether it is a menu picture of the game (Dynamic does not judge those)
     const unsigned chunkCpuUs = chunk->coreCpuUs;
     const bool chunkStill = (chunk->flags & RE4_GX_CHUNK_STILL) != 0;
+    photoOn.store((chunk->flags & RE4_GX_CHUNK_PHOTO) != 0);
+    if (chunk->flags & RE4_GX_CHUNK_PHOTO_REFUSED)
+      photoRefused.store(true);
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
@@ -3216,6 +3225,8 @@ void useCoreProcess(const std::string &why) {
   api.setLeonJacket = re4ipc_set_leon_jacket;
   api.mouseMenu = re4ipc_mouse_menu;
   api.quickReload = re4ipc_quick_reload;
+  api.photoMode = re4ipc_photo_mode;
+  api.photoInput = re4ipc_photo_input;
   api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -3707,6 +3718,24 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_mouseMenu(JN
 // "Reload without aiming" (1.1.0): the keyboard's reload key without the aim (runtime/aim_options.cpp, patch 0241).
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_quickReload(JNIEnv *, jclass) {
   if (api.quickReload) api.quickReload();
+}
+
+// Photo mode (1.1.0, runtime/photo_mode.cpp): op 1 on with the mask, 0 off, 2 the mask; false: a core without it.
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_photoMode(JNIEnv *, jclass, jint op, jint mask) {
+  if (!api.photoMode) return JNI_FALSE;
+  if (op == 1) photoRefused.store(false);
+  api.photoMode(op, mask);
+  return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_photoInput(JNIEnv *, jclass, jint a, jint b, jint c) {
+  if (api.photoInput) api.photoInput(a, b, c);
+}
+
+// What the pictures say (the render thread, RE4_GX_CHUNK_PHOTO / _REFUSED): 1 photo mode is on, 2 a request was refused
+// since the last ask (taken)
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_photoState(JNIEnv *, jclass) {
+  return (photoOn.load() ? 1 : 0) | (photoRefused.exchange(false) ? 2 : 0);
 }
 
 // The menu's "Enemy health bars" (1.1.0, Cheats & Mods): drawGx tells the core (bit 20 of the aim bits).

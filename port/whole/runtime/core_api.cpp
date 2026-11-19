@@ -829,11 +829,24 @@ int re4_core_aim_from_game(void)
 extern "C" int re4_vibration_from_game(void);
 extern "C" void re4_mouse_menu_point(float u, float v, int click);
 extern "C" void re4_quick_reload_request(void);
+extern "C" void re4_photo_mode_request(int op, int mask);
+extern "C" void re4_photo_mode_input(int a, int b, int c);
 
 // "Reload without aiming" (1.1.0, runtime/aim_options.cpp): the keyboard's reload key was pressed without the aim
 void re4_core_quick_reload(void)
 {
     re4_quick_reload_request();
+}
+
+// Photo mode (1.1.0, runtime/photo_mode.cpp): on, off, what it hides; the free camera's input
+void re4_core_photo_mode(int op, int mask)
+{
+    re4_photo_mode_request(op, mask);
+}
+
+void re4_core_photo_input(int a, int b, int c)
+{
+    re4_photo_mode_input(a, b, c);
 }
 
 // The mouse in the game's menus (1.1.0, runtime/mouse_menu.cpp): the app's pointer over the picture, a left click

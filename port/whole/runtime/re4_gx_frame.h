@@ -198,9 +198,13 @@ enum Re4GxChunkFlags {
                                      of this picture was drawn for the screen's
                                      wider aspect (re4_gx_wide); the app shows it
                                      over the whole screen, else in a 16:9 box */
-    RE4_GX_CHUNK_MOVIE = 1u << 7  /* a movie plays (re4_gx_movie, 0.99.2): the
+    RE4_GX_CHUNK_MOVIE = 1u << 7, /* a movie plays (re4_gx_movie, 0.99.2): the
                                      app's "Sharpen" leaves its pictures as they
                                      are (the blocks of the compression) */
+    RE4_GX_CHUNK_PHOTO = 1u << 8, /* photo mode is on (re4_gx_photo, 1.1.0): the app
+                                     shows its overlay, hides its touch controls */
+    RE4_GX_CHUNK_PHOTO_REFUSED = 1u << 9 /* the app asked for photo mode and the
+                                     game refused (an event, a menu ...) */
 };
 
 typedef struct Re4GxChunk {

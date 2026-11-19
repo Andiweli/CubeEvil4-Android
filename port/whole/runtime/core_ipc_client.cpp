@@ -1077,6 +1077,16 @@ int re4ipc_rt_shadows(void)
     return call(kRtShadows, 0, 0, 0, nullptr, 0, 3000, &r) && r.header.a > 0 ? r.header.a : 0;
 }
 
+void re4ipc_photo_mode(int op, int mask)
+{
+    post(kPhotoMode, op, mask, 0);
+}
+
+void re4ipc_photo_input(int a, int b, int c)
+{
+    post(kPhotoInput, a, b, c);
+}
+
 void re4ipc_quick_reload(void)
 {
     post(kQuickReload, 0, 0, 0);

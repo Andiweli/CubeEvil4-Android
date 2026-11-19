@@ -27,6 +27,7 @@ std::atomic<int> gMusic(100);       // percent
 std::atomic<int> gEffects(100);     // percent
 std::atomic<bool> gPending(false);  // recompute the playing sounds at the next game frame
 std::atomic<bool> gHooked(false);
+std::atomic<bool> gMuted(false);  // photo mode (runtime/photo_mode.cpp, 1.1.0): everything silent while it is on
 
 void hook(unsigned)
 {
@@ -77,7 +78,21 @@ void re4_sound_volume_set(int music, int effects)
 // Patch 0153: the factor for a sound's output volume, music (1) or a sound effect (0), as percent 0..100.
 int re4_sound_volume(int music)
 {
+    if (gMuted.load(std::memory_order_relaxed)) {
+        return 0;
+    }
     return (music ? gMusic : gEffects).load(std::memory_order_relaxed);
+}
+
+// Photo mode (1.1.0): the music and the sounds that go on (the effects are paused, SndSePauseAll) silent while it is
+// on; the playing sounds are recomputed at the next game frame. The game thread.
+void re4_sound_volume_mute(int on)
+{
+    gMuted.store(on != 0);
+    if (!gHooked.exchange(true)) {
+        re4_add_frame_hook(hook);
+    }
+    gPending.store(true);
 }
 
 }  // extern "C"

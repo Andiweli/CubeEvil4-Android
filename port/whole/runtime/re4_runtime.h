@@ -324,6 +324,9 @@ void re4_gx_still(int on);
 /* A movie plays (1) or not (0): the chunks closed from now on carry RE4_GX_CHUNK_MOVIE (runtime/gx_decode.cpp).
  * Set every frame by runtime/picture.cpp (re4_movie_playing). */
 void re4_gx_movie(int on);
+/* Photo mode (runtime/photo_mode.cpp, 1.1.0): on (1) or off (0); refused (1): the next chunk carries
+ * RE4_GX_CHUNK_PHOTO_REFUSED once (runtime/gx_decode.cpp). */
+void re4_gx_photo(int on, int refused);
 /* The picture format "Native" (runtime/picture.cpp, patch 0214): the camera's projection was loaded wide (1) or
  * as the game's 4:3 (0); the first call after a display copy decides the chunk's RE4_GX_CHUNK_WIDE.
  * re4_gx_wide_now: that decision so far, -1 none yet in this chunk. */

@@ -49,6 +49,17 @@
     <string name="ingame_hud_help">H:M:S is the game\'s own play time, kept in every save as on the GameCube. Time in this menu or in the background does not count.</string>
     <string name="ingame_skip_intro">Skip intro</string>
     <string name="ingame_skip_intro_help">Skip intro: at the start the game goes straight to its title menu, without the logos and the health warning (from the next start).</string>
+    <string name="ingame_photo_mode">Photo mode</string>
+    <string name="ingame_photo_mode_help">Photo mode: press SELECT twice quickly (F1 on a keyboard, MENU on the touch controls) to freeze the game and move a free camera; the HUD, Leon, Ashley and the enemies can be hidden one by one. With this on, a single SELECT opens this menu a moment later. Not in cutscenes, films, menus or while saving. Take the picture with your device\'s screenshot.</string>
+    <string name="ingame_photo_title">Photo mode</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Enemies</string>
+    <string name="ingame_photo_hint_pad">Left stick: move · Right stick: turn, up/down · D-pad: tilt · L slow · R fast · X HUD · Y Leon · A Ashley · Z enemies · START reset · B exit</string>
+    <string name="ingame_photo_hint_keys">WASD: move · Mouse: look · E/Q: up/down · Shift fast · Alt slow · 1 HUD · 2 Leon · 3 Ashley · 4 enemies · R reset · Esc exit</string>
+    <string name="ingame_photo_hint_touch">Left half: drag to move · Right half: drag to look · Second finger: up/down · Tap: show this · ✕ exit</string>
+    <string name="ingame_photo_not_here">Photo mode is not available here (cutscenes, films, menus, saving).</string>
     <string name="ingame_fps_bottom_left">Bottom left</string>
     <string name="ingame_fps_bottom_centre">Bottom centre</string>
     <string name="ingame_fps_top_left">Top left</string>

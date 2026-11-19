@@ -40,6 +40,17 @@
     <string name="ingame_hud_help">Ч:М:С — собственное время игры, его хранит каждое сохранение, как на GameCube. Время в этом меню или в фоне не считается.</string>
     <string name="ingame_skip_intro">Пропустить вступление</string>
     <string name="ingame_skip_intro_help">Пропустить вступление: при запуске игра сразу открывает главное меню, без логотипов и предупреждения о здоровье (со следующего запуска).</string>
+    <string name="ingame_photo_mode">Фоторежим</string>
+    <string name="ingame_photo_mode_help">Фоторежим: дважды быстро нажмите SELECT (F1 на клавиатуре, MENU на сенсорном управлении), чтобы остановить игру и управлять свободной камерой; HUD, Леона, Эшли и врагов можно скрыть по отдельности. Когда это включено, одиночное нажатие SELECT открывает это меню чуть позже. Недоступно в заставках, фильмах, меню и при сохранении. Снимок делайте скриншотом устройства.</string>
+    <string name="ingame_photo_title">Фоторежим</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Леон</string>
+    <string name="ingame_photo_partner">Эшли</string>
+    <string name="ingame_photo_enemies">Враги</string>
+    <string name="ingame_photo_hint_pad">Левый стик: движение · Правый стик: поворот, вверх/вниз · Крестовина: наклон · L медленно · R быстро · X HUD · Y Леон · A Эшли · Z враги · START сброс · B выход</string>
+    <string name="ingame_photo_hint_keys">WASD: движение · Мышь: обзор · E/Q: вверх/вниз · Shift быстро · Alt медленно · 1 HUD · 2 Леон · 3 Эшли · 4 враги · R сброс · Esc выход</string>
+    <string name="ingame_photo_hint_touch">Левая половина: тяните для движения · Правая половина: тяните для обзора · Второй палец: вверх/вниз · Касание: показать это · ✕ выход</string>
+    <string name="ingame_photo_not_here">Фоторежим здесь недоступен (заставки, фильмы, меню, сохранение).</string>
     <string name="ingame_fps_bottom_left">Внизу слева</string>
     <string name="ingame_fps_bottom_centre">Внизу по центру</string>
     <string name="ingame_fps_top_left">Вверху слева</string>

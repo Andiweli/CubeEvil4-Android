@@ -41,6 +41,17 @@
     <string name="ingame_hud_help">H:M:S é o tempo de jogo do próprio jogo, guardado em cada salvamento como no GameCube. O tempo neste menu ou em segundo plano não conta.</string>
     <string name="ingame_skip_intro">Pular introdução</string>
     <string name="ingame_skip_intro_help">Pular introdução: ao iniciar, o jogo vai direto ao menu de título, sem os logotipos e o aviso de saúde (a partir do próximo início).</string>
+    <string name="ingame_photo_mode">Modo foto</string>
+    <string name="ingame_photo_mode_help">Modo foto: aperte SELECT duas vezes rápido (F1 no teclado, MENU nos controles de toque) para congelar o jogo e mover uma câmera livre; o HUD, Leon, Ashley e os inimigos podem ser ocultados um a um. Com isto ligado, um único SELECT abre este menu um instante depois. Não em cenas, filmes, menus ou ao salvar. Tire a foto com a captura de tela do seu aparelho.</string>
+    <string name="ingame_photo_title">Modo foto</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Inimigos</string>
+    <string name="ingame_photo_hint_pad">Analógico esquerdo: mover · Analógico direito: girar, subir/descer · Direcional: inclinar · L lento · R rápido · X HUD · Y Leon · A Ashley · Z inimigos · START redefinir · B sair</string>
+    <string name="ingame_photo_hint_keys">WASD: mover · Mouse: olhar · E/Q: subir/descer · Shift rápido · Alt lento · 1 HUD · 2 Leon · 3 Ashley · 4 inimigos · R redefinir · Esc sair</string>
+    <string name="ingame_photo_hint_touch">Metade esquerda: arraste para mover · Metade direita: arraste para olhar · Segundo dedo: subir/descer · Toque: mostrar isto · ✕ sair</string>
+    <string name="ingame_photo_not_here">O modo foto não está disponível aqui (cenas, filmes, menus, salvamento).</string>
     <string name="ingame_fps_bottom_left">Canto inferior esquerdo</string>
     <string name="ingame_fps_bottom_centre">Inferior ao centro</string>
     <string name="ingame_fps_top_left">Canto superior esquerdo</string>

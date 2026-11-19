@@ -145,6 +145,15 @@ public final class CoreBridge {
   public static native void mouseMenu(float u, float v, boolean click);
   /** "Reload without aiming" (1.1.0, keyboard): one reload through the game's own direct reload (patch 0241). */
   public static native void quickReload();
+  /** Photo mode (1.1.0): op 1 on with the mask (1 HUD, 2 Leon, 4 the partner, 8 the enemies hidden), 0 off, 2 the
+   *  mask alone; false with a core without it (runtime/photo_mode.cpp). */
+  public static native boolean photoMode(int op, int mask);
+  /** The free camera's input in photo mode: a = move x, move z, rise, turn (bytes from the low one, -127..127);
+   *  b = tilt (byte), speed (byte: 0 normal, 1 slow, 2 fast), bit 16 back to the start; c = turn and tilt by the
+   *  mouse or a finger (s16 each, 1/8192 rad, low = turn). */
+  public static native void photoInput(int a, int b, int c);
+  /** 1: photo mode is on (the pictures say so); 2: a request was refused since the last call. */
+  public static native int photoState();
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
    *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
    *  off; the core's runtime/potato.cpp). */

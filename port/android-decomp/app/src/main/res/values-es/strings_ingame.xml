@@ -40,6 +40,17 @@
     <string name="ingame_hud_help">H:M:S es el tiempo de juego del propio juego, que cada partida guardada conserva, como en GameCube. El tiempo en este menú o en segundo plano no cuenta.</string>
     <string name="ingame_skip_intro">Saltar la intro</string>
     <string name="ingame_skip_intro_help">Saltar la intro: al iniciar, el juego va directamente a su menú principal, sin los logotipos ni el aviso de salud (desde el próximo inicio).</string>
+    <string name="ingame_photo_mode">Modo foto</string>
+    <string name="ingame_photo_mode_help">Modo foto: pulsa SELECT dos veces rápido (F1 en el teclado, MENU en los controles táctiles) para congelar el juego y mover una cámara libre; el HUD, Leon, Ashley y los enemigos se pueden ocultar uno a uno. Con esto activado, un solo SELECT abre este menú un momento después. No en escenas, películas, menús ni al guardar. Haz la foto con la captura de pantalla de tu dispositivo.</string>
+    <string name="ingame_photo_title">Modo foto</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Enemigos</string>
+    <string name="ingame_photo_hint_pad">Stick izquierdo: mover · Stick derecho: girar, subir/bajar · Cruceta: inclinar · L lento · R rápido · X HUD · Y Leon · A Ashley · Z enemigos · START restablecer · B salir</string>
+    <string name="ingame_photo_hint_keys">WASD: mover · Ratón: mirar · E/Q: subir/bajar · Shift rápido · Alt lento · 1 HUD · 2 Leon · 3 Ashley · 4 enemigos · R restablecer · Esc salir</string>
+    <string name="ingame_photo_hint_touch">Mitad izquierda: arrastra para mover · Mitad derecha: arrastra para mirar · Segundo dedo: subir/bajar · Toque: mostrar esto · ✕ salir</string>
+    <string name="ingame_photo_not_here">El modo foto no está disponible aquí (escenas, películas, menús, guardado).</string>
     <string name="ingame_fps_bottom_left">Abajo a la izquierda</string>
     <string name="ingame_fps_bottom_centre">Abajo en el centro</string>
     <string name="ingame_fps_top_left">Arriba a la izquierda</string>

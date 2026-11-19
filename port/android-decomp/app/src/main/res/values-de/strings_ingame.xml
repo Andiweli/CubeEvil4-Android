@@ -40,6 +40,17 @@
     <string name="ingame_hud_help">H:M:S ist die Spielzeit des Spiels, die jeder Spielstand behält, wie auf dem GameCube. Zeit in diesem Menü oder im Hintergrund zählt nicht.</string>
     <string name="ingame_skip_intro">Intro überspringen</string>
     <string name="ingame_skip_intro_help">Intro überspringen: Beim Start geht das Spiel sofort ins Titelmenü, ohne Logos und Gesundheitshinweis (ab dem nächsten Start).</string>
+    <string name="ingame_photo_mode">Fotomodus</string>
+    <string name="ingame_photo_mode_help">Fotomodus: SELECT zweimal schnell drücken (F1 auf der Tastatur, MENU bei der Touch-Steuerung) friert das Spiel ein und gibt eine freie Kamera frei; HUD, Leon, Ashley und die Gegner lassen sich einzeln ausblenden. Ist dies an, öffnet ein einzelnes SELECT dieses Menü einen Moment später. Nicht in Zwischensequenzen, Filmen, Menüs oder beim Speichern. Das Bild machst du mit dem Screenshot deines Geräts.</string>
+    <string name="ingame_photo_title">Fotomodus</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Gegner</string>
+    <string name="ingame_photo_hint_pad">Linker Stick: bewegen · Rechter Stick: drehen, hoch/runter · Steuerkreuz: neigen · L langsam · R schnell · X HUD · Y Leon · A Ashley · Z Gegner · START zurücksetzen · B beenden</string>
+    <string name="ingame_photo_hint_keys">WASD: bewegen · Maus: umsehen · E/Q: hoch/runter · Shift schnell · Alt langsam · 1 HUD · 2 Leon · 3 Ashley · 4 Gegner · R zurücksetzen · Esc beenden</string>
+    <string name="ingame_photo_hint_touch">Linke Hälfte: ziehen zum Bewegen · Rechte Hälfte: ziehen zum Umsehen · Zweiter Finger: hoch/runter · Tippen: dies zeigen · ✕ beenden</string>
+    <string name="ingame_photo_not_here">Der Fotomodus ist hier nicht möglich (Zwischensequenzen, Filme, Menüs, Speichern).</string>
     <string name="ingame_fps_bottom_left">Unten links</string>
     <string name="ingame_fps_bottom_centre">Unten mittig</string>
     <string name="ingame_fps_top_left">Oben links</string>

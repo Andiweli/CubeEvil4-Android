@@ -41,6 +41,17 @@
     <string name="ingame_hud_help">时:分:秒是游戏自身的游戏时间，与 GameCube 上一样保存在每个存档中。在此菜单中或在后台的时间不计入。</string>
     <string name="ingame_skip_intro">跳过开场</string>
     <string name="ingame_skip_intro_help">跳过开场：启动时游戏直接进入标题菜单，不显示标志和健康警告（下次启动起生效）。</string>
+    <string name="ingame_photo_mode">拍照模式</string>
+    <string name="ingame_photo_mode_help">拍照模式：快速按两次 SELECT（键盘为 F1，触屏控制为 MENU）即可冻结游戏并自由移动镜头；HUD、里昂、阿什莉和敌人可分别隐藏。开启此项后，单按一次 SELECT 会稍后打开本菜单。过场动画、影片、菜单和存档时不可用。请用设备自带的截图功能拍照。</string>
+    <string name="ingame_photo_title">拍照模式</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">里昂</string>
+    <string name="ingame_photo_partner">阿什莉</string>
+    <string name="ingame_photo_enemies">敌人</string>
+    <string name="ingame_photo_hint_pad">左摇杆：移动 · 右摇杆：转向、升降 · 十字键：俯仰 · L 慢速 · R 快速 · X HUD · Y 里昂 · A 阿什莉 · Z 敌人 · START 复位 · B 退出</string>
+    <string name="ingame_photo_hint_keys">WASD：移动 · 鼠标：环视 · E/Q：升降 · Shift 快速 · Alt 慢速 · 1 HUD · 2 里昂 · 3 阿什莉 · 4 敌人 · R 复位 · Esc 退出</string>
+    <string name="ingame_photo_hint_touch">左半屏：拖动移动 · 右半屏：拖动环视 · 第二根手指：升降 · 轻点：显示此栏 · ✕ 退出</string>
+    <string name="ingame_photo_not_here">此处无法使用拍照模式（过场动画、影片、菜单、存档）。</string>
     <string name="ingame_fps_bottom_left">左下</string>
     <string name="ingame_fps_bottom_centre">下方居中</string>
     <string name="ingame_fps_top_left">左上</string>

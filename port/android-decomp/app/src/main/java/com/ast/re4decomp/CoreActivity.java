@@ -155,6 +155,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GRAPHICS_PREFS = "core_graphics";
   /** "Skip intro" (1.1.0, GRAPHICS_PREFS): the game's logos before the title menu are left out (RE4_SKIP_INTRO=1). */
   static final String SKIP_INTRO = "skipIntro";
+  /** "Photo mode" (1.1.0, GRAPHICS_PREFS): a double press of SELECT (F1, the touch controls' MENU) starts it (PhotoMode). */
+  static final String PHOTO_MODE = "photoMode";
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
@@ -209,6 +211,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private String rendererLine = "OpenGL ES";
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
+  /** Photo mode (1.1.0): its state, the camera's input and its overlay. */
+  private PhotoMode photo;
+  /** Photo mode on: a single SELECT opens the menu only after PhotoMode.DOUBLE_MS without a second press. */
+  private final Runnable selectSingle = this::openMenu;
+  private long selectReleasedAt = Long.MIN_VALUE;
   private GyroAim gyroAim;
   private boolean touchEditing;
   private String startProblem = "";
@@ -469,6 +476,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     gyroAim.setController(lastPad >= 0 ? InputDevice.getDevice(lastPad) : null);
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT));
+    // photo mode's overlay above them (hidden until photo mode is on)
+    photo = new PhotoMode(this, main, photoHost);
+    root.addView(photo.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
     // the camera's cutout (Cutout, 0.99.17): the touch controls cover the whole window, their layouts follow the
     // camera's side; the error log says what the window got. Again when the screen turns by 180 degrees.
@@ -956,18 +967,55 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** SELECT (a controller's key or the touch controls' MENU) went down or up. */
   private void select(boolean down) {
+    // photo mode on (or asked for): SELECT leaves it
+    if (photo != null && photo.busy()) {
+      if (down) photo.leave("SELECT");
+      selectDown = false;
+      main.removeCallbacks(selectHold);
+      return;
+    }
     if (down) {
+      // the second press of a double press (photo mode switched on in the menu): photo mode instead of the menu
+      if (photoWanted() && SystemClock.uptimeMillis() - selectReleasedAt <= PhotoMode.DOUBLE_MS) {
+        main.removeCallbacks(selectSingle);
+        selectReleasedAt = Long.MIN_VALUE;
+        selectDown = false;
+        photo.request("SELECT twice");
+        return;
+      }
       selectDown = true;
       selectHeld = false;
       main.removeCallbacks(selectHold);
       main.postDelayed(selectHold, SELECT_HOLD_MS);
     } else if (selectDown) {
-      // let go before the second: the menu
+      // let go before the second: the menu (with photo mode switched on a moment later: a second press may follow)
       selectDown = false;
       main.removeCallbacks(selectHold);
-      if (!selectHeld) openMenu();
+      if (selectHeld) return;
+      if (photoWanted()) {
+        selectReleasedAt = SystemClock.uptimeMillis();
+        main.removeCallbacks(selectSingle);
+        main.postDelayed(selectSingle, PhotoMode.DOUBLE_MS);
+      } else {
+        openMenu();
+      }
     }
   }
+
+  /** The menu's "Photo mode" (Display, Optional features) is on. */
+  private boolean photoWanted() {
+    return photo != null && getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(PHOTO_MODE, false);
+  }
+
+  private final PhotoMode.Host photoHost = new PhotoMode.Host() {
+    @Override public int[] pad() { return input.pad(); }
+
+    @Override public void releaseAll() { CoreActivity.this.releaseAll(); }
+
+    @Override public void touchControlsHidden(boolean hidden) {
+      if (touchControls != null) touchControls.view().setVisibility(hidden ? View.GONE : View.VISIBLE);
+    }
+  };
 
   private void openMenu() {
     if (menu != null || destroyed) return;
@@ -2106,6 +2154,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void send() {
+    // photo mode: the game stands, PhotoMode reads the controllers itself (and sends the camera's input)
+    if (photo != null && photo.active()) return;
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
     String stick = stickWatch.sample(SystemClock.uptimeMillis(), p[1], p[2]);
@@ -2244,6 +2294,25 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return true;
     }
     boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+    // photo mode on: every key stays with it (SELECT, F1, Esc, B and Back leave it)
+    if (photo != null && photo.active()) {
+      if (input.appFunctionOf(code, keyboard) == CoreInput.APP_MENU) {
+        if (first) photo.leave(keyboard ? "F1" : "SELECT");
+        return true;
+      }
+      if (code == KeyEvent.KEYCODE_BACK) {
+        if (first) photo.leave("Back");
+        return true;
+      }
+      if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
+      if (keyboard) {
+        photo.keyboardKey(code, down, first);
+      } else if (e.getRepeatCount() == 0 && (controller(e) || KeyEvent.isGamepadButton(code))) {
+        input.key(e.getDeviceId(), code, down);
+        photo.padKey();
+      }
+      return true;
+    }
     int function = input.appFunctionOf(code, keyboard);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
@@ -2436,6 +2505,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   @Override
   public boolean dispatchTouchEvent(MotionEvent e) {
+    // photo mode: its overlay takes the fingers (the touch controls are hidden, no taps or swipes for the game)
+    if (photo != null && photo.active() && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+      return super.dispatchTouchEvent(e);
+    }
     // a mouse on the picture while the game is in front: it is captured (its clicks are no taps)
     if (Build.VERSION.SDK_INT >= 26 && e.isFromSource(InputDevice.SOURCE_MOUSE) && mouseWanted()) {
       if (e.getActionMasked() == MotionEvent.ACTION_DOWN) updateMouseCapture();
@@ -2829,6 +2902,26 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int state = e.getButtonState() & 31;
     int changed = state ^ mouseButtons;
     mouseButtons = state;
+    // photo mode: the mouse looks around; a button with the app menu's key leaves
+    if (photo != null && photo.active()) {
+      for (int bit = 1; bit <= 16; bit <<= 1) {
+        if ((changed & bit) != 0 && (state & bit) != 0
+            && input.appFunctionOf(ActionMap.mouseButton(bit), true) == CoreInput.APP_MENU) {
+          photo.leave("the mouse's menu button");
+          return;
+        }
+      }
+      int action = e.getActionMasked();
+      if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
+        float dx = e.getX(), dy = e.getY();
+        for (int h = 0; h < e.getHistorySize(); h++) {
+          dx += e.getHistoricalX(h);
+          dy += e.getHistoricalY(h);
+        }
+        photo.mouse(dx, aimInvert ? -dy : dy, MOUSE_AIM_RADIANS * mouseSensitivity);
+      }
+      return;
+    }
     for (int bit = 1; bit <= 16; bit <<= 1) {
       if ((changed & bit) == 0) continue;
       int code = ActionMap.mouseButton(bit);
@@ -3488,6 +3581,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     keepGameVibration();
     selectDown = false;
     main.removeCallbacks(selectHold);
+    main.removeCallbacks(selectSingle);
+    if (photo != null) photo.leave("the app went to the background");
     stopBeat();
     if (gyroAim != null) gyroAim.pause();
     // the sound pauses with the app (the core skips what it played meanwhile)

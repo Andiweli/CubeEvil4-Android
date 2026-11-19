@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0243 (0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+Nächste freie Patch-Nummer: 0244 (0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -203,6 +203,48 @@ Testschalter `RE4_HB_WALKING_WALLS=1` (alte Prüfung, nur zum Vergleich).
   (`builds\workthread-1.1.0\healthbars-height-fix-r208-old-left-new-right.png`); r101 Belagerung: Wände verdecken
   weiter, Ganados durch Fenster und Brett-Lücken haben Balken (`…-r101-walls-still-hide.png`). **Nicht geprüft:** auf
   einem Gerät.
+
+### 10. Fotomodus (Wunsch des Projektinhabers, 19.11.2026, Patch 0243)
+
+Schalter „Fotomodus“ unter Anzeige → Optionale Features (aus; `GRAPHICS_PREFS` `photoMode`), Hilfe in 11 Sprachen
+(503 Texte). `PhotoMode.java` (App), `runtime/photo_mode.cpp` (Kern), IPC `kPhotoMode` = 52 und `kPhotoInput` = 53,
+die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_REFUSED`).
+- **Starten:** SELECT zweimal schnell (Controller, Touch-MENU, Tastatur F1: alle laufen über `CoreActivity.select`).
+  **Entscheidung (eigene Empfehlung):** nur mit eingeschaltetem Fotomodus wartet ein einzelnes SELECT nach dem Loslassen
+  300 ms auf einen zweiten Druck, dann öffnet sich das App-Menü; SELECT 1 s halten = Debug-Menü bleibt (der Halte-Timer
+  läuft ab dem ersten Druck). Aus: alles wie bisher. Im Fotomodus beenden ihn SELECT, F1, B, Esc, Zurück und das ✕.
+- **Was steht:** wie im Optionsbildschirm des Spiels (`gameOption`): Patch 0243 lässt `gameMainLoop` ganz aus
+  (Spieler, Partner, Gegner, Objekte, Effekte, Lichter, Szenario, Kamerasteuerung, Cockpit), `Stop_flg` alle Bits,
+  Spielzeit angehalten (`SetGameTime`/`InitGameTime`), Geräusche pausiert (`SndSePauseAll`) und alles Übrige (Musik)
+  stumm (`re4_sound_volume_mute`, runtime/sound_volume.cpp). `Trans` zeichnet die Welt weiter, mit der eigenen
+  Sichtprüfung des Spiels für die freie Kamera. Der Patch fügt keine Zeile ein (die Byte-Ansichten von game.cpp werden
+  in ±40 Zeilen gesucht; mit 7 neuen Zeilen fand der Bau `(u32*)&pG->Rno0` in gameOption nicht mehr).
+- **Ausblenden:** HUD (Disp_flg: Cockpit, IdSys-Einheiten, Meldungen, Aktionshinweise; die Lebensbalken mit), Leon
+  (mit seinen Waffen), Partner, Gegner (die Ids der Lebensbalken: ohne Händler, Tiere, Fallen, Fahrzeuge) einzeln,
+  über `setTrans(0)` (das Spiel zeichnet sie dann weder noch ihren Schatten) samt allem, was an ihnen hängt (Eltern-
+  Koordinate des Objekts oder seines ersten Teils; Waffen 0x42, Fackeln 0x47 und Schilde 0x50 über ihren
+  `pEm_oya`/`pParent`). Beim Beenden alles zurück; dazwischen bewegt sich nichts.
+- **Freie Kamera:** startet an der Spielkamera; linker Stick vor/zurück/seitlich, rechter Stick drehen und hoch/runter,
+  Steuerkreuz neigen, L langsam, R schnell, START zurück an den Anfang; Tastatur WASD/Pfeile, Maus umsehen, E/Leertaste
+  hoch, Q/C runter, Shift schnell, Alt langsam, 1–4 die Schalter, R zurück; Touch: linke Hälfte ziehen = bewegen,
+  rechte Hälfte = umsehen, zweiter Finger = hoch/runter, Tippen zeigt die Leiste. 2,2 m/s, höchstens 8 m von Leons
+  Brust (keine Kollision).
+- **Leiste:** oben links Titel und die vier Schalter (antippbar), oben rechts ✕, unten die Steuerung für das zuletzt
+  benutzte Gerät; nach 4 s ohne Knopf blendet sie in 0,5 s aus (Bildschirmfotos ohne Leiste). Die Touch-Steuerung ist
+  im Fotomodus verborgen.
+- **Nicht erlaubt (eigene Entscheidung):** Ereignisse/Zwischensequenzen, Filme, Untermenüs und Gegenstand-Aufnahme,
+  Todesszene, Speicherkarte, Türszene, stehende Spielbilder, Zielfernrohr/Fernglas, Leon gepackt, vom Spiel
+  angehaltener Spieler oder Tasten (Händler, Schreibmaschine), außerhalb des Spiels (Titel, Optionen, Laden). Die App
+  sagt dann „Fotomodus ist hier nicht möglich“.
+- **Renderer:** der Kern zeichnet die Bilder, GLES und Vulkan bekommen dieselben; Tiefenschärfe, Bloom und Filter
+  unverändert.
+- **Geprüft am PC** (Bilder `builds\workthread-1.1.0\photo-*.png`): r103 und r208 mit HUD, alles ausgeblendet,
+  nur Gegner/nur Ashley ausgeblendet, Kamera weggefahren, danach das Spiel wie vorher (GLES und Vulkan); Ton: r208
+  im Fotomodus 10 s still (RMS 0), danach wieder da; r100 während des Ereignisses verweigert. Rundgang 126 Räume mit `RE4_TEST_PHOTO` (an, alles aus, Kamera 1 s bewegt, alles an, aus; `wt-photo_tours.sh`):
+  Debug ALLES OK (108 Räume an und wieder aus, 15 verweigert: 35× Ereignis, 2× Spieler/Tasten angehalten); EU 125 von
+  126, r333 stürzt später ab (Altbefund, Bild 4968, weit nach dem Fotomodus). ARM32/ARM64-Kern und App (Gradle,
+  Unit-Tests, 503 Texte) bauen.
+  **Nicht geprüft:** auf einem Gerät (Leiste, Doppeldruck, Touch-Ziehen, Maus, Bildschirmfoto).
 
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 

@@ -131,6 +131,8 @@ struct Core {
     void (*setLeonJacket)(int);   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
     void (*mouseMenu)(float, float, int);  // optional (cores since 1.1.0): the mouse in the game's menus
     void (*quickReload)(void);    // optional (cores since 1.1.0): one reload without the aim
+    void (*photoMode)(int, int);  // optional (cores since 1.1.0): photo mode
+    void (*photoInput)(int, int, int);
     int (*rtShadows)(void);       // optional (cores since 16.11.2026): the real-time shadows it knows
     void (*swipe)(int);
     void (*slash)(float);
@@ -813,6 +815,8 @@ bool loadCore(std::string& problem)
     bind(core.setLeonJacket, "re4_core_set_leon_jacket", false);
     bind(core.mouseMenu, "re4_core_mouse_menu", false);
     bind(core.quickReload, "re4_core_quick_reload", false);
+    bind(core.photoMode, "re4_core_photo_mode", false);
+    bind(core.photoInput, "re4_core_photo_input", false);
     bind(core.rtShadows, "re4_core_rt_shadows", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
@@ -1007,6 +1011,12 @@ void serve()
             break;
         case kRtShadows:
             reply(h.id, core.rtShadows ? core.rtShadows() : 0, "");
+            break;
+        case kPhotoMode:
+            if (core.photoMode) core.photoMode(h.a, h.b);
+            break;
+        case kPhotoInput:
+            if (core.photoInput) core.photoInput(h.a, h.b, h.c);
             break;
         case kQuickReload:
             if (core.quickReload) core.quickReload();

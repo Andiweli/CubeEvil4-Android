@@ -468,6 +468,12 @@ void re4_health_bars(void)
 
 }  // extern "C"
 
+// Photo mode (runtime/photo_mode.cpp): the enemies it hides are the ones listed here
+bool re4_hb_enemy_id(int id)
+{
+    return listed(id);
+}
+
 // Patch 0238 declares it at block scope in game.cpp (C++ linkage there)
 void re4_health_bars_call()
 {
