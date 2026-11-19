@@ -826,6 +826,14 @@ int re4_core_aim_from_game(void)
     return re4_aim_from_game();
 }
 
+extern "C" int re4_vibration_from_game(void);
+
+// The game's own options changed "vibration" (1.1.0): -1, else 0 / 1 for the app's "Vibration" (Off / Auto).
+int re4_core_vibration_from_game(void)
+{
+    return re4_vibration_from_game();
+}
+
 extern "C" void re4_sound_volume_set(int music, int effects);
 
 void re4_core_set_sound_volume(int bits)

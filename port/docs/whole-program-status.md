@@ -3,6 +3,32 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 1.1.0 (in Arbeit, Branch `workthread`, Basis b37a9cf4 = Release 1.0.0, Tag 1.0.0; versionCode 124)
+
+Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
+GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
+`wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
+Nächste freie Patch-Nummer: 0238.
+
+### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
+
+- **Befund** (Berichte `reports\workthread-1.1.0\dualsense\`): Die App wählte richtig („rumble (Auto): the controller
+  "DualSense Wireless Controller" (2 motors, with amplitude control)“), aber das Spiel startete seinen Motor nie
+  (keine Zeile „pad: rumble“). Die Systemdaten hatten `config 0x02000000`: der Schalter **Vibration des Spiels**
+  (`CFG_VIBRATION`, 0x08000000) war aus. Der Prototyp legt neue Systemdaten mit Vibration aus an, und sein Optionsmenü
+  (Controller) übernimmt eine Änderung nur mit A (mit B zurück bleibt der alte Wert, obwohl kurz „Ein“ stand). In den
+  älteren Testerberichten unter `reports\` steht bei rund 100 von 150 Starts Vibration aus.
+- **Korrektur** (ohne Patch, `runtime/aim_options.cpp` wie „Vertikal invertieren“): Bits 4/5 der Ziel-Bits
+  (`re4_core_set_aim`): mit Bit 5 folgt der Schalter des Spiels Bit 4 = „Vibration“ der App nicht Aus
+  (`CoreBridge.setGameVibration`, aus `CoreActivity.chooseRumble`). Gesetzt beim nächsten Spielbild und nach dem Lesen
+  der Systemdaten. Umgekehrt (`re4_aim_options_closed`, Patch 0188): ändert das Optionsmenü des Spiels die Vibration,
+  wird die App auf Aus bzw. (wenn sie Aus war) Auto gestellt (`re4_core_vibration_from_game`,
+  `CoreActivity.keepGameVibration`; nur mit dem Kern im App-Prozess).
+- **Geprüft am PC** (i686 -O2, alle Prüfungen grün; `wt-vib_run.sh`, r103 Debug-Discs, 4000 Bilder): ohne Bits wie
+  beim Nutzer `config 0x00000000`, kein „pad: rumble“; mit 0x30 „pad: the game's vibration on (the app's switch)“,
+  `config 0x08000000`, „pad: rumble from frame 477“; mit 0x20 aus, kein Rumble. App: Java übersetzt
+  (`compileCoreDebugJavaWithJavac`). **Nicht geprüft:** auf einem Gerät, mit einem DualSense.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

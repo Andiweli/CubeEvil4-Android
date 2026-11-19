@@ -285,6 +285,9 @@ void re4_core_set_potato(int mask);
  * the game: the stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
 void re4_core_set_aim(int bits);
 int re4_core_aim_from_game(void);  // patch 0188: -1, or the game's own "reverse" (0 / 1)
+/* 1.1.0: bits 4/5 of re4_core_set_aim: with bit 5 the game's own vibration switch (CFG_VIBRATION) follows bit 4
+ * (the app's "Vibration" not Off); re4_core_vibration_from_game: -1, or the game's own options' "vibration". */
+int re4_core_vibration_from_game(void);
 /* The app menu's AUDIO page (cores since 30.10.2026, runtime/sound_volume.cpp): bits 0..7 the music, bits
  * 8..15 the sound effects volume in percent (0..100; 100 as the game). Any thread. */
 void re4_core_set_sound_volume(int bits);

@@ -106,6 +106,7 @@ struct CoreApi {
   void (*setSoundVolume)(int){};  // optional (cores since 30.10.2026): music | effects << 8, percent
   void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bits 8.. aim speed in percent
   int (*aimFromGame)(void){};   // optional (cores since 03.11.2026, patch 0188): the game's own "reverse" changed
+  int (*vibrationFromGame)(void){};  // optional (cores since 1.1.0): the game's own "vibration" changed
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
@@ -460,6 +461,7 @@ void loadCore(JNIEnv *env) {
   api.setPotato = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_potato"));
   api.setAim = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_aim"));
   api.aimFromGame = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_aim_from_game"));
+  api.vibrationFromGame = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_vibration_from_game"));
   api.setSoundVolume = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_sound_volume"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
@@ -991,6 +993,9 @@ int cpuSkipSent = -1;  // what the core was told last (-1: nothing yet)
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
 std::atomic<int> optAim{100 << 8};
 std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFarCamera), bit 3 of the aim bits
+// the menu's "Vibration" not Off (CoreBridge.setGameVibration, 1.1.0): bits 4/5 of the aim bits, the game's own
+// vibration switch follows it (runtime/aim_options.cpp); -1 before the app sent it (bit 5 clear)
+std::atomic<int> optGameVibration{-1};
 // the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
 // degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
 std::atomic<int> optFov{0};
@@ -2650,7 +2655,9 @@ bool drawGx() {
       LOG("aggressive frame skip to the core: %s", cpuSkip ? "on (the game leaves a picture out while it is behind)"
                                                            : optCpuSkip.load() ? "off (60 FPS is on)" : "off");
     }
+    const int vibration = optGameVibration.load();
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
+                    | (vibration < 0 ? 0 : vibration ? 0x30 : 0x20)  // bits 4/5 the game's vibration (1.1.0)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
@@ -3667,10 +3674,22 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEn
         percent, autoAim == JNI_TRUE ? "on" : "off", alwaysRun == JNI_TRUE ? "on" : "off");
 }
 
+// The menu's "Vibration" not Off (1.1.0): the game's own vibration switch follows it (drawGx tells the core).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGameVibration(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optGameVibration.exchange(want) != want) LOG("rumble: the game's vibration switch %s", want ? "on" : "off");
+}
+
 // Patch 0188: "reverse" changed in the game's own options since the last call (-1: no; with the core in its own
 // process always -1).
 extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(JNIEnv *, jclass) {
   return api.aimFromGame ? api.aimFromGame() : -1;
+}
+
+// 1.1.0: "vibration" changed in the game's own options since the last call (-1: no; with the core in its own
+// process always -1).
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_vibrationFromGame(JNIEnv *, jclass) {
+  return api.vibrationFromGame ? api.vibrationFromGame() : -1;
 }
 
 // "Far camera" (the menu, Controls): the shoulder camera further back while walking and standing (patch 0171),

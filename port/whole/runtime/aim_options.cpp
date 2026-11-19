@@ -17,6 +17,11 @@
 //  - "Always run" (wish of the project owner, 30.10.2026): Leon runs without the run key and walks while
 //    it is held (patch 0156: the four run checks of player.cpp ask re4_run_held). Only there: the key
 //    keeps its other uses (cancel, quick turn, menus).
+//  - "Vibration" (1.1.0, a user's report 19.11.2026: no rumble on a DualSense nor the phone): the game's own
+//    switch (its Options, Controller: "vibration", CFG_VIBRATION in pSys->Config_flg) follows the app's menu:
+//    on unless the app's "Vibration" is Off. The game's switch was off in most testers' system files (the
+//    prototype's new system file has it off, and its Options apply a change only with A), so the game never
+//    started the motor and the app had nothing to pass on. Set as "Invert vertical" is.
 #include "types.h"
 #include "global.h"
 #include "main.h"
@@ -31,6 +36,7 @@ namespace {
 
 std::atomic<int> gInvert(-1);       // the app's "Invert vertical", -1 before it sent anything
 std::atomic<int> gLock(-1);         // the app's "Auto aim", -1 before it sent anything
+std::atomic<int> gVib(-1);          // the app's "Vibration" not Off, -1 before it sent anything (bits 4/5)
 std::atomic<bool> gRun(false);      // the app's "Always run"
 std::atomic<bool> gFar(false);      // the app's "Far camera" (patch 0171)
 std::atomic<int> gFov(0);           // the app's "Field of view" in degrees, -15 .. 15 (patch 0205)
@@ -49,6 +55,7 @@ std::atomic<int> gSpeed(100);       // the app's "Aim speed" in percent
 std::atomic<bool> gPending(false);  // the game's option to be set at the next game frame
 std::atomic<bool> gHooked(false);
 std::atomic<int> gFromGame(-1);     // the game's own options changed "reverse" (patch 0188): 0 / 1 for the app
+std::atomic<int> gVibFromGame(-1);  // the game's own options changed "vibration" (1.1.0): 0 / 1 for the app
 
 void applyLock(const char* why)
 {
@@ -67,9 +74,27 @@ void applyLock(const char* why)
     re4_log("aim: auto aim (the game's lock-on) %s (%s)", lock ? "on" : "off", why);
 }
 
+void applyVibration(const char* why)
+{
+    const int vib = gVib.load();
+    if (vib < 0 || !pSys) {
+        return;
+    }
+    if ((CfgFlagChk(pSys, CFG_VIBRATION) != 0) == (vib != 0)) {
+        return;
+    }
+    if (vib) {
+        CfgFlagOn(pSys, CFG_VIBRATION);
+    } else {
+        CfgFlagOff(pSys, CFG_VIBRATION);
+    }
+    re4_log("pad: the game's vibration %s (%s)", vib ? "on" : "off", why);
+}
+
 void apply(const char* why)
 {
     applyLock(why);
+    applyVibration(why);
     const int invert = gInvert.load();
     if (invert < 0 || !pSys) {
         return;
@@ -94,7 +119,8 @@ void hook(unsigned)
 }
 
 // For tests on the PC: RE4_TEST_AIM=bits at the start, as the app's re4_core_set_aim (bit 1 auto aim, bit 2
-// always run, bits 8.. the speed; 0 there: 100 %), applied at the first game frame
+// always run, bit 5 vibration sent with bit 4 on, bits 8.. the speed; 0 there: 100 %), applied at the first game
+// frame
 struct StartSetting {
     StartSetting()
     {
@@ -107,6 +133,7 @@ struct StartSetting {
             gLock = (bits >> 1) & 1;
             gRun = (bits & 4) != 0;
             gFar = (bits & 8) != 0;
+            gVib = (bits & 0x20) ? (bits >> 4) & 1 : -1;
             gHooked = true;
             gPending = true;
             re4_add_frame_hook(hook);
@@ -119,8 +146,8 @@ struct StartSetting {
 extern "C" {
 
 // The app (core_api.cpp re4_core_set_aim): bit 0 "Invert vertical", bit 1 "Auto aim", bit 2 "Always run",
-// bit 3 "Far camera", bits 8..19 the aim speed in percent, bits 24..29 "Field of view" (degrees + 32; 0.98.4).
-// Any thread.
+// bit 3 "Far camera", bit 4 the game's vibration on with bit 5 set (1.1.0; bit 5 clear: the game's own switch),
+// bits 8..19 the aim speed in percent, bits 24..29 "Field of view" (degrees + 32; 0.98.4). Any thread.
 void re4_aim_set(int bits)
 {
     int speed = (bits >> 8) & 0xFFF;
@@ -137,6 +164,10 @@ void re4_aim_set(int bits)
     const bool farther = gFar.exchange(far) != far;
     const int fov = fovOf(bits);
     const bool wider = gFov.exchange(fov) != fov;
+    const int vib = (bits & 0x20) ? (bits >> 4) & 1 : -1;
+    if (gVib.exchange(vib) != vib) {
+        re4_log("pad: the app's vibration %s", vib < 0 ? "not sent (the game's own switch)" : vib ? "on" : "off");
+    }
     if (inverted || faster || locked || ran || farther || wider) {
         re4_log("aim: stick aiming %s, speed %d %%, auto aim %s, always run %s, far camera %s, field of view %+d degrees",
                 invert ? "inverted" : "normal", speed, lock ? "on" : "off", run ? "on" : "off", far ? "on" : "off", fov);
@@ -179,6 +210,14 @@ void re4_aim_options_closed(void)
     if (!pSys || gPending.load()) {
         return;
     }
+    // "vibration" too (1.1.0): the app's "Vibration" becomes Off, or Auto when it was Off
+    const int vib = CfgFlagChk(pSys, CFG_VIBRATION) != 0;
+    const int sent = gVib.load();
+    if (sent >= 0 && sent != vib) {
+        gVib = vib;
+        gVibFromGame = vib;
+        re4_log("pad: the game's vibration %s (the game's own options; the app keeps it)", vib ? "on" : "off");
+    }
     const int now = CfgFlagChk(pSys, CFG_AIM_REVERSE) != 0;
     if (gInvert.load() == now) {
         return;
@@ -192,6 +231,12 @@ void re4_aim_options_closed(void)
 int re4_aim_from_game(void)
 {
     return gFromGame.exchange(-1);
+}
+
+// The app (core_api.cpp re4_core_vibration_from_game): -1, or the game's own "vibration" since the last call.
+int re4_vibration_from_game(void)
+{
+    return gVibFromGame.exchange(-1);
 }
 
 // After the system file was read into pSys (game thread): the app's switch, not the saved one.

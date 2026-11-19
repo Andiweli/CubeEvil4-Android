@@ -134,6 +134,10 @@ public final class CoreBridge {
   public static native void setAim(boolean invert, float speed, boolean autoAim, boolean alwaysRun);
   /** The game's own options changed "reverse" since the last call (patch 0188): -1, else 0 / 1 for "Invert vertical". */
   public static native int aimFromGame();
+  /** The menu's "Vibration" not Off (1.1.0): the game's own vibration switch follows it (runtime/aim_options.cpp). */
+  public static native void setGameVibration(boolean on);
+  /** The game's own options changed "vibration" since the last call (1.1.0): -1, else 0 / 1. */
+  public static native int vibrationFromGame();
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
    *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
    *  off; the core's runtime/potato.cpp). */

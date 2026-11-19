@@ -953,6 +953,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     releaseAll();
     boolean paused = CoreBridge.pause(true, 800);
     keepGameAimInvert();
+    keepGameVibration();
     audio.stop();
     stopVibrator();
     Log.i(TAG, "menu open" + (paused ? ", the game stands" : ", the game did not stop yet (loading?)")
@@ -2675,6 +2676,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, aimInvert).apply();
     Log.i(TAG, "aim: vertical aiming " + (aimInvert ? "inverted" : "normal") + " from the game's own options, kept");
   }
+
+  /**
+   * A change of "vibration" in the game's own options (Controller) is the menu's "Vibration" too (1.1.0): off makes
+   * it Off, on makes an Off Auto; kept as "Invert vertical" is.
+   */
+  private void keepGameVibration() {
+    if (!menuSupported) return;
+    int fromGame = CoreBridge.vibrationFromGame();
+    if (fromGame < 0 || (fromGame == 1) == (rumbleMode != RumbleTarget.OFF)) return;
+    rumbleMode = fromGame == 1 ? RumbleTarget.AUTO : RumbleTarget.OFF;
+    getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(VIBRATION, rumbleMode).apply();
+    Log.i(TAG, "rumble: " + RumbleTarget.modeName(rumbleMode) + " from the game's own options, kept");
+    chooseRumble("the game's own options");
+  }
   private boolean aimInvert, autoAim, alwaysRun;
   private float aimSpeed = 1f;
 
@@ -2831,6 +2846,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * without amplitude control.
    */
   private void chooseRumble(String why) {
+    // the game's own vibration switch follows the menu (1.1.0): it was off in most testers' system files, so the
+    // game never started its motor and nothing vibrated (a DualSense user's report, 19.11.2026)
+    CoreBridge.setGameVibration(rumbleMode != RumbleTarget.OFF);
     cancelBoth();
     padMotors = null;
     padAmplitude = false;
@@ -3359,6 +3377,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // the game stands while the app is not in front (home screen, a file picker of the menu)
     if (menuSupported) CoreBridge.pause(true, 0);
     keepGameAimInvert();
+    keepGameVibration();
     selectDown = false;
     main.removeCallbacks(selectHold);
     stopBeat();
