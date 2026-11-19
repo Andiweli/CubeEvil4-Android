@@ -396,6 +396,8 @@
     <string name="ingame_map_keyboard">Tastatur &amp; Maus</string>
     <string name="ingame_mouse_help">Die Maus (ab Android 8) steuert das laufende Spiel: Sie dreht die Kamera und bewegt das Ziel; das Mausrad zoomt Zielfernrohr und Fernglas. Das App-Menü (F1) gibt den Mauszeiger frei.</string>
     <string name="ingame_keyboard_c_help">Das Messer: seine Taste halten und mit der Maus zielen. Die Tasten des C-Sticks (I, K, J, L, wenn nicht geändert) drehen die Kamera und zoomen Zielfernrohr und Fernglas.</string>
+    <string name="ingame_quick_reload">Nachladen ohne Zielen</string>
+    <string name="ingame_quick_reload_help">Nachladen ohne Zielen (Tastatur): Die Nachladetaste allein (Standard R) lädt nach, ohne erst die Waffe anzulegen.</string>
     <string name="ingame_mouse_sensitivity">Maus-Empfindlichkeit</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Gerät</string>

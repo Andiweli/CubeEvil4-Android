@@ -1,0 +1,26 @@
+# Port patch (1.1.0; the idea from a user's "ModernTPS" mod, our own code): "Reload without aiming" for the keyboard
+# (the app menu's Controls, off by default). When the app asked for one reload (runtime/aim_options.cpp, the
+# keyboard's reload key pressed without the aim, the last half second), cPlayer::keyReload answers yes once. The
+# game reloads through its own ways: actionSelect (standing, walking) or the weapon routine, only when the weapon
+# can reload; without the aim key PlReloadDirect 1, the direct reload of its control type 1 (PlKeyReloadType 1).
+# Without a request: as the game.
+--- a/src/game/pl_class.cpp
++++ b/src/game/pl_class.cpp
+@@ -1461,10 +1461,17 @@
+ 
+ // Reload key by PlKeyReloadType: 0 aim + R trigger, 1 the aim key alone (PlReloadDirect = no aim
+ // key), 2 aim + a C stick direction. 1 when reloading was asked.
++extern "C" int re4_quick_reload_take(int aimHeld); /* port (patch 0241): runtime/aim_options.cpp */
+ int cPlayer::keyReload()
+ {
+     int ret;
+ 
++    /* port (patch 0241): "Reload without aiming" (the keyboard): one reload the app asked for, through the game's
++       own ways: without the aim key the direct reload of its control type 1 (PlReloadDirect 1) */
++    if (re4_quick_reload_take((Joy[0].on & 0x20) != 0)) {
++        PlReloadDirect = (Joy[0].on & 0x20) ? 0 : 1;
++        return 1;
++    }
+     switch (PlKeyReloadType) {
+     default:
+         ret = 0;

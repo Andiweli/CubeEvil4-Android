@@ -128,6 +128,8 @@ struct Core {
     void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
     void (*setGentleQte)(int);    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
     void (*setLeonJacket)(int);   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
+    void (*mouseMenu)(float, float, int);  // optional (cores since 1.1.0): the mouse in the game's menus
+    void (*quickReload)(void);    // optional (cores since 1.1.0): one reload without the aim
     int (*rtShadows)(void);       // optional (cores since 16.11.2026): the real-time shadows it knows
     void (*swipe)(int);
     void (*slash)(float);
@@ -807,6 +809,8 @@ bool loadCore(std::string& problem)
     bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
     bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
     bind(core.setLeonJacket, "re4_core_set_leon_jacket", false);
+    bind(core.mouseMenu, "re4_core_mouse_menu", false);
+    bind(core.quickReload, "re4_core_quick_reload", false);
     bind(core.rtShadows, "re4_core_rt_shadows", false);
     bind(core.swipe, "re4_core_swipe");
     bind(core.slash, "re4_core_slash");
@@ -999,6 +1003,16 @@ void serve()
         case kRtShadows:
             reply(h.id, core.rtShadows ? core.rtShadows() : 0, "");
             break;
+        case kQuickReload:
+            if (core.quickReload) core.quickReload();
+            break;
+        case kMouseMenu: {
+            float u, v;
+            memcpy(&u, &h.a, 4);
+            memcpy(&v, &h.b, 4);
+            if (core.mouseMenu) core.mouseMenu(u, v, h.c);
+            break;
+        }
         case kTouch: {
             float u, v;
             memcpy(&u, &h.a, 4);

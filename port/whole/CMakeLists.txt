@@ -283,14 +283,15 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # game's own frame skip (runtime/cpu_skip.cpp, patch 0227), the mouse wheel's zoom (runtime/wheel_zoom.cpp) and the
 # cheat "Random enemies" (runtime/enemy_random.cpp, patch 0231), the real-time shadows (runtime/rt_shadow.cpp, patch 0240)
 # Ashley's catch-up by holding her key (runtime/ashley_catchup.cpp, 1.1.0) and the enemy health bars
-# (runtime/health_bars.cpp, patch 0238, 1.1.0).
+# (runtime/health_bars.cpp, patch 0238, 1.1.0) and the mouse in the title and options menus (runtime/mouse_menu.cpp,
+# patch 0239, 1.1.0).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
     runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
     runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp
     runtime/gx_owner.cpp runtime/potato.cpp runtime/aim_options.cpp
     runtime/sound_volume.cpp runtime/minimap.cpp runtime/laser_colour.cpp runtime/benchmark.cpp
     runtime/glow_check.cpp runtime/view_distance.cpp runtime/cpu_skip.cpp runtime/wheel_zoom.cpp
-    runtime/enemy_random.cpp runtime/rt_shadow.cpp runtime/ashley_catchup.cpp runtime/health_bars.cpp)
+    runtime/enemy_random.cpp runtime/rt_shadow.cpp runtime/ashley_catchup.cpp runtime/health_bars.cpp runtime/mouse_menu.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")

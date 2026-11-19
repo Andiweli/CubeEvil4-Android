@@ -413,6 +413,8 @@
     <string name="ingame_map_keyboard">لوحة المفاتيح والفأرة</string>
     <string name="ingame_mouse_help">الفأرة (Android 8 وما بعده) تتحكم في اللعبة أثناء تشغيلها: تدير الكاميرا وتحرّك التصويب؛ وعجلتها تكبّر المنظار والمنظار المزدوج. قائمة التطبيق (F1) تحرر المؤشر.</string>
     <string name="ingame_keyboard_c_help">السكين: اضغط مطولًا على مفتاحه وصوّب بالفأرة. مفاتيح عصا C (I وK وJ وL افتراضيًا) تدير الكاميرا وتكبّر المنظار والمنظار المزدوج.</string>
+    <string name="ingame_quick_reload">&#x200F;إعادة التلقيم دون تصويب</string>
+    <string name="ingame_quick_reload_help">&#x200F;إعادة التلقيم دون تصويب (لوحة المفاتيح): مفتاح إعادة التلقيم وحده (R افتراضيًا) يعيد التلقيم دون رفع السلاح أولًا.</string>
     <string name="ingame_mouse_sensitivity">حساسية الفأرة</string>
     <string name="ingame_map_controller">وحدة التحكم</string>
     <string name="ingame_map_device">الجهاز</string>

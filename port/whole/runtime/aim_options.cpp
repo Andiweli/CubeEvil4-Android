@@ -17,6 +17,11 @@
 //  - "Always run" (wish of the project owner, 30.10.2026): Leon runs without the run key and walks while
 //    it is held (patch 0156: the four run checks of player.cpp ask re4_run_held). Only there: the key
 //    keeps its other uses (cancel, quick turn, menus).
+//  - "Reload without aiming" (1.1.0, keyboard; the idea from a user's "ModernTPS" mod, our own code): the app asks for
+//    one reload when the keyboard's reload key is pressed without the aim (re4_core_quick_reload); patch 0241 lets
+//    cPlayer::keyReload answer yes once, within 15 game frames. The game itself then reloads through its own way
+//    (actionSelect while standing or walking, setRno 6/4; without the aim key PlReloadDirect 1, the direct reload of
+//    its control type 1), only when the weapon can reload (reloadable), never in a scene or another routine.
 //  - "Vibration" (1.1.0, a user's report 19.11.2026: no rumble on a DualSense nor the phone): the game's own
 //    switch (its Options, Controller: "vibration", CFG_VIBRATION in pSys->Config_flg) follows the app's menu:
 //    on unless the app's "Vibration" is Off. The game's switch was off in most testers' system files (the
@@ -28,6 +33,8 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <string.h>
+#include <time.h>
 
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
@@ -56,6 +63,15 @@ std::atomic<int> gSpeed(100);       // the app's "Aim speed" in percent
 std::atomic<bool> gPending(false);  // the game's option to be set at the next game frame
 std::atomic<bool> gHooked(false);
 std::atomic<int> gFromGame(-1);     // the game's own options changed "reverse" (patch 0188): 0 / 1 for the app
+std::atomic<long> gReloadAt{-1};    // when the app asked for a reload (re4_core_quick_reload), ms; -1 none waiting
+unsigned gReloadLines;
+
+long nowMs()
+{
+    timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (long) t.tv_sec * 1000 + t.tv_nsec / 1000000;
+}
 std::atomic<int> gVibFromGame(-1);  // the game's own options changed "vibration" (1.1.0): 0 / 1 for the app
 
 void applyLock(const char* why)
@@ -142,6 +158,35 @@ struct StartSetting {
         }
     }
 } gStartSetting;
+
+// For tests on the PC: RE4_TEST_QUICK_RELOAD="F[,F...]": at PADRead frame F the app's reload without aiming
+unsigned gQuickTest[8];
+int gQuickTests;
+
+void quickHook(unsigned frame)
+{
+    for (int i = 0; i < gQuickTests; i++) {
+        if (gQuickTest[i] == frame) {
+            re4_log("aim: RE4_TEST_QUICK_RELOAD at frame %u", frame);
+            gReloadAt.store(nowMs());
+        }
+    }
+}
+
+struct QuickTest {
+    QuickTest()
+    {
+        const char* v = getenv("RE4_TEST_QUICK_RELOAD");
+        for (const char* p = v; p && *p && gQuickTests < 8;) {
+            gQuickTest[gQuickTests++] = (unsigned) strtoul(p, 0, 10);
+            p = strchr(p, ',');
+            p = p ? p + 1 : 0;
+        }
+        if (gQuickTests) {
+            re4_add_frame_hook(quickHook);
+        }
+    }
+} gQuickTestSetting;
 
 }  // namespace
 
@@ -241,6 +286,31 @@ int re4_aim_from_game(void)
 int re4_vibration_from_game(void)
 {
     return gVibFromGame.exchange(-1);
+}
+
+// The app (core_api.cpp re4_core_quick_reload, any thread): the keyboard's reload key without the aim
+void re4_quick_reload_request(void)
+{
+    gReloadAt.store(nowMs());
+}
+
+// Patch 0241 (cPlayer::keyReload, game thread): 1 once for a request of the last half second (one pressed during a
+// scene or a menu lapses); PlReloadDirect as the game's control type 1 sets it (1 without the aim key: direct)
+int re4_quick_reload_take(int aimHeld)
+{
+    const long at = gReloadAt.load();
+    if (at < 0) {
+        return 0;
+    }
+    gReloadAt.store(-1);
+    if (nowMs() - at > 500) {
+        return 0;
+    }
+    if (gReloadLines < 30) {
+        gReloadLines++;
+        re4_log("aim: reload without aiming asked (the keyboard), %s", aimHeld ? "while aiming" : "direct");
+    }
+    return 1;
 }
 
 // After the system file was read into pSys (game thread): the app's switch, not the saved one.

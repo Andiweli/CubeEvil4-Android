@@ -392,6 +392,8 @@
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_mouse_help">Mouse (Android 8 ke atas) mengendalikan game selama game berjalan: memutar kamera dan menggerakkan bidikan; rodanya mengatur zoom teropong senapan dan teropong. Menu aplikasi (F1) melepaskan penunjuk.</string>
     <string name="ingame_keyboard_c_help">Pisau: tahan tombolnya dan bidik dengan mouse. Tombol stik C (bawaan I, K, J, L) memutar kamera dan melakukan zoom pada teropong senjata dan teropong.</string>
+    <string name="ingame_quick_reload">Isi ulang tanpa membidik</string>
+    <string name="ingame_quick_reload_help">Isi ulang tanpa membidik (keyboard): tombol isi ulang saja (bawaan R) mengisi ulang tanpa mengangkat senjata dulu.</string>
     <string name="ingame_mouse_sensitivity">Sensitivitas Mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Perangkat</string>

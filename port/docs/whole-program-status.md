@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0238.
+Nächste freie Patch-Nummer: 0242 (0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -94,6 +94,32 @@ Nächste freie Patch-Nummer: 0238.
   hereinkommen, auch beim Packen), r332 Endboss (hp 8000/8000, Balken im Kampf, keiner in der Szene), Boss-Räume r10b,
   r119, r11e, r11f, r221, r224, r228, r31b, r31c (Log). i686 und Android-Kern (beide ABIs) bauen, App-Tests grün.
   **Nicht geprüft:** auf einem Gerät; 60 FPS mit Zwischenbildern (die Balken sind 2D wie das HUD).
+
+### 5. Aus dem Nutzer-Mod „ModernTPS“: Variante B als eigener Code (Wahl des Projektinhabers, 19.11.2026)
+
+Bewertung des Mods: `reports\workthread-1.1.0\modern-tps\bewertung.md`. Der Projektinhaber wählte B: nur die Idee,
+**eigener Code** (keine Zeile des Nutzers übernommen, daher keine Lizenzzustimmung nötig), Nennung im Changelog („idea
+from a user's ModernTPS mod“). Esc bleibt Pause, kein F2, die Maus im Koffer kommt später.
+
+- **Maus in Titel- und Optionsmenü** (`runtime/mouse_menu.cpp`, **Patch 0239** in `title.cpp`/`option.cpp`): Die App
+  fängt die Maus für die Kamera ein, es gibt keinen Zeiger. Zeigt das Spiel ein Menü (Bit 4 des Rumble-Worts), bewegt
+  die eingefangene Maus einen eigenen Zeiger der App (`CoreActivity.menuPointerU/V`, in jedem Menü ab der Mitte,
+  `CoreBridge.mouseMenu`, neue IPC-Nachricht `kMouseMenu` = 49). `re4_mouse_menu_keys` (am Anfang von `titleMenuSelect`,
+  `titleLevelSelect` vor dem EU-Zweig und `top_menu`) gibt das Steuerkreuz hoch/runter dieses Bildes, bis der Cursor
+  des Spiels auf dem Eintrag unter dem Zeiger steht (45 Bilder nach der letzten Bewegung), so bleiben Ton,
+  Umbrechen und übersprungene Einträge des Spiels (Professional versteckt, Optionen-Zeile 0 im Titel). Linksklick: auf
+  dem markierten Eintrag A, auf einem anderen erst hin, dann A (höchstens 20 Bilder); daneben nichts. Treffer über
+  `re4_touch_unit_hit`, auch 1,2 % darüber/darunter (Lücken zwischen den Zeilen). Testhilfe `RE4_TEST_MOUSE_MENU`.
+- **„Nachladen ohne Zielen“** (Steuerung, Tastatur, aus; `INPUT_PREFS` `quickReload`; **Patch 0241** in
+  `cPlayer::keyReload`): Die zweite Taste der Nachlade-Belegung (Standard R) ohne gehaltene Zieltaste →
+  `CoreBridge.quickReload` (IPC `kQuickReload` = 50) → `re4_quick_reload_take` sagt einmal ja (Anfrage höchstens 500 ms
+  alt). Das Spiel lädt auf seinem eigenen Weg nach: `actionSelect` (Stehen, Gehen) `setRno(0,6,4,0)`, ohne Zieltaste
+  `PlReloadDirect` 1 wie seine Steuerungsart 1; nur wenn die Waffe nachladen kann. Testhilfe `RE4_TEST_QUICK_RELOAD`.
+- **Geprüft am PC:** Titel (Debug-Discs, ohne Karte „Continue without saving“): Zeiger von oben nach unten markiert
+  START → LOAD → OPTIONS (Bilder: rot markiert), Klick auf OPTIONS öffnet die Optionen, dort folgt die Markierung
+  (Beschreibung Controller → Audio → Exit). r103: 5 Pistolenschüsse, dann Nachladen ohne Zielen: Magazin wieder 10,
+  Vorrat 20 → 15; bei vollem Magazin nichts. App baut, App-Tests grün, Übersetzungen 488 Texte.
+  **Nicht geprüft:** auf einem Gerät mit echter Maus und Tastatur; die EU-Schwierigkeitswahl mit der Maus.
 
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 

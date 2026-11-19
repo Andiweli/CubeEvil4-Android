@@ -396,6 +396,8 @@
     <string name="ingame_map_keyboard">कीबोर्ड और माउस</string>
     <string name="ingame_mouse_help">गेम चलते समय माउस (Android 8 और नया) गेम को नियंत्रित करता है: यह कैमरा घुमाता है और निशाना चलाता है; व्हील स्कोप और दूरबीन में ज़ूम करता है। ऐप मेनू (F1) पॉइंटर छोड़ देता है।</string>
     <string name="ingame_keyboard_c_help">चाकू: उसकी की दबाए रखें और माउस से निशाना लगाएँ। C स्टिक की कीज़ (डिफ़ॉल्ट रूप से I, K, J, L) कैमरा घुमाती हैं और स्कोप और दूरबीन में ज़ूम करती हैं।</string>
+    <string name="ingame_quick_reload">बिना निशाना लगाए रीलोड</string>
+    <string name="ingame_quick_reload_help">बिना निशाना लगाए रीलोड (कीबोर्ड): सिर्फ़ रीलोड कुंजी (डिफ़ॉल्ट R) हथियार उठाए बिना रीलोड करती है।</string>
     <string name="ingame_mouse_sensitivity">माउस संवेदनशीलता</string>
     <string name="ingame_map_controller">कंट्रोलर</string>
     <string name="ingame_map_device">डिवाइस</string>

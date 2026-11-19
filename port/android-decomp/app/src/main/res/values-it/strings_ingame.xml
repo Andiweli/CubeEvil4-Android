@@ -399,6 +399,8 @@
     <string name="ingame_map_keyboard">Tastiera e mouse</string>
     <string name="ingame_mouse_help">Il mouse (Android 8 e successivi) controlla il gioco mentre giochi: ruota la telecamera e muove la mira; la rotellina fa zoom con il mirino telescopico e il binocolo. Il menu dell’app (F1) libera il puntatore.</string>
     <string name="ingame_keyboard_c_help">Il coltello: tieni premuto il suo tasto e mira con il mouse. I tasti dello stick C (predefiniti I, K, J, L) ruotano la telecamera e zoomano mirino e binocolo.</string>
+    <string name="ingame_quick_reload">Ricarica senza mirare</string>
+    <string name="ingame_quick_reload_help">Ricarica senza mirare (tastiera): il tasto di ricarica da solo (R di default) ricarica senza alzare prima l’arma.</string>
     <string name="ingame_mouse_sensitivity">Sensibilità del mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Dispositivo</string>

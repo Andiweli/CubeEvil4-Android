@@ -140,6 +140,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GENTLE_QTE = "gentleQte";
   /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn); off. */
   static final String BODY_TURN = "bodyTurn";
+  // "Reload without aiming" (1.1.0, keyboard; INPUT_PREFS): the reload key alone reloads (CoreBridge.quickReload)
+  static final String QUICK_RELOAD = "quickReload";
   static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
@@ -431,6 +433,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
     input.setBodyTurn(inputPrefs.getBoolean(BODY_TURN, false));
+    quickReload = inputPrefs.getBoolean(QUICK_RELOAD, false);
     if (input.bodyTurn()) Log.i(TAG, "turn Leon with mouse / look area: on");
     // "modernMove": a switch of a 0.99.7 test build, taken out again (decision of the project owner, 10.11.2026)
     if (inputPrefs.contains("modernMove")) inputPrefs.edit().remove("modernMove").apply();
@@ -1131,6 +1134,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
       alwaysRun = on;
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void quickReloadChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(QUICK_RELOAD, on).apply();
+      quickReload = on;
+      Log.i(TAG, "reload without aiming (keyboard): " + (on ? "on" : "off"));
     }
 
     @Override public void bodyTurnChanged(boolean on) {
@@ -2243,6 +2252,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (keyboard) {
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
       if (e.getRepeatCount() > 0) return true;
+      if (down) heldKeyboardKeys.add(code); else heldKeyboardKeys.remove(code);
+      if (down) quickReloadKey(code);  // "Reload without aiming" (1.1.0)
       boolean taken = input.keyboardKey(e.getDeviceId(), code, down);
       if (taken || code == KeyEvent.KEYCODE_ESCAPE) {
         if (down) {
@@ -2723,6 +2734,37 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // ---- the mouse ----
   private float mouseSensitivity = 1f;
   private int mouseButtons;  // the captured mouse's buttons held (MotionEvent.BUTTON_*)
+  private boolean quickReload;  // "Reload without aiming" (1.1.0)
+
+  /**
+   * "Reload without aiming" (1.1.0, keyboard): a press of the keyboard's reload key (the second key of the mapping's
+   * reload, R by default) while the aim's key is not held asks the core for one reload (the game's own direct reload,
+   * patch 0241). Not in a game menu; the key keeps whatever else it does.
+   */
+  private void quickReloadKey(int code) {
+    if (!quickReload || input.menu() || menu != null) return;
+    int[] reload = input.keyboardMap().keys(ActionMap.RELOAD);
+    int[] aim = input.keyboardMap().keys(ActionMap.AIM);
+    if (reload == null || reload.length == 0 || reload[reload.length - 1] != code) return;
+    if (aim != null && aim.length > 0 && keyHeld(aim[0])) return;
+    CoreBridge.quickReload();
+    Log.i(TAG, "reload without aiming: " + KeyEvent.keyCodeToString(code));
+  }
+
+  /** The keyboard's key or the mouse's button `code` (ActionMap) is held now. */
+  private boolean keyHeld(int code) {
+    for (int bit = 1; bit <= 16; bit <<= 1) {
+      if (ActionMap.mouseButton(bit) == code) return (mouseButtons & bit) != 0;
+    }
+    return heldKeyboardKeys.contains(code);
+  }
+  private final java.util.HashSet<Integer> heldKeyboardKeys = new java.util.HashSet<>();
+  // the mouse in the game's title and options menus (1.1.0, idea from a user's "ModernTPS" mod): a pointer of our own
+  // over the game's picture (0..1), moved by the captured mouse while the game shows a menu, from the middle each time
+  private float menuPointerU = .5f, menuPointerV = .5f;
+  private boolean menuPointerShown;
+  /** The pointer's way across the picture per count of the captured mouse at sensitivity 1. */
+  static final float MENU_POINTER_STEP = 0.0015f;
   private int mouseCaptures;
   private final Runnable mouseRest = () -> {
     input.mouseLook(0, 0);
@@ -2776,6 +2818,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         continue;
       }
       input.keyboardKey(e.getDeviceId(), code, down);
+      // a left click in a game menu (1.1.0): the entry under the pointer (runtime/mouse_menu.cpp; the button alone is
+      // nothing there, the menus use the keyboard's default mapping)
+      if (bit == 1 && down && input.menu()) {
+        menuPointer();
+        CoreBridge.mouseMenu(menuPointerU, menuPointerV, true);
+      }
       if (down) {
         touchControls.controllerUsed();
         if (controllerLog.firstKey(e.getDeviceId(), code)) {
@@ -2793,7 +2841,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         dx += e.getHistoricalX(h);
         dy += e.getHistoricalY(h);
       }
-      if (dx != 0 || dy != 0) {
+      if ((dx != 0 || dy != 0) && input.menu()) {
+        // the menu's pointer (1.1.0): the entry under it gets the highlight
+        menuPointer();
+        float step = MENU_POINTER_STEP * mouseSensitivity;
+        menuPointerU = Math.max(0f, Math.min(1f, menuPointerU + dx * step));
+        menuPointerV = Math.max(0f, Math.min(1f, menuPointerV + dy * step * 4f / 3f));
+        CoreBridge.mouseMenu(menuPointerU, menuPointerV, false);
+      } else if (dx != 0 || dy != 0) {
+        menuPointerShown = false;
         // while aiming the core turns the aim by it, in the binoculars their view (0.99.12), and ignores it
         // otherwise (runtime/gyro.cpp, wheel_zoom.cpp); the camera's C stick as long
         // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
@@ -2810,6 +2866,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     send();
+  }
+
+  /** A game menu came: the pointer starts in the middle of the picture. */
+  private void menuPointer() {
+    if (menuPointerShown) return;
+    menuPointerShown = true;
+    menuPointerU = menuPointerV = .5f;
+    Log.i(TAG, "mouse: a game menu, the mouse moves its highlight and a left click chooses");
   }
 
   // ---- the mouse wheel (0.99.12, wish of the project owner, 12.11.2026) ----
@@ -2940,6 +3004,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       boolean gameMenu = (r & 0x10) != 0;
       if (gameMenu != input.menu()) {
         input.setMenu(gameMenu);
+        if (!gameMenu) menuPointerShown = false;  // the next menu's pointer starts in the middle (1.1.0)
         send();
       }
       // the scope or the binoculars (bit 6, cores since 12.11.2026): the mouse's movement keeps off the C stick

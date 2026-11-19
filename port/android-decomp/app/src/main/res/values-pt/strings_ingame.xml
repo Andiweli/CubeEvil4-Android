@@ -400,6 +400,8 @@
     <string name="ingame_map_keyboard">Teclado e mouse</string>
     <string name="ingame_mouse_help">O mouse (Android 8 ou mais recente) controla o jogo enquanto ele roda: gira a câmera e move a mira; a rodinha dá zoom na luneta e nos binóculos. O menu do app (F1) libera o ponteiro.</string>
     <string name="ingame_keyboard_c_help">A faca: segure a tecla dela e mire com o mouse. As teclas do analógico C (I, K, J, L por padrão) giram a câmera e dão zoom na luneta e nos binóculos.</string>
+    <string name="ingame_quick_reload">Recarregar sem mirar</string>
+    <string name="ingame_quick_reload_help">Recarregar sem mirar (teclado): a tecla de recarga sozinha (R por padrão) recarrega sem erguer a arma antes.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidade do mouse</string>
     <string name="ingame_map_controller">Controle</string>
     <string name="ingame_map_device">Dispositivo</string>

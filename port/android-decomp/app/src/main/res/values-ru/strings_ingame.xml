@@ -402,6 +402,8 @@
     <string name="ingame_map_keyboard">Клавиатура и мышь</string>
     <string name="ingame_mouse_help">Мышь (Android 8 и новее) управляет игрой, пока она идёт: поворачивает камеру и двигает прицел; колесо меняет зум оптического прицела и бинокля. Меню приложения (F1) освобождает указатель.</string>
     <string name="ingame_keyboard_c_help">Нож: удерживайте его клавишу и цельтесь мышью. Клавиши C-стика (по умолчанию I, K, J, L) поворачивают камеру и меняют зум прицела и бинокля.</string>
+    <string name="ingame_quick_reload">Перезарядка без прицеливания</string>
+    <string name="ingame_quick_reload_help">Перезарядка без прицеливания (клавиатура): одна клавиша перезарядки (по умолчанию R) перезаряжает, не поднимая сначала оружие.</string>
     <string name="ingame_mouse_sensitivity">Чувствительность мыши</string>
     <string name="ingame_map_controller">Контроллер</string>
     <string name="ingame_map_device">Устройство</string>

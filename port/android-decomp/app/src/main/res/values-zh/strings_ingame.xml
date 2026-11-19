@@ -394,6 +394,8 @@
     <string name="ingame_map_keyboard">键盘和鼠标</string>
     <string name="ingame_mouse_help">游戏运行时，鼠标（Android 8 及以上）控制游戏：转动镜头、移动准星；滚轮可缩放瞄准镜和望远镜。应用菜单（F1）会释放鼠标指针。</string>
     <string name="ingame_keyboard_c_help">刀：按住刀的按键并用鼠标瞄准。C 摇杆的按键（默认 I、K、J、L）可转动视角，并缩放瞄准镜和望远镜。</string>
+    <string name="ingame_quick_reload">无需瞄准即可装弹</string>
+    <string name="ingame_quick_reload_help">无需瞄准即可装弹（键盘）：单按装弹键（默认 R）即可装弹，无需先举起武器。</string>
     <string name="ingame_mouse_sensitivity">鼠标灵敏度</string>
     <string name="ingame_map_controller">手柄</string>
     <string name="ingame_map_device">设备</string>

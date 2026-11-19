@@ -1072,6 +1072,19 @@ int re4ipc_rt_shadows(void)
     return call(kRtShadows, 0, 0, 0, nullptr, 0, 3000, &r) && r.header.a > 0 ? r.header.a : 0;
 }
 
+void re4ipc_quick_reload(void)
+{
+    post(kQuickReload, 0, 0, 0);
+}
+
+void re4ipc_mouse_menu(float u, float v, int click)
+{
+    int32_t a, b;
+    memcpy(&a, &u, 4);
+    memcpy(&b, &v, 4);
+    post(kMouseMenu, a, b, click);
+}
+
 void re4ipc_touch(float u, float v)
 {
     int32_t a, b;

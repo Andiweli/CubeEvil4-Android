@@ -124,6 +124,8 @@ struct CoreApi {
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
   void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
+  void (*mouseMenu)(float, float, int){};  // optional (cores since 1.1.0): the mouse in the game's menus
+  void (*quickReload)(void){};    // optional (cores since 1.1.0): one reload without the aim
   int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -480,6 +482,8 @@ void loadCore(JNIEnv *env) {
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
   api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
+  api.mouseMenu = reinterpret_cast<void (*)(float, float, int)>(dlsym(api.main, "re4_core_mouse_menu"));
+  api.quickReload = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_quick_reload"));
   api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -3207,6 +3211,8 @@ void useCoreProcess(const std::string &why) {
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setGentleQte = re4ipc_set_gentle_qte;
   api.setLeonJacket = re4ipc_set_leon_jacket;
+  api.mouseMenu = re4ipc_mouse_menu;
+  api.quickReload = re4ipc_quick_reload;
   api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -3687,6 +3693,17 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGameVibra
 // process always -1).
 extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(JNIEnv *, jclass) {
   return api.aimFromGame ? api.aimFromGame() : -1;
+}
+
+// The mouse in the game's title and options menus (1.1.0, runtime/mouse_menu.cpp): the app's pointer, a left click.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_mouseMenu(JNIEnv *, jclass, jfloat u, jfloat v,
+                                                                            jboolean click) {
+  if (api.mouseMenu) api.mouseMenu(u, v, click == JNI_TRUE ? 1 : 0);
+}
+
+// "Reload without aiming" (1.1.0): the keyboard's reload key without the aim (runtime/aim_options.cpp, patch 0241).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_quickReload(JNIEnv *, jclass) {
+  if (api.quickReload) api.quickReload();
 }
 
 // The menu's "Enemy health bars" (1.1.0, Cheats & Mods): drawGx tells the core (bit 20 of the aim bits).

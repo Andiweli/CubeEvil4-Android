@@ -401,6 +401,8 @@
     <string name="ingame_map_keyboard">Clavier et souris</string>
     <string name="ingame_mouse_help">La souris (Android 8 et plus) contrôle le jeu pendant la partie\u00A0: elle tourne la caméra et déplace la visée\u00A0; la molette zoome avec la lunette et les jumelles. Le menu de l’app (F1) libère le pointeur.</string>
     <string name="ingame_keyboard_c_help">Le couteau\u00A0: maintenez sa touche et visez avec la souris. Les touches du stick C (I, K, J, L par défaut) tournent la caméra et zooment la lunette et les jumelles.</string>
+    <string name="ingame_quick_reload">Recharger sans viser</string>
+    <string name="ingame_quick_reload_help">Recharger sans viser (clavier) : la touche de rechargement seule (R par défaut) recharge sans lever l’arme d’abord.</string>
     <string name="ingame_mouse_sensitivity">Sensibilité de la souris</string>
     <string name="ingame_map_controller">Manette</string>
     <string name="ingame_map_device">Appareil</string>

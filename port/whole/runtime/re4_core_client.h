@@ -87,6 +87,8 @@ void re4ipc_slash(float tilt);
 void re4ipc_set_fast_cores(int on);
 void re4ipc_set_potato(int mask);
 void re4ipc_set_aim(int bits);
+void re4ipc_mouse_menu(float u, float v, int click);  // 1.1.0
+void re4ipc_quick_reload(void);  // 1.1.0
 void re4ipc_set_sound_volume(int bits);
 void re4ipc_restart_game(int language);
 const char* re4ipc_disc_problem(void);

@@ -827,6 +827,20 @@ int re4_core_aim_from_game(void)
 }
 
 extern "C" int re4_vibration_from_game(void);
+extern "C" void re4_mouse_menu_point(float u, float v, int click);
+extern "C" void re4_quick_reload_request(void);
+
+// "Reload without aiming" (1.1.0, runtime/aim_options.cpp): the keyboard's reload key was pressed without the aim
+void re4_core_quick_reload(void)
+{
+    re4_quick_reload_request();
+}
+
+// The mouse in the game's menus (1.1.0, runtime/mouse_menu.cpp): the app's pointer over the picture, a left click
+void re4_core_mouse_menu(float u, float v, int click)
+{
+    re4_mouse_menu_point(u, v, click);
+}
 
 // The game's own options changed "vibration" (1.1.0): -1, else 0 / 1 for the app's "Vibration" (Off / Auto).
 int re4_core_vibration_from_game(void)

@@ -399,6 +399,8 @@
     <string name="ingame_map_keyboard">Teclado y ratón</string>
     <string name="ingame_mouse_help">El ratón (Android 8 o superior) controla el juego mientras se juega: gira la cámara y mueve la mira; la rueda hace zoom con la mira telescópica y los prismáticos. El menú de la app (F1) libera el puntero.</string>
     <string name="ingame_keyboard_c_help">El cuchillo: mantén su tecla y apunta con el ratón. Las teclas del stick C (I, K, J, L por defecto) giran la cámara y hacen zoom en la mira y los prismáticos.</string>
+    <string name="ingame_quick_reload">Recargar sin apuntar</string>
+    <string name="ingame_quick_reload_help">Recargar sin apuntar (teclado): la tecla de recarga sola (R por defecto) recarga sin levantar antes el arma.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidad del ratón</string>
     <string name="ingame_map_controller">Mando</string>
     <string name="ingame_map_device">Dispositivo</string>

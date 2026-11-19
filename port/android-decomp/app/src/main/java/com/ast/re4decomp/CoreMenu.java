@@ -119,6 +119,8 @@ final class CoreMenu extends Dialog {
     void alwaysRunChanged(boolean on);
     /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn). */
     void bodyTurnChanged(boolean on);
+    /** "Reload without aiming" (1.1.0, keyboard; CoreActivity.QUICK_RELOAD holds it). */
+    void quickReloadChanged(boolean on);
     /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's (CoreBridge.setGentleQte). */
     void gentleQteChanged(boolean on);
     /** The cheat "Costumes · Leon's jacket" (1.0): Leon keeps his brown jacket (CoreBridge.setLeonJacket). */
@@ -1451,8 +1453,12 @@ final class CoreMenu extends Dialog {
       @Override public void onStopTrackingTouch(SeekBar b) {}
     });
     body.addView(line);
+    // "Reload without aiming" (1.1.0, the idea from a user's "ModernTPS" mod): the keyboard's reload key alone reloads
+    toggle(buttonsRow(body), R.string.ingame_quick_reload, getContext().getSharedPreferences(CoreActivity.INPUT_PREFS,
+        Context.MODE_PRIVATE).getBoolean(CoreActivity.QUICK_RELOAD, false), on -> host.quickReloadChanged(on));
     help(R.string.ingame_mouse_help);
     help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
+    help(R.string.ingame_quick_reload_help);
   }
 
   /** Waits for the key of `action` (a second press on its button: no change); after 8 s it gives up. */

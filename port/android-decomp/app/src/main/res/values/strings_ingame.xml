@@ -414,6 +414,8 @@
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_mouse_help">The mouse (Android 8 and later) controls the game while it runs: it turns the camera and moves the aim; the wheel zooms the scope and the binoculars. The app menu (F1) frees the pointer.</string>
     <string name="ingame_keyboard_c_help">The knife: hold its key and aim with the mouse. The C stick\'s keys (I, K, J, L by default) turn the camera and zoom the scope and the binoculars.</string>
+    <string name="ingame_quick_reload">Reload without aiming</string>
+    <string name="ingame_quick_reload_help">Reload without aiming (keyboard): the reload key alone (R by default) reloads, without raising the weapon first.</string>
     <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>

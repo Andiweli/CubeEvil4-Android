@@ -140,6 +140,11 @@ public final class CoreBridge {
   public static native int vibrationFromGame();
   /** "Enemy health bars" (1.1.0, Cheats & Mods): a bar above each living enemy (runtime/health_bars.cpp). */
   public static native void setHealthBars(boolean on);
+  /** The mouse in the game's title and options menus (1.1.0): the app's own pointer (u, v 0..1 over the game's
+   *  picture) at each move, `click` for a left click (runtime/mouse_menu.cpp). */
+  public static native void mouseMenu(float u, float v, boolean click);
+  /** "Reload without aiming" (1.1.0, keyboard): one reload through the game's own direct reload (patch 0241). */
+  public static native void quickReload();
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
    *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
    *  off; the core's runtime/potato.cpp). */
