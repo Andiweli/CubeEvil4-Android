@@ -353,6 +353,7 @@
     <string name="ingame_later">Mais tarde</string>
     <string name="ingame_controller_config">Mapeamento de botões</string>
     <string name="ingame_controller_config_help">Mapeamento de botões: coloque cada ação do jogo em teclas do seu controle ou teclado.</string>
+    <string name="ingame_ashley_hold_help">Ashley ficou presa? Segure o botão dela (Esperar / Seguir) por 2 segundos: ela fica logo atrás de Leon e o segue.</string>
     <string name="ingame_stick_dead_zone">Zona morta do analógico</string>
     <string name="ingame_stick_range">Alcance do analógico</string>
     <string name="ingame_stick_help">Zona morta do analógico: pequenos movimentos em torno do centro são ignorados (para um analógico que desvia). Alcance do analógico: um analógico empurrado até aqui conta como empurrado até o fim, para que Leon ande e corra sem falhas. Os valores padrão deixam os analógicos como estão; os controles de toque não mudam.</string>

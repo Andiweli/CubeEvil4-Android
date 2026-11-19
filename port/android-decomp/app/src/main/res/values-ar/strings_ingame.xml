@@ -366,6 +366,7 @@
     <string name="ingame_later">لاحقًا</string>
     <string name="ingame_controller_config">&#x200F;تعيين الأزرار</string>
     <string name="ingame_controller_config_help">&#x200F;تعيين الأزرار: ضع كل حركة في اللعبة على أزرار وحدة التحكم أو لوحة المفاتيح.</string>
+    <string name="ingame_ashley_hold_help">&#x200F;هل علقت Ashley في مكان ما؟ اضغط مطولًا على زرّها (انتظري / اتبعيني) لمدة ثانيتين: ستقف خلف ليون مباشرةً وتتبعه.</string>
     <string name="ingame_stick_dead_zone">المنطقة الميتة للعصا</string>
     <string name="ingame_stick_range">مدى العصا</string>
     <string name="ingame_stick_help">المنطقة الميتة للعصا: تُتجاهَل الحركات الصغيرة حول المركز (لعصا تنحرف من تلقاء نفسها). مدى العصا: العصا المدفوعة إلى هذا الحد تُحسب مدفوعة إلى النهاية، ليمشي ليون ويركض بثبات. القيم الافتراضية تترك العصوين كما هما؛ ولا يتأثر التحكم باللمس.</string>

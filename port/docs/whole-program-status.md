@@ -29,6 +29,29 @@ Nächste freie Patch-Nummer: 0238.
   `config 0x08000000`, „pad: rumble from frame 477“; mit 0x20 aus, kein Rumble. App: Java übersetzt
   (`compileCoreDebugJavaWithJavac`). **Nicht geprüft:** auf einem Gerät, mit einem DualSense.
 
+### 2. Ashley holt auf: ihren Knopf 2 Sekunden halten (Wunsch des Projektinhabers, 19.11.2026)
+
+- Den Cheat „Ashley holt auf“ gibt es in CubeEvil4 nicht (in keinem Branch); die Funktion ist neu, ohne Cheat.
+- `runtime/ashley_catchup.cpp` (libre4_main, Frame-Hook, **kein Patch**): hält der Spieler die Partner-Taste des
+  Spiels (`Key.on` 0x200: X am Controller, Q auf der Tastatur, X der Touch-Steuerung) **60 Spielbilder** (2 s bei 30
+  Bildern/s; Bilder statt Uhr, weil der PC-Test schneller als Echtzeit läuft), stellt sie Ashley hinter Leon. Der
+  kurze Druck bleibt (`cPlLeon::checkXbutton` schaltet beim Drücken Warten/Folgen um); einmal je Halten.
+- Nur wenn sicher, sonst nichts (eine Logzeile „ashley: hold of the partner key: …“): Spiel läuft, kein Ereignis/Film
+  (`STA_EVENT`), kein Untermenü (`STA_SUB_SCRN`); Partner ist Ashley (id 3), lebt, unter Leons Kommando (strenge Hälfte
+  von `SubCharCheckCtrl`: `F_PL_CTRL`, nicht `F_SLEEP`/`F_MOVE_TO`, `r_no_0` 0, ihre Folge-/Warte-Routinen; also nicht
+  getragen, gefangen, versteckt, beim Klettern); Leon steht auf Boden; der Platz hinter ihm (0,9 / 1,3 / 0,6 m, dann
+  schräg hinten, dann seitlich) ist Boden der Raum-Kollision innerhalb 40 cm, nicht steil, kein Absturz/Klippe/Versteck,
+  freie Linie von Leon in Knie- und Brusthöhe; Ashley weiter als 1,5 m weg. Dann `SubCharCtrl(4)` (des Spiels „zum
+  Spieler“, Routinen neu, folgen), Platz hinter Leon, Blick wie Leon, Ruf-Ton 0x37.
+- Hilfe im App-Menü (Steuerung, unter der Tastenbelegung): `ingame_ashley_hold_help` in 11 Sprachen.
+- **Geprüft am PC** (`wt-ashley_run.sh`; `RE4_ASHLEY_CATCHUP_MIN=0` prüft das Hinstellen selbst, `=1.5` wie im Spiel):
+  Ashley bei den Debug-Starts in r203, r208, r210, r212, r219. Ablauf X kurz (wartet), Leon geht 5 s weg (bis 9 m),
+  X halten: mit 1,5 m läuft sie nach dem ersten Druck selbst in unter 2 s heran („already close“); mit 0 steht sie in
+  allen fünf Räumen 0,9 m hinter Leon (178° neben seiner Blickrichtung), keine Wand, folgt; ebenso mit den EU-Discs.
+  Karte offen (Z) beim Halten: „nothing (no free player …)“. 41 Räume ohne Ashley: „no Ashley with Leon“.
+  **Nicht geprüft:** auf einem Gerät; die Fälle getragen/gefangen/versteckt (am PC nicht nachgestellt, die Bedingungen
+  sind die des Spiels selbst).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

@@ -1239,6 +1239,8 @@ final class CoreMenu extends Dialog {
         v -> showPage(CONTROLLER, true));
     controllerButton.setEnabled(host != null && (host.controllerConnected() || host.keyboardConnected()));
     help(R.string.ingame_controller_config_help);
+    // 1.1.0: holding Ashley's key for 2 seconds puts her behind Leon (runtime/ashley_catchup.cpp)
+    help(R.string.ingame_ashley_hold_help);
   }
 
   /**

@@ -367,6 +367,7 @@
     <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Button Mapping</string>
     <string name="ingame_controller_config_help">Button Mapping: put every action of the game on keys of your controller or keyboard.</string>
+    <string name="ingame_ashley_hold_help">Ashley stuck somewhere? Hold her button (Wait / Follow) for 2 seconds: she stands right behind Leon and follows him.</string>
     <string name="ingame_stick_dead_zone">Stick dead zone</string>
     <string name="ingame_stick_range">Stick range</string>
     <string name="ingame_stick_help">Stick dead zone: small movements around the centre are ignored (for a drifting stick). Stick range: a stick pushed this far counts as pushed all the way, so Leon walks and runs reliably. The defaults leave the sticks as they are; the touch controls are not affected.</string>

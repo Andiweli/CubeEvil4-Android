@@ -345,6 +345,7 @@
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>
     <string name="ingame_controller_config_help">Pemetaan Tombol: tempatkan setiap aksi game pada tombol controller atau keyboard Anda.</string>
+    <string name="ingame_ashley_hold_help">Ashley tersangkut? Tahan tombolnya (Tunggu / Ikuti) selama 2 detik: dia berdiri tepat di belakang Leon dan mengikutinya.</string>
     <string name="ingame_stick_dead_zone">Zona mati stik</string>
     <string name="ingame_stick_range">Jangkauan stik</string>
     <string name="ingame_stick_help">Zona mati stik: gerakan kecil di sekitar tengah diabaikan (untuk stik yang bergeser sendiri). Jangkauan stik: stik yang ditekan sejauh ini sudah dihitung ditekan penuh, agar Leon berjalan dan berlari dengan mantap. Nilai bawaan membiarkan stik apa adanya; kontrol sentuh tidak terpengaruh.</string>

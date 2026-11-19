@@ -352,6 +352,7 @@
     <string name="ingame_later">Más tarde</string>
     <string name="ingame_controller_config">Asignación de botones</string>
     <string name="ingame_controller_config_help">Asignación de botones: pon cada acción del juego en teclas de tu mando o teclado.</string>
+    <string name="ingame_ashley_hold_help">¿Ashley se ha quedado atascada? Mantén pulsado su botón (Esperar / Seguir) 2 segundos: se coloca justo detrás de Leon y lo sigue.</string>
     <string name="ingame_stick_dead_zone">Zona muerta del stick</string>
     <string name="ingame_stick_range">Alcance del stick</string>
     <string name="ingame_stick_help">Zona muerta del stick: se ignoran los pequeños movimientos alrededor del centro (para un stick que se desvía). Alcance del stick: un stick empujado hasta aquí ya cuenta como empujado del todo, para que Leon camine y corra sin fallos. Los valores predeterminados dejan los sticks como están; los controles táctiles no cambian.</string>

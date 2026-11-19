@@ -352,6 +352,7 @@
     <string name="ingame_later">Più tardi</string>
     <string name="ingame_controller_config">Assegnazione tasti</string>
     <string name="ingame_controller_config_help">Assegnazione tasti: metti ogni azione del gioco su tasti del controller o della tastiera.</string>
+    <string name="ingame_ashley_hold_help">Ashley è bloccata? Tieni premuto il suo pulsante (Aspetta / Segui) per 2 secondi: si mette subito dietro Leon e lo segue.</string>
     <string name="ingame_stick_dead_zone">Zona morta dello stick</string>
     <string name="ingame_stick_range">Portata dello stick</string>
     <string name="ingame_stick_help">Zona morta dello stick: i piccoli movimenti attorno al centro vengono ignorati (per uno stick che deriva). Portata dello stick: uno stick spinto fin qui conta come spinto fino in fondo, così Leon cammina e corre senza intoppi. I valori predefiniti lasciano gli stick come sono; i comandi touch non cambiano.</string>
