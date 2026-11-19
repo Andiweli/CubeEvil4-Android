@@ -190,6 +190,20 @@ jedem Einschalten), Hilfe in 11 Sprachen (492 Texte), `CoreBridge.setMoreEnemies
   r103 bekommt keine (Liste 0 hat keinen leeren Eintrag für den Tod einer Kopie). **Nicht geprüft:** auf einem Gerät;
   ganze Kapitel.
 
+### 9. Lebensbalken: Gegner auf anderer Höhe (Gerätetest des Projektinhabers, 19.11.2026)
+
+„wenn Leon auf einer Ebene über einem Gegner steht, so wird dessen Lebensbalken nicht angezeigt … auch ob es umgekehrt
+auch auftreten würde“. Ursache: die Sichtprüfung lief über die Lauf-Kollision (`SatMgr.hitCheck`), deren unsichtbare
+Kanten an Balkonen, Stockwerken, Stufen und Beckenrändern die Linie von der Kamera abfingen – in beide Richtungen.
+Jetzt die Sicht- und Schuss-Kollision wie beim Zielen des Spiels (`EatMgr.hitCheck(…, 0x800, 0)`, pl_wep.cpp), zum
+Punkt über dem Kopf oder zum Zielpunkt des Gegners (`lockParts`/`lockOfs`, die Teile-Kette selbst abgelaufen).
+Testschalter `RE4_HB_WALKING_WALLS=1` (alte Prüfung, nur zum Vergleich).
+- **Geprüft am PC:** Rundgang 126 Räume (Debug, Stichproben alle 300 Bilder): Balken 144 → 202, „hinter einer Wand“
+  284 → 226, beide ALLES OK; r208 (Zeloten jenseits des Beckens auf anderer Höhe): 3 → 7 Balken
+  (`builds\workthread-1.1.0\healthbars-height-fix-r208-old-left-new-right.png`); r101 Belagerung: Wände verdecken
+  weiter, Ganados durch Fenster und Brett-Lücken haben Balken (`…-r101-walls-still-hide.png`). **Nicht geprüft:** auf
+  einem Gerät.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

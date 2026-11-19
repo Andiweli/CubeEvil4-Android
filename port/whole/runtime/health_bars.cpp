@@ -20,7 +20,8 @@
 //    helicopter 0x3D, the shooting-gallery targets 0x3E; never the player or the partner. Alive (hp > 0), drawn by
 //    the game (cModel::isTrans), within 30 m of the camera, in front of it and on the screen, no wall between.
 //  - Where: 25 cm above the highest part of its model (the head; a boss's top), centred on that part, the width by the distance (14 to 44
-//    of the 512 units of the game's screen), a dark frame and the missing part dark grey.
+//    of the 512 units of the game's screen), a dark frame and the missing part dark grey. "No wall between": the sight
+//    and shot collision from the camera to the head or the aim point (see clearLine).
 //  - Not: in events and films (STA_EVENT, a movie, a door scene), with a sub screen (case, map, files), while the
 //    game's pictures stand (SYS_TRANS_STOP), with the game not in play (Rno0 3).
 #include "types.h"
@@ -151,10 +152,38 @@ Vec topOf(cEm* e)
     return top;
 }
 
+// A clear sight from the camera: the room's sight and shot collision (EatMgr, flag 0x800), as the game's own aim
+// test asks it (pl_wep.cpp, the lock-on target's visibility); not the walking collision (SatMgr), whose invisible
+// edges of balconies, upper floors and ledges hid the bars when Leon stood above or below an enemy (the project
+// owner's device test, 19.11.2026)
 bool clearLine(const Vec& a, const Vec& b)
 {
+    // RE4_HB_WALKING_WALLS=1 (a PC comparison only): the first version's test through the walking collision
+    static const bool walking = getenv("RE4_HB_WALKING_WALLS") != 0;
     Vec p = a, q = b, hit;
-    return SatMgr.hitCheck(&p, &q, &hit, 0, 0, 0) == 0;
+    if (walking) {
+        return SatMgr.hitCheck(&p, &q, &hit, 0, 0, 0) == 0;
+    }
+    return EatMgr.hitCheck(&p, &q, 0, 0, 0x800, 0) == 0;
+}
+
+// Seen from the camera: the bar's point above the head or the enemy's own aim point (its lock-on part and offset)
+bool seen(const Vec& cam, const Vec& top, cEm* e)
+{
+    if (clearLine(cam, top)) {
+        return true;
+    }
+    // the lock-on part by the parts' own chain (getPartsPtr does not check the end of a sequential list)
+    cParts* part = e->pList;
+    for (int i = 0; part && i < (int) e->lockParts && i < 128; i++) {
+        part = part->pList;
+    }
+    if (!part) {
+        return false;
+    }
+    Vec aim;
+    PSMTXMultVec(part->mat, &e->lockOfs, &aim);
+    return clearLine(cam, aim);
 }
 
 void quad(f32 x0, f32 y0, f32 x1, f32 y1, u8 r, u8 g, u8 b, u8 a)
@@ -381,7 +410,7 @@ void re4_health_bars(void)
             gCount.off++;
             continue;
         }
-        if (!clearLine(cam, top)) {
+        if (!seen(cam, top, e)) {
             gCount.wall++;
             continue;
         }
