@@ -9,8 +9,10 @@
 //    they stand; the HUD's IdSys, the messages) goes on, so the picture is drawn every frame from the free camera,
 //    with the game's own culling.
 //  - The free camera (pG->Camera, its whole CAMERA saved and put back): it starts where the game's camera is, the
-//    sticks move it (left: forward, back, sideways; right: turns and rises), the D-pad and the mouse tilt it; slow
-//    and fast; it stays within kRange of Leon (no collision).
+//    app's input moves it (controller: left stick forward, back, sideways, right stick turns and tilts, the D-pad up
+//    and down since the owner's device test of 19.11.2026; the mouse turns and tilts); slow
+//    and fast; it stays within kRange of Leon and inside the world: the game's camera and sight collision stop it at
+//    walls, floors and ceilings (it slides along them), and it never goes where no floor is below.
 //  - Hidden on request (mask): 1 the HUD (Disp_flg: cockpit, the IdSys units, messages, the action prompts), 2 Leon
 //    (and his weapons), 4 the partner, 8 the enemies (the ids the health bars list, runtime/health_bars.cpp: no
 //    merchant, animals, traps, vehicles). A figure is hidden by its be_flag bit 1 (setTrans(0)): the game then neither
@@ -37,6 +39,7 @@
 #include "emshield.h"
 #include "emtorch.h"
 #include "camera.h"
+#include "atari.h"
 #include "view.h"
 #include "snd.h"
 #include "vec.h"
@@ -67,6 +70,8 @@ constexpr f32 kTilt = 1.2f;
 constexpr f32 kRange = 8000.0f;        // from Leon's chest
 constexpr f32 kPitchMax = 1.45f;       // about 83 degrees
 constexpr f32 kDeltaUnit = 1.0f / 8192.0f;  // the app's turn deltas
+constexpr f32 kPad = 300.0f;           // the camera keeps this far from walls, floors and ceilings
+constexpr f32 kFloorSearch = 60000.0f; // no floor within 60 m below: outside the world
 
 // the app's side (any thread)
 std::atomic<int> gWant(0);         // 1 enter asked, 2 leave asked, 0 nothing
@@ -206,6 +211,64 @@ void applyMask(int mask)
     gMaskNow = mask;
 }
 
+// The game's own collision between two points: the camera's (SatMgr flag 0x8000 with the mask of the game's camera,
+// cam_ctrl.cpp: the walls and the invisible bounds its own camera stops at) and the sight and shot collision
+// (EatMgr 0x800: what can be seen, floors and ceilings too)
+bool blocked(const Vec& a, const Vec& b)
+{
+    Vec p = a, q = b, hit;
+    if (SatMgr.hitCheck(&p, &q, &hit, 0, 0x8000, 0x1C2810)) return true;
+    p = a;
+    q = b;
+    return EatMgr.hitCheck(&p, &q, 0, 0, 0x800, 0) != 0;
+}
+
+// Above a floor within kFloorSearch (the void outside a map has none), at least half of kPad over it unless it rises
+bool overFloor(const Vec& at, bool rising)
+{
+    Vec p = at;
+    const f32 y = EatMgr.getFloor(&p, 0, 10.0f, kFloorSearch, 0);
+    return y > -99999.0f && (rising || at.y - y >= kPad * 0.5f);
+}
+
+// The camera from a to b: nothing in the way (the way lengthened by kPad, so it never touches a surface) and a floor
+// below b
+bool canMove(const Vec& a, const Vec& b)
+{
+    const f32 dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const f32 len = sqrtf(dx * dx + dy * dy + dz * dz);
+    if (len < 0.01f) return true;
+    const f32 k = (len + kPad) / len;
+    const Vec far = {a.x + dx * k, a.y + dy * k, a.z + dz * k};
+    return !blocked(a, far) && overFloor(b, dy > 0.0f);
+}
+
+unsigned gStops;  // moves the collision stopped (logged now and then)
+
+// to `want` as far as the collision lets it: all at once, else along each axis alone (it slides along a wall)
+void moveTo(const Vec& want)
+{
+    if (canMove(gPos, want)) {
+        gPos = want;
+        return;
+    }
+    Vec t = gPos, c = t;
+    c.x = want.x;
+    if (canMove(t, c)) t = c;
+    c = t;
+    c.z = want.z;
+    if (canMove(t, c)) t = c;
+    c = t;
+    c.y = want.y;
+    if (canMove(t, c)) t = c;
+    gPos = t;
+    if (gStops++ % 90 == 0 && gLines < 60) {
+        gLines++;
+        re4_log("photo mode: the camera stops at a wall, floor or the edge of the world at %.0f %.0f %.0f", (double) gPos.x,
+                (double) gPos.y, (double) gPos.z);
+    }
+}
+
 void lookFrom(CAMERA* cam)
 {
     const Vec d = {cam->param.Target.x - cam->param.Campos.x, cam->param.Target.y - cam->param.Campos.y,
@@ -302,17 +365,21 @@ void moveCamera()
     if (gYaw < -3.14159265f) gYaw += 6.2831853f;
     const f32 step = kMove * mul * kDt;
     const f32 sy = sinf(gYaw), cy = cosf(gYaw);
-    gPos.x += (sy * mz - cy * mx) * step;
-    gPos.z += (cy * mz + sy * mx) * step;
-    gPos.y += rise * step;
-    Vec off = {gPos.x - gAnchor.x, gPos.y - gAnchor.y, gPos.z - gAnchor.z};
+    Vec want = gPos;
+    want.x += (sy * mz - cy * mx) * step;
+    want.z += (cy * mz + sy * mx) * step;
+    want.y += rise * step;
+    Vec off = {want.x - gAnchor.x, want.y - gAnchor.y, want.z - gAnchor.z};
     const f32 len = sqrtf(off.x * off.x + off.y * off.y + off.z * off.z);
     if (len > kRange) {
         const f32 k = kRange / len;
-        gPos.x = gAnchor.x + off.x * k;
-        gPos.y = gAnchor.y + off.y * k;
-        gPos.z = gAnchor.z + off.z * k;
+        want.x = gAnchor.x + off.x * k;
+        want.y = gAnchor.y + off.y * k;
+        want.z = gAnchor.z + off.z * k;
     }
+    // walls, floors and the edge of the world stop it (the owner's device test of 19.11.2026: under the floor and
+    // out of bounds sideways)
+    if (want.x != gPos.x || want.y != gPos.y || want.z != gPos.z) moveTo(want);
 }
 
 // for the pictures on the PC: RE4_TEST_PHOTO="F:MASK[:a:b[:N]]": F frames after photo mode could first come photo mode comes on with the mask, the
@@ -348,7 +415,8 @@ void testScript()
         holdUntil = 0;
         gStickA.store(0);
         gStickB.store(0);
-        re4_log("photo test: frame %u, sticks let go", f);
+        re4_log("photo test: frame %u, sticks let go, camera at %.0f %.0f %.0f", f, (double) gPos.x, (double) gPos.y,
+                (double) gPos.z);
     }
     for (const char* p = script; p && *p;) {
         unsigned at = (unsigned) strtoul(p, (char**) &p, 10);

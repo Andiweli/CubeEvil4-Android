@@ -48,7 +48,7 @@
     <string name="ingame_photo_leon">Leon</string>
     <string name="ingame_photo_partner">Ashley</string>
     <string name="ingame_photo_enemies">Inimigos</string>
-    <string name="ingame_photo_hint_pad">Analógico esquerdo: mover · Analógico direito: girar, subir/descer · Direcional: inclinar · L lento · R rápido · X HUD · Y Leon · A Ashley · Z inimigos · START redefinir · B sair</string>
+    <string name="ingame_photo_hint_pad">Analógico esquerdo: mover · Analógico direito: girar, inclinar · Direcional: subir/descer · L lento · R rápido · X HUD · Y Leon · A Ashley · Z inimigos · START redefinir · B sair</string>
     <string name="ingame_photo_hint_keys">WASD: mover · Mouse: olhar · E/Q: subir/descer · Shift rápido · Alt lento · 1 HUD · 2 Leon · 3 Ashley · 4 inimigos · R redefinir · Esc sair</string>
     <string name="ingame_photo_hint_touch">Metade esquerda: arraste para mover · Metade direita: arraste para olhar · Segundo dedo: subir/descer · Toque: mostrar isto · ✕ sair</string>
     <string name="ingame_photo_not_here">O modo foto não está disponível aqui (cenas, filmes, menus, salvamento).</string>

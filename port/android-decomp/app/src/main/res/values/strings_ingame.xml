@@ -56,7 +56,7 @@
     <string name="ingame_photo_leon">Leon</string>
     <string name="ingame_photo_partner">Ashley</string>
     <string name="ingame_photo_enemies">Enemies</string>
-    <string name="ingame_photo_hint_pad">Left stick: move · Right stick: turn, up/down · D-pad: tilt · L slow · R fast · X HUD · Y Leon · A Ashley · Z enemies · START reset · B exit</string>
+    <string name="ingame_photo_hint_pad">Left stick: move · Right stick: turn, tilt · D-pad: up/down · L slow · R fast · X HUD · Y Leon · A Ashley · Z enemies · START reset · B exit</string>
     <string name="ingame_photo_hint_keys">WASD: move · Mouse: look · E/Q: up/down · Shift fast · Alt slow · 1 HUD · 2 Leon · 3 Ashley · 4 enemies · R reset · Esc exit</string>
     <string name="ingame_photo_hint_touch">Left half: drag to move · Right half: drag to look · Second finger: up/down · Tap: show this · ✕ exit</string>
     <string name="ingame_photo_not_here">Photo mode is not available here (cutscenes, films, menus, saving).</string>

@@ -47,7 +47,7 @@
     <string name="ingame_photo_leon">Leon</string>
     <string name="ingame_photo_partner">Ashley</string>
     <string name="ingame_photo_enemies">Nemici</string>
-    <string name="ingame_photo_hint_pad">Stick sinistro: muovi · Stick destro: ruota, su/giù · Croce direzionale: inclina · L lento · R veloce · X HUD · Y Leon · A Ashley · Z nemici · START ripristina · B esci</string>
+    <string name="ingame_photo_hint_pad">Stick sinistro: muovi · Stick destro: ruota, inclina · Croce direzionale: su/giù · L lento · R veloce · X HUD · Y Leon · A Ashley · Z nemici · START ripristina · B esci</string>
     <string name="ingame_photo_hint_keys">WASD: muovi · Mouse: guarda · E/Q: su/giù · Shift veloce · Alt lento · 1 HUD · 2 Leon · 3 Ashley · 4 nemici · R ripristina · Esc esci</string>
     <string name="ingame_photo_hint_touch">Metà sinistra: trascina per muovere · Metà destra: trascina per guardare · Secondo dito: su/giù · Tocco: mostra questo · ✕ esci</string>
     <string name="ingame_photo_not_here">La modalità foto non è disponibile qui (scene, filmati, menu, salvataggio).</string>

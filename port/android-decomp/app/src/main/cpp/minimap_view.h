@@ -16,6 +16,15 @@ struct Pose {
   float fx = 0, fz = 1;
 };
 
+// Photo mode (1.1.0, the owner's device test of 19.11.2026): the minimap belongs to the HUD. Shown at all: not while
+// photo mode hides the HUD (mask bit 1). The player's model counts as the player when its be_flag has bits 1 and 2
+// (alive, drawn); in photo mode bit 2 alone, since "hide Leon" clears bit 1 and the minimap stays.
+inline bool MinimapShown(bool photo, int photoMask) { return !(photo && (photoMask & 1)); }
+inline bool PlayerModel(unsigned beFlag, bool photo) {
+  const unsigned need = photo ? 4u : 6u;
+  return (beFlag & need) == need;
+}
+
 // The player's pose from a model matrix (row-major 3x4, Re4CoreModel::matrix); false without a direction.
 inline bool PoseFromMatrix(const float *m, Pose *p) {
   p->x = m[3];

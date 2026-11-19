@@ -47,7 +47,7 @@
     <string name="ingame_photo_leon">लियोन</string>
     <string name="ingame_photo_partner">Ashley</string>
     <string name="ingame_photo_enemies">दुश्मन</string>
-    <string name="ingame_photo_hint_pad">बायाँ स्टिक: चलें · दायाँ स्टिक: घूमें, ऊपर/नीचे · डी-पैड: झुकाएँ · L धीमा · R तेज़ · X HUD · Y लियोन · A Ashley · Z दुश्मन · START रीसेट · B बाहर</string>
+    <string name="ingame_photo_hint_pad">बायाँ स्टिक: चलें · दायाँ स्टिक: घूमें, झुकाएँ · डी-पैड: ऊपर/नीचे · L धीमा · R तेज़ · X HUD · Y लियोन · A Ashley · Z दुश्मन · START रीसेट · B बाहर</string>
     <string name="ingame_photo_hint_keys">WASD: चलें · माउस: देखें · E/Q: ऊपर/नीचे · Shift तेज़ · Alt धीमा · 1 HUD · 2 लियोन · 3 Ashley · 4 दुश्मन · R रीसेट · Esc बाहर</string>
     <string name="ingame_photo_hint_touch">बायाँ आधा: खींचकर चलें · दायाँ आधा: खींचकर देखें · दूसरी उँगली: ऊपर/नीचे · टैप: यह दिखाएँ · ✕ बाहर</string>
     <string name="ingame_photo_not_here">फ़ोटो मोड यहाँ उपलब्ध नहीं है (कटसीन, फ़िल्म, मेन्यू, सेव)।</string>

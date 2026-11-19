@@ -602,6 +602,8 @@ unsigned optApplied = ~0u;
 std::atomic<bool> corePaused{false};
 // photo mode (1.1.0) as the chunks say: on, and a request refused (CoreBridge.photoState takes it)
 std::atomic<bool> photoOn{false}, photoRefused{false};
+// what photo mode hides (CoreBridge.photoMode's mask; 1 the HUD: the minimap goes with it, not with Leon)
+std::atomic<int> photoMask{0};
 // Android's thermal status and headroom (ThermalWatch, 0.99.15; set by CoreBridge.setThermal from the app's main thread,
 // read by the render thread): Dynamic's lines name them, so a report shows whether a step down came with heat
 std::atomic<int> thermalStatus{-2};
@@ -1705,9 +1707,14 @@ bool minimapBuild(int format, unsigned xh, bool wide, re4gx::GxOverlay *out) {
   if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
       (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
     return false;
+  // photo mode (1.1.0, the owner's device test of 19.11.2026): the minimap belongs to the HUD and goes with its switch;
+  // Leon hidden (his be_flag bit 1 cleared) keeps it, his matrix still places it
+  const bool photo = photoOn.load();
+  if (!re4mm::MinimapShown(photo, photoMask.load()))
+    return false;
   const Re4CoreModel *player = nullptr;
   for (const Re4CoreModel &mdl : frame.models)
-    if (mdl.manager == 0 && mdl.id == 0 && (mdl.beFlag & 6) == 6) {
+    if (mdl.manager == 0 && mdl.id == 0 && re4mm::PlayerModel(mdl.beFlag, photo)) {
       player = &mdl;
       break;
     }
@@ -3724,6 +3731,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_quickReload(
 extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_photoMode(JNIEnv *, jclass, jint op, jint mask) {
   if (!api.photoMode) return JNI_FALSE;
   if (op == 1) photoRefused.store(false);
+  photoMask.store(op == 0 ? 0 : mask);
   api.photoMode(op, mask);
   return JNI_TRUE;
 }

@@ -47,7 +47,7 @@
     <string name="ingame_photo_leon">Леон</string>
     <string name="ingame_photo_partner">Эшли</string>
     <string name="ingame_photo_enemies">Враги</string>
-    <string name="ingame_photo_hint_pad">Левый стик: движение · Правый стик: поворот, вверх/вниз · Крестовина: наклон · L медленно · R быстро · X HUD · Y Леон · A Эшли · Z враги · START сброс · B выход</string>
+    <string name="ingame_photo_hint_pad">Левый стик: движение · Правый стик: поворот, наклон · Крестовина: вверх/вниз · L медленно · R быстро · X HUD · Y Леон · A Эшли · Z враги · START сброс · B выход</string>
     <string name="ingame_photo_hint_keys">WASD: движение · Мышь: обзор · E/Q: вверх/вниз · Shift быстро · Alt медленно · 1 HUD · 2 Леон · 3 Эшли · 4 враги · R сброс · Esc выход</string>
     <string name="ingame_photo_hint_touch">Левая половина: тяните для движения · Правая половина: тяните для обзора · Второй палец: вверх/вниз · Касание: показать это · ✕ выход</string>
     <string name="ingame_photo_not_here">Фоторежим здесь недоступен (заставки, фильмы, меню, сохранение).</string>

@@ -246,6 +246,27 @@ die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_RE
   Unit-Tests, 503 Texte) bauen.
   **Nicht geprüft:** auf einem Gerät (Leiste, Doppeldruck, Touch-Ziehen, Maus, Bildschirmfoto).
 
+### 11. Fotomodus: fünf Befunde vom Gerätetest des Projektinhabers (19.11.2026)
+
+1. „HUD ausblenden soll auch die Minimap ausblenden“ und 2. „bei Leon ausblenden soll die Minimap bleiben“: die
+   Minimap zeichnet die App (core_mode.cpp `minimapBuild`); sie suchte Leon über be_flag-Bits 1 und 2, „Leon
+   ausblenden“ löscht Bit 1. Jetzt im Fotomodus nur Bit 2, und die HUD-Maske blendet sie aus (`re4mm::MinimapShown`,
+   `re4mm::PlayerModel` in minimap_view.h; Prüfung `minimap_check --photo`, 7 Fälle ok).
+3. „Ein einfacher Druck auf SELECT öffnet den Fotomodus“: `selectReleasedAt` begann bei `Long.MIN_VALUE`, „jetzt
+   minus Loslassen“ lief über und war negativ, also ≤ 300 ms: jeder erste Druck galt als zweiter. Jetzt -1 = keiner
+   (CoreActivity.select; gilt für Controller-SELECT, Touch-MENU und F1, die alle dort ankommen).
+4. „Kamera unter den Boden oder seitlich out-of-bounds“: die freie Kamera prüft jeden Schritt mit der Kollision der
+   Spielkamera (`SatMgr.hitCheck`, Flag 0x8000, Maske 0x1C2810 wie cam_ctrl.cpp) und der Sicht-/Schuss-Kollision
+   (`EatMgr.hitCheck` 0x800), den Weg um 30 cm verlängert, und braucht einen Boden darunter (`EatMgr.getFloor`, 60 m;
+   mindestens 15 cm Abstand, außer beim Steigen). Geht der ganze Schritt nicht, je Achse einzeln (sie gleitet an der
+   Wand entlang).
+5. „Tausche DPAD rauf/runter und Rechten Stick rauf/runter“: rechter Stick hoch/runter neigt jetzt, das Steuerkreuz
+   hebt und senkt die Kamera; Steuerungszeile in 11 Sprachen angepasst.
+- **Geprüft am PC:** r208 abwärts: hält bei y 4329 (Boden 4000); seitlich: hält am Beckenrand; r103 seitlich und
+  rückwärts: hält an Zaun und Hang und gleitet entlang (Bilder `builds\workthread-1.1.0\photo-fix-*.png`);
+  Minimap-Regel mit `minimap_check --photo`; App (Gradle, Unit-Tests, 503 Texte); Rundgang 126 Räume Debug mit Fotomodus, Kamera schräg/abwärts in jedem Raum: ALLES OK; ARM-Kern baut. **Nicht geprüft:** auf einem
+  Gerät (Doppeldruck, Minimap im Bild, Kamera mit echtem Stick).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

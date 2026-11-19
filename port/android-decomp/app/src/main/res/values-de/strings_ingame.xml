@@ -47,7 +47,7 @@
     <string name="ingame_photo_leon">Leon</string>
     <string name="ingame_photo_partner">Ashley</string>
     <string name="ingame_photo_enemies">Gegner</string>
-    <string name="ingame_photo_hint_pad">Linker Stick: bewegen · Rechter Stick: drehen, hoch/runter · Steuerkreuz: neigen · L langsam · R schnell · X HUD · Y Leon · A Ashley · Z Gegner · START zurücksetzen · B beenden</string>
+    <string name="ingame_photo_hint_pad">Linker Stick: bewegen · Rechter Stick: drehen, neigen · Steuerkreuz: hoch/runter · L langsam · R schnell · X HUD · Y Leon · A Ashley · Z Gegner · START zurücksetzen · B beenden</string>
     <string name="ingame_photo_hint_keys">WASD: bewegen · Maus: umsehen · E/Q: hoch/runter · Shift schnell · Alt langsam · 1 HUD · 2 Leon · 3 Ashley · 4 Gegner · R zurücksetzen · Esc beenden</string>
     <string name="ingame_photo_hint_touch">Linke Hälfte: ziehen zum Bewegen · Rechte Hälfte: ziehen zum Umsehen · Zweiter Finger: hoch/runter · Tippen: dies zeigen · ✕ beenden</string>
     <string name="ingame_photo_not_here">Der Fotomodus ist hier nicht möglich (Zwischensequenzen, Filme, Menüs, Speichern).</string>

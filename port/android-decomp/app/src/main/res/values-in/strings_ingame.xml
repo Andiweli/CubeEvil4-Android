@@ -48,7 +48,7 @@
     <string name="ingame_photo_leon">Leon</string>
     <string name="ingame_photo_partner">Ashley</string>
     <string name="ingame_photo_enemies">Musuh</string>
-    <string name="ingame_photo_hint_pad">Stik kiri: gerak · Stik kanan: putar, naik/turun · D-pad: miringkan · L lambat · R cepat · X HUD · Y Leon · A Ashley · Z musuh · START atur ulang · B keluar</string>
+    <string name="ingame_photo_hint_pad">Stik kiri: gerak · Stik kanan: putar, miringkan · D-pad: naik/turun · L lambat · R cepat · X HUD · Y Leon · A Ashley · Z musuh · START atur ulang · B keluar</string>
     <string name="ingame_photo_hint_keys">WASD: gerak · Mouse: lihat · E/Q: naik/turun · Shift cepat · Alt lambat · 1 HUD · 2 Leon · 3 Ashley · 4 musuh · R atur ulang · Esc keluar</string>
     <string name="ingame_photo_hint_touch">Separuh kiri: geser untuk bergerak · Separuh kanan: geser untuk melihat · Jari kedua: naik/turun · Ketuk: tampilkan ini · ✕ keluar</string>
     <string name="ingame_photo_not_here">Mode foto tidak tersedia di sini (adegan, film, menu, menyimpan).</string>

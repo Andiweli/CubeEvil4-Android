@@ -214,8 +214,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** Photo mode (1.1.0): its state, the camera's input and its overlay. */
   private PhotoMode photo;
   /** Photo mode on: a single SELECT opens the menu only after PhotoMode.DOUBLE_MS without a second press. */
-  private final Runnable selectSingle = this::openMenu;
-  private long selectReleasedAt = Long.MIN_VALUE;
+  private final Runnable selectSingle = () -> {
+    selectReleasedAt = -1;
+    openMenu();
+  };
+  /** When SELECT was let go last (uptime ms) while a second press may still follow; -1 none. (Not Long.MIN_VALUE: "now
+   *  minus it" overflowed to a negative number, and every single press counted as the second one: the owner's device
+   *  test of 19.11.2026, the menu could no longer be reached.) */
+  private long selectReleasedAt = -1;
   private GyroAim gyroAim;
   private boolean touchEditing;
   private String startProblem = "";
@@ -976,9 +982,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     if (down) {
       // the second press of a double press (photo mode switched on in the menu): photo mode instead of the menu
-      if (photoWanted() && SystemClock.uptimeMillis() - selectReleasedAt <= PhotoMode.DOUBLE_MS) {
+      if (photoWanted() && selectReleasedAt >= 0 && SystemClock.uptimeMillis() - selectReleasedAt <= PhotoMode.DOUBLE_MS) {
         main.removeCallbacks(selectSingle);
-        selectReleasedAt = Long.MIN_VALUE;
+        selectReleasedAt = -1;
         selectDown = false;
         photo.request("SELECT twice");
         return;
@@ -3582,6 +3588,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     selectDown = false;
     main.removeCallbacks(selectHold);
     main.removeCallbacks(selectSingle);
+    selectReleasedAt = -1;
     if (photo != null) photo.leave("the app went to the background");
     stopBeat();
     if (gyroAim != null) gyroAim.pause();

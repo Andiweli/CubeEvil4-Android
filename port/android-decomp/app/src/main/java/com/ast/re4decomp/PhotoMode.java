@@ -27,7 +27,8 @@ import java.util.Set;
  * the four switches, a line of controls, a close button for touch; it fades out after four seconds without a button,
  * so screenshots (Android's own) stay clean. The touch controls are hidden meanwhile; on touch the left half moves
  * (a drag like a stick), the right half looks, a second finger goes up and down, a tap brings the overlay back.
- * <p>Controller: left stick moves, right stick turns and rises, D-pad up/down tilts, L slow, R fast, X HUD, Y Leon,
+ * <p>Controller: left stick moves, right stick turns and tilts, D-pad up/down rises and sinks (swapped after the
+ * owner's device test of 19.11.2026), L slow, R fast, X HUD, Y Leon,
  * A Ashley, Z enemies, START the camera back, B (or SELECT) leaves. Keyboard: WASD or the arrows move, the mouse looks,
  * E/Space up, Q/C down, Shift fast, Alt slow, 1-4 the switches, R back, Esc (or F1) leaves.
  */
@@ -229,8 +230,9 @@ final class PhotoMode {
         show();
       }
       float mx = p[1] / CoreInput.MAIN_RAW, mz = p[2] / CoreInput.MAIN_RAW;
-      float turn = p[3] / CoreInput.C_RAW, rise = p[4] / CoreInput.C_RAW;
-      float tilt = ((b & CoreInput.GC_UP) != 0 ? 1f : 0f) - ((b & CoreInput.GC_DOWN) != 0 ? 1f : 0f);
+      // the right stick turns and tilts, the D-pad's up and down raise and lower the camera
+      float turn = p[3] / CoreInput.C_RAW, tilt = p[4] / CoreInput.C_RAW;
+      float rise = ((b & CoreInput.GC_UP) != 0 ? 1f : 0f) - ((b & CoreInput.GC_DOWN) != 0 ? 1f : 0f);
       // L and R: the digital click or the analog trigger past half way
       boolean slow = (b & CoreInput.GC_L) != 0 || p[5] > 127, fast = (b & CoreInput.GC_R) != 0 || p[6] > 127;
       // the keyboard
