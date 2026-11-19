@@ -16,8 +16,10 @@
 //    parasite enemy itself (id 0x25) and the humanoid with the parasite head once it is out (em3c, Be_flg 0x800
 //    "parasite set", em3cSetParasite). (cEm::flag 0x20 is no sign: the room lists give it to Ganados with heads.)
 //  - Which: the enemies (ids 0x10..0x3F) apart from the friendly and the things: the merchant 0x18, the village dog
-//    0x21, crows 0x23, the lake fish 0x27, chickens 0x28, traps 0x2A, the trucks and mine carts 0x3B, the support
-//    helicopter 0x3D, the shooting-gallery targets 0x3E; never the player or the partner. Alive (hp > 0), drawn by
+//    0x21, crows 0x23, snakes 0x24, cows 0x26, the lake fish 0x27, chickens 0x28, bats 0x29, traps 0x2A, the trucks
+//    and mine carts 0x3B, the support helicopter 0x3D, the shooting-gallery targets 0x3E; never the player or the
+//    partner (Ashley, Luis: ids below 0x10, the sub characters). The Plaga dogs 0x22, the parasites 0x25, the bosses
+//    (Del Lago 0x2F too) keep theirs. Alive (hp > 0), drawn by
 //    the game (cModel::isTrans), within 30 m of the camera, in front of it and on the screen, no wall between.
 //  - Where: 25 cm above the highest part of its model (the head; a boss's top), centred on that part, the width by the distance (14 to 44
 //    of the 512 units of the game's screen), a dark frame and the missing part dark grey. "No wall between": the sight
@@ -87,7 +89,9 @@ bool listed(int id)
         return false;
     }
     switch (id) {
-    case 0x18: case 0x21: case 0x23: case 0x27: case 0x28: case 0x2A: case 0x3B: case 0x3D: case 0x3E:
+    // (1.1.0, the owner: "Bei Tieren zeige auch keine Healthbar an": also the snakes 0x24, cows 0x26 and bats 0x29)
+    case 0x18: case 0x21: case 0x23: case 0x24: case 0x26: case 0x27: case 0x28: case 0x29: case 0x2A: case 0x3B:
+    case 0x3D: case 0x3E:
         return false;
     default:
         return true;
@@ -352,14 +356,80 @@ void re4_health_bars_set(int on)
     }
 }
 
+// Once a room, 10 s after its start (for an error report): the figures of the character manager within 30 m of the
+// camera, by id, and whether they get a bar (the owner's device test of 19.11.2026: the merchant and Luis must not)
+static void nearby(const Vec& cam)
+{
+    static int room = -1;
+    static unsigned at;
+    if ((int) pG->room_id != room) {
+        room = (int) pG->room_id;
+        at = (unsigned) pG->Frame_cnt + 300;
+        return;
+    }
+    if (!at || (unsigned) pG->Frame_cnt < at) {
+        return;
+    }
+    at = 0;
+    char line[600];
+    int len = snprintf(line, sizeof(line), "health bars: r%03x, figures within 30 m:", (unsigned) pG->room_id);
+    int n = 0;
+    for (u32 i = 0; i < EmMgr.getArrayNum() && len < (int) sizeof(line) - 40; i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (!e || !e->isAlive() || e->id >= 0x40) {
+            continue;
+        }
+        const f32 dx = e->pos.x - cam.x, dz = e->pos.z - cam.z;
+        if (dx * dx + dz * dz > kFar * kFar) {
+            continue;
+        }
+        const bool own = (cEm*) e == (cEm*) pPL || e == pSUB;
+        len += snprintf(line + len, sizeof(line) - len, " 0x%02x%s%s", (unsigned) e->id,
+                        (cEm*) e == (cEm*) pPL ? "(player)" : e == pSUB ? "(partner)" : "",
+                        !own && listed(e->id) ? "+bar" : "");
+        n++;
+    }
+    if (n) {
+        re4_log("%s", line);
+    }
+}
+
+// No HUD of ours now (the bars here, the app's minimap through RE4_CORE_SCREEN_NOHUD, core_bridge.cpp; the owner,
+// 19.11.2026: "dass die Minimap nicht in Zwischensequenzen oder dem Introvideo angezeigt wird"): not in play (the title,
+// its intro and demo movies, a room's loading, the game's options, a door scene: Rno0 other than 3), an event
+// (cutscene, QTE scene), a film, a sub screen (case, map, files, the merchant), the item pick-up, the memory card (the
+// typewriter), the death scene, a door scene, the game's pictures standing.
+static const char* hudOffWhy()
+{
+    if (!pG || pG->Rno0 != 3) return "not in play (title, intro, options, door, loading)";
+    if (StaFlagChk(pG, STA_EVENT)) return "an event";
+    if (StaFlagChk(pG, STA_MOVIE_ON) || StaFlagChk(pG, STA_MOVIE2_ON) || re4_movie_playing()) return "a film";
+    if (StaFlagChk(pG, STA_SUB_SCRN) || StaFlagChk(pG, STA_ITEM_GET)) return "a sub screen";
+    if (StaFlagChk(pG, STA_CARD_ACCESS)) return "the memory card";
+    if (StaFlagChk(pG, STA_DIEDEMO)) return "the death scene";
+    if (SysFlagChk(pG, SYS_DOORDEMO)) return "a door scene";
+    if (SysFlagChk(pG, SYS_TRANS_STOP)) return "the pictures stand";
+    return 0;
+}
+
+extern "C" int re4_hud_off_now(void)
+{
+    const char* why = hudOffWhy();
+    // its changes for an error report (the first 40)
+    static const char* last = "";
+    static unsigned lines;
+    if (why != last && lines < 40 && pG) {
+        lines++;
+        re4_log("hud: %s in r%03x at frame %u", why ? why : "shown", (unsigned) pG->room_id, (unsigned) pG->Frame_cnt);
+    }
+    last = why;
+    return why ? 1 : 0;
+}
+
 // Patch 0238 (game.cpp, after Cckpt.move): the bars of this frame
 void re4_health_bars(void)
 {
-    if (!gOn.load(std::memory_order_relaxed) || !pG || !pPL || pG->Rno0 != 3) {
-        return;
-    }
-    if (StaFlagChk(pG, STA_EVENT) || StaFlagChk(pG, STA_SUB_SCRN) || SysFlagChk(pG, SYS_TRANS_STOP) ||
-        SysFlagChk(pG, SYS_DOORDEMO) || re4_movie_playing()) {
+    if (!gOn.load(std::memory_order_relaxed) || !pPL || re4_hud_off_now()) {
         return;
     }
     testHp();
@@ -374,6 +444,7 @@ void re4_health_bars(void)
     f->vh = vp[3] > 1.0f ? vp[3] : 448.0f;
     f->n = 0;
     const Vec cam = pG->Camera.param.Campos;
+    nearby(cam);
     for (u32 i = 0; i < EmMgr.getArrayNum() && f->n < kMaxBars; i++) {
         cEm* e = EmMgr.fastAt(i);
         if (!e || !e->isAlive() || !listed(e->id) || (cEm*) e == (cEm*) pPL || e == pSUB || e->hp <= 0 ||

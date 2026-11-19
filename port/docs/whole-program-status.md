@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0244 (0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+Nächste freie Patch-Nummer: 0245 (0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -266,6 +266,32 @@ die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_RE
   rückwärts: hält an Zaun und Hang und gleitet entlang (Bilder `builds\workthread-1.1.0\photo-fix-*.png`);
   Minimap-Regel mit `minimap_check --photo`; App (Gradle, Unit-Tests, 503 Texte); Rundgang 126 Räume Debug mit Fotomodus, Kamera schräg/abwärts in jedem Raum: ALLES OK; ARM-Kern baut. **Nicht geprüft:** auf einem
   Gerät (Doppeldruck, Minimap im Bild, Kamera mit echtem Stick).
+
+### 12. Gerätetest des Projektinhabers, zweite Runde (19.11.2026, Patch 0244)
+
+1. **„Mehr Gegner“ wirkte nach r101 nicht.** Zwei Gründe: Liste 0 (Dorf) hat keinen leeren Eintrag, an dem der Tod
+   einer Kopie gespeichert wird (keine Kopie in Liste 0), und als Vorlage zählten nur Ganados, die das Skript nicht
+   steuert (im Dorf fast keine). Jetzt: Vorlage ist jeder gewöhnliche Ganado, der jetzt kommt (eine Kopie steuert kein
+   Skript); ohne leeren Eintrag bekommt die Kopie die Nummer 0xFF des Spiels („nicht aus der Liste“), ihren Tod merkt
+   sich `enemy_random.cpp` (gDead, solange die App läuft; ein Bild-Haken sieht Leben 0); Patch 0244 lässt in
+   EmSetFromList dafür das Todes-Bit 255 aus. Und Kopien auch in „nur Plätze“-Räumen: deren Skripte zählen und räumen
+   über die Gegnerverwaltung (`SceCountEmAlive`, `SceDestroyEm`, `EmMgr`), Kopien zählen also mit. Nur Bosse und r100
+   bleiben. Hilfetext in 11 Sprachen ohne die Tür-Ausnahme. Rundgang 126 Räume Debug: ALLES OK, Kopien geplant 45 →
+   122; Dorf: r101 11 → 15, r103 5 → 7, r106 7 → 10, r107 11 → 15, r108 11 → 15, r10f 5 → 7, r11d 6 → 8 (Räume, deren
+   Ganados erst als Welle kommen, z. B. r102, r10a: keine); Debug mit beiden Cheats und Listen-Prüfung ALLES OK; EU 125
+   von 126 (r333 Altbefund). Karten `builds\workthread-1.1.0\more-enemies-fix-map-r107-village.png`, `…-r101-…`.
+   **Nicht geprüft:** ein Raum zweimal besucht (Kopie ohne Eintrag bleibt tot), auf einem Gerät.
+2. **Keine Balken bei Händler, Luis, Tieren.** Händler (0x18) und Partner (Ashley, Luis: Ids unter 0x10) hatten schon
+   keinen; neu ausgenommen: Schlangen 0x24, Kühe 0x26, Fledermäuse 0x29 (dazu wie bisher Dorfhund 0x21, Krähen 0x23,
+   Barsche 0x27, Hühner 0x28). Plaga-Hunde 0x22, Parasiten 0x25 und Bosse (auch Del Lago 0x2F) behalten ihren. Neue
+   Logzeile einmal je Raum: „health bars: rXXX, figures within 30 m: …“ (Id, „+bar“). Am PC: r112 (Händler 0x18),
+   r103 (Kuh, Hühner), r10e (Fledermäuse), r11c (Luis 0x03 als Partner): kein Balken.
+3. **Minimap nicht in Zwischensequenzen, Filmen, Intro.** Ein gemeinsamer Test für Lebensbalken und Minimap,
+   `re4_hud_off_now` (health_bars.cpp): nicht im Spiel (Titel, Intro- und Demo-Filme, Optionen, Türszene, Laden),
+   Ereignis, Film, Untermenü (auch Händler), Gegenstand-Aufnahme, Speicherkarte (Schreibmaschine), Todesszene,
+   stehende Bilder; das Bild sagt es der App (`RE4_CORE_SCREEN_NOHUD`). Logzeilen „hud: … in rXXX“ beim Wechsel.
+   Am PC: r200 „hud: an event … shown“. Die Minimap selbst zeichnet nur die App (nicht im PC-Bild).
+   **Nicht geprüft:** auf einem Gerät.
 
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 

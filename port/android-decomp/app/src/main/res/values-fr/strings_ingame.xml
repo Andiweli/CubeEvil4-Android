@@ -429,7 +429,7 @@
     <string name="ingame_health_bars">Barres de vie des ennemis</string>
     <string name="ingame_health_bars_help">Barres de vie des ennemis : une petite barre au-dessus de chaque ennemi montre sa santé (verte, jaune sous un quart, rouge sous un dixième) ; pas dans les cinématiques ni les menus.</string>
     <string name="ingame_more_enemies">Plus d’ennemis</string>
-    <string name="ingame_more_enemies_help">Plus d’ennemis : environ 40 pour cent de Ganados ordinaires en plus dans une salle, à des endroits aléatoires, quelle que soit la difficulté ; dès la salle suivante. Les boss, les ennemis spéciaux, les vagues et les salles où une porte attend que tous les ennemis tombent restent inchangés ; seulement dans l’histoire.</string>
+    <string name="ingame_more_enemies_help">Plus d’ennemis : environ 40 pour cent de Ganados ordinaires en plus dans une salle, à des endroits aléatoires, quelle que soit la difficulté ; dès la salle suivante. Les boss, les ennemis spéciaux et les vagues restent inchangés ; seulement dans l’histoire.</string>
     <string name="ingame_dof_light">Léger</string>
     <string name="ingame_dof_strong">Fort</string>
     <string name="ingame_player_view">Vue du joueur</string>

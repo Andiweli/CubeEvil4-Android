@@ -422,7 +422,7 @@
     <string name="ingame_health_bars">敌人血条</string>
     <string name="ingame_health_bars_help">敌人血条：每个敌人头上的小条显示其生命值（绿色，低于四分之一为黄色，低于十分之一为红色）；过场动画和菜单中不显示。</string>
     <string name="ingame_more_enemies">更多敌人</string>
-    <string name="ingame_more_enemies_help">更多敌人：房间里的普通 Ganado 增加约四成，位置随机，任何难度均有效；从下一个房间开始。头目、特殊敌人、敌人波次以及需要击败全部敌人才开门的房间保持不变；仅限主线剧情。</string>
+    <string name="ingame_more_enemies_help">更多敌人：房间里的普通 Ganado 增加约四成，位置随机，任何难度均有效；从下一个房间开始。头目、特殊敌人和敌人波次保持不变；仅限主线剧情。</string>
     <string name="ingame_dof_light">轻度</string>
     <string name="ingame_dof_strong">强烈</string>
     <string name="ingame_player_view">玩家视角</string>

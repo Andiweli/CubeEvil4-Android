@@ -1705,7 +1705,7 @@ bool minimapProgram() {
 // Vulkan renderer over its picture (GxRenderer::SetOverlay)
 bool minimapBuild(int format, unsigned xh, bool wide, re4gx::GxOverlay *out) {
   if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
-      (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
+      (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT | RE4_CORE_SCREEN_NOHUD)))
     return false;
   // photo mode (1.1.0, the owner's device test of 19.11.2026): the minimap belongs to the HUD and goes with its switch;
   // Leon hidden (his be_flag bit 1 cleared) keeps it, his matrix still places it

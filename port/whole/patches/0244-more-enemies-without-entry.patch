@@ -1,0 +1,15 @@
+# Port patch (1.1.0, the project owner's device test of 19.11.2026): "More enemies" in the village. Its list (list 0)
+# has no empty entry for a copy's death; runtime/enemy_random.cpp then hands out a copy with the game's own "not from
+# the list" number 0xFF and keeps its death itself. EmSetFromList's copy loop (patch 0231) skips the death bit for it:
+# bit 255 is set by every death of an enemy without a list entry (the game's own ones too). Adds no line.
+--- a/src/game/em_set.cpp
++++ b/src/game/em_set.cpp
+@@ -210,7 +210,7 @@
+         while ((no = re4_enemy_random_extra(&extra)) >= 0) {
+             cEm* em = 0;
+ 
+-            if (!EmSetDieCk((u32) no) && checkListId(no)) {
++            if ((no == 0xFF || !EmSetDieCk((u32) no)) && checkListId(no)) { /* port (patch 0244): 0xFF a copy without a list entry */
+                 em = EmCreate(extra.id);
+             }
+             re4_enemy_random_extra_made(em != 0);

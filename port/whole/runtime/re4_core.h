@@ -158,6 +158,8 @@ typedef struct Re4CorePart {
                                        (CamCtrl) instead of the sub screen's own */
 #define RE4_CORE_SCREEN_EVENT 2     /* an event (cutscene) runs */
 #define RE4_CORE_SCREEN_DEBUGCAM 4  /* the debug camera (pad 2) is on */
+#define RE4_CORE_SCREEN_NOHUD 8     /* 1.1.0: no HUD of ours now (re4_hud_off_now, health_bars.cpp: a cutscene, a
+                                       film, the title and its movies, a menu, a door scene ...): no minimap */
 #define RE4_CORE_MAX_PARTS 8192
 
 typedef struct Re4CoreSnapshot {
