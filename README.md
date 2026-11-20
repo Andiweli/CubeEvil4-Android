@@ -102,7 +102,8 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | **E** | Dimensity 700 / 720 / 810 / 800U | Mali-G57 MC2–MC3 | with heavily reduced resolution (approx. 480–720p) and graphics, 30 fps not guaranteed |
 | **E** | Helio G99 / G96 | Mali-G57 MC2 | as above |
 | **E** | Helio G80 / G85 / G88, Exynos 850, Unisoc T606 / T610 / T618 | Mali-G52 MC1–MC2 | borderline, often stutters |
-| **E** | Snapdragon 4 series, Helio G35 and similar | Adreno 610 and below / Mali-G52 MC1 | not recommended |
+| **E** | Snapdragon 680 / 685 | Adreno 610 | 30 fps at low settings (the GameCube's resolution, Potato mode); with 60 fps on, 60 on quiet paths and 30–60 in the village (user report: Redmi Note 11) |
+| **E** | Snapdragon 4 series (older, e.g. 450 / 460), Helio G35 and similar | Adreno 506 / 610 with a slower processor / PowerVR GE8320 | not recommended |
 
 ### Here are the recommended minimum requirements for CubeEvil4...
 
