@@ -170,7 +170,7 @@
 
     <string name="ingame_log">Registro de erros</string>
     <string name="ingame_log_help">Grava um relatório do app (também após uma falha ou um travamento). O relatório contém o registro desta sessão e da anterior.</string>
-    <string name="ingame_log_record">Gravar o registro de erros</string>
+    <string name="ingame_log_always">O registro de erros é sempre gravado.</string>
     <string name="ingame_log_capture">R3 = Captura gráfica</string>
     <string name="ingame_report_send">Enviar relatório …</string>
     <string name="ingame_report_save">Salvar relatório …</string>

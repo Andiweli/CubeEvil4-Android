@@ -192,7 +192,7 @@ final class MenuLayout {
   static final class Columns extends LinearLayout {
     private final int fixedWidth, minimumWidth;
     private final boolean emptyCaption;
-    private boolean fillEndHeight;
+    private boolean fillEndHeight, startFits;
     private float startWeight, endWeight;
 
     Columns(Context context, int fixedWidth, int minimumWidth, boolean emptyCaption) {
@@ -216,6 +216,13 @@ final class MenuLayout {
       requestLayout();
     }
 
+    /** With weights: the start column at least as wide as its content on one line (at most half the row), so a long
+     *  label does not wrap where its share is too narrow (1.1.0, the mouse's sensitivity). */
+    void setStartFitsContent(boolean fits) {
+      startFits = fits;
+      requestLayout();
+    }
+
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
       float textScale = Math.max(1f, getResources().getConfiguration().fontScale);
       boolean sideBySide = MeasureSpec.getSize(widthSpec) >= dp(getContext(), minimumWidth * textScale);
@@ -233,6 +240,19 @@ final class MenuLayout {
         if (sideBySide && startWeight > 0) {
           lp.width = 0;
           lp.weight = i == 0 ? startWeight : endWeight;
+        }
+      }
+      if (sideBySide && startWeight > 0 && startFits && getChildCount() > 1) {
+        View start = getChildAt(0);
+        start.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        int room = MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight();
+        int share = Math.round(room * startWeight / (startWeight + endWeight));
+        if (start.getMeasuredWidth() > share) {
+          LayoutParams lp = (LayoutParams) start.getLayoutParams();
+          lp.width = Math.min(start.getMeasuredWidth(), room / 2);
+          lp.weight = 0;
+          for (int i = 1; i < getChildCount(); i++) ((LayoutParams) getChildAt(i).getLayoutParams()).weight = 1;
         }
       }
       super.onMeasure(widthSpec, heightSpec);

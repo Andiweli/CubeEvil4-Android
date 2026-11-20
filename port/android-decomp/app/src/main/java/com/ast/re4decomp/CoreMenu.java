@@ -63,7 +63,6 @@ final class CoreMenu extends Dialog {
     void cancelTexturePackImport();
     void shareReport();
     void saveReport();
-    void logChanged(boolean on);
     void toolsChanged(boolean on);
     void fpsChanged(int place);  // CoreActivity.FPS_PLACE: 0 off, 1..4 where
     /** The setting "Touch Controls": TouchShowRule.AUTO, FORCE or SUPPRESS (the preferences hold it). */
@@ -827,6 +826,9 @@ final class CoreMenu extends Dialog {
     navigation[CHEATS] = nav(third, R.string.ingame_cheats, R.string.ingame_cheats_summary, CHEATS);
     navigation[MANAGEMENT] = nav(third, R.string.ingame_management, R.string.ingame_management_summary, MANAGEMENT);
     if (host != null && host.gameLanguages()) gameLanguage();
+    // "Source and updates" at the bottom of the main page too (1.1.0, the project owner, 20.11.2026: "Baue bitte den
+    // Abschnitt QUELLE UND UPDATES auch auf der Hauptseite des Ingame Menüs unten ein")
+    sourceSection();
     main.post(() -> { if (isShowing() && page == HOME && !working) refreshInstant(); });
     // an update to 0.99.10: the menu asks once whether to measure now (decision of the project owner, 11.11.2026)
     if (host != null && !updateAsked && graphics.getInt(PerfProfile.FIRST, PerfProfile.FIRST_NONE) == PerfProfile.FIRST_ASK) {
@@ -1453,20 +1455,23 @@ final class CoreMenu extends Dialog {
         new int[] {ActionMap.KIND_CONTROLLER, ActionMap.KIND_KEYBOARD}, mapKind, kind -> {
           captureAction = -1; main.removeCallbacks(captureTimeout); mapKind = kind; showPage(CONTROLLER, false);
         });
-    // "Force controller detection" (1.1.0, the project owner, 20.11.2026: "Die Position bei 3 passt"; the idea from a
-    // fork): right under "Device", as wide as its two buttons, its explanation under it
-    MenuLayout.Columns forceRow = new MenuLayout.Columns(getContext(), 0, 640, true);
-    forceRow.setWeights(1, 3);
-    forceRow.addView(new View(getContext()));
-    MenuLayout.Buttons force = new MenuLayout.Buttons(getContext(), 1);
-    forceRow.addView(force);
-    body.addView(forceRow);
-    toggle(force, R.string.ingame_force_controller, input.getBoolean(CoreActivity.FORCE_CONTROLLER, false), on -> {
-      input.edit().putBoolean(CoreActivity.FORCE_CONTROLLER, on).apply();
-      CoreActivity.forceController = on;
-      android.util.Log.i("RE4Input", "force controller detection: " + (on ? "on" : "off"));
-    });
-    help(R.string.ingame_force_controller_help);
+    // right under "Device", as wide as its two buttons, its explanation under it: with the controller "Force
+    // controller detection" (1.1.0, the project owner, 20.11.2026: "Die Position bei 3 passt"; the idea from a fork),
+    // with the keyboard "Reload without aiming" (the project owner, 20.11.2026: "nur zu sehen sein wenn 'Controller'
+    // ... aktiviert ist. Hingegen sollte 'Nachladen ohne Zielen' oben sein wenn 'Tastatur & Maus' aktiviert ist")
+    MenuLayout.Buttons under = underDevice();
+    if (keyboard) {
+      toggle(under, R.string.ingame_quick_reload, input.getBoolean(CoreActivity.QUICK_RELOAD, false),
+          on -> host.quickReloadChanged(on));
+      help(R.string.ingame_quick_reload_help);
+    } else {
+      toggle(under, R.string.ingame_force_controller, input.getBoolean(CoreActivity.FORCE_CONTROLLER, false), on -> {
+        input.edit().putBoolean(CoreActivity.FORCE_CONTROLLER, on).apply();
+        CoreActivity.forceController = on;
+        android.util.Log.i("RE4Input", "force controller detection: " + (on ? "on" : "off"));
+      });
+      help(R.string.ingame_force_controller_help);
+    }
     if (!keyboard && input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
     help(keyboard ? R.string.ingame_map_fixed_keyboard : R.string.ingame_map_fixed_controller);
     if (keyboard) mouseSlider();
@@ -1502,10 +1507,14 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_controller_help);
   }
 
-  /** The mouse's sensitivity (wish of the project owner, 29.10.2026), as the gyro's slider. */
+  /** The mouse's sensitivity (wish of the project owner, 29.10.2026), as the gyro's slider; its label in the
+   *  device row's quarter, the slider under the device's buttons (1.1.0, the project owner, 20.11.2026: "Der Regler
+   *  von 'Maus-Empfindlichkeit' beginnt zu weit links. Dadurch bricht 'Maus-Empfindlichkeit' um."). */
   private void mouseSlider() {
     float min = CoreActivity.MOUSE_MIN, step = CoreActivity.MOUSE_STEP;
-    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
+    MenuLayout.Columns line = new MenuLayout.Columns(getContext(), 0, 520, false);
+    line.setWeights(1, 3);
+    line.setStartFitsContent(true);
     line.addView(rowLabel(s(R.string.ingame_mouse_sensitivity)));
     LinearLayout slider = row();
     SeekBar bar = new SeekBar(getContext());
@@ -1530,20 +1539,20 @@ final class CoreMenu extends Dialog {
       @Override public void onStopTrackingTouch(SeekBar b) {}
     });
     body.addView(line);
-    // "Reload without aiming" (1.1.0, the idea from a user's "ModernTPS" mod): the keyboard's reload key alone reloads
-    // as wide as the two buttons of "Device" above (the project owner, 20.11.2026: "nur so breit sein wie die beiden
-    // Buttons darüber, also links eingerückt"): the device row's quarters, the label's quarter left empty
-    MenuLayout.Columns reloadRow = new MenuLayout.Columns(getContext(), 0, 640, true);
-    reloadRow.setWeights(1, 3);
-    reloadRow.addView(new View(getContext()));
-    MenuLayout.Buttons reload = new MenuLayout.Buttons(getContext(), 1);
-    reloadRow.addView(reload);
-    body.addView(reloadRow);
-    toggle(reload, R.string.ingame_quick_reload, getContext().getSharedPreferences(CoreActivity.INPUT_PREFS,
-        Context.MODE_PRIVATE).getBoolean(CoreActivity.QUICK_RELOAD, false), on -> host.quickReloadChanged(on));
     help(R.string.ingame_mouse_help);
     help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
-    help(R.string.ingame_quick_reload_help);
+  }
+
+  /** A row right under "Device" as wide as its two buttons (the project owner, 20.11.2026: "nur so breit sein wie die
+   *  beiden Buttons darüber, also links eingerückt"): the device row's quarters, the label's quarter left empty. */
+  private MenuLayout.Buttons underDevice() {
+    MenuLayout.Columns under = new MenuLayout.Columns(getContext(), 0, 640, true);
+    under.setWeights(1, 3);
+    under.addView(new View(getContext()));
+    MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), 1);
+    under.addView(box);
+    body.addView(under);
+    return box;
   }
 
   /** Waits for the key of `action` (a second press on its button: no change); after 8 s it gives up. */
@@ -1902,8 +1911,13 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_discs); help(R.string.ingame_discs_help);
     cellAction(buttonsRow(body), s(R.string.ingame_import_discs), v -> askImportDiscs());
     heading(R.string.ingame_log); help(R.string.ingame_log_help);
+    // the error log is always recorded (1.1.0, the project owner, 20.11.2026: "Der Button 'Fehlerprotokoll
+    // aufzeichnen' unter 'Management' soll immer aktiv sein"; CoreLog.enabled): a fixed note instead of its switch
+    TextView always = text(s(R.string.ingame_log_always), 15, true);
+    always.setTextColor(GOLD);
+    always.setPadding(dp(MenuLayout.GAP), dp(2), dp(MenuLayout.GAP), dp(2));
+    body.addView(always);
     MenuLayout.Buttons log = buttonsRow(body);
-    toggle(log, R.string.ingame_log_record, CoreLog.enabled(getContext()), on -> host.logChanged(on));
     toggle(log, R.string.ingame_log_capture, tools, on -> { tools = on; host.toolsChanged(on); });
     MenuLayout.Buttons reports = buttonsRow(body);
     cellAction(reports, s(R.string.ingame_report_send), v -> host.shareReport());
@@ -1928,7 +1942,12 @@ final class CoreMenu extends Dialog {
       body.addView(why);
     }
     help(R.string.ingame_shader_prep_help);
-    // "Source and updates" (wish of the project owner, 14.11.2026): the releases are on the same page
+    sourceSection();
+  }
+
+  /** "Source and updates" (wish of the project owner, 14.11.2026): the releases are on the same page; at the bottom
+   *  of Management and, since 1.1.0, of the main page. */
+  private void sourceSection() {
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());
     // under the link a quiet note, its two lines centred (wish of the project owner, 15.11.2026): CubeEvil4 is only

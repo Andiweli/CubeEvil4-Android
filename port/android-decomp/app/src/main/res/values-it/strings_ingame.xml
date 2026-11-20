@@ -169,7 +169,7 @@
 
     <string name="ingame_log">Registro errori</string>
     <string name="ingame_log_help">Registra un rapporto dell’app (anche dopo un arresto anomalo o un blocco). Il rapporto contiene il registro di questa sessione e di quella precedente.</string>
-    <string name="ingame_log_record">Attiva il registro errori</string>
+    <string name="ingame_log_always">Il registro errori è sempre attivo.</string>
     <string name="ingame_log_capture">R3 = Cattura grafica</string>
     <string name="ingame_report_send">Invia rapporto …</string>
     <string name="ingame_report_save">Salva rapporto …</string>

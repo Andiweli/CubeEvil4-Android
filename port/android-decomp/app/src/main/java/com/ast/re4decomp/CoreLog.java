@@ -41,7 +41,7 @@ import java.util.zip.ZipOutputStream;
  * crash, so the report's previous/ no longer had it). The texts are English (wish of the
  * project owner, 17.10.2026: everything the app adds in English). The menu packs all of it with the
  * device's data into a zip to save or to send (CoreActivity, ReportProvider).
- * On by default; the menu switches the recording off (logcat and the core's file).
+ * Always on since 1.1.0 (the project owner, 20.11.2026); before, the menu could switch the recording off.
  */
 final class CoreLog {
   static final String PREFS = "core_log", RECORD = "record";
@@ -61,14 +61,10 @@ final class CoreLog {
     return dir;
   }
 
+  /** Always on since 1.1.0 (the project owner, 20.11.2026: "soll immer aktiv sein"), also where it was switched off
+   *  before: the stored switch (RECORD) is no longer read. */
   static boolean enabled(Context c) {
-    return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(RECORD, true);
-  }
-
-  static void setEnabled(Context c, boolean on) {
-    c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(RECORD, on).apply();
-    CoreBridge.setLogFile(on ? new File(folder(c), CORE_LOG).getAbsolutePath() : "");
-    if (on) startRecorder(c); else stop();
+    return true;
   }
 
   /** At the start of the core: the run before kept, then the recording of this one. */

@@ -169,7 +169,7 @@
 
     <string name="ingame_log">Fehlerprotokoll</string>
     <string name="ingame_log_help">Zeichnet einen Bericht der App auf (auch nach einem Absturz oder wenn sie hängt). Der Bericht enthält das Protokoll dieses und des vorigen Laufs.</string>
-    <string name="ingame_log_record">Fehlerprotokoll aufzeichnen</string>
+    <string name="ingame_log_always">Das Fehlerprotokoll wird immer aufgezeichnet.</string>
     <string name="ingame_log_capture">R3 = Grafikaufnahme</string>
     <string name="ingame_report_send">Bericht senden …</string>
     <string name="ingame_report_save">Bericht speichern …</string>

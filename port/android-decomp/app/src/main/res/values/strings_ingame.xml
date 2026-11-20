@@ -182,7 +182,7 @@
     <!-- Error log -->
     <string name="ingame_log">Error log</string>
     <string name="ingame_log_help">Records an app report (also when crashed or it hangs). The report holds log of this run and the one before.</string>
-    <string name="ingame_log_record">Record the error log</string>
+    <string name="ingame_log_always">The error log is always recorded.</string>
     <string name="ingame_log_capture">R3 = Graphics capture</string>
     <string name="ingame_report_send">Send report …</string>
     <string name="ingame_report_save">Save report …</string>
