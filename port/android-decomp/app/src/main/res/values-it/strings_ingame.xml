@@ -507,10 +507,10 @@
     <string name="ingame_shader_clear">Svuota cache degli shader</string>
     <string name="ingame_shader_clear_text">Il gioco si riavvia ed elimina gli shader creati. Li ricrea mentre giochi, quindi le prime scene possono scattare. I progressi dall\'ultimo salvataggio vanno persi.</string>
     <string name="ingame_shader_prep">Carica shader all’avvio</string>
-    <string name="ingame_shader_prep_help">Carica shader all’avvio: ogni avvio prepara prima tutti gli shader conosciuti (i programmi del chip grafico) e mostra l’avanzamento; dopo, stanze ed effetti non scattano la prima volta che compaiono. La prima volta richiede circa un minuto con Vulkan e fino a diversi minuti con OpenGL ES sui telefoni lenti, poi solo secondi. Consigliato da 4 GB di RAM. Qualsiasi tasto o un tocco lo salta; il resto viene preparato in background come senza questa opzione.</string>
-    <string name="ingame_shader_prep_low_ram">Questo dispositivo ha %1$s GB di RAM. Caricare tutti gli shader all’avvio è consigliato da 4 GB: sotto può richiedere molto tempo e Android può chiudere l’app durante la preparazione (l’avvio successivo riprende da dove si era fermato). Attivarlo comunque?</string>
+    <string name="ingame_shader_prep_help">Carica shader all’avvio: ogni avvio prepara prima tutti gli shader noti (i programmi del chip grafico) e mostra l’avanzamento; dopo, stanze ed effetti non scattano la prima volta che appaiono. La prima volta richiede circa un minuto con Vulkan e fino a diversi minuti con OpenGL ES sui telefoni lenti, poi solo secondi. Non si può saltare. Richiede 4 GB di RAM o più.</string>
+    <string name="ingame_shader_prep_low_ram">Richiede almeno 4 GB di RAM (questo dispositivo ha %1$s GB).</string>
     <string name="ingame_shader_prep_title">Preparazione degli shader…</string>
-    <string name="ingame_shader_prep_line">Preparati una volta, non scatteranno più. Qualsiasi tasto o un tocco salta; il resto viene preparato in background.</string>
+    <string name="ingame_shader_prep_line">Preparati una volta, non scatteranno più. Attendi, non si può saltare.</string>
     <string name="ingame_output_res">Risoluzione di uscita</string>
     <string name="ingame_output_res_help">Risoluzione di uscita: la dimensione dell’immagine inviata allo schermo; lo schermo la allarga ai propri pixel. Più bassa è più veloce sui telefoni con schermi molto nitidi (oltre 1080p), soprattutto con CRT, bloom, FXAA o nitidezza, e un po’ più morbida. Nativa: la dimensione propria dello schermo. La risoluzione sopra (il 3D del gioco) resta invariata.</string>
     <string name="ingame_upscaler">Upscaler</string>

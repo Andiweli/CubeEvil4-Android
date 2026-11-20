@@ -162,8 +162,22 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** "Display resolution" (1.1.0, GRAPHICS_PREFS): the picture's shorter side sent to the screen (1080, 900, 720), the
    *  screen's scaler stretches it to the panel; 0 the panel's own (Native, the default). */
   static final String OUTPUT_RES = "outputRes";
-  /** The RAM below which the menu warns when it is switched on: a "4 GB" phone reports about 3.6-3.8 GB. */
+  /** The RAM below which it cannot be switched on and an earlier "on" counts as off (the project owner, 20.11.2026:
+   *  "Hat das Gerät weniger als 4 GB kann man die Option nicht aktivieren"): a "4 GB" phone reports about 3.6-3.8 GB. */
   static final long SHADER_PREP_RAM = 3_500_000_000L;
+  /** The device's RAM in bytes (0 when Android does not say). */
+  static long totalRam(Context c) {
+    android.app.ActivityManager am = (android.app.ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
+    if (am == null) return 0;
+    android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+    am.getMemoryInfo(mi);
+    return mi.totalMem;
+  }
+  /** "Prepare shaders at start" possible here: 4 GB of RAM or more (an unknown amount does not block it). */
+  static boolean shaderPrepAllowed(Context c) {
+    long ram = totalRam(c);
+    return ram <= 0 || ram >= SHADER_PREP_RAM;
+  }
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
@@ -493,9 +507,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     photo = new PhotoMode(this, main, photoHost);
     root.addView(photo.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
-    // "Prepare shaders at start" over everything (the game runs until the making ahead has begun, then stands)
-    if (startProblem.isEmpty() && getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(SHADER_PREP, false)) {
-      prepScreen = new ShaderPrepScreen(this, () -> prepEnd("skipped"));
+    // "Prepare shaders at start" over everything (the game runs until the making ahead has begun, then stands); below
+    // 4 GB of RAM an "on" of before counts as off
+    final boolean prepOn = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(SHADER_PREP, false);
+    final boolean prepAllowed = shaderPrepAllowed(this);
+    if (prepOn && !prepAllowed)
+      Log.i(TAG, "prepare shaders at start: on, but off with " + totalRam(this) / 1000000 + " MB of RAM");
+    if (startProblem.isEmpty() && prepOn && prepAllowed) {
+      prepScreen = new ShaderPrepScreen(this);
       root.addView(prepScreen.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
           FrameLayout.LayoutParams.MATCH_PARENT));
       prepStartedAt = SystemClock.uptimeMillis();
@@ -955,6 +974,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void askExit() {
+    // "Prepare shaders at start": Back (the button, the gesture) does nothing while its screen is up
+    if (prepScreen != null) {
+      Log.i(TAG, "prepare shaders at start: Back ignored");
+      return;
+    }
     Immersive.show(new AlertDialog.Builder(this).setMessage(R.string.ingame_end_question)
         .setPositiveButton(R.string.ingame_end, (d, w) -> quit())
         .setNegativeButton(R.string.ingame_continue, null).create());
@@ -1072,7 +1096,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   };
 
-  /** The preparing screen goes (through, skipped, nothing to do); the game goes on. */
+  /** The preparing screen goes (through, nothing to do); the game goes on. */
   private void prepEnd(String why) {
     if (prepScreen == null) return;
     main.removeCallbacks(prepTick);
@@ -1111,7 +1135,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   };
 
   private void openMenu() {
-    if (menu != null || destroyed) return;
+    if (menu != null || destroyed || prepScreen != null) return;
     if (!menuSupported) {
       Toast.makeText(this, R.string.ingame_no_menu,
           Toast.LENGTH_SHORT).show();
@@ -2394,11 +2418,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return true;
     }
     boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
-    // "Prepare shaders at start": any button skips its screen
-    if (prepScreen != null) {
-      if (first) prepEnd("skipped (" + KeyEvent.keyCodeToString(code) + ")");
-      return true;
-    }
+    // "Prepare shaders at start": every button and key (Back too) is dropped while its screen is up, nothing skips it
+    if (prepScreen != null) return true;
     // "Photo mode" switched on: L3 and the keyboard's P are its own (whatever the button mapping gives them)
     if (menu == null && photoWanted() && ((!keyboard && code == KeyEvent.KEYCODE_BUTTON_THUMBL)
         || (keyboard && code == KeyEvent.KEYCODE_P))) {
@@ -2580,6 +2601,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override
   public boolean onGenericMotionEvent(MotionEvent e) {
+    // "Prepare shaders at start": sticks, triggers and the mouse are dropped while its screen is up
+    if (prepScreen != null) return true;
     // the mouse wheel while the game has the mouse but has not captured it (Android 7, before the first click)
     if (e.getActionMasked() == MotionEvent.ACTION_SCROLL && e.isFromSource(InputDevice.SOURCE_CLASS_POINTER)
         && mouseWanted()) {
@@ -2617,6 +2640,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   @Override
   public boolean dispatchTouchEvent(MotionEvent e) {
+    // "Prepare shaders at start": fingers and mouse clicks are dropped while its screen is up (no tap skips it)
+    if (prepScreen != null) return true;
     // photo mode: its overlay takes the fingers (the touch controls are hidden, no taps or swipes for the game)
     if (photo != null && photo.active() && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
       return super.dispatchTouchEvent(e);

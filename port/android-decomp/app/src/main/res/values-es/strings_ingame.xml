@@ -507,10 +507,10 @@
     <string name="ingame_shader_clear">Vaciar caché de shaders</string>
     <string name="ingame_shader_clear_text">El juego se reinicia y borra los shaders creados. Los vuelve a crear mientras juegas, así que las primeras escenas pueden ir a tirones. Se pierde el progreso desde la última vez que guardaste.</string>
     <string name="ingame_shader_prep">Cargar shaders al iniciar</string>
-    <string name="ingame_shader_prep_help">Cargar shaders al iniciar: cada inicio prepara primero todos los shaders conocidos (los programas del chip gráfico) y muestra el progreso; después, las salas y los efectos no dan tirones la primera vez que aparecen. La primera vez tarda alrededor de un minuto con Vulkan y hasta varios minutos con OpenGL ES en móviles lentos; después, solo segundos. Recomendado desde 4 GB de RAM. Cualquier botón o un toque lo salta; el resto se prepara entonces en segundo plano, como sin esta opción.</string>
-    <string name="ingame_shader_prep_low_ram">Este dispositivo tiene %1$s GB de RAM. Cargar todos los shaders al iniciar se recomienda desde 4 GB: por debajo puede tardar mucho y Android puede cerrar la app durante la preparación (el siguiente inicio sigue donde se quedó). ¿Activarlo de todos modos?</string>
+    <string name="ingame_shader_prep_help">Cargar shaders al iniciar: cada inicio prepara primero todos los shaders conocidos (los programas del chip gráfico) y muestra cuánto falta; después, las salas y los efectos no dan tirones la primera vez que aparecen. La primera vez tarda alrededor de un minuto con Vulkan y hasta varios minutos con OpenGL ES en móviles lentos, después solo segundos. No se puede saltar. Necesita 4 GB de RAM o más.</string>
+    <string name="ingame_shader_prep_low_ram">Necesita al menos 4 GB de RAM (este dispositivo tiene %1$s GB).</string>
     <string name="ingame_shader_prep_title">Preparando shaders…</string>
-    <string name="ingame_shader_prep_line">Una vez preparados, no darán tirones después. Cualquier botón o un toque lo salta; el resto se prepara en segundo plano.</string>
+    <string name="ingame_shader_prep_line">Una vez preparados, no darán tirones después. Espera, no se puede saltar.</string>
     <string name="ingame_output_res">Resolución de salida</string>
     <string name="ingame_output_res_help">Resolución de salida: el tamaño de la imagen que se envía a la pantalla; la pantalla la estira a sus propios píxeles. Más baja es más rápida en móviles con pantallas muy nítidas (más de 1080p), sobre todo con CRT, bloom, FXAA o nitidez, y algo más suave. Nativa: el tamaño propio de la pantalla. La resolución de arriba (el 3D del juego) no cambia.</string>
     <string name="ingame_upscaler">Escalador</string>

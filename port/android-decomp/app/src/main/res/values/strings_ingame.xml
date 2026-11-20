@@ -522,10 +522,10 @@
     <string name="ingame_shader_clear">Clear shader cache</string>
     <string name="ingame_shader_clear_text">The game restarts and deletes the built shaders. It builds them anew as you play, so the first scenes can stutter. Progress since your last save is lost.</string>
     <string name="ingame_shader_prep">Load shaders at start</string>
-    <string name="ingame_shader_prep_help">Load shaders at start: each start first prepares every known shader (the graphics chip\'s programs) and shows how far it is; afterwards rooms and effects do not stutter the first time they appear. The first time this takes about a minute with Vulkan and up to several minutes with OpenGL ES on slow phones, later only seconds. Recommended from 4 GB RAM. Any button or a tap skips it; the rest is then prepared in the background as without this switch.</string>
-    <string name="ingame_shader_prep_low_ram">This device has %1$s GB of RAM. Loading all shaders at start is recommended from 4 GB: below that it can take very long, and Android may close the app while it prepares (the next start goes on where it stopped). Switch it on anyway?</string>
+    <string name="ingame_shader_prep_help">Load shaders at start: each start first prepares every known shader (the graphics chip\'s programs) and shows how far it is; afterwards rooms and effects do not stutter the first time they appear. The first time this takes about a minute with Vulkan and up to several minutes with OpenGL ES on slow phones, later only seconds. It cannot be skipped. Needs 4 GB RAM or more.</string>
+    <string name="ingame_shader_prep_low_ram">Needs at least 4 GB RAM (this device has %1$s GB).</string>
     <string name="ingame_shader_prep_title">Preparing shaders…</string>
-    <string name="ingame_shader_prep_line">Prepared once, they will not stutter later. Any button or a tap skips; the rest is then prepared in the background.</string>
+    <string name="ingame_shader_prep_line">Prepared once, they will not stutter later. Please wait, this cannot be skipped.</string>
     <string name="ingame_output_res">Display resolution</string>
     <string name="ingame_output_res_help">Display resolution: the size of the picture sent to the screen; the screen stretches it to its own pixels. Lower is faster on phones with very sharp screens (above 1080p), above all with CRT, bloom, FXAA or Sharpen, and a little softer. Native: the screen\'s own size. The resolution above (the game\'s 3D) stays as it is.</string>
     <string name="ingame_upscaler">Upscaler</string>

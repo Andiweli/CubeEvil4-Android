@@ -3,7 +3,6 @@ package com.ast.re4decomp;
 import android.content.Context;
 import android.graphics.Color;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -16,21 +15,17 @@ import java.util.Locale;
  * "Prepare shaders at start" (1.1.0, the project owner's design of 20.11.2026: an optional switch under Management next
  * to "Clear shader cache"): while the shaders are made ahead (GLES: the programs of the app's list and the device's own
  * cache, WarmProgramCache; Vulkan: the app's pipeline list, AheadThread) this screen covers the picture: a title, a bar,
- * "n / total", one line. The game stands meanwhile (CoreActivity). Any button or a tap skips it; the making ahead then
- * goes on in the background, as without the switch.
+ * "n / total", one line. The game stands meanwhile (CoreActivity). Nothing skips it (the project owner, 20.11.2026: "nicht
+ * mit einem Tastendruck oder Touch-Berührung abbrechen"): it stays until the making ahead is through (or has not begun
+ * after 20 s); buttons, keys, taps, the mouse and Back are taken and dropped meanwhile (CoreActivity).
  */
 final class ShaderPrepScreen {
   private final FrameLayout root;
   private final ProgressBar bar;
   private final TextView count;
 
-  ShaderPrepScreen(Context c, Runnable skip) {
-    root = new FrameLayout(c) {
-      @Override public boolean onTouchEvent(MotionEvent e) {
-        if (e.getActionMasked() == MotionEvent.ACTION_UP) skip.run();
-        return true;
-      }
-    };
+  ShaderPrepScreen(Context c) {
+    root = new FrameLayout(c);
     root.setBackgroundColor(Color.BLACK);
     root.setClickable(true);
     float d = c.getResources().getDisplayMetrics().density;

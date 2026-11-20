@@ -504,10 +504,10 @@
     <string name="ingame_shader_clear">Shader-Speicher leeren</string>
     <string name="ingame_shader_clear_text">Das Spiel startet neu und löscht die gebauten Shader. Es baut sie beim Spielen neu, die ersten Szenen können darum ruckeln. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_shader_prep">Shader beim Start laden</string>
-    <string name="ingame_shader_prep_help">Shader beim Start laden: Jeder Start bereitet zuerst alle bekannten Shader (die Programme des Grafikchips) vor und zeigt den Fortschritt; danach ruckeln Räume und Effekte beim ersten Erscheinen nicht. Beim ersten Mal dauert das mit Vulkan etwa eine Minute, mit OpenGL ES auf langsamen Handys bis zu mehreren Minuten, später nur Sekunden. Empfohlen ab 4 GB RAM. Jede Taste oder ein Tippen überspringt es; der Rest wird dann wie ohne diesen Schalter im Hintergrund vorbereitet.</string>
-    <string name="ingame_shader_prep_low_ram">Dieses Gerät hat %1$s GB RAM. Alle Shader beim Start zu laden wird ab 4 GB empfohlen: darunter kann es sehr lange dauern, und Android kann die App während der Vorbereitung schließen (der nächste Start macht dort weiter). Trotzdem einschalten?</string>
+    <string name="ingame_shader_prep_help">Shader beim Start laden: Jeder Start bereitet zuerst alle bekannten Shader vor (die Programme des Grafikchips) und zeigt, wie weit er ist; danach ruckeln Räume und Effekte nicht, wenn sie zum ersten Mal kommen. Beim ersten Mal dauert das mit Vulkan etwa eine Minute und mit OpenGL ES auf langsamen Handys bis zu mehreren Minuten, später nur Sekunden. Es lässt sich nicht überspringen. Braucht 4 GB RAM oder mehr.</string>
+    <string name="ingame_shader_prep_low_ram">Braucht mindestens 4 GB RAM (dieses Gerät hat %1$s GB).</string>
     <string name="ingame_shader_prep_title">Shader werden vorbereitet …</string>
-    <string name="ingame_shader_prep_line">Einmal vorbereitet, ruckeln sie später nicht. Jede Taste oder ein Tippen überspringt; der Rest wird dann im Hintergrund vorbereitet.</string>
+    <string name="ingame_shader_prep_line">Einmal vorbereitet, ruckeln sie später nicht. Bitte warten, das lässt sich nicht überspringen.</string>
     <string name="ingame_output_res">Ausgabeauflösung</string>
     <string name="ingame_output_res_help">Ausgabeauflösung: die Größe des Bildes, das an den Bildschirm geht; der Bildschirm zieht es auf seine eigenen Pixel. Niedriger ist schneller auf Handys mit sehr feinen Bildschirmen (über 1080p), vor allem mit CRT, Bloom, FXAA oder Schärfen, und etwas weicher. Nativ: die eigene Größe des Bildschirms. Die Auflösung darüber (das 3D des Spiels) bleibt, wie sie ist.</string>
     <string name="ingame_upscaler">Hochskalierer</string>

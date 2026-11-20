@@ -328,13 +328,25 @@ die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_RE
 - **Neu (Wunsch des Projektinhabers):** Schalter „Shader beim Start laden“ unter Verwaltung neben „Shader-Cache
   leeren“ (aus; `GRAPHICS_PREFS` `shaderPrepAtStart`). Ein: `ShaderPrepScreen` über allem (Titel, Balken, „n /
   gesamt“, eine Zeile); sobald das Vorab-Bauen beginnt (mit den ersten Bildern), steht das Spiel (`CoreBridge.pause`),
-  bis es durch ist; jede Taste oder ein Tippen überspringt (der Rest wie bisher im Hintergrund); ohne Beginn nach 20 s
-  weg. Fortschritt: `re4gx::ShaderPrep()` (gx_core), `CoreBridge.shaderPrep()`. **RAM-Grenze 4 GB** (ein „4-GB“-Gerät
-  meldet 3,6–3,8 GB, Schwelle 3,5 GB): darunter eine Warnung beim Einschalten, nicht ausgegraut – die Vorbereitung
-  hält nichts im Speicher (jedes Programm wird gebaut, gespeichert, freigegeben), das Risiko unter 4 GB ist die lange
-  Dauer und ein Beenden durch Android mitten drin (der nächste Start macht weiter, Gespeichertes bleibt). Texte in 11
-  Sprachen (515). Geprüft: `gx_gl_check` 0 Fehler mit neuen Prüfungen des Fortschritts (GLES und Vulkan), App
-  (Gradle, Unit-Tests). **Nicht geprüft:** der Bildschirm auf einem Gerät.
+  bis es durch ist; ohne Beginn nach 20 s weg. Fortschritt: `re4gx::ShaderPrep()` (gx_core), `CoreBridge.shaderPrep()`.
+  Die Vorbereitung hält nichts im Speicher (jedes Programm wird gebaut, gespeichert, freigegeben); wird die App mitten
+  drin beendet, macht der nächste Start weiter, Gespeichertes bleibt. Texte in 11 Sprachen. Geprüft: `gx_gl_check` 0
+  Fehler mit neuen Prüfungen des Fortschritts (GLES und Vulkan), App (Gradle, Unit-Tests).
+- **Änderung des Projektinhabers (20.11.2026):** „Wenn ‚Shader erzeugen‘ unter Management aktiviert wurde, würde ich
+  den Ladevorgang nicht mit einem Tastendruck oder Touch-Berührung abbrechen lassen. Hat das Gerät weniger als 4 GB
+  kann man die Option nicht aktivieren.“
+  - **Kein Überspringen mehr:** solange der Bildschirm steht, verwirft `CoreActivity` alle Tasten (auch Zurück),
+    Sticks, Maus und Berührungen (`dispatchKeyEvent`, `onGenericMotionEvent`, `dispatchTouchEvent`); die
+    Zurück-Geste (`askExit`, Android 13+) und das App-Menü (`openMenu`) tun nichts. Er geht nur, wenn das Vorab-Bauen
+    durch ist oder nach 20 s nicht begonnen hat. Home und App-Wechsel gehen weiter: im Hintergrund steht das Spiel
+    (`onPause`), beim Zurückkommen hält `prepTick` es nach ≤ 100 ms wieder an; ein getrennter Controller oder ein
+    Fokusverlust ändert nichts.
+  - **RAM-Grenze 4 GB** (ein „4-GB“-Gerät meldet 3,6–3,8 GB, Schwelle 3,5 GB, `CoreActivity.shaderPrepAllowed`):
+    darunter ist der Schalter ausgegraut und zeigt „Aus“, darunter die Zeile „Needs at least 4 GB RAM (this device has
+    n GB)“; ein „Ein“ von früher zählt als aus (Logzeile beim Start), der gespeicherte Wert bleibt. Die Warnung beim
+    Einschalten entfällt. Unbekannte RAM-Größe sperrt nicht.
+  - Hilfe, Zeile auf dem Bildschirm und Hinweis in 11 Sprachen neu (519 Texte). **Nicht geprüft:** der Bildschirm und
+    der ausgegraute Schalter auf einem Gerät.
 - **Auto-Frame-Skip:** nur Analyse (Vorschlag an den Projektinhaber): „Normal“ und „Aggressiv“ lassen schon nur bei
   Rückstand Bilder aus; nichts gebaut.
 
