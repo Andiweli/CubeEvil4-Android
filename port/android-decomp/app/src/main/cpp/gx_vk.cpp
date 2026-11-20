@@ -2572,7 +2572,9 @@ struct VkRenderer final : GxCore {
       cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
       cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_MAX;
     }
-    f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false);
+    // (1.1.0) the marks in GL's clip range where the GX pipelines draw in it (VK_EXT_depth_clip_control): the same
+    // depth as the EFB's to the last bit, as with OpenGL ES; the map keeps Vulkan's 0..1 (only the mask reads it)
+    f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false, !map && vk.depthClipControl);
     vkDestroyShaderModule(dev, v, nullptr);
     vkDestroyShaderModule(dev, m, nullptr);
     if (!f.pipeline)
@@ -2720,7 +2722,13 @@ struct VkRenderer final : GxCore {
     const VkBuffer vb = fr.vertex[blk].buffer;
     const std::uint32_t figCorners = static_cast<std::uint32_t>(figTris * 3);
     const std::uint32_t objCorners = static_cast<std::uint32_t>(objTris * 3);
-    const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs, kShadowMarkVs)
+    const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs)
+    // the marks' depth as the GX pipelines compute the EFB's (1.1.0): with VK_EXT_depth_clip_control GL's clip range
+    // (2 z - w, then the viewport's (z / w + 1) / 2), as OpenGL ES does. Before, the marks went the shorter way (z / w
+    // at once): the same value on paper, but a GPU may round the two ways apart by more than the marks' bias of 4 steps
+    // of the 24-bit depth; then a figure's pixels lost their mark and took its own shadow (stripes on the body; a
+    // user's Adreno 825, 20.11.2026; never on the PC's lavapipe, which rounds both alike)
+    const float markGlz[4] = {vk.depthClipControl ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f};
     // 1. the depth atlas: each casting tile's casters from its light (one pass, a viewport per tile; the pass covers
     // and clears only the casting tiles' rectangle: one light without objects a quarter of it)
     {
@@ -2802,7 +2810,7 @@ struct VkRenderer final : GxCore {
         Put(pc, shadowMarkFx, "vp1", s.markVp1);
         Put(pc, shadowMarkFx, "pr0", s.pr0);
         Put(pc, shadowMarkFx, "pr1", s.pr1);
-        Put(pc, shadowMarkFx, "glz", glz);
+        Put(pc, shadowMarkFx, "glz", markGlz);
         Put(pc, shadowMarkFx, "mark", mark);
         BindFixed(shadowMarkFx, nullptr, nullptr, 0, pc);
         const VkDeviceSize offset = at + (i ? figBytes : 0);

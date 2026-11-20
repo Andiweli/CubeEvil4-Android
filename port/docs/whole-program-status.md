@@ -554,6 +554,44 @@ Xiaomi „onyx“, Snapdragon 8s Gen 4, Vulkan, 120 Hz). Kein Schalter, kein Pat
   Zeiten einhält (lavapipe am PC zeigt nichts auf einem Bildschirm, die Erweiterung ist dort nicht da); ob HyperOS
   die kleinen Kerne wirklich schneller lässt als die gedrosselten großen (das zeigt die neue Minutenzeile).
 
+### 21. Echtzeit-Schatten mit Vulkan: Streifen auf Krauser (Spielerbericht vom 20.11.2026)
+
+Bericht `reports/workthread-1.1.0/user-krauser-shadows/` (Xiaomi „onyx“, Adreno 825, Android 16, 1.0.0, Vulkan,
+Echtzeit-Schatten „Figuren und Objekte“, 60 FPS, Auflösung 4×, HD-Texturen 1024, Krauser als Spielfigur, r100): mit
+Vulkan liegen Schatten und Streifen auf Krausers Körper, mit OpenGL ES nicht; dazu ein „kaputter“ Unterarm in beiden.
+
+- **Ursache (Schatten):** Figuren empfangen keinen Schatten; dafür markiert der Schatten-Durchgang die Pixel, an denen
+  eine Figur die sichtbare Fläche ist (dieselben Dreiecke gegen die EFB-Tiefe, Vorsprung 4 Schritte der 24-Bit-Tiefe).
+  Mit Vulkan zeichnen die GX-Pipelines in GLs Tiefenbereich (`VK_EXT_depth_clip_control`: 2 z − w, dann (z / w + 1) / 2),
+  die Markierungen gingen den kürzeren Weg (z / w sofort, `glz` 0, ohne `negativeOneToOne`). Rechnerisch gleich, aber
+  eine GPU darf die beiden Wege verschieden runden; reicht das über die 4 Schritte, verliert eine Figur ihre Markierung
+  und bekommt ihren eigenen Schatten und den der Objekte: Streifen auf dem Körper (wie in der Studie vor Stufe 2).
+  OpenGL ES rechnet beides auf demselben Weg, daher dort nichts. lavapipe am PC rundet beide Wege gleich: am PC nicht
+  nachzustellen (r100 mit Krauser, Schatten „Figuren und Objekte“, 4×: GLES und Vulkan je Bild höchstens 8 Pixel über
+  3 % auseinander, wie ohne Schatten).
+- **Behoben** (`gx_vk.cpp` `MakeShadowPipe`, `ShadowPass`): Die Markierungen nehmen bei `depthClipControl` denselben Weg
+  wie die GX-Pipelines und wie OpenGL ES (`glz` 1, Pipeline mit `negativeOneToOne`); ohne die Erweiterung bleibt alles
+  (beide rechnen dann z / w). Die Tiefenkarte bleibt im Vulkan-Bereich (nur die Maske liest sie).
+- **Der Unterarm ist kein Fehler:** Krausers linker Unterarm ist in den Spieldaten rot und roh (der mutierte Arm). Am PC
+  ohne HD-Texturen und ohne Schatten mit OpenGL ES genauso (`~/pwt/krauser/r100-aim/gloff`). In Bericht-Bild 2 sieht
+  er von oben aus wie das Laub ringsum.
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan 0 Fehler (`TestShadows` Vulkan mit denselben Werten wie GLES);
+  r100 mit Krauser (stehend und zielend, je 8 Bilder, 4×): Vulkan vor und nach der Änderung Byte für Byte gleich,
+  Validierungsschichten ohne Meldung. **Nur auf dem Gerät prüfbar:** ob die Streifen auf dem Adreno 825 damit weg sind.
+
+### 22. Menü-Wünsche vom 20./21.11.2026 (Projektinhaber)
+
+- „Quelle und Updates“ auch unten auf der Startseite des App-Menüs, unter der Spielsprache (`CoreMenu.sourceSection`,
+  weiter auch unten unter Management).
+- Tastenbelegung: unter „Gerät“ mit „Controller“ nur „Force controller detection“, mit „Tastatur & Maus“ an derselben
+  Stelle „Reload without aiming“ (`underDevice`), je mit seinem Hilfetext.
+- „Maus-Empfindlichkeit“: Regler unter den Gerät-Knöpfen (Viertel-Spalten), die Beschriftung nimmt sich in jeder
+  Sprache mindestens ihre eine Zeile (`MenuLayout.Columns.setStartFitsContent`; Test `CoreMenuRowsTest.menuChanges110`,
+  11 Sprachen, 560–960 dp).
+- Fehlerprotokoll: zuerst als „immer an“ gebaut, auf Rückmeldung des Projektinhabers (21.11.: „soll per default aktiv
+  sein, nicht nicht mehr verfügbar sein“) wieder der Schalter wie bisher, standardmäßig an (unverändert seit jeher).
+- Bilder `builds/workthread-1.1.0/menu/b1`–`b5` (DE/EN); App-Tests bestanden. **Nicht auf einem Gerät geprüft.**
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
