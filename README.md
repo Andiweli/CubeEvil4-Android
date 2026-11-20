@@ -394,7 +394,7 @@ The exact terms are in [port/LICENSE](port/LICENSE), "Additional terms".
 
 | What | Whose | License |
 |---|---|---|
-| The Android port CubeEvil4 in `port/`: the app, the renderer, the runtime, the patches, the Texture Packer, the tools and the documents | Andiweli | GPL-3.0-or-later, with an additional permission for the game code and, from 1.1.0, additional terms (attribution, modified versions, the name): [port/LICENSE](port/LICENSE) |
+| The Android port CubeEvil4 in `port/`: the app, the renderer, the runtime, the patches, the Texture Packer, the tools and the documents | Andiweli | GPL-3.0-or-later, with an additional permission for the game code and, from 20 November 2026, additional terms (attribution, modified versions, the name): [port/LICENSE](port/LICENSE) |
 | The decompilation's own tools, configuration and documentation (`configure.py`, `tools/`, `config/`, `docs/`) | the decompilation's authors | CC0 1.0: [LICENSE](LICENSE) |
 | The game code (`src/`, `include/`) | Capcom | none of these: Capcom's property |
 | The GameCube SDK and the CRI middleware (`src/lib/`) | Nintendo, CRI Middleware | none of these: their property |
