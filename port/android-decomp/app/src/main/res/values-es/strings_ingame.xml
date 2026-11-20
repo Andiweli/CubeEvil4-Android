@@ -316,6 +316,10 @@
     <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; mucho más rápido en móviles con un procesador lento.</string>
     <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_fs_off">Sin salto de fotogramas</string>
+    <string name="ingame_fs_auto">Salto de fotogramas auto</string>
+    <string name="ingame_fs_normal">Salto de fotogramas normal</string>
+    <string name="ingame_fs_aggressive">Salto de fotogramas agresivo</string>
     <string name="ingame_skip_auto_help">Salto de fotogramas Auto: mientras el juego va a velocidad completa no se salta nada; solo cuando se queda por debajo de 30 imágenes por segundo durante medio segundo ayudan los dos tipos de salto (como en Agresivo), hasta que vuelve a ir dos segundos a velocidad completa.</string>
     <string name="ingame_even_pacing">Ritmo de imagen uniforme</string>
     <string name="ingame_even_pacing_help">Ritmo de imagen uniforme: Sí (por defecto) retiene una imagen cuando hace falta para que cada una se vea el mismo tiempo (30 constantes, y 60 en pantallas de más de 60 Hz). No muestra cada imagen en cuanto está lista, como en versiones anteriores: algo más directo, pero menos uniforme.</string>

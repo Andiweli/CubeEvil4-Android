@@ -317,6 +317,10 @@
     <string name="ingame_skip_normal_help">Salto de quadros Normal: se o chip gráfico atrasa, um quadro já pronto é pulado para o jogo manter a velocidade normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de quadros Agressivo: o próprio jogo pula no máximo um quadro a cada dois quando atrasa; bem mais rápido em celulares com processador lento.</string>
     <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_fs_off">Sem salto de quadros</string>
+    <string name="ingame_fs_auto">Salto de quadros auto</string>
+    <string name="ingame_fs_normal">Salto de quadros normal</string>
+    <string name="ingame_fs_aggressive">Salto de quadros agressivo</string>
     <string name="ingame_skip_auto_help">Salto de quadros Auto: enquanto o jogo roda em velocidade total, nada é pulado; só quando fica abaixo de 30 imagens por segundo por cerca de meio segundo os dois tipos de salto ajudam (como no Agressivo), até ele rodar de novo dois segundos em velocidade total.</string>
     <string name="ingame_even_pacing">Ritmo de imagens uniforme</string>
     <string name="ingame_even_pacing_help">Ritmo de imagens uniforme: Sim (padrão) segura uma imagem quando preciso para que cada imagem fique na tela pelo mesmo tempo (30 constantes, e 60 em telas acima de 60 Hz). Não mostra cada imagem assim que fica pronta, como nas versões antigas: um pouco mais direto, mas menos uniforme.</string>

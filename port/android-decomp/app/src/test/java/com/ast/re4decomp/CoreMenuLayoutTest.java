@@ -862,7 +862,7 @@ public class CoreMenuLayoutTest {
       show.invoke(menu, 4, false);
       ViewGroup body = (ViewGroup) field(menu, "body");
       // found by their labels (the page's rows moved with the Potato mode, 30.10.2026)
-      Button skip = findButton(body, controller.get().getString(R.string.ingame_frame_skip));
+      Button skip = findButton(body, controller.get().getString(R.string.ingame_fs_auto));  // (1.1.0: four choices)
       Button smooth = findButton(body, controller.get().getString(R.string.ingame_smooth60));
       assertNotNull(skip); assertNotNull(smooth);
       assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());

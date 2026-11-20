@@ -310,6 +310,10 @@
     <string name="ingame_skip_normal_help">Lewati frame Normal: saat chip grafis tertinggal, satu gambar yang sudah jadi dilewati agar game tetap berjalan dengan kecepatan normal.</string>
     <string name="ingame_skip_aggressive_help">Lewati frame Agresif: game sendiri melewati paling banyak satu dari dua gambar saat tertinggal; jauh lebih cepat di ponsel dengan prosesor lambat.</string>
     <string name="ingame_skip_auto">Otomatis</string>
+    <string name="ingame_fs_off">Tanpa lewati frame</string>
+    <string name="ingame_fs_auto">Lewati frame otomatis</string>
+    <string name="ingame_fs_normal">Lewati frame normal</string>
+    <string name="ingame_fs_aggressive">Lewati frame agresif</string>
     <string name="ingame_skip_auto_help">Lewati frame Otomatis: selama game berjalan dengan kecepatan penuh, tidak ada yang dilewati; hanya saat game bertahan di bawah 30 gambar per detik selama sekitar setengah detik, kedua jenis lewati frame membantu (seperti Agresif), sampai game kembali berjalan dua detik dengan kecepatan penuh.</string>
     <string name="ingame_even_pacing">Ritme gambar merata</string>
     <string name="ingame_even_pacing_help">Ritme gambar merata: Nyala (bawaan) menahan satu gambar bila perlu agar setiap gambar tampil sama lama di layar (30 stabil, dan 60 di layar lebih cepat dari 60 Hz). Mati menampilkan setiap gambar begitu siap, seperti di versi lama: sedikit lebih langsung, tapi kurang merata.</string>

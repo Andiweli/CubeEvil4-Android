@@ -1517,7 +1517,15 @@ final class CoreMenu extends Dialog {
     });
     body.addView(line);
     // "Reload without aiming" (1.1.0, the idea from a user's "ModernTPS" mod): the keyboard's reload key alone reloads
-    toggle(buttonsRow(body), R.string.ingame_quick_reload, getContext().getSharedPreferences(CoreActivity.INPUT_PREFS,
+    // as wide as the two buttons of "Device" above (the project owner, 20.11.2026: "nur so breit sein wie die beiden
+    // Buttons darüber, also links eingerückt"): the device row's quarters, the label's quarter left empty
+    MenuLayout.Columns reloadRow = new MenuLayout.Columns(getContext(), 0, 640, true);
+    reloadRow.setWeights(1, 3);
+    reloadRow.addView(new View(getContext()));
+    MenuLayout.Buttons reload = new MenuLayout.Buttons(getContext(), 1);
+    reloadRow.addView(reload);
+    body.addView(reloadRow);
+    toggle(reload, R.string.ingame_quick_reload, getContext().getSharedPreferences(CoreActivity.INPUT_PREFS,
         Context.MODE_PRIVATE).getBoolean(CoreActivity.QUICK_RELOAD, false), on -> host.quickReloadChanged(on));
     help(R.string.ingame_mouse_help);
     help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
@@ -1784,15 +1792,20 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_view_help);
     // the picture output under a heading of its own (wish of the project owner, 30.10.2026); since 05.11.2026
     // without a row label in two columns, the explanations over the whole width. Since 10.11.2026 (wish of the
-    // project owner): Frame skip | 60 FPS, under them merged draws | vertex ring as before, then "Save bandwidth"
+    // project owner): Frame skip | 60 FPS, under them merged draws | vertex ring as before, then "Save bandwidth".
+    // Since 1.1.0 (the project owner, 20.11.2026: "Frame Skip als 4 kleine Buttons nebeneinander in der ersten
+    // Buttonreihe und die anderen 4 Buttons als je 2 nebeneinander darunter"): the frame skip as four choices in the
+    // first row (No / Auto / Normal / Aggressive), then 60 FPS | Even frame pacing, merged draws | vertex ring, then
+    // "Save bandwidth"
     heading(R.string.ingame_experimental);
-    MenuLayout.Buttons output = buttonsRow(body), more = buttonsRow(body), vkRow = buttonsRow(body);
     // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
     // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off.
-    // Frame skip one button (wish of the project owner, 10.11.2026: the two frame skips were on at once): each press
-    // moves it on, Off > Auto (1.1.0) > Normal (the renderer's) > Aggressive (the game's own, patch 0227) > Off
-    final int[] skipLabels = SKIP_LABELS;
+    // (Off > Auto (1.1.0) > Normal (the renderer's) > Aggressive (the game's own, patch 0227); the stored values
+    // SKIP_ORDER)
+    final String[] skipNames = {s(R.string.ingame_fs_off), s(R.string.ingame_fs_auto), s(R.string.ingame_fs_normal),
+        s(R.string.ingame_fs_aggressive)};
     final Button[] skipAndSmooth = new Button[2];
+    final Button[][] skipChoices = new Button[1][];
     // 0.99.9 (frame pacing): with 60 FPS on a screen that 60 does not divide evenly (90 Hz) a line suggests 30
     final double screenHz = host != null ? host.displayHz() : 0;
     final TextView unevenHint = text(getContext().getString(R.string.ingame_smooth60_uneven,
@@ -1800,25 +1813,23 @@ final class CoreMenu extends Dialog {
     unevenHint.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
     final Runnable showHint = () -> unevenHint.setVisibility(
         FramePacing.sixtyUneven(screenHz) && graphics.getBoolean("smooth60", false) ? View.VISIBLE : View.GONE);
-    skipAndSmooth[0] = cellAction(output, "", v -> {
-      int next = nextFrameSkip(frameSkipMode(graphics));
+    skipChoices[0] = rowChoices(skipNames, SKIP_ORDER, frameSkipMode(graphics), 4, next -> {
       storeFrameSkipMode(graphics, next);
       sendFrameSkip(next);
-      valueLabel((Button) v, R.string.ingame_frame_skip, skipLabels[next], next != 0);
       if (next != 0 && skipAndSmooth[1].isSelected()) {
         toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
         graphics.edit().putBoolean("smooth60", false).apply(); CoreBridge.setSmooth(false);
         showHint.run();
       }
     });
-    final int skipNow = frameSkipMode(graphics);
-    valueLabel(skipAndSmooth[0], R.string.ingame_frame_skip, skipLabels[skipNow], skipNow != 0);
+    skipAndSmooth[0] = skipChoices[0][0];
+    MenuLayout.Buttons output = buttonsRow(body), more = buttonsRow(body), vkRow = buttonsRow(body);
     skipAndSmooth[1] = toggle(output, R.string.ingame_smooth60, graphics.getBoolean("smooth60", false), on -> {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
       if (on && frameSkipMode(graphics) != 0) {
         storeFrameSkipMode(graphics, 0);
         sendFrameSkip(0);
-        valueLabel(skipAndSmooth[0], R.string.ingame_frame_skip, R.string.ingame_off, false);
+        select(skipChoices[0], skipNames, 0);
       }
       showHint.run();
     });
@@ -1828,8 +1839,8 @@ final class CoreMenu extends Dialog {
     // the vertices through mapped buffers (gx_vk.cpp, the vertex ring has no effect there) and its draw calls are
     // cheap, merging only adds pipelines to build (core_mode.cpp leaves it out); the choice stays for OpenGL ES
     final boolean vulkanRun = host != null && host.vulkanRunning();
-    // "Even frame pacing" (1.1.0, the project owner's decision of 20.11.2026): on the row of the merged draws
-    toggle(more, R.string.ingame_even_pacing, evenPacing(graphics), on -> {
+    // "Even frame pacing" (1.1.0, the project owner's decision of 20.11.2026): beside 60 FPS
+    toggle(output, R.string.ingame_even_pacing, evenPacing(graphics), on -> {
       graphics.edit().putBoolean(EVEN_PACING, on).apply(); CoreBridge.setEvenPacing(on);
     });
     Button merge = toggle(more, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {

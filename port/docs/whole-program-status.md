@@ -422,6 +422,12 @@ Frameskip zu bauen. Bei 3 aber einen Menüschalter unter 'Performance'“.
    wie „Aggressiv“); zwei Sekunden mit mindestens 29/s → aus. Eine Pause über 0,25 s (Laden, Menü) misst neu und lässt
    den Zustand. Mit 60 FPS aus. Logzeile „auto frame skip: on/off (… game pictures a second; n times on so far)“.
    Benchmark-Vorschläge und Profile kennen den Wert (Anzeige „Auto“).
+   **Menü nach den Bildern des Projektinhabers (20.11.2026):** „Frame Skip als 4 kleine Buttons nebeneinander in der
+   ersten Buttonreihe und die anderen 4 Buttons als je 2 nebeneinander darunter“: unter EXPERIMENTELL zuerst vier
+   Auswahlknöpfe „No / Auto / Normal / Aggressive frame skip“ (`rowChoices`, Werte `SKIP_ORDER`, Texte `ingame_fs_*`
+   in 11 Sprachen), darunter 60 FPS | Even frame pacing, Merge draw calls | Vertex ring buffer, Save bandwidth (Vulkan);
+   60 FPS an wählt „No frame skip“. „Reload without aiming“ (Tastenbelegung, Tastatur) nur so breit wie die beiden
+   Knöpfe von „Device“ darüber (gleiche Viertel, die Spalte der Beschriftung leer).
 - Texte in 11 Sprachen (523). Geprüft am PC: i686-Kern mit Laufzeit- und Kerntests (cpuinfo: `HelpersGoSlow`, ein
   Hilfsthread mit nur den zwei schnellen Kernen landet trotzdem auf den langsamen), `gx_gl_check` mit
   `TestAutoSkip` (gleichmäßige 30, Zittern, ab und zu ein verspätetes Bild: nie an; 24/s: an nach höchstens 0,7 s; zurück bei 30: aus nach 2 s; ausgelassene
