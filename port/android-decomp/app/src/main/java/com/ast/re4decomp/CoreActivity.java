@@ -157,6 +157,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String SKIP_INTRO = "skipIntro";
   /** "Photo mode" (1.1.0, GRAPHICS_PREFS): a double press of SELECT (F1, the touch controls' MENU) starts it (PhotoMode). */
   static final String PHOTO_MODE = "photoMode";
+  /** "Prepare shaders at start" (1.1.0, GRAPHICS_PREFS, off by default; ShaderPrepScreen). */
+  static final String SHADER_PREP = "shaderPrepAtStart";
+  /** The RAM below which the menu warns when it is switched on: a "4 GB" phone reports about 3.6-3.8 GB. */
+  static final long SHADER_PREP_RAM = 3_500_000_000L;
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
@@ -213,6 +217,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private TouchControls touchControls;
   /** Photo mode (1.1.0): its state, the camera's input and its overlay. */
   private PhotoMode photo;
+  /** "Prepare shaders at start" (1.1.0): the screen while it runs (null: none), whether it stopped the game. */
+  private ShaderPrepScreen prepScreen;
+  private boolean prepPausedCore;
+  private long prepStartedAt;
   private GyroAim gyroAim;
   private boolean touchEditing;
   private String startProblem = "";
@@ -478,6 +486,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     photo = new PhotoMode(this, main, photoHost);
     root.addView(photo.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
+    // "Prepare shaders at start" over everything (the game runs until the making ahead has begun, then stands)
+    if (startProblem.isEmpty() && getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(SHADER_PREP, false)) {
+      prepScreen = new ShaderPrepScreen(this, () -> prepEnd("skipped"));
+      root.addView(prepScreen.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+          FrameLayout.LayoutParams.MATCH_PARENT));
+      prepStartedAt = SystemClock.uptimeMillis();
+      Log.i(TAG, "prepare shaders at start: on");
+      main.post(prepTick);
+    }
     // the camera's cutout (Cutout, 0.99.17): the touch controls cover the whole window, their layouts follow the
     // camera's side; the error log says what the window got. Again when the screen turns by 180 degrees.
     root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -978,6 +995,50 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       main.removeCallbacks(selectHold);
       if (!selectHeld) openMenu();
     }
+  }
+
+  /** "Prepare shaders at start": every 100 ms while its screen is up. */
+  private final Runnable prepTick = new Runnable() {
+    @Override public void run() {
+      if (prepScreen == null || destroyed) return;
+      int[] p = CoreBridge.shaderPrep();
+      int state = p != null && p.length == 3 ? p[0] : 0;
+      // the making ahead has begun (it starts with the first pictures): the game stands until it is through
+      if (state == 1 && !prepPausedCore && resumed && menu == null && menuSupported) {
+        CoreBridge.pause(true, 0);
+        audio.stop();
+        prepPausedCore = true;
+        Log.i(TAG, "prepare shaders at start: " + p[2] + " to look at, the game stands meanwhile");
+      }
+      if (p != null && p.length == 3) prepScreen.update(p[1], p[2]);
+      if (state == 2) {
+        prepEnd("through (" + (p != null ? p[2] : 0) + ")");
+        return;
+      }
+      // nothing begins (no list, a renderer without it): the screen goes after 20 s
+      if (state == 0 && SystemClock.uptimeMillis() - prepStartedAt > 20000) {
+        prepEnd("nothing to prepare");
+        return;
+      }
+      main.postDelayed(this, 100);
+    }
+  };
+
+  /** The preparing screen goes (through, skipped, nothing to do); the game goes on. */
+  private void prepEnd(String why) {
+    if (prepScreen == null) return;
+    main.removeCallbacks(prepTick);
+    ((ViewGroup) prepScreen.view().getParent()).removeView(prepScreen.view());
+    prepScreen = null;
+    Log.i(TAG, "prepare shaders at start: " + why + " after " + (SystemClock.uptimeMillis() - prepStartedAt) + " ms");
+    if (prepPausedCore) {
+      prepPausedCore = false;
+      if (resumed && menu == null && !touchEditing) {
+        CoreBridge.pause(false, 0);
+        audio.start();
+      }
+    }
+    surface.requestFocus();
   }
 
   /** L3, the keyboard's P or the menu's button with "Photo mode" switched on: photo mode on, or off again. */
@@ -2285,6 +2346,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return true;
     }
     boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+    // "Prepare shaders at start": any button skips its screen
+    if (prepScreen != null) {
+      if (first) prepEnd("skipped (" + KeyEvent.keyCodeToString(code) + ")");
+      return true;
+    }
     // "Photo mode" switched on: L3 and the keyboard's P are its own (whatever the button mapping gives them)
     if (menu == null && photoWanted() && ((!keyboard && code == KeyEvent.KEYCODE_BUTTON_THUMBL)
         || (keyboard && code == KeyEvent.KEYCODE_P))) {
@@ -3584,6 +3650,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     selectDown = false;
     main.removeCallbacks(selectHold);
     if (photo != null) photo.leave("the app went to the background");
+    prepPausedCore = false;
     stopBeat();
     if (gyroAim != null) gyroAim.pause();
     // the sound pauses with the app (the core skips what it played meanwhile)

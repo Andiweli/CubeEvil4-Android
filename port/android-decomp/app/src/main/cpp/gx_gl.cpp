@@ -3991,7 +3991,12 @@ GxWarmResult WarmProgramCache(const std::string &cache, const std::string &list,
   for (const ShaderKey &k : listed)
     work.emplace_back(k, std::string());
   std::unordered_set<ShaderKey, KeyHash, KeyEqual> done;
+  ShaderPrepProgress &prep = ShaderPrep();
+  prep.total = static_cast<unsigned>(work.size());
+  prep.done = 0;
+  prep.state = 1;
   for (auto &w : work) {
+    prep.done++;
     if (stop && stop->load())
       break;
     ShaderKey &k = w.first;

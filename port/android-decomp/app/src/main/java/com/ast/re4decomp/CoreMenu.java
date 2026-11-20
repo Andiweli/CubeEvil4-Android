@@ -531,6 +531,14 @@ final class CoreMenu extends Dialog {
     dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
     Immersive.show(dialog);
   }
+  /** The device's RAM in bytes (0: unknown). */
+  private long totalRam() {
+    android.app.ActivityManager am = (android.app.ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+    if (am == null) return 0;
+    android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+    am.getMemoryInfo(mi);
+    return mi.totalMem;
+  }
   /** "Clear shader cache": the game restarts for it (progress not saved is lost), so the menu asks first. */
   private void askClearShaders() {
     AlertDialog dialog = new AlertDialog.Builder(getContext())
@@ -1845,7 +1853,29 @@ final class CoreMenu extends Dialog {
     // since 0.99.4 the shaders are kept where Android's "Clear cache" does not reach them (decision of the project
     // owner, 08.11.2026): emptied by hand here
     heading(R.string.ingame_shader_cache); help(R.string.ingame_shader_cache_help);
-    cellAction(buttonsRow(body), s(R.string.ingame_shader_clear), v -> askClearShaders());
+    MenuLayout.Buttons shaders = buttonsRow(body);
+    cellAction(shaders, s(R.string.ingame_shader_clear), v -> askClearShaders());
+    // "Prepare shaders at start" beside it (1.1.0, the project owner's design of 20.11.2026): off by default; below 4 GB
+    // of RAM a warning when it is switched on (ShaderPrepScreen)
+    final Button[] prep = new Button[1];
+    prep[0] = toggle(shaders, R.string.ingame_shader_prep, graphics.getBoolean(CoreActivity.SHADER_PREP, false), on -> {
+      long ram = totalRam();
+      if (on && ram > 0 && ram < CoreActivity.SHADER_PREP_RAM) {
+        AlertDialog dialog = new AlertDialog.Builder(getContext())
+            .setTitle(R.string.ingame_shader_prep)
+            .setMessage(getContext().getString(R.string.ingame_shader_prep_low_ram,
+                String.format(java.util.Locale.getDefault(), "%.1f", ram / 1e9)))
+            .setNegativeButton(R.string.ingame_cancel, (d, w) -> toggleLabel(prep[0], R.string.ingame_shader_prep, false))
+            .setPositiveButton(R.string.ingame_on, (d, w) -> graphics.edit().putBoolean(CoreActivity.SHADER_PREP, true).apply())
+            .create();
+        dialog.setOnCancelListener(d -> toggleLabel(prep[0], R.string.ingame_shader_prep, false));
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+        Immersive.show(dialog);
+        return;
+      }
+      graphics.edit().putBoolean(CoreActivity.SHADER_PREP, on).apply();
+    });
+    help(R.string.ingame_shader_prep_help);
     // "Source and updates" (wish of the project owner, 14.11.2026): the releases are on the same page
     heading(R.string.ingame_source);
     cellAction(buttonsRow(body), getContext().getString(R.string.ingame_source_line, SOURCE_URL), v -> openSource());

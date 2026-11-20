@@ -499,6 +499,11 @@
     <string name="ingame_shader_cache_help">Game menyimpan shader yang sudah dibuat agar adegan tidak tersendat lagi. Kosongkan hanya jika muncul kesalahan grafis setelah pembaruan; adegan pertama lalu bisa tersendat sekali.</string>
     <string name="ingame_shader_clear">Kosongkan cache shader</string>
     <string name="ingame_shader_clear_text">Game dimulai ulang dan menghapus shader yang sudah dibuat. Game membuatnya lagi saat Anda bermain, jadi adegan pertama bisa tersendat. Progres sejak penyimpanan terakhir akan hilang.</string>
+    <string name="ingame_shader_prep">Muat shader saat mulai</string>
+    <string name="ingame_shader_prep_help">Muat shader saat mulai: setiap mulai, aplikasi menyiapkan dulu semua shader yang dikenal (program chip grafis) dan menampilkan kemajuannya; setelah itu ruangan dan efek tidak tersendat saat pertama kali muncul. Pertama kali butuh sekitar satu menit dengan Vulkan dan hingga beberapa menit dengan OpenGL ES di ponsel lambat, selanjutnya hanya beberapa detik. Disarankan mulai RAM 4 GB. Tombol apa pun atau ketukan melewatinya; sisanya lalu disiapkan di latar belakang seperti tanpa opsi ini.</string>
+    <string name="ingame_shader_prep_low_ram">Perangkat ini punya RAM %1$s GB. Memuat semua shader saat mulai disarankan mulai 4 GB: di bawahnya bisa sangat lama, dan Android bisa menutup aplikasi saat menyiapkan (mulai berikutnya melanjutkan dari titik berhenti). Tetap nyalakan?</string>
+    <string name="ingame_shader_prep_title">Menyiapkan shader…</string>
+    <string name="ingame_shader_prep_line">Setelah disiapkan, tidak akan tersendat lagi. Tombol apa pun atau ketukan melewati; sisanya disiapkan di latar belakang.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mod</string>
     <string name="ingame_hd_textures">Tekstur HD</string>

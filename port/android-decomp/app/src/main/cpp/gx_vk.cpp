@@ -1742,6 +1742,7 @@ struct VkRenderer final : GxCore {
     std::uint32_t head[3] = {};
     if (data.size() < 20 || std::memcmp(data.data(), "RE4VKL01", 8) != 0) {
       GXLOG("Vulkan pipelines ahead: no list of the app (%s)", a.list.c_str());
+      ShaderPrep().state = 2;
       return;
     }
     std::memcpy(head, data.data() + 8, sizeof(head));
@@ -1749,6 +1750,7 @@ struct VkRenderer final : GxCore {
     if (head[0] != sizeof(ShaderKey) || head[1] > (data.size() - 20) / recordBytes) {
       GXLOG("Vulkan pipelines ahead: the app's list does not fit this renderer (key of %u bytes, %u pipelines)",
             head[0], head[1]);
+      ShaderPrep().state = 2;
       return;
     }
     // the mark: the list, the driver, what changes the pipelines (samples, centroid, merged draws, PSone demake, the
@@ -1765,6 +1767,9 @@ struct VkRenderer final : GxCore {
     const std::vector<char> was = ReadFileBytes(a.markFile, 1024);
     if (std::string(was.begin(), was.end()) == mark) {
       GXLOG("Vulkan pipelines ahead: the app's list (%u pipelines) was made on this driver before", head[1]);
+      ShaderPrep().total = head[1];
+      ShaderPrep().done = head[1];
+      ShaderPrep().state = 2;
       return;
     }
     const std::uint32_t count = head[1];
@@ -1789,6 +1794,10 @@ struct VkRenderer final : GxCore {
       at += static_cast<std::size_t>(n) * 4;
     }
     std::vector<std::uint8_t> done(count, 0);
+    ShaderPrepProgress &prep = ShaderPrep();
+    prep.total = count;
+    prep.done = 0;
+    prep.state = 1;
     struct Modules {
       VkShaderModule vs = VK_NULL_HANDLE, fs = VK_NULL_HANDLE, merged = VK_NULL_HANDLE;
       bool mergedTried = false;
@@ -1835,6 +1844,7 @@ struct VkRenderer final : GxCore {
         break;
       }
       done[i] = 1;
+      prep.done++;
       PipeRecord r;
       ReadPipeRecord(records + static_cast<std::size_t>(i) * recordBytes, &r);
       // (merged draws without them on: another setting; the list holds no PSone keys)
@@ -1890,6 +1900,7 @@ struct VkRenderer final : GxCore {
     }
     dropModules();
     const bool all = finished;
+    prep.state = 2;
     if (freshSinceSave)
       SaveCacheFile(a.cacheFile);
     if (all)

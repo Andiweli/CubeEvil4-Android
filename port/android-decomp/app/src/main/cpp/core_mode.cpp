@@ -17,6 +17,7 @@
 #include "core_scene.h"
 #include "gx_auto_level.h"
 #include "gx_bench_steps.h"
+#include "gx_core.h"
 #include "gx_gl.h"
 #include "gx_selfcheck.h"
 #include "minimap_view.h"
@@ -1083,6 +1084,7 @@ void startWarm(const std::string &cache, const std::string &list, std::uint32_t 
   const char *off = getenv("RE4_GX_WARM");
   if (off && *off == '0') {
     if (warmCentroid < 0) LOG("GX programs made ahead: off (RE4_GX_WARM=0)");
+    re4gx::ShaderPrep().state = 2;
     warmCentroid = static_cast<int>(centroid);
     return;
   }
@@ -1128,6 +1130,7 @@ void startWarm(const std::string &cache, const std::string &list, std::uint32_t 
     // (not eglTerminate: the app's own context lives on the same display)
     if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
     if (context != EGL_NO_CONTEXT) eglDestroyContext(display, context);
+    re4gx::ShaderPrep().state = 2;  // ("Prepare shaders at start": through, or not possible)
     warmBusy = false;
   }).detach();
 }
@@ -3738,6 +3741,16 @@ extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_photoMod
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_photoInput(JNIEnv *, jclass, jint a, jint b, jint c) {
   if (api.photoInput) api.photoInput(a, b, c);
+}
+
+// "Prepare shaders at start" (1.1.0): {state (0 not started, 1 running, 2 through), done, total} of the programs (GLES)
+// or the app's pipeline list (Vulkan) made ahead
+extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_shaderPrep(JNIEnv *env, jclass) {
+  re4gx::ShaderPrepProgress &p = re4gx::ShaderPrep();
+  const jint v[3] = {p.state.load(), static_cast<jint>(p.done.load()), static_cast<jint>(p.total.load())};
+  jintArray out = env->NewIntArray(3);
+  if (out) env->SetIntArrayRegion(out, 0, 3, v);
+  return out;
 }
 
 // What the pictures say (the render thread, RE4_GX_CHUNK_PHOTO / _REFUSED): 1 photo mode is on, 2 a request was refused

@@ -19,6 +19,7 @@
 #include "picture_cadence.h"
 #include "potato_bits.h"
 #include "gx_chunk_builder.h"
+#include "gx_core.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
 #include "gx_selfcheck.h"
@@ -5184,11 +5185,17 @@ void TestVkAhead() {
     return made;
   };
   Check(run(false, "first") == count, "vk ahead: every pipeline of the list made ahead");
+  Check(re4gx::ShaderPrep().state.load() == 2 && re4gx::ShaderPrep().total.load() == count &&
+            re4gx::ShaderPrep().done.load() == count,
+        "vk ahead: the preparation's progress through, every pipeline counted");
   FILE *mark = std::fopen((dirB + "/vk-ahead.done").c_str(), "rb");
   Check(mark != nullptr, "vk ahead: the list marked as made");
   if (mark)
     std::fclose(mark);
+  re4gx::ShaderPrep().state = 0;
   Check(run(false, "again") == 0, "vk ahead: a list made on this driver before is left out");
+  Check(re4gx::ShaderPrep().state.load() == 2 && re4gx::ShaderPrep().done.load() == count,
+        "vk ahead: made before: the preparation's progress through at once");
   Check(run(true, "merged draws on") == count, "vk ahead: another setting (merged draws) goes through it again");
   Check(run(true, "PSone demake on", true) == count, "vk ahead: the PSone demake's keys made too (another mark)");
   unsetenv("RE4_GX_VK_PIPE_LIST");
@@ -5273,6 +5280,11 @@ void TestPrewarm() {
     Check(w.keys == made + 2 && w.listed == 1 && w.linked == 2 && w.had == made && w.failed == 0 && w.stale == 1,
           "warm: the old key and the list's key linked on a thread of its own, the rest had binaries");
     Check(!warmingSeen, "warm: not warming once it returned");
+    // "Prepare shaders at start" (1.1.0): the progress went through every entry looked at (core_mode.cpp marks it
+    // through, state 2, when its thread ends)
+    Check(re4gx::ShaderPrep().state.load() == 1 && re4gx::ShaderPrep().total.load() >= w.keys &&
+              re4gx::ShaderPrep().done.load() == re4gx::ShaderPrep().total.load(),
+          "warm: the preparation's progress counted every entry");
   }
   Check(access((dir + "/0123456789abcdef.key").c_str(), F_OK) != 0 &&
             access((dir + "/0123456789abcdef.bin").c_str(), F_OK) != 0,

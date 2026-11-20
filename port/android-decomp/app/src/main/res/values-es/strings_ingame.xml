@@ -506,6 +506,11 @@
     <string name="ingame_shader_cache_help">El juego guarda los shaders que ha creado para que las escenas no vuelvan a ir a tirones. Vacía la caché solo si aparecen errores gráficos tras una actualización; las primeras escenas pueden ir a tirones una vez.</string>
     <string name="ingame_shader_clear">Vaciar caché de shaders</string>
     <string name="ingame_shader_clear_text">El juego se reinicia y borra los shaders creados. Los vuelve a crear mientras juegas, así que las primeras escenas pueden ir a tirones. Se pierde el progreso desde la última vez que guardaste.</string>
+    <string name="ingame_shader_prep">Cargar shaders al iniciar</string>
+    <string name="ingame_shader_prep_help">Cargar shaders al iniciar: cada inicio prepara primero todos los shaders conocidos (los programas del chip gráfico) y muestra el progreso; después, las salas y los efectos no dan tirones la primera vez que aparecen. La primera vez tarda alrededor de un minuto con Vulkan y hasta varios minutos con OpenGL ES en móviles lentos; después, solo segundos. Recomendado desde 4 GB de RAM. Cualquier botón o un toque lo salta; el resto se prepara entonces en segundo plano, como sin esta opción.</string>
+    <string name="ingame_shader_prep_low_ram">Este dispositivo tiene %1$s GB de RAM. Cargar todos los shaders al iniciar se recomienda desde 4 GB: por debajo puede tardar mucho y Android puede cerrar la app durante la preparación (el siguiente inicio sigue donde se quedó). ¿Activarlo de todos modos?</string>
+    <string name="ingame_shader_prep_title">Preparando shaders…</string>
+    <string name="ingame_shader_prep_line">Una vez preparados, no darán tirones después. Cualquier botón o un toque lo salta; el resto se prepara en segundo plano.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
     <string name="ingame_hd_textures">Texturas HD</string>

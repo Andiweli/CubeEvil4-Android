@@ -55,6 +55,14 @@ struct KeyEqual {
 // A file written under this name first and renamed when complete: one per thread (the render
 // thread and the one of WarmProgramCache may store the same program at once).
 std::string TempName(const std::string &path);
+// "Prepare shaders at start" (1.1.0, the app menu's Management; the project owner, 20.11.2026): how far the programs
+// made ahead (GLES: WarmProgramCache) or the app's pipeline list made ahead (Vulkan: AheadThread) are. state 0 not
+// started, 1 running, 2 through (or nothing to do); done of total entries looked at. Any thread.
+struct ShaderPrepProgress {
+  std::atomic<int> state{0};
+  std::atomic<unsigned> done{0}, total{0};
+};
+ShaderPrepProgress &ShaderPrep();
 // A key list file: "RE4L", the size of a key, the count, the keys (WriteProgramKeyList, the app's
 // asset gx-programs.keys; port/tools/gx_program_list.py). A list of another key size is ignored.
 struct KeyListHead {

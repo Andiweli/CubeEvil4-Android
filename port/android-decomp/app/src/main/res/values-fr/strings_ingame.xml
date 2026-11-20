@@ -508,6 +508,11 @@
     <string name="ingame_shader_cache_help">Le jeu conserve les shaders qu’il a créés, pour que les scènes ne saccadent plus. Videz le cache seulement si des erreurs graphiques apparaissent après une mise à jour\u00A0; les premières scènes peuvent alors saccader une fois.</string>
     <string name="ingame_shader_clear">Vider le cache des shaders</string>
     <string name="ingame_shader_clear_text">Le jeu redémarre et supprime les shaders créés. Il les recrée pendant la partie, les premières scènes peuvent donc saccader. La progression depuis la dernière sauvegarde est perdue.</string>
+    <string name="ingame_shader_prep">Charger les shaders au démarrage</string>
+    <string name="ingame_shader_prep_help">Charger les shaders au démarrage : chaque démarrage prépare d’abord tous les shaders connus (les programmes de la puce graphique) et affiche la progression ; ensuite, les salles et les effets ne saccadent plus à leur première apparition. La première fois, cela prend environ une minute avec Vulkan et jusqu’à plusieurs minutes avec OpenGL ES sur les téléphones lents, ensuite quelques secondes. Recommandé à partir de 4 Go de RAM. N’importe quel bouton ou une touche l’ignore ; le reste est alors préparé en arrière-plan, comme sans cette option.</string>
+    <string name="ingame_shader_prep_low_ram">Cet appareil a %1$s Go de RAM. Charger tous les shaders au démarrage est recommandé à partir de 4 Go : en dessous, cela peut être très long et Android peut fermer l’application pendant la préparation (le démarrage suivant reprend là où il s’est arrêté). L’activer quand même ?</string>
+    <string name="ingame_shader_prep_title">Préparation des shaders…</string>
+    <string name="ingame_shader_prep_line">Une fois préparés, ils ne saccaderont plus. N’importe quel bouton ou une touche ignore ; le reste est préparé en arrière-plan.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
     <string name="ingame_hd_textures">Textures HD</string>

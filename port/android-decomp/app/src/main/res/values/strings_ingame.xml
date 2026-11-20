@@ -521,6 +521,11 @@
     <string name="ingame_shader_cache_help">The game keeps the shaders it built so scenes do not stutter again. Clear them only if graphics errors appear after an update; the first scenes may then stutter once.</string>
     <string name="ingame_shader_clear">Clear shader cache</string>
     <string name="ingame_shader_clear_text">The game restarts and deletes the built shaders. It builds them anew as you play, so the first scenes can stutter. Progress since your last save is lost.</string>
+    <string name="ingame_shader_prep">Load shaders at start</string>
+    <string name="ingame_shader_prep_help">Load shaders at start: each start first prepares every known shader (the graphics chip\'s programs) and shows how far it is; afterwards rooms and effects do not stutter the first time they appear. The first time this takes about a minute with Vulkan and up to several minutes with OpenGL ES on slow phones, later only seconds. Recommended from 4 GB RAM. Any button or a tap skips it; the rest is then prepared in the background as without this switch.</string>
+    <string name="ingame_shader_prep_low_ram">This device has %1$s GB of RAM. Loading all shaders at start is recommended from 4 GB: below that it can take very long, and Android may close the app while it prepares (the next start goes on where it stopped). Switch it on anyway?</string>
+    <string name="ingame_shader_prep_title">Preparing shaders…</string>
+    <string name="ingame_shader_prep_line">Prepared once, they will not stutter later. Any button or a tap skips; the rest is then prepared in the background.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
     <string name="ingame_hd_textures">HD textures</string>

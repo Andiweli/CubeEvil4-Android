@@ -501,6 +501,11 @@
     <string name="ingame_shader_cache_help">游戏会保留已构建的着色器，这样场景不会再次卡顿。只有在更新后出现图形错误时才需要清除；之后最初的几个场景可能会卡顿一次。</string>
     <string name="ingame_shader_clear">清除着色器缓存</string>
     <string name="ingame_shader_clear_text">游戏将重新启动并删除已构建的着色器。游戏过程中会重新构建，因此最初的几个场景可能会卡顿。上次存档之后的进度将会丢失。</string>
+    <string name="ingame_shader_prep">启动时加载着色器</string>
+    <string name="ingame_shader_prep_help">启动时加载着色器：每次启动时先准备所有已知着色器（图形芯片的程序）并显示进度；之后房间和特效首次出现时不会卡顿。首次使用 Vulkan 约需一分钟，在较慢手机上使用 OpenGL ES 可能需要数分钟，之后只需数秒。建议 4 GB 及以上内存。按任意键或轻点即可跳过；剩余部分会像未开启此项时一样在后台准备。</string>
+    <string name="ingame_shader_prep_low_ram">此设备有 %1$s GB 内存。建议 4 GB 及以上内存时在启动时加载全部着色器：低于此值可能耗时很久，Android 也可能在准备期间关闭应用（下次启动会从中断处继续）。仍要开启吗？</string>
+    <string name="ingame_shader_prep_title">正在准备着色器…</string>
+    <string name="ingame_shader_prep_line">准备一次后便不会再卡顿。按任意键或轻点跳过；剩余部分将在后台准备。</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">模组</string>
     <string name="ingame_hd_textures">高清纹理</string>

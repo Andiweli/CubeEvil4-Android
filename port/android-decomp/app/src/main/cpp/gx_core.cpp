@@ -17,6 +17,11 @@
 
 namespace re4gx {
 
+ShaderPrepProgress &ShaderPrep() {
+  static ShaderPrepProgress p;
+  return p;
+}
+
 std::string TempName(const std::string &path) {
   char tail[32];
   std::snprintf(tail, sizeof(tail), ".part%ld", static_cast<long>(syscall(SYS_gettid)));

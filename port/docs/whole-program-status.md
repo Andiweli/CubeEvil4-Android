@@ -317,6 +317,27 @@ die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_RE
   `photo-r103-far-from-leon.png` (20 m von Leon), `healthbars-r10f-merchant-no-bar.png`; Texte 510 in 11 Sprachen,
   App (Gradle, Unit-Tests). **Nicht geprüft:** L3/P/Menüknopf, Menü im Fotomodus, Overlay – nur auf dem Gerät.
 
+### 14. „Shader beim Start laden“ und Frage „Auto-Frame-Skip“ (Projektinhaber, 20.11.2026)
+
+- **Bestand:** GLES baut beim Start auf einem eigenen Faden (nice 10) alle Programme der App-Liste und des eigenen
+  Caches als Binärdateien (`WarmProgramCache`, ~9 000–11 000 Schlüssel), Vulkan die App-Pipeline-Liste
+  (`AheadThread`, 2 822–4 999) in den Treiber-Cache; jeder Raum lädt nur seine eigenen (höchstens 3 000). Geräte:
+  erster Lauf GLES 6 154 Programme in 1 606 s (nebenher, während gespielt wurde), Vulkan 1 710–2 848 Pipelines in
+  18–72 s; spätere Starts 1–17 s bzw. < 1 s. Platz: 180–230 MB Shader-Cache. Alles beim Start in den Speicher zu
+  laden (0.96.6, 7 429 Programme) ließ Android die App auf einem 2,7-GB-Gerät beenden: bleibt so.
+- **Neu (Wunsch des Projektinhabers):** Schalter „Shader beim Start laden“ unter Verwaltung neben „Shader-Cache
+  leeren“ (aus; `GRAPHICS_PREFS` `shaderPrepAtStart`). Ein: `ShaderPrepScreen` über allem (Titel, Balken, „n /
+  gesamt“, eine Zeile); sobald das Vorab-Bauen beginnt (mit den ersten Bildern), steht das Spiel (`CoreBridge.pause`),
+  bis es durch ist; jede Taste oder ein Tippen überspringt (der Rest wie bisher im Hintergrund); ohne Beginn nach 20 s
+  weg. Fortschritt: `re4gx::ShaderPrep()` (gx_core), `CoreBridge.shaderPrep()`. **RAM-Grenze 4 GB** (ein „4-GB“-Gerät
+  meldet 3,6–3,8 GB, Schwelle 3,5 GB): darunter eine Warnung beim Einschalten, nicht ausgegraut – die Vorbereitung
+  hält nichts im Speicher (jedes Programm wird gebaut, gespeichert, freigegeben), das Risiko unter 4 GB ist die lange
+  Dauer und ein Beenden durch Android mitten drin (der nächste Start macht weiter, Gespeichertes bleibt). Texte in 11
+  Sprachen (515). Geprüft: `gx_gl_check` 0 Fehler mit neuen Prüfungen des Fortschritts (GLES und Vulkan), App
+  (Gradle, Unit-Tests). **Nicht geprüft:** der Bildschirm auf einem Gerät.
+- **Auto-Frame-Skip:** nur Analyse (Vorschlag an den Projektinhaber): „Normal“ und „Aggressiv“ lassen schon nur bei
+  Rückstand Bilder aus; nichts gebaut.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

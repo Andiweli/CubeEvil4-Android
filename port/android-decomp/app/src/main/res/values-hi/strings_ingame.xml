@@ -503,6 +503,11 @@
     <string name="ingame_shader_cache_help">गेम बनाए गए शेडर रखता है, ताकि दृश्य दोबारा न अटकें। इन्हें तभी साफ़ करें जब किसी अपडेट के बाद ग्राफ़िक्स में गड़बड़ी दिखे; तब शुरुआती दृश्य एक बार अटक सकते हैं।</string>
     <string name="ingame_shader_clear">शेडर कैश साफ़ करें</string>
     <string name="ingame_shader_clear_text">गेम फिर से शुरू होगा और बनाए गए शेडर हटा देगा। खेलते समय वह उन्हें फिर से बनाता है, इसलिए शुरुआती दृश्य अटक सकते हैं। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_shader_prep">शुरुआत में शेडर लोड करें</string>
+    <string name="ingame_shader_prep_help">शुरुआत में शेडर लोड करें: हर शुरुआत में पहले सभी ज्ञात शेडर (ग्राफ़िक्स चिप के प्रोग्राम) तैयार होते हैं और प्रगति दिखती है; उसके बाद कमरे और इफ़ेक्ट पहली बार आने पर नहीं अटकते। पहली बार Vulkan के साथ लगभग एक मिनट और धीमे फ़ोन पर OpenGL ES के साथ कई मिनट तक लगते हैं, बाद में बस कुछ सेकंड। 4 GB RAM से अनुशंसित। कोई भी बटन या टैप इसे छोड़ देता है; बाकी तब बैकग्राउंड में तैयार होता है, जैसे इस विकल्प के बिना।</string>
+    <string name="ingame_shader_prep_low_ram">इस डिवाइस में %1$s GB RAM है। शुरुआत में सभी शेडर लोड करना 4 GB से अनुशंसित है: उससे कम पर बहुत समय लग सकता है, और तैयारी के दौरान Android ऐप बंद कर सकता है (अगली शुरुआत वहीं से जारी रहती है)। फिर भी चालू करें?</string>
+    <string name="ingame_shader_prep_title">शेडर तैयार हो रहे हैं…</string>
+    <string name="ingame_shader_prep_line">एक बार तैयार होने पर बाद में नहीं अटकेंगे। कोई भी बटन या टैप छोड़ देता है; बाकी बैकग्राउंड में तैयार होता है।</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">मॉड्स</string>
     <string name="ingame_hd_textures">HD टेक्सचर</string>

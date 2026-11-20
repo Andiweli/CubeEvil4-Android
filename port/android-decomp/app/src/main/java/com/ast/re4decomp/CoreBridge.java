@@ -154,6 +154,9 @@ public final class CoreBridge {
   public static native void photoInput(int a, int b, int c);
   /** 1: photo mode is on (the pictures say so); 2: a request was refused since the last call. */
   public static native int photoState();
+  /** "Prepare shaders at start" (1.1.0): {state (0 not started, 1 running, 2 through), done, total} of the shaders made
+   *  ahead (GLES programs or the Vulkan pipeline list). */
+  public static native int[] shaderPrep();
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
    *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
    *  off; the core's runtime/potato.cpp). */
