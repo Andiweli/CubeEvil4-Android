@@ -2388,6 +2388,68 @@ static void testCpuInfo()
     }
     re4cpu::DescribeClocks(sd, text, sizeof(text));
     ok &= strstr(text, "cores now:") == text && strstr(text, " 4 ") != nullptr && strstr(text, " 3 ") == nullptr;
+    // the render thread's cores as the clocks allow them (RenderPick, 1.1.0): the user's Xiaomi (Snapdragon 8s Gen 4:
+    // 0-1 2016, 2-4 3014, 5-6 2803, 7 3206 MHz), the render thread on core 7
+    {
+        re4cpu::Layout x;
+        x.count = 8;
+        const unsigned top[8] = {2016000, 2016000, 3014000, 3014000, 3014000, 2803000, 2803000, 3206000};
+        for (int i = 0; i < 8; i++) {
+            x.maxKHz[i] = top[i];
+        }
+        x.slowest = 2016000;
+        x.fastest = 3206000;
+        unsigned allowed[8];
+        bool online[8];
+        for (int i = 0; i < 8; i++) {
+            allowed[i] = top[i];
+            online[i] = true;
+        }
+        cpu_set_t seven;
+        CPU_ZERO(&seven);
+        CPU_SET(7, &seven);
+        re4cpu::RenderPick p;
+        // nothing held back: it stays
+        bool pick = !p.Update(x, allowed, online, seven, true, 100.0) && CPU_EQUAL(&p.set, &seven);
+        // core 7 at 3014 of 3206 (as fast as the middle cores): it stays (no move without a margin)
+        allowed[7] = 3014000;
+        pick &= !p.Update(x, allowed, online, seven, true, 110.0);
+        // core 7 held at 2054: the middle cores at 3014 are 47 % faster: to cores 2 3 4
+        allowed[7] = 2054000;
+        pick &= p.Update(x, allowed, online, seven, true, 120.0) && CPU_COUNT(&p.set) == 3 && CPU_ISSET(2, &p.set) &&
+                CPU_ISSET(4, &p.set) && !CPU_ISSET(7, &p.set) && strstr(p.last, "from cores 7 (2054 MHz") != nullptr &&
+                strstr(p.last, "to cores 2 3 4 (3014 MHz allowed, the middle kind)") != nullptr;
+        // core 7 back at 3206 two seconds later: not yet (the pause); after it back to the faster kind (no margin)
+        allowed[7] = 3206000;
+        pick &= !p.Update(x, allowed, online, seven, true, 122.0) && CPU_ISSET(2, &p.set);
+        pick &= p.Update(x, allowed, online, seven, true, 126.0) && CPU_EQUAL(&p.set, &seven);
+        // the report: every faster core held at 633, the slow ones may reach 2016 (45 %: 907 > 633 + 15 %): to cores 0 1,
+        // but not where the helpers go on the slow cores (slowOk false)
+        for (int i = 2; i < 8; i++) {
+            allowed[i] = 633000;
+        }
+        pick &= !p.Update(x, allowed, online, seven, false, 140.0) && CPU_EQUAL(&p.set, &seven);
+        pick &= p.Update(x, allowed, online, seven, true, 141.0) && CPU_COUNT(&p.set) == 2 && CPU_ISSET(0, &p.set) &&
+                CPU_ISSET(1, &p.set) && strstr(p.last, "the slowest kind") != nullptr;
+        // the slow ones held at 1300 a bit later (585 < 633): back to core 7, the faster kind as good or better
+        allowed[0] = allowed[1] = 1300000;
+        pick &= p.Update(x, allowed, online, seven, true, 150.0) && CPU_EQUAL(&p.set, &seven);
+        // the same clocks again: it stays (no back and forth)
+        pick &= !p.Update(x, allowed, online, seven, true, 160.0) && !p.Update(x, allowed, online, seven, true, 170.0);
+        // core 7 switched off: at once to the best of the rest, without the pause
+        online[7] = false;
+        allowed[2] = allowed[3] = allowed[4] = 1500000;
+        pick &= p.Update(x, allowed, online, seven, true, 171.0) && CPU_ISSET(2, &p.set) && !CPU_ISSET(7, &p.set) &&
+                strstr(p.last, "switched off") != nullptr;
+        pick &= p.moves == 5;
+        // the clocks line names every core with its three clocks (this machine's: some of them not readable)
+        re4cpu::DescribeAllClocks(x, text, sizeof(text));
+        pick &= strstr(text, "clocks now/allowed/highest:") == text && strstr(text, "/3206") != nullptr;
+        if (!pick) {
+            re4_log("  cpuinfo: render pick: moves %u, last \"%s\", clocks \"%s\"", p.moves, p.last, text);
+        }
+        ok &= pick;
+    }
     setenv("RE4_PRIME_CORE", "0", 1);
     ok &= !re4cpu::HasPrimeCores(sd);
     unsetenv("RE4_PRIME_CORE");

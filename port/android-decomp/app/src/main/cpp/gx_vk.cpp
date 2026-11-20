@@ -530,6 +530,14 @@ struct VkRenderer final : GxCore {
   VkExtent2D swapSeenExtent{};
   static constexpr unsigned kSuboptimalLooks = 8;
   unsigned swapMade = 0;          // swapchains made (the timing line)
+  // the present times (1.1.0, VK_GOOGLE_display_timing; GxRenderer::SetPresentHook): the core's hook before each
+  // present, the presents' numbers, the screen's refresh period of this swapchain (0: not asked yet)
+  GxPresentHook presentHook = nullptr;
+  void *presentHookUser = nullptr;
+  std::uint32_t presentId = 0;
+  long long refreshNs = -1;
+  std::vector<VkPastPresentationTimingGOOGLE> pastTimes;
+  std::vector<GxShownPicture> shownPictures;
   std::string swapLogged;         // the screen's line as last logged
   // every recording a number; done: the highest whose fence was seen signalled
   std::uint64_t serial = 0, done = 0;
@@ -3996,6 +4004,11 @@ struct VkRenderer final : GxCore {
   }
   // ---- the overlay (GxOverlay, the minimap): drawn in the screen's pass after the picture ----
   void SetOverlay(const GxOverlay &o) override { overlay = o; }
+  bool PresentTimes() const override { return dev && vk.displayTiming; }
+  void SetPresentHook(GxPresentHook hook, void *user) override {
+    presentHook = hook;
+    presentHookUser = user;
+  }
   // the overlay's pipelines (triangles, lines) for a pass: the swapchain's or the screenshot's
   bool MakeOverlay(VkRenderPass rp, VkPipeline out[2]) {
     std::string log;
@@ -4192,6 +4205,7 @@ struct VkRenderer final : GxCore {
     swapSeenExtent = caps.currentExtent;
     swapCheck = false;
     swapMade++;
+    refreshNs = -1;  // (asked again for this swapchain)
     const bool turned = current & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR | VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR);
     swapTransform = preRotate || !(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
                         ? current
@@ -4428,6 +4442,41 @@ struct VkRenderer final : GxCore {
     pi.swapchainCount = 1;
     pi.pSwapchains = &swapchain;
     pi.pImageIndices = &index;
+    // the present times (1.1.0): the pictures shown since the last present to the core's hook, the time it asks for
+    // this one (0: the next free vsync, as without the extension); a number for each present, so its time on the
+    // screen comes back later
+    VkPresentTimeGOOGLE when{};
+    auto times = Make<VkPresentTimesInfoGOOGLE>(VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE);
+    if (vk.displayTiming && presentHook) {
+      if (refreshNs < 0) {
+        VkRefreshCycleDurationGOOGLE cycle{};
+        refreshNs = vkGetRefreshCycleDurationGOOGLE(dev, swapchain, &cycle) == VK_SUCCESS
+                        ? static_cast<long long>(cycle.refreshDuration)
+                        : 0;
+      }
+      std::uint32_t count = 0;
+      shownPictures.clear();
+      if (vkGetPastPresentationTimingGOOGLE(dev, swapchain, &count, nullptr) == VK_SUCCESS && count > 0) {
+        pastTimes.resize(count);
+        if (vkGetPastPresentationTimingGOOGLE(dev, swapchain, &count, pastTimes.data()) >= VK_SUCCESS) {
+          for (std::uint32_t i = 0; i < count && i < pastTimes.size(); i++) {
+            GxShownPicture s;
+            s.id = pastTimes[i].presentID;
+            s.actual = static_cast<long long>(pastTimes[i].actualPresentTime);
+            s.earliest = static_cast<long long>(pastTimes[i].earliestPresentTime);
+            s.margin = static_cast<long long>(pastTimes[i].presentMargin);
+            shownPictures.push_back(s);
+          }
+        }
+      }
+      when.presentID = ++presentId;
+      const long long at = presentHook(presentHookUser, when.presentID, shownPictures.data(),
+                                       static_cast<int>(shownPictures.size()), refreshNs, swapMade);
+      when.desiredPresentTime = at > 0 ? static_cast<std::uint64_t>(at) : 0;
+      times.swapchainCount = 1;
+      times.pTimes = &when;
+      pi.pNext = &times;
+    }
     const auto presented = std::chrono::steady_clock::now();
     r = vkQueuePresentKHR(vk.queue, &pi);
     timing.presentMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - presented).count();
@@ -4528,8 +4577,9 @@ struct VkRenderer final : GxCore {
       heap.Init(&vk);
     }
     dev = vk.device;
-    GXLOG("GPU (Vulkan): %s; %s; depth %s", vk.Describe().c_str(), CompilerName(),
-          vk.depthClipControl ? "in GL's clip range (VK_EXT_depth_clip_control)" : "mapped to 0..1");
+    GXLOG("GPU (Vulkan): %s; %s; depth %s; present times %s", vk.Describe().c_str(), CompilerName(),
+          vk.depthClipControl ? "in GL's clip range (VK_EXT_depth_clip_control)" : "mapped to 0..1",
+          vk.displayTiming ? "there (VK_GOOGLE_display_timing)" : "not there");
     const VkFormat depths[] = {VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT};
     depthFormat = vk.PickFormat(depths, 3, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
     if (depthFormat == VK_FORMAT_UNDEFINED) {

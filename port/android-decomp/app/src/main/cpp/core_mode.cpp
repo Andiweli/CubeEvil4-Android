@@ -847,6 +847,39 @@ void probe(EGLDisplay display) {
       nextFrameId && frameTimestamps ? "there" : "not there");
 }
 
+// A picture the screen showed at `shown` (ns): every 10 s the line "screen pacing (as shown)" with the intervals as
+// the screen showed them (OpenGL ES: EGL_ANDROID_get_frame_timestamps; Vulkan: VK_GOOGLE_display_timing).
+void noteShown(long long shown) {
+  shownSeen++;
+  std::string line;
+  const long long period = displayVsyncPeriod.load();
+  if (shown != lastShown && shownCadence.Note(shown, period, period > 0 ? 1e9 / period : 0.0, &line)) {
+    line.replace(0, std::strlen("picture pacing"), "screen pacing (as shown)");
+    char tail[160];
+    std::snprintf(tail, sizeof(tail), "; asked %d vsyncs after the drawing's (%u asked, %u judged, %u late, %u "
+                  "up, %u down)", pacer.latency, pacer.asked, pacer.judged, pacer.lateAll, pacer.ups, pacer.downs);
+    LOG("%s%s", line.c_str(), pacer.latency ? tail : "");
+  }
+  lastShown = shown;
+}
+
+// The render thread behind the game: a picture left out (60 FPS, `dropped` counts them); three within 2 s and the
+// times step aside for 30 s (OpenGL ES and Vulkan).
+void noteBehind(long long began, unsigned dropped) {
+  static unsigned droppedSeen = 0;
+  if (dropped != droppedSeen) {
+    if (dropped > droppedSeen)
+      pacer.Behind(began);
+    droppedSeen = dropped;
+  }
+  static unsigned asidesLogged = 0;
+  if (pacer.asides != asidesLogged) {
+    asidesLogged = pacer.asides;
+    LOG("screen pacing: present times set aside for 30 s (the GPU or the render thread behind; %u so far)",
+        pacer.asides);
+  }
+}
+
 // The results of the pictures shown some swaps ago (each picture's times come after the screen showed it).
 void collect(EGLDisplay display, EGLSurface surface) {
   if (!stamps || !pending)
@@ -871,19 +904,8 @@ void collect(EGLDisplay display, EGLSurface surface) {
     const long long done = values[0] > 0 ? values[0] : 0, shown = values[1] > 0 ? values[1] : 0;
     if (p.target > 0)
       pacer.Outcome(p.target, done, shown);
-    if (shown > 0) {
-      shownSeen++;
-      std::string line;
-      const long long period = displayVsyncPeriod.load();
-      if (shown != lastShown && shownCadence.Note(shown, period, period > 0 ? 1e9 / period : 0.0, &line)) {
-        line.replace(0, std::strlen("picture pacing"), "screen pacing (as shown)");
-        char tail[160];
-        std::snprintf(tail, sizeof(tail), "; asked %d vsyncs after the drawing's (%u asked, %u judged, %u late, %u "
-                      "up, %u down)", pacer.latency, pacer.asked, pacer.judged, pacer.lateAll, pacer.ups, pacer.downs);
-        LOG("%s%s", line.c_str(), pacer.latency ? tail : "");
-      }
-      lastShown = shown;
-    }
+    if (shown > 0)
+      noteShown(shown);
   }
   pending = kept;
 }
@@ -936,19 +958,7 @@ void beforeSwap(long long began, bool active, unsigned dropped) {
     }
   }
   collect(display, surface);
-  // the render thread behind the game: a picture left out (60 FPS); three within 2 s and the times step aside
-  static unsigned droppedSeen = 0;
-  if (dropped != droppedSeen) {
-    if (dropped > droppedSeen)
-      pacer.Behind(began);
-    droppedSeen = dropped;
-  }
-  static unsigned asidesLogged = 0;
-  if (pacer.asides != asidesLogged) {
-    asidesLogged = pacer.asides;
-    LOG("screen pacing: present times set aside for 30 s (the GPU or the render thread behind; %u so far)",
-        pacer.asides);
-  }
+  noteBehind(began, dropped);
   long long target = 0;
   if (presentationTime && optEvenPacing.load()) {
     const long long asked = pacer.Target(began, displayVsyncPeriod.load(), active ? n : 1);
@@ -963,6 +973,94 @@ void beforeSwap(long long began, bool active, unsigned dropped) {
     if (nextFrameId(display, surface, &id) == EGL_TRUE)
       ring[pending++] = {id, target, 0};
   }
+}
+
+// Vulkan (1.1.0, the project owner's decision of 20.11.2026 after a user's 120 Hz phone: "a lot of frame rate drops"
+// at 60 pictures a second, 41 % of them a vsync early or late): the same present times through
+// VK_GOOGLE_display_timing. The drawing's vsync and the 60 FPS state before the drawing (vkBefore, the render
+// thread's CoreBridge.draw), then the renderer's hook right before its present: the pictures shown since (their
+// outcome, the "screen pacing (as shown)" line) and the time for this one, under "Even frame pacing" as OpenGL ES's.
+// Without the extension the hook is never called: each picture at the next free vsync, as before.
+long long vkBegan = 0;
+bool vkActive = false;
+unsigned vkDropped = 0;
+bool vkProbed = false, vkOff = false;
+unsigned vkSwapchain = ~0u;
+struct VkPending {
+  std::uint32_t id;
+  long long target;
+  int age;
+};
+VkPending vkRing[kRing];
+int vkPending = 0;
+
+void vkBefore(long long began, bool active, unsigned dropped) {
+  vkBegan = began;
+  vkActive = active;
+  vkDropped = dropped;
+}
+
+long long vkHook(void *, std::uint32_t id, const re4gx::GxShownPicture *shown, int count, long long refresh,
+                 unsigned swapchain) {
+  if (!vkProbed) {
+    vkProbed = true;
+    const char *off = getenv("RE4_GX_PRESENT_TIME");
+    vkOff = off && *off == '0';
+    LOG("screen pacing (Vulkan): present times there (VK_GOOGLE_display_timing, the screen's refresh %.2f ms)%s",
+        refresh > 0 ? refresh / 1e6 : 0.0, vkOff ? ", not asked (RE4_GX_PRESENT_TIME=0)" : "");
+  }
+  if (swapchain != vkSwapchain) {
+    // a new swapchain: the numbers of the old one are gone, the rhythm anew (as GLES at a new surface)
+    vkSwapchain = swapchain;
+    vkPending = 0;
+    lastShown = 0;
+    shownCadence = re4gx::PictureCadence();
+    pacer.Reset();
+  }
+  const int n = every.load();
+  const long long period = displayVsyncPeriod.load();
+  for (int i = 0; i < count; i++) {
+    long long target = 0;
+    bool found = false;
+    for (int k = 0; k < vkPending; k++)
+      if (vkRing[k].id == shown[i].id) {
+        target = vkRing[k].target;
+        vkRing[k] = vkRing[--vkPending];
+        found = true;
+        break;
+      }
+    if (!found)
+      continue;  // (an older swapchain's, or already gone)
+    const long long done = re4gx::VkReadyFor(target, shown[i].actual, shown[i].earliest, shown[i].margin);
+    if (target > 0)
+      pacer.Outcome(target, done, shown[i].actual);
+    // the screen's own intervals, as OpenGL ES's (only on a screen faster than 60 Hz, where the app draws at every
+    // n-th vsync)
+    if (n >= 2 && shown[i].actual > 0)
+      noteShown(shown[i].actual);
+  }
+  // (a present whose time never comes back: gone after 40 presents)
+  int kept = 0;
+  for (int k = 0; k < vkPending; k++)
+    if (++vkRing[k].age <= 40)
+      vkRing[kept++] = vkRing[k];
+  vkPending = kept;
+  noteBehind(vkBegan, vkDropped);
+  long long want = 0, target = 0;
+  if (!vkOff && optEvenPacing.load()) {
+    const long long asked = pacer.Target(vkBegan, period, vkActive ? n : 1);
+    if (asked > 0) {
+      want = asked;
+      target = asked + pacer.period / 2;
+      if (pacer.asked == 1)
+        LOG("screen pacing: each picture asked for its vsync, %d after its drawing's (every %d vsyncs at %.1f Hz, "
+            "Vulkan)", pacer.latency, pacer.every, pacer.period > 0 ? 1e9 / pacer.period : 0.0);
+    }
+  }
+  if (vkPending == kRing)
+    vkRing[0] = vkRing[--vkPending];  // (full: the oldest out)
+  vkRing[vkPending++] = {id, target, 0};
+  return want;
 }
 }  // namespace present
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
@@ -2758,6 +2856,7 @@ bool drawGx() {
       renderFast = fast;
       if (fast) {
         char cores[160];
+        re4cpu::TheRenderPick() = re4cpu::RenderPick();  // (its cores anew: from KeepOffSlowCores' on)
         re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kRenderThread);
         LOG("cores: the render thread %s", cores);
         const int tid = re4cpu::ThreadId();
@@ -2771,10 +2870,37 @@ bool drawGx() {
         LOG("cores: the render thread left to Android (Force Performance: Default)");
       }
     }
-    // about once a second: back on the fast cores if Android moved the thread off them
+    // about once a second: back on the fast cores if Android moved the thread off them, and (1.1.0) on other cores
+    // when the maker holds its cores back far below others (re4_cpu_info.h RenderPick)
     static unsigned coreChecks, coreMoves;
-    if (fast && ++coreChecks % 30 == 0 && re4cpu::KeepOnFastCores() && ++coreMoves <= 4)
-      LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
+    if (fast && ++coreChecks % 30 == 0) {
+      const unsigned picks = re4cpu::TheRenderPick().moves;
+      const bool moved = re4cpu::KeepOnFastCores();
+      const unsigned picked = re4cpu::TheRenderPick().moves;
+      if (picked != picks) {
+        if (picked <= 20 || picked % 50 == 0)
+          LOG("cores: the render thread moved for the clocks %s (%u times so far)", re4cpu::TheRenderPick().last,
+              picked);
+      } else if (moved && ++coreMoves <= 4) {
+        LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
+      }
+    }
+    // (1.1.0) once a minute every core's clock now, the clock it may reach now and its highest: a maker that holds
+    // cores back while Android says no heat shows here (the user's Xiaomi, 19.11.2026)
+    {
+      static double clocksAt = -1.0;
+      const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      if (clocksAt < 0.0)
+        clocksAt = t;
+      if (t - clocksAt >= 60.0) {
+        clocksAt = t;
+        char clocks[512], cores[96];
+        re4cpu::DescribeAllClocks(re4cpu::GetLayout(), clocks, sizeof(clocks));
+        re4cpu::AffinityText(cores, sizeof(cores));
+        LOG("cores: %s; the render thread on %s, now on core %d (moved for the clocks %u times)", clocks, cores,
+            sched_getcpu(), re4cpu::TheRenderPick().moves);
+      }
+    }
     gxRunMs += ms;
     // a Run this long is a stall (programs made, textures in), not a GPU too slow: a break as above
     if (ms > 250.0) {
@@ -3667,6 +3793,19 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_draw(JNIEnv 
   lastDraw = now;
   // the vsync this drawing began at (the beat asked for it there; PresentPacer keeps it on the beat's grid)
   const long long began = displayVsyncAt.load();
+  if (gxVulkan()) {
+    // Vulkan presents itself in drawGx: the drawing's vsync before, its present times in the renderer's hook (1.1.0)
+    present::vkBefore(began, optSmooth.load() != 0 && !smoothTooSlow, gxBetweenDropped);
+    static const void *hooked = nullptr;
+    static bool told = false;
+    if (gx && gx.get() != hooked) {
+      hooked = gx.get();  // (each new renderer: the hook again)
+      gx->SetPresentHook(present::vkHook, nullptr);
+      if (!gx->PresentTimes() && !told && (told = true))
+        LOG("screen pacing (Vulkan): present times not there (the driver has no VK_GOOGLE_display_timing): each "
+            "picture at the next free vsync");
+    }
+  }
   if (drawGx()) {
     // OpenGL ES: the swap comes after this (GLSurfaceView); Vulkan presents itself
     if (!gxVulkan()) present::beforeSwap(began, optSmooth.load() != 0 && !smoothTooSlow, gxBetweenDropped);

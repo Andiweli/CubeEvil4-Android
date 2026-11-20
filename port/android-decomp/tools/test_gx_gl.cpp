@@ -1929,7 +1929,13 @@ struct PresentRun {
   int twoShare = 0;  // % of the intervals of 2 vsyncs
 };
 
-static PresentRun PresentSim(bool pace, double from, double to, int pictures, unsigned seed = 4711) {
+// `vulkan` (1.1.0): Android's swapchain with VK_GOOGLE_display_timing instead of EGL: the compositor latches a
+// picture `latchLead` ns before the vsync the screen shows it at (2 ms as above, or a whole vsync on a deeper
+// pipeline), and the pacer learns when it was ready only from what the swapchain tells (the time shown, the earliest
+// possible, the margin; its calculation as in Android's swapchain.cpp TimingInfo::calculate) through VkReadyFor.
+// `estimateOff` counts the pictures shown at their vsync whose spare time came out more than 0.1 ms off.
+static PresentRun PresentSim(bool pace, double from, double to, int pictures, unsigned seed = 4711, bool vulkan = false,
+                             unsigned *estimateOff = nullptr, long long latchLead = 2000000LL) {
   const long long period = 8302889;  // 120.44 Hz, the report's
   const long long start = 2000000000LL;
   re4gx::PresentPacer pacer;
@@ -1945,14 +1951,29 @@ static PresentRun PresentSim(bool pace, double from, double to, int pictures, un
     const long long began = (seed >> 24) % 23 == 0 ? grid + period : grid;
     const long long done = grid + static_cast<long long>(r * period);
     long long asked = pace ? pacer.Target(began, period, 2) : 0;
-    long long earliest = done + 2000000LL;
+    long long earliest = vulkan ? done + latchLead : done + 2000000LL;
     if (asked > 0)
       earliest = std::max(earliest, asked);
     const long long at = start + ((earliest - start + period - 1) / period) * period;
     shots.push_back({began, asked > 0 ? asked + period / 2 : 0, done, at});
     // what the screen reports some swaps later: here at once
-    if (pace)
+    if (pace && !vulkan)
       pacer.Outcome(shots.back().target, done, at);
+    if (pace && vulkan) {
+      // Android's swapchain: the margin from ready to the latch, then whole periods off both while it still fits
+      const long long latch = at - latchLead;
+      long long margin = latch - done, early = at;
+      while (margin > period && early - period > latch) {
+        early -= period;
+        margin -= period;
+      }
+      const long long target = shots.back().target;
+      const long long ready = re4gx::VkReadyFor(target, at, early, margin);
+      // the spare time Outcome sees (target - 2 ms - ready) against the real one (latch - done)
+      if (estimateOff && target > 0 && at == target && std::llabs((target - 2000000LL - ready) - (latch - done)) > 100000LL)
+        ++*estimateOff;
+      pacer.Outcome(target, ready, at);
+    }
   }
   PresentRun out;
   // the screen: at each vsync the newest picture due; an older one due at the same vsync or later is dropped
@@ -2050,6 +2071,38 @@ void TestPresentPacer() {
     c.Behind(v + 300 * per);
     c.Behind(v + 600 * per);
     Check(!c.Aside(), "present pacer: behind now and then (2.5 s apart): still asking");
+  }
+  // Vulkan (1.1.0, VK_GOOGLE_display_timing): the user's 120 Hz Xiaomi showed 41 % of the pictures a vsync early or
+  // late without present times; with them and the swapchain's report the same rhythm as OpenGL ES's
+  {
+    const PresentRun vkOff = PresentSim(false, 1.3, 2.3, 1300, 4711, true);
+    unsigned off = 0, offDeep = 0;
+    const PresentRun vkOn = PresentSim(true, 1.3, 2.3, 1300, 4711, true, &off);
+    // a deeper pipeline: the compositor latches a whole vsync before the screen
+    const PresentRun vkDeep = PresentSim(true, 1.3, 2.3, 1300, 4711, true, &offDeep, 8302889 + 500000LL);
+    const PresentRun vkFast = PresentSim(true, 0.6, 1.2, 1300, 4711, true);
+    std::fprintf(stderr, "  Vulkan without:    %s (%d %% at 2 vsyncs)\n  Vulkan with:       %s (%u shown, %u dropped, "
+                 "%d %% at 2 vsyncs, %.2f vsyncs to the screen, latency %d, spare off %u)\n  Vulkan, deeper:    %s "
+                 "(%d %% at 2 vsyncs, latency %d, %u up, %u down, spare off %u)\n  Vulkan, fast GPU:  %d %% at 2 "
+                 "vsyncs, latency %d, %u down\n",
+                 vkOff.line.c_str(), vkOff.twoShare, vkOn.line.c_str(), vkOn.shown, vkOn.dropped, vkOn.twoShare,
+                 vkOn.delay, vkOn.latency, off, vkDeep.line.c_str(), vkDeep.twoShare, vkDeep.latency, vkDeep.ups,
+                 vkDeep.downs, offDeep, vkFast.twoShare, vkFast.latency, vkFast.downs);
+    Check(vkOff.twoShare < 70, "present pacer (Vulkan): without present times 1 and 3 vsyncs in turn");
+    Check(vkOn.twoShare >= 97 && vkOn.dropped == 0 && vkOn.shown == 1300 && off == 0 && vkOn.latency == 3,
+          "present pacer (Vulkan): with the swapchain's report at least 97 % for 2 vsyncs, none lost, as OpenGL ES");
+    Check(vkDeep.twoShare >= 95 && vkDeep.dropped == 0 && offDeep == 0 && vkDeep.downs == 0,
+          "present pacer (Vulkan): a deeper pipeline: one vsync more, the rhythm holds, no step down into lateness");
+    Check(vkFast.latency == 2 && vkFast.twoShare >= 99, "present pacer (Vulkan): a fast GPU: back to 2 vsyncs");
+    const PresentRun vkSlow = PresentSim(true, 3.6, 5.0, 1300, 4711, true);
+    Check(vkSlow.asides >= 1 && vkSlow.shown + vkSlow.dropped == 1300,
+          "present pacer (Vulkan): a device that does not keep up: the times step aside");
+    // the estimate: a time missing or the earliest after the time shown: not known
+    Check(re4gx::VkReadyFor(0, 100, 100, 1) == 0 && re4gx::VkReadyFor(100, 0, 100, 1) == 0 &&
+              re4gx::VkReadyFor(100, 100, 120, 1) == 0 && re4gx::VkReadyFor(100, 100, 100, -1) == 0,
+          "present pacer (Vulkan): the ready time only from complete times");
+    Check(re4gx::VkReadyFor(20000000, 20000000, 12000000, 1000000) == 9000000,
+          "present pacer (Vulkan): ready = target - 2 ms - the margin as it was (margin + shown - earliest)");
   }
   // only where every n-th vsync is a 60th of a second
   re4gx::PresentPacer p;

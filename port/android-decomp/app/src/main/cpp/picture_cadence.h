@@ -304,6 +304,21 @@ struct PresentPacer {
   }
 };
 
+// Vulkan's present times (VK_GOOGLE_display_timing, 1.1.0): when a picture asked for the vsync `target` (Target's
+// value + period / 2) was ready, as PresentPacer::Outcome takes it (EGL's rendering complete time), from what the
+// swapchain tells. Android's swapchain gives the time shown (`actual`), the earliest it could have been shown
+// (`earliest`: `actual` less whole refresh periods) and its margin: from the picture's being ready to the compositor's
+// latch, less the same periods. The margin as it was (`margin` + `actual` - `earliest`) is the time the picture had to
+// spare before the latch, which is what Outcome judges (its target less kMarginNs less the ready time): so the ready
+// time is put that far before the target, whatever the device's latch is. 0: not known (a time missing).
+inline long long VkReadyFor(long long target, long long actual, long long earliest, long long margin)
+{
+    if (target <= 0 || actual <= 0 || earliest <= 0 || earliest > actual || margin < 0)
+        return 0;
+    const long long ready = target - PresentPacer::kMarginNs - (margin + (actual - earliest));
+    return ready > 0 ? ready : 0;
+}
+
 // Frame skip "Auto" (1.1.0, the project owner's decision of 20.11.2026): the frame skips (the renderer's and the game's
 // own, as "Aggressive") only while the game stays below 30 pictures a second. The game's pace from the chunks' own
 // numbers (Re4GxChunk::sequence counts every chunk the core built, a picture the game left out included, one the

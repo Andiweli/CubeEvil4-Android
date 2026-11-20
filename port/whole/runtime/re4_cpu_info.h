@@ -210,6 +210,7 @@ inline WantedCores& Wanted()
     return w;
 }
 inline bool KeepOnFastCores();  // below
+inline bool RenderCoresNow(cpu_set_t* set);  // below (the render thread's cores as the clocks allow them now)
 
 // Which cores KeepOffSlowCores gives a thread. With three kinds of core (a prime core: the Retroid Pocket Flip 2's
 // Snapdragon 865 has one at 2841 MHz, three at 2419 and four at 1804) the render thread gets the fastest kind alone
@@ -303,7 +304,8 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role =
     }
     Wanted().set = set;
     Wanted().on = true;
-    Wanted().role = prime ? role : kAnyThread;
+    // (1.1.0: the render thread's role also without prime cores: its cores follow the clocks, RenderCoresNow)
+    Wanted().role = prime || role == kRenderThread ? role : kAnyThread;
     return true;
 }
 
@@ -383,10 +385,11 @@ inline bool KeepOnFastCores()
     if (!w.on) {
         return false;
     }
-    // the render thread on prime cores: the fastest cores allowed now (switched off or held back while hot: others)
+    // the render thread: the cores the clocks allow it now (RenderCoresNow, 1.1.0; switched off or held back while hot:
+    // others, with a margin and a pause between two moves)
     if (w.role == kRenderThread) {
         cpu_set_t best;
-        if (FastestCoresNow(GetLayout(), &best)) {
+        if (RenderCoresNow(&best)) {
             w.set = best;
         }
     }
@@ -548,6 +551,175 @@ inline bool PutOnSlowCores(const Layout& l, int tid, cpu_set_t* set, char* out, 
         *set = slow;
     }
     return true;
+}
+
+// The render thread's cores when the maker holds cores back (1.1.0, the project owner's decision of 20.11.2026 after a
+// user's Xiaomi with a Snapdragon 8s Gen 4: the fastest core, the render thread's, held at 633 of 3206 MHz from the
+// 14th minute on while Android said no heat; in a full room 60 FPS fell to 30). Each core is judged by the clock it
+// may reach now (AllowedKHz), the slowest kind's at 45 % (a small core does less than half the work per clock; the
+// middle and the fastest kind count alike: on the Snapdragon 865 both are Cortex-A77, as before 1.1.0 the highest
+// allowed clock wins), an equal one for the faster kind. The render thread goes to the cores of the best group (its
+// kind, its allowed clock) only when that one beats the cores it has by 15 % (back to a faster kind: when it is at
+// least as good) and its last move is 5 s ago:
+// no back and forth. The slowest kind only where the helpers do not go there (HelpersGoSlow) and RE4_RENDER_SLOW is
+// not 0. It starts on the cores KeepOffSlowCores gave it (as before); without a change in the clocks nothing moves.
+struct RenderPick {
+    static constexpr unsigned kMarginPercent = 115;
+    static constexpr double kPause = 5.0;
+    bool have = false;      // `set` is known (the first call takes the thread's cores as they are)
+    cpu_set_t set;
+    double movedAt = -1e9;  // seconds (CLOCK_MONOTONIC) of the last move
+    unsigned moves = 0;
+    char last[160] = "";    // the last move, for the log: "from core 7 (633 MHz allowed) to cores 0 1 (2016 MHz)"
+
+    static unsigned Score(int kind, unsigned khz)
+    {
+        const unsigned percent = kind == 0 ? 45 : 100;
+        return static_cast<unsigned>(static_cast<unsigned long long>(khz) * percent / 100);
+    }
+
+    // `allowed[cpu]`: the clock core cpu may reach now in kHz (0: not readable, its highest then), `online[cpu]`: it is
+    // switched on; `current`: the thread's cores so far (the first call), `slowOk`: the slowest kind may be chosen,
+    // `now` in seconds. True when `set` changed (a move).
+    bool Update(const Layout& l, const unsigned* allowed, const bool* online, const cpu_set_t& current, bool slowOk,
+                double now)
+    {
+        if (!have) {
+            set = current;
+            have = true;
+        }
+        unsigned best = 0, have_ = 0;
+        int bestCpu = -1, bestKind = -1;
+        bool anyOnline = false;
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (!l.maxKHz[cpu] || !online[cpu]) {
+                continue;
+            }
+            const unsigned khz = allowed[cpu] ? allowed[cpu] : l.maxKHz[cpu];
+            const unsigned score = Score(l.Kind(cpu), khz);
+            if (CPU_ISSET(cpu, &set)) {
+                anyOnline = true;
+                have_ = score > have_ ? score : have_;
+            }
+            if (l.Kind(cpu) == 0 && !slowOk && l.slowest != l.fastest) {
+                continue;
+            }
+            if (score > best || (score == best && l.Kind(cpu) > bestKind)) {
+                best = score;
+                bestCpu = cpu;
+                bestKind = l.Kind(cpu);
+            }
+        }
+        if (bestCpu < 0) {
+            return false;
+        }
+        const int kind = l.Kind(bestCpu);
+        const unsigned khz = allowed[bestCpu] ? allowed[bestCpu] : l.maxKHz[bestCpu];
+        cpu_set_t group;
+        CPU_ZERO(&group);
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (l.maxKHz[cpu] && online[cpu] && l.Kind(cpu) == kind &&
+                (allowed[cpu] ? allowed[cpu] : l.maxKHz[cpu]) == khz) {
+                CPU_SET(cpu, &group);
+            }
+        }
+        if (CPU_EQUAL(&group, &set) || CPU_COUNT(&group) == 0) {
+            return false;
+        }
+        // its cores all switched off: at once; otherwise only with the margin (none back to a faster kind) and after
+        // the pause
+        int setKind = -1;
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (CPU_ISSET(cpu, &set) && l.maxKHz[cpu]) {
+                setKind = l.Kind(cpu) > setKind ? l.Kind(cpu) : setKind;
+            }
+        }
+        const unsigned margin = kind > setKind ? 100 : kMarginPercent;
+        if (anyOnline && (static_cast<unsigned long long>(best) * 100 <
+                              static_cast<unsigned long long>(have_) * margin ||
+                          now - movedAt < kPause)) {
+            return false;
+        }
+        // "from core 7 (633 MHz allowed) to cores 0 1 (2016 MHz allowed)"
+        int len = snprintf(last, sizeof(last), "from cores");
+        unsigned fromKHz = 0;
+        for (int cpu = 0; cpu < l.count && len < static_cast<int>(sizeof(last)); cpu++) {
+            if (CPU_ISSET(cpu, &set)) {
+                len += snprintf(last + len, sizeof(last) - len, " %d", cpu);
+                const unsigned a = allowed[cpu] ? allowed[cpu] : l.maxKHz[cpu];
+                fromKHz = a > fromKHz ? a : fromKHz;
+            }
+        }
+        if (len < static_cast<int>(sizeof(last))) {
+            len += snprintf(last + len, sizeof(last) - len, " (%u MHz allowed%s) to cores", fromKHz / 1000,
+                            anyOnline ? "" : ", switched off");
+        }
+        for (int cpu = 0; cpu < l.count && len < static_cast<int>(sizeof(last)); cpu++) {
+            if (CPU_ISSET(cpu, &group)) {
+                len += snprintf(last + len, sizeof(last) - len, " %d", cpu);
+            }
+        }
+        if (len < static_cast<int>(sizeof(last))) {
+            snprintf(last + len, sizeof(last) - len, " (%u MHz allowed, %s kind)", khz / 1000,
+                     kind == 2 ? "the fastest" : kind == 1 ? "the middle" : "the slowest");
+        }
+        set = group;
+        movedAt = now;
+        moves++;
+        return true;
+    }
+};
+
+inline RenderPick& TheRenderPick()
+{
+    static RenderPick pick;  // (one render thread at a time)
+    return pick;
+}
+
+// The render thread's cores now (KeepOnFastCores): the clocks read, RenderPick's choice. False when nothing is known.
+inline bool RenderCoresNow(cpu_set_t* set)
+{
+    const Layout& l = GetLayout();
+    if (!l.fastest || l.count <= 0) {
+        return false;
+    }
+    unsigned allowed[Layout::kMax] = {};
+    bool online[Layout::kMax] = {};
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        online[cpu] = CoreOnline(cpu);
+        allowed[cpu] = online[cpu] ? AllowedKHz(cpu) : 0;
+    }
+    const char* env = getenv("RE4_RENDER_SLOW");
+    const bool slowOk = !(env && *env == '0') && !HelpersGoSlow(l);
+    timespec ts{};
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    RenderPick& pick = TheRenderPick();
+    pick.Update(l, allowed, online, Wanted().set, slowOk, ts.tv_sec + ts.tv_nsec / 1e9);
+    *set = pick.set;
+    return true;
+}
+
+// "clocks now/allowed/highest: 0 1075/2016/2016, 1 ..., 7 633/633/3206 MHz, 6 offline": every core's clock now, the one
+// it may reach now (the maker's or the heat's limit) and its highest (1.1.0, the render thread's minute line).
+inline void DescribeAllClocks(const Layout& l, char* out, size_t size)
+{
+    int len = snprintf(out, size, "clocks now/allowed/highest:");
+    bool any = false;
+    for (int cpu = 0; cpu < l.count && len < static_cast<int>(size); cpu++) {
+        if (!l.maxKHz[cpu]) {
+            continue;
+        }
+        if (!CoreOnline(cpu)) {
+            len += snprintf(out + len, size - len, "%s %d offline", any ? "," : "", cpu);
+        } else {
+            len += snprintf(out + len, size - len, "%s %d %u/%u/%u", any ? "," : "", cpu, CurrentKHz(cpu) / 1000,
+                            AllowedKHz(cpu) / 1000, l.maxKHz[cpu] / 1000);
+        }
+        any = true;
+    }
+    if (len < static_cast<int>(size)) {
+        snprintf(out + len, size - len, any ? " MHz" : " not readable");
+    }
 }
 
 // Thread `tid` back on every core Android allows (after PutOnSlowCores).

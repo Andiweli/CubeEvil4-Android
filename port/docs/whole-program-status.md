@@ -501,6 +501,59 @@ eine Ankunft aus r332 per Spielstand gibt es zum Prüfen nicht).
   weiterhin einmal „position is not a number“ (nur eine Protokollzeile, kein Absturz). **Nicht auf einem Gerät
   geprüft.**
 
+### 20. Vulkan bei 120 Hz und gedrosselte Kerne (Projektinhaber, 20.11.2026: „Bitte unbedingt beide sauber bauen.“)
+
+Aus den Spielerberichten vom 20.11. (`reports/workthread-1.1.0/user-reports-20261120b/analyse-2026-11-20b.md`,
+Xiaomi „onyx“, Snapdragon 8s Gen 4, Vulkan, 120 Hz). Kein Schalter, kein Patch am Spielcode.
+
+1. **Feste Ausgabezeiten auch für Vulkan** (`VK_GOOGLE_display_timing`). Bisher hatte nur OpenGL ES sie
+   (`PresentPacer`, 0.99.13); Vulkan gab jedes Bild an den nächsten freien Takt (`VK_PRESENT_MODE_FIFO_KHR`), im
+   Bericht kamen bei 120 Hz 41 % der Bilder einen Takt zu früh oder zu spät.
+   - `vk_context.cpp`: die Erweiterung wird eingeschaltet, wo das Gerät sie hat (`Context::displayTiming`,
+     `RE4_VK_DISPLAY_TIMING=0`: nie); die beiden Funktionen in `vk_api.h` (optional, sonst aus). Die GPU-Zeile sagt
+     „present times there / not there“.
+   - `gx_vk.cpp` `Present`: vor jedem `vkQueuePresentKHR` die gezeigten Bilder (`vkGetPastPresentationTimingGOOGLE`)
+     und eine Nummer an den Haken des Kerns (`GxRenderer::SetPresentHook`, `GxPresentHook` in `gx_gl.h`), dessen Zeit
+     als `desiredPresentTime` (`VkPresentTimesInfoGOOGLE`); ohne Erweiterung wird der Haken nie gerufen.
+   - `core_mode.cpp` `present::vkHook`: dieselbe Takt-Logik wie OpenGL ES (`PresentPacer::Target`/`Outcome`), unter
+     „Even frame pacing“, mit dem Beiseitetreten für 30 s, wenn der Zeichen-Thread dreimal in 2 s zurückliegt
+     (`noteBehind`, jetzt für beide), und der Zeile „screen pacing (as shown)“ (`noteShown`, für beide); neuer
+     Swapchain: der Takt von vorn. `RE4_GX_PRESENT_TIME=0` schaltet auch hier ab. Logzeilen: „screen pacing (Vulkan):
+     present times there (…)“ bzw. „not there …“, „each picture asked for its vsync … Vulkan“.
+   - Wann das Bild fertig war, sagt Vulkan nicht direkt: `picture_cadence.h` `VkReadyFor` nimmt den Vorsprung vor dem
+     Einlesen des Bildschirms, den Androids Swapchain meldet (`presentMargin` + `actual` − `earliest`, wie in
+     `swapchain.cpp` `TimingInfo::calculate`), als Vorsprung, den `Outcome` bewertet: unabhängig davon, wie früh das
+     Gerät einliest. (Ein erster Ansatz rechnete über „einen Takt vor dem Zeigen“ zurück; die Simulation zeigte, dass er
+     den Vorsprung um einen Takt überschätzt und die Wartezeit dann zu früh senkt: verworfen.)
+   - Nur bei Bildschirmen, deren n-ter Takt eine 60stel Sekunde ist (120, 180, 240 Hz), wie bei OpenGL ES. 90 Hz kann
+     60 Bilder nicht gleichmäßig zeigen (1,5 Takte je Bild).
+2. **Zeichen-Thread weg von gedrosselten Kernen** (`re4_cpu_info.h` `RenderPick`, `RenderCoresNow`). Im Bericht durfte
+   Kern 7 (der des Zeichen-Threads) ab Minute 14 nur noch 633 von 3206 MHz, Android meldete keine Hitze.
+   - Jeder Kern zählt mit dem Takt, den er gerade erreichen darf (`scaling_max_freq`); die kleinste Kernart mit 45 %
+     (weniger als halb so viel Arbeit je Takt), die mittlere und die schnellste gleich (beim Snapdragon 865 sind beide
+     Cortex-A77; wie bisher gewinnt der höchste erlaubte Takt), bei Gleichstand die schnellere Art.
+   - Wechsel nur zur besten Gruppe (eine Kernart, ein erlaubter Takt), wenn sie 15 % besser ist (zurück zu einer
+     schnelleren Art: wenn sie mindestens gleich gut ist) und der letzte Wechsel 5 s her ist; sind alle eigenen Kerne
+     abgeschaltet, sofort. Kein Hin und Her.
+   - Regeln bleiben: nur mit „Performance cores“ (Force Performance) an, er startet auf den Kernen, die
+     `KeepOffSlowCores` ihm gibt (wie bisher); auf die kleinsten Kerne nur, wo die Hilfs-Threads nicht dort sitzen
+     (`HelpersGoSlow`, der Fix für zwei schnelle Kerne aus fd1f1ac6) und `RE4_RENDER_SLOW` nicht 0 ist. Jetzt auch ohne
+     Prime-Kern (zwei Kernarten) für den Zeichen-Thread. Der Spiel-Thread und die Vertex-Threads bleiben, wie sie sind.
+   - Log: „cores: the render thread moved for the clocks from cores 7 (633 MHz allowed) to cores 0 1 (2016 MHz allowed,
+     the slowest kind)“ (die ersten 20, dann jeder 50.) und einmal pro Minute „cores: clocks now/allowed/highest:
+     0 …/…/…, …; the render thread on cores …, now on core …“ (alle Kerne, auch die kleinen). OpenGL ES und Vulkan.
+- **Geprüft am PC:** Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden (neu: `RenderPick` mit den Takten des
+  Berichts: bleibt ohne Drosselung und bei Gleichstand, wechselt bei 2054 MHz auf die mittleren Kerne, wartet die 5 s,
+  kehrt zurück, geht bei 633 MHz auf die kleinen Kerne, nicht wenn `HelpersGoSlow`, kein Pendeln, sofort bei
+  abgeschaltetem Kern); Android-Kern ARM32 und ARM64 0 Fehler; `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler
+  (neu: Simulation des 120-Hz-Bildschirms mit Androids Swapchain-Meldung: ohne Zeiten 47 % der Bilder im
+  2-Takt-Abstand, mit ihnen 100 %, Wartezeit 3 Takte wie OpenGL ES; bei einem Gerät, das einen Takt früher einliest,
+  98 % mit 4 Takten und ohne Absenken in die Verspätung; schnelle GPU zurück auf 2 Takte; ein zu langsames Gerät tritt
+  beiseite); App-Tests und `assembleCoreDebug` ohne Befund.
+- **Nicht geprüft, nur auf einem Gerät möglich:** ob der Treiber des Spielers `VK_GOOGLE_display_timing` hat und die
+  Zeiten einhält (lavapipe am PC zeigt nichts auf einem Bildschirm, die Erweiterung ist dort nicht da); ob HyperOS
+  die kleinen Kerne wirklich schneller lässt als die gedrosselten großen (das zeigt die neue Minutenzeile).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

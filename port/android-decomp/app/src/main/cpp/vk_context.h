@@ -52,6 +52,10 @@ public:
   // VK_EXT_depth_clip_control is on: clip space z from -w to w, as GL's (the GX shaders keep GL's depth formula and
   // round as GL does; lavapipe and newer drivers have it)
   bool depthClipControl = false;
+  // VK_GOOGLE_display_timing is on (1.1.0): each present may ask for its time on the screen and the swapchain tells
+  // when earlier pictures were shown, as OpenGL ES's EGL_ANDROID_presentation_time / get_frame_timestamps (the even
+  // 60 FPS on screens faster than 60 Hz; RE4_VK_DISPLAY_TIMING=0: never)
+  bool displayTiming = false;
   std::atomic<unsigned> validationErrors{0}, validationWarnings{0};
 
   bool HasExtension(const char *name) const;

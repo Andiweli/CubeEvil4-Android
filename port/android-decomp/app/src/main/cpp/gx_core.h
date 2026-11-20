@@ -967,6 +967,9 @@ struct GxCore {
   // the screen to present to (Vulkan: an ANativeWindow; GL draws into the current context's) and its size in pixels
   virtual void SetWindow(void *, int, int) {}
   virtual void SetOverlay(const GxOverlay &) {}
+  // the present times (GxRenderer::PresentTimes; Vulkan only)
+  virtual bool PresentTimes() const { return false; }
+  virtual void SetPresentHook(GxPresentHook, void *) {}
   // the API, the GPU and its driver, for the log and the error report
   virtual std::string ApiInfo() const = 0;
   virtual std::string TimingLine() { return std::string(); }
