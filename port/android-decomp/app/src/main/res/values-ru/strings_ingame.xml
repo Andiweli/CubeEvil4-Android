@@ -169,7 +169,7 @@
 
     <string name="ingame_log">Журнал ошибок</string>
     <string name="ingame_log_help">Записывает отчёт приложения (в том числе после сбоя или зависания). Отчёт содержит журнал этого и предыдущего запуска.</string>
-    <string name="ingame_log_always">Журнал ошибок записывается всегда.</string>
+    <string name="ingame_log_record">Записывать журнал ошибок</string>
     <string name="ingame_log_capture">R3 = снимок графики</string>
     <string name="ingame_report_send">Отправить отчёт …</string>
     <string name="ingame_report_save">Сохранить отчёт …</string>

@@ -171,7 +171,7 @@
 
     <string name="ingame_log">Journal d’erreurs</string>
     <string name="ingame_log_help">Enregistre un rapport de l’application (même après un plantage ou un blocage). Le rapport contient le journal de cette session et de la précédente.</string>
-    <string name="ingame_log_always">Le journal d’erreurs est toujours enregistré.</string>
+    <string name="ingame_log_record">Enregistrer le journal d’erreurs</string>
     <string name="ingame_log_capture">R3 = Capture graphique</string>
     <string name="ingame_report_send">Envoyer le rapport …</string>
     <string name="ingame_report_save">Enregistrer le rapport …</string>

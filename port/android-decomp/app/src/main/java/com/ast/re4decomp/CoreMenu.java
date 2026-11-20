@@ -63,6 +63,7 @@ final class CoreMenu extends Dialog {
     void cancelTexturePackImport();
     void shareReport();
     void saveReport();
+    void logChanged(boolean on);
     void toolsChanged(boolean on);
     void fpsChanged(int place);  // CoreActivity.FPS_PLACE: 0 off, 1..4 where
     /** The setting "Touch Controls": TouchShowRule.AUTO, FORCE or SUPPRESS (the preferences hold it). */
@@ -1911,13 +1912,9 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_discs); help(R.string.ingame_discs_help);
     cellAction(buttonsRow(body), s(R.string.ingame_import_discs), v -> askImportDiscs());
     heading(R.string.ingame_log); help(R.string.ingame_log_help);
-    // the error log is always recorded (1.1.0, the project owner, 20.11.2026: "Der Button 'Fehlerprotokoll
-    // aufzeichnen' unter 'Management' soll immer aktiv sein"; CoreLog.enabled): a fixed note instead of its switch
-    TextView always = text(s(R.string.ingame_log_always), 15, true);
-    always.setTextColor(GOLD);
-    always.setPadding(dp(MenuLayout.GAP), dp(2), dp(MenuLayout.GAP), dp(2));
-    body.addView(always);
     MenuLayout.Buttons log = buttonsRow(body);
+    // (on by default: CoreLog.enabled; the project owner, 21.11.2026: "soll per default aktiv sein")
+    toggle(log, R.string.ingame_log_record, CoreLog.enabled(getContext()), on -> host.logChanged(on));
     toggle(log, R.string.ingame_log_capture, tools, on -> { tools = on; host.toolsChanged(on); });
     MenuLayout.Buttons reports = buttonsRow(body);
     cellAction(reports, s(R.string.ingame_report_send), v -> host.shareReport());

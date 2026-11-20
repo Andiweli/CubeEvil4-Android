@@ -170,7 +170,7 @@
 
     <string name="ingame_log">错误日志</string>
     <string name="ingame_log_help">记录应用的报告（崩溃或卡死时也会记录）。报告包含本次和上一次运行的日志。</string>
-    <string name="ingame_log_always">错误日志始终会被记录。</string>
+    <string name="ingame_log_record">记录错误日志</string>
     <string name="ingame_log_capture">R3 = 图形捕获</string>
     <string name="ingame_report_send">发送报告…</string>
     <string name="ingame_report_save">保存报告…</string>

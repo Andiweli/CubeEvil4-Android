@@ -1228,6 +1228,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       startForResult(i, REQUEST_REPORT);
     }
 
+    @Override public void logChanged(boolean on) { CoreLog.setEnabled(CoreActivity.this, on); }
 
     @Override public void toolsChanged(boolean on) {
       tools = on || settings.contains("RE4_APP_TOOLS=1");

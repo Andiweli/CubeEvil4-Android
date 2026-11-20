@@ -173,7 +173,7 @@
 
     <string name="ingame_log">سجل الأخطاء</string>
     <string name="ingame_log_help">يسجّل تقريرًا للتطبيق (حتى بعد تعطّله أو توقّفه عن الاستجابة). يحتوي التقرير على سجل هذا التشغيل والتشغيل السابق.</string>
-    <string name="ingame_log_always">يُسجَّل سجل الأخطاء دائمًا.</string>
+    <string name="ingame_log_record">تسجيل سجل الأخطاء</string>
     <string name="ingame_log_capture">&#x200F;R3 = التقاط الرسومات</string>
     <string name="ingame_report_send">إرسال التقرير …</string>
     <string name="ingame_report_save">حفظ التقرير …</string>

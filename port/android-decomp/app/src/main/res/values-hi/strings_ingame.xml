@@ -169,7 +169,7 @@
 
     <string name="ingame_log">त्रुटि लॉग</string>
     <string name="ingame_log_help">ऐप की रिपोर्ट रिकॉर्ड करता है (क्रैश होने या अटकने पर भी)। रिपोर्ट में इस और पिछले रन का लॉग होता है।</string>
-    <string name="ingame_log_always">त्रुटि लॉग हमेशा रिकॉर्ड होता है।</string>
+    <string name="ingame_log_record">त्रुटि लॉग रिकॉर्ड करें</string>
     <string name="ingame_log_capture">R3 = ग्राफ़िक्स कैप्चर</string>
     <string name="ingame_report_send">रिपोर्ट भेजें …</string>
     <string name="ingame_report_save">रिपोर्ट सहेजें …</string>

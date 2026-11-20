@@ -281,10 +281,10 @@ public class CoreMenuRowsTest {
     return x;
   }
 
-  /** 1.1.0 (the project owner, 20.11.2026), in every language: under "Device" the controller's "Force controller
+  /** 1.1.0 (the project owner, 20./21.11.2026), in every language: under "Device" the controller's "Force controller
    *  detection" or the keyboard's "Reload without aiming", as wide as the device's buttons; the mouse's sensitivity on
-   *  one line from 520 dp up, its slider not left of the device's buttons; the error log always recorded (a note, no
-   *  switch); "Source and updates" also at the bottom of the main page. */
+   *  one line from 520 dp up, its slider not left of the device's buttons; "Record the error log" a switch, on by
+   *  default; "Source and updates" at the bottom of Management and of the main page. */
   @Test public void menuChanges110() throws Exception {
     Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
     java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
@@ -295,9 +295,7 @@ public class CoreMenuRowsTest {
         Configuration config = new Configuration(activity.getResources().getConfiguration());
         config.setLocale(Locale.forLanguageTag(language));
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
-        activity.getSharedPreferences(CoreLog.PREFS, android.content.Context.MODE_PRIVATE).edit()
-            .putBoolean(CoreLog.RECORD, false).commit();
-        assertTrue(language + ": the error log always on, also switched off before", CoreLog.enabled(activity));
+        assertTrue(language + ": the error log on by default", CoreLog.enabled(activity));
         CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
         View root = (View) CoreMenuLayoutTest.field(menu, "root");
         root.setLayoutDirection(config.getLayoutDirection());
@@ -335,8 +333,10 @@ public class CoreMenuRowsTest {
           checked++;
         }
         show.invoke(menu, 6, false);
-        assertNotNull(language + ": the error log's note", textIn(root, activity.getString(R.string.ingame_log_always)));
+        assertNotNull(language + ": the error log's switch", buttonWith(root, activity.getString(R.string.ingame_log_record)));
         assertNotNull(language + ": graphics capture kept", buttonWith(root, activity.getString(R.string.ingame_log_capture)));
+        assertNotNull(language + ": Management's source link",
+            buttonWith(root, activity.getString(R.string.ingame_source_line, CoreMenu.SOURCE_URL)));
         show.invoke(menu, 0, false);
         assertNotNull(language + ": the main page's source link",
             buttonWith(root, activity.getString(R.string.ingame_source_line, CoreMenu.SOURCE_URL)));

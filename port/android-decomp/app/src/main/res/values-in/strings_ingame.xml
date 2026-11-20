@@ -170,7 +170,7 @@
 
     <string name="ingame_log">Log kesalahan</string>
     <string name="ingame_log_help">Merekam laporan aplikasi (juga saat crash atau macet). Laporan berisi log dari sesi ini dan sesi sebelumnya.</string>
-    <string name="ingame_log_always">Log kesalahan selalu direkam.</string>
+    <string name="ingame_log_record">Rekam log kesalahan</string>
     <string name="ingame_log_capture">R3 = Tangkapan grafis</string>
     <string name="ingame_report_send">Kirim laporan …</string>
     <string name="ingame_report_save">Simpan laporan …</string>
