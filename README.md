@@ -373,11 +373,27 @@ purpose. Constants use the PS2 build's enums. `docs/naming.md` has the details.
 See `CONTRIBUTING.md` for the build, the three checks a change has to pass and the rules. The main rule
 is that the output bytes never change.
 
+## Official sources and forks
+
+CubeEvil4 is developed by **Andiweli**. Official releases come only from:
+
+- this repository's [Releases](https://github.com/Andiweli/CubeEvil4-Android/releases)
+- the CubeEvil4 [Discord](https://discord.gg/AB3WVBqD5G)
+
+Forks are welcome, the license allows them. If you publish one:
+
+- keep "CubeEvil4 by Andiweli", the link to this repository and the license;
+- give your version a name of its own ("… based on CubeEvil4" is fine);
+- say what you changed;
+- do not present it as the official CubeEvil4 or as your own development.
+
+The exact terms are in [port/LICENSE](port/LICENSE), "Additional terms".
+
 ## License
 
 | What | Whose | License |
 |---|---|---|
-| The Android port CubeEvil4 in `port/`: the app, the renderer, the runtime, the patches, the Texture Packer, the tools and the documents | Andiweli | GPL-3.0-or-later, with an additional permission for the game code: [port/LICENSE](port/LICENSE) |
+| The Android port CubeEvil4 in `port/`: the app, the renderer, the runtime, the patches, the Texture Packer, the tools and the documents | Andiweli | GPL-3.0-or-later, with an additional permission for the game code and, from 20 November 2026, additional terms (attribution, modified versions, the name): [port/LICENSE](port/LICENSE) |
 | The decompilation's own tools, configuration and documentation (`configure.py`, `tools/`, `config/`, `docs/`) | the decompilation's authors | CC0 1.0: [LICENSE](LICENSE) |
 | The game code (`src/`, `include/`) | Capcom | none of these: Capcom's property |
 | The GameCube SDK and the CRI middleware (`src/lib/`) | Nintendo, CRI Middleware | none of these: their property |
