@@ -362,6 +362,24 @@ Aus der Durchsicht `reports/fork-checks/re4wii-android-2026-11-20.md` (GPL-3.0-o
   Bild; Standard Aus, Empfehlung SGSR. **Nicht auf einem Gerät geprüft.**
 - **C. PGO:** gemessen +2,1 % langsamer (`port/docs/pgo.md`), nicht eingebaut; Schalter `RE4_PGO` bleibt.
 
+### 16. Lebensbalken: durch Türen sichtbar, Sprung auf die Waffe (Gerätetest des Projektinhabers, 20.11.2026)
+
+- **Durch geschlossene Türen:** Türen (`cEmDoor`, id 0x41) haben eigene Kollisionsteile im `EatMgr`
+  (`emDoorSatSet`) mit `EAT_ATTR_SMALL_NOHIT` (0x400000, die Tür nimmt die Kugeln selbst); der Sichttest fragt wie der
+  Zieltest des Spiels mit `SAT_TYPE_SMALL` (0x800) und ließ sie aus. Neu `doorBetween` in `runtime/health_bars.cpp`:
+  die Strecke Kamera–Kopf (und Kamera–Zielpunkt) gegen alle Polygone der Türteile (`At_poly_line_ck`); die Teile drehen
+  mit dem Türblatt, eine offene Tür lässt durch, zerbrochene Scheiben fallen weg. Gittertore (`emBarred`) und Regale
+  tragen dasselbe Merkmal und bleiben durchsichtig; Wände blockten schon (`EatMgr`, seit 7d6963d0, Gegner über/unter
+  Leon unverändert). Bilder r111 (Tür vorher/jetzt/offen): `RE4_TEST_HB_DOOR="F[:open][:N]"`, Vergleich alt
+  `RE4_HB_NO_DOORS=1`; Log-Zusammenfassung zählt „sight lines through a door“.
+- **Sprung auf die Waffe:** der Anker war das höchste Teil des Modells; beim Ausholen die Hand (gemessen bis 48 cm über
+  und 62 cm neben dem Kopf; dann war der Balken oft ganz weg). Neu `anchorOf`: bei den Menschen 0x10..0x20 (ohne 0x18,
+  nicht in der Plaga-Phase) das Kopfteil 4 (wie `em10NeckMove` und der Spieler), sonst wie bisher das höchste Teil;
+  kleine Sprünge (< 40 cm) halbiert. Geprüft mit `RE4_TEST_HB_NEAR=F` (Gegner vor Leon) in r106, r107, r111, r202,
+  r208, r303, r30b; Vergleich alt `RE4_HB_OLD_ANCHOR=1`; Zealots 0x11 nie neben dem Kopf. PC-Bilder im Notizordner
+  `111-hb-*.png`. **Nicht auf einem Gerät geprüft.** Nebenbefund: ein Zealot in r202 (Typ 7) hat 1 von 900 Leben und
+  zeigt einen fast leeren Balken (so schon vorher).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

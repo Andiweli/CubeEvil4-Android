@@ -21,9 +21,11 @@
 //    partner (Ashley, Luis: ids below 0x10, the sub characters). The Plaga dogs 0x22, the parasites 0x25, the bosses
 //    (Del Lago 0x2F too) keep theirs. Alive (hp > 0), drawn by
 //    the game (cModel::isTrans), within 30 m of the camera, in front of it and on the screen, no wall between.
-//  - Where: 25 cm above the highest part of its model (the head; a boss's top), centred on that part, the width by the distance (14 to 44
-//    of the 512 units of the game's screen), a dark frame and the missing part dark grey. "No wall between": the sight
-//    and shot collision from the camera to the head or the aim point (see clearLine).
+//  - Where: 25 cm above the head, centred on it: the humanoids' head part (see anchorOf; a raised axe or sickle no
+//    longer pulls it away), the other enemies' highest part (a boss's top); small jumps smoothed. The width by the
+//    distance (14 to 44 of the 512 units of the game's screen), a dark frame and the missing part dark grey. "No wall
+//    between": the sight and shot collision from the camera to the head or the aim point, and closed doors (see
+//    clearLine, doorBetween).
 //  - Not: in events and films (STA_EVENT, a movie, a door scene), with a sub screen (case, map, files), while the
 //    game's pictures stand (SYS_TRANS_STOP), with the game not in play (Rno0 3).
 #include "types.h"
@@ -42,6 +44,7 @@
 #include "gx.h"
 #include "em3c.h"
 #include "em10.h"
+#include "emdoor.h"
 #include "vec.h"
 #include "re4_gx_fifo.h"
 
@@ -171,6 +174,104 @@ Vec topOf(cEm* e)
     return top;
 }
 
+// The part `no` by the parts' own chain (getPartsPtr does not check the end of a sequential list)
+cParts* partAt(cEm* e, int no)
+{
+    cParts* part = e->pList;
+    for (int i = 0; part && i < no && i < 128; i++) {
+        part = part->pList;
+    }
+    return part;
+}
+
+// Where the bar sits: the head of a humanoid (the Ganados, Zealots and soldiers 0x10..0x20, em10's skeleton: part 4,
+// the head em10NeckMove turns, as the player's own), not in the Plaga phase (the head gone); else the top of the model.
+// The highest part was the hand with a raised axe or sickle at times (the project owner's device test, 20.11.2026:
+// "springt die Healthbar ... auf über die Waffe").
+Vec anchorOf(cEm* e)
+{
+    // RE4_HB_OLD_ANCHOR=1 (a PC comparison only): the highest part, as before
+    static const bool old = getenv("RE4_HB_OLD_ANCHOR") != 0;
+    if (!old && e->id >= 0x10 && e->id <= 0x20 && e->id != 0x18 && !plagaPhase(e)) {
+        if (cParts* head = partAt(e, 4)) {
+            const Vec h = head->world;
+            const f32 dx = h.x - e->pos.x, dz = h.z - e->pos.z;
+            if (h.y > e->pos.y - 500.0f && h.y < e->pos.y + 3500.0f && dx * dx + dz * dz < 2000.0f * 2000.0f) {
+                return h;
+            }
+        }
+    }
+    return topOf(e);
+}
+
+// The anchor of the frame before, by the enemy's slot: a jump of less than 40 cm is halved (the head's bob, a top
+// part changing), a larger one or a new enemy taken at once
+struct Anchor {
+    const cEm* e;
+    u32 frame;
+    Vec v;
+};
+Anchor gAnchor[256];
+
+Vec smoothed(u32 slot, cEm* e, const Vec& now)
+{
+    if (slot >= 256) {
+        return now;
+    }
+    Anchor& a = gAnchor[slot];
+    const u32 frame = (u32) pG->Frame_cnt;
+    const f32 dx = now.x - a.v.x, dy = now.y - a.v.y, dz = now.z - a.v.z;
+    if (a.e == e && frame - a.frame <= 2 && dx * dx + dy * dy + dz * dz < 400.0f * 400.0f) {
+        a.v.x += dx * 0.5f;
+        a.v.y += dy * 0.5f;
+        a.v.z += dz * 0.5f;
+    } else {
+        a.v = now;
+    }
+    a.e = e;
+    a.frame = frame;
+    return a.v;
+}
+
+// The doors (cEmDoor, construct id 0x41) between a and b: their effect collision pieces (emdoor.cpp emDoorSatSet: the
+// leaf, the panel above it, the panes; turning with the leaf as it opens, a broken pane's piece gone) carry
+// EAT_ATTR_SMALL_NOHIT (the door takes the bullets itself), which the sight test below leaves out as the game's aim
+// test does. The project owner's device test, 20.11.2026: a bar through a closed door. Barred gates and racks carry
+// the same attribute and stay see-through.
+unsigned gDoorLines;  // the sight lines a door blocked (the summary in the log)
+
+bool doorBetween(const Vec& a, const Vec& b)
+{
+    // RE4_HB_NO_DOORS=1 (a PC comparison only): without this test, as before
+    static const bool off = getenv("RE4_HB_NO_DOORS") != 0;
+    if (off) {
+        return false;
+    }
+    for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (!e || !e->isAlive() || e->id != 0x41 || e->hp <= 0) {
+            continue;
+        }
+        FREE_EMDOOR* w = EMDOOR_WK(e);
+        for (int k = 1; k < 6; k++) {
+            cSat* sat = w->pSat[k];
+            if (!sat || !sat->isAlive() || !sat->poly_p) {
+                continue;
+            }
+            Vec pa = a, pb = b, la, lb, cross;
+            PSMTXMultVec(sat->imat, &pa, &la);
+            PSMTXMultVec(sat->imat, &pb, &lb);
+            for (u32 n = 0; n < sat->polygon_num; n++) {
+                if (At_poly_line_ck(sat, &cross, &sat->poly_p[n], &la, &lb, 0, 0)) {
+                    gDoorLines++;
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 // A clear sight from the camera: the room's sight and shot collision (EatMgr, flag 0x800), as the game's own aim
 // test asks it (pl_wep.cpp, the lock-on target's visibility); not the walking collision (SatMgr), whose invisible
 // edges of balconies, upper floors and ledges hid the bars when Leon stood above or below an enemy (the project
@@ -183,7 +284,7 @@ bool clearLine(const Vec& a, const Vec& b)
     if (walking) {
         return SatMgr.hitCheck(&p, &q, &hit, 0, 0, 0) == 0;
     }
-    return EatMgr.hitCheck(&p, &q, 0, 0, 0x800, 0) == 0;
+    return EatMgr.hitCheck(&p, &q, 0, 0, 0x800, 0) == 0 && !doorBetween(a, b);
 }
 
 // Seen from the camera: the bar's point above the head or the enemy's own aim point (its lock-on part and offset)
@@ -192,11 +293,8 @@ bool seen(const Vec& cam, const Vec& top, cEm* e)
     if (clearLine(cam, top)) {
         return true;
     }
-    // the lock-on part by the parts' own chain (getPartsPtr does not check the end of a sequential list)
-    cParts* part = e->pList;
-    for (int i = 0; part && i < (int) e->lockParts && i < 128; i++) {
-        part = part->pList;
-    }
+    // the lock-on part
+    cParts* part = partAt(e, (int) e->lockParts);
     if (!part) {
         return false;
     }
@@ -352,6 +450,134 @@ void testPlaga()
             "%d)", pick->id, (int) pick->type, sqrtf(pick->l_pl) / 1000.0f, pick->hp_max);
 }
 
+// For the pictures on the PC: RE4_TEST_HB_DOOR="F[:open][:DOOR]": from game frame F on for 200 frames, the player
+// stands 3.5 m in front of door number DOOR (by the list order, 0 the first; id 0x41) facing it and the nearest
+// listed enemy 1.2 m behind it, both held there; ":open" opens the door at F + 30 (cEmDoor::setOpen, away from the
+// player)
+void testDoor()
+{
+    static const char* v = getenv("RE4_TEST_HB_DOOR");
+    static long from = v ? strtol(v, 0, 10) : -1;
+    static const bool open = v && strstr(v, ":open");
+    static const int pick = v && strrchr(v, ':') && strrchr(v, ':')[1] >= '0' && strrchr(v, ':')[1] <= '9'
+                                ? atoi(strrchr(v, ':') + 1)
+                                : 0;
+    static cEm* enemy;
+    if (from < 0 || (long) pG->Frame_cnt < from || !pPL) {
+        return;
+    }
+    const long t = (long) pG->Frame_cnt - from;
+    if (t > 200) {
+        from = -1;
+        return;
+    }
+    cEm* door = 0;
+    int n = 0;
+    for (u32 i = 0; i < EmMgr.getArrayNum() && !door; i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (e && e->isAlive() && e->id == 0x41 && e->hp > 0 && n++ == pick) {
+            door = e;
+        }
+    }
+    if (!door) {
+        re4_log("health bars: RE4_TEST_HB_DOOR: no door %d", pick);
+        from = -1;
+        return;
+    }
+    FREE_EMDOOR* w = EMDOOR_WK(door);
+    // the closed door's middle at the floor and its face (base_mat: closed door -> world, its x the door's width)
+    const Vec mid = {w->base_mat[0][3], door->pos.y, w->base_mat[2][3]};
+    f32 nx = w->base_mat[0][2], nz = w->base_mat[2][2];
+    const f32 len = sqrtf(nx * nx + nz * nz);
+    nx = len > 0.0f ? nx / len : 0.0f;
+    nz = len > 0.0f ? nz / len : 1.0f;
+    if (t == 0) {
+        enemy = 0;
+        for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (e && e->isAlive() && listed(e->id) && !traderForm(e) && e->hp > 0 && (!enemy || e->l_pl < enemy->l_pl)) {
+                enemy = e;
+            }
+        }
+        re4_log("health bars: RE4_TEST_HB_DOOR: door %d type %d at (%.0f %.0f %.0f), face (%.2f %.2f), enemy id 0x%02x%s",
+                pick, (int) door->type, mid.x, mid.y, mid.z, nx, nz, enemy ? enemy->id : 0, open ? ", opened" : "");
+    }
+    Vec pos = {mid.x + nx * 3500.0f, mid.y, mid.z + nz * 3500.0f};
+    Vec ang = {0.0f, atan2f(-nx, -nz), 0.0f};
+    pPL->setPos(&pos);
+    pPL->setAng(&ang);
+    if (enemy && enemy->isAlive()) {
+        enemy->setPos(mid.x - nx * 1200.0f, mid.y, mid.z - nz * 1200.0f);
+        enemy->ang.y = ang.y + 3.1415927f;
+    }
+    if (open && t == 30) {
+        ((cEmDoor*) door)->setOpen(&pPL->pos, 0, 1, 0);
+    }
+}
+
+// For the PC checks: the old anchor (the highest part) away from the head by more than 25 cm, a line per enemy and
+// room (the project owner's device test, 20.11.2026: the bar on a raised axe)
+void logAnchor(cEm* e, const Vec& head)
+{
+    const Vec top = topOf(e);
+    const f32 dx = top.x - head.x, dy = top.y - head.y, dz = top.z - head.z;
+    if (dx * dx + dy * dy + dz * dz < 250.0f * 250.0f) {
+        return;
+    }
+    // RE4_HB_LOG_ANCHOR=1 (PC pictures): every frame, not once per enemy and room
+    static const bool all = getenv("RE4_HB_LOG_ANCHOR") != 0;
+    if (all) {
+        re4_log("health bars: anchor: frame %u enemy id 0x%02x slot %p: the highest part %.0f cm from the head (%.0f "
+                "cm higher)", (unsigned) pG->Frame_cnt, e->id, (const void*) e,
+                sqrtf(dx * dx + dy * dy + dz * dz) / 10.0f, dy / 10.0f);
+        return;
+    }
+    static const cEm* logged[32];
+    static unsigned room = ~0u, count;
+    if (room != (unsigned) pG->room_id) {
+        room = (unsigned) pG->room_id;
+        count = 0;
+        memset(logged, 0, sizeof(logged));
+    }
+    for (unsigned k = 0; k < count; k++) {
+        if (logged[k] == e) {
+            return;
+        }
+    }
+    if (count < 32) {
+        logged[count++] = e;
+        re4_log("health bars: r%03x frame %u: enemy id 0x%02x: the highest part %.0f cm from the head (%.0f cm "
+                "higher), the bar stays on the head", (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, e->id,
+                sqrtf(dx * dx + dy * dy + dz * dz) / 10.0f, dy / 10.0f);
+    }
+}
+
+// For the pictures on the PC: RE4_TEST_HB_NEAR="F": at game frame F the nearest listed enemy is put 1.8 m in front
+// of the player, facing him, once (then it attacks as it will)
+void testNear()
+{
+    static long frame = getenv("RE4_TEST_HB_NEAR") ? strtol(getenv("RE4_TEST_HB_NEAR"), 0, 10) : -1;
+    if (frame < 0 || (long) pG->Frame_cnt < frame || !pPL) {
+        return;
+    }
+    frame = -1;
+    cEm* pick = 0;
+    for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (e && e->isAlive() && listed(e->id) && !traderForm(e) && e->hp > 0 && (!pick || e->l_pl < pick->l_pl)) {
+            pick = e;
+        }
+    }
+    if (!pick) {
+        re4_log("health bars: RE4_TEST_HB_NEAR: no enemy");
+        return;
+    }
+    pick->setPos(pPL->pos.x + 1800.0f * sinf(pPL->ang.y), pPL->pos.y, pPL->pos.z + 1800.0f * cosf(pPL->ang.y));
+    pick->ang.y = pPL->ang.y + (pPL->ang.y > 0.0f ? -3.1415927f : 3.1415927f);
+    re4_log("health bars: RE4_TEST_HB_NEAR: enemy id 0x%02x type %d at %p put in front of the player", pick->id,
+            (int) pick->type, (const void*) pick);
+}
+
 unsigned gLines, gSums;
 // why enemies were left out (a line every 300 frames while any is listed)
 struct Count {
@@ -449,6 +675,8 @@ void re4_health_bars(void)
     }
     testHp();
     testPlaga();
+    testDoor();
+    testNear();
     Frame* f = (Frame*) GetPrimBuff(sizeof(Frame));
     if (!f) {
         return;
@@ -471,7 +699,9 @@ void re4_health_bars(void)
             continue;
         }
         gCount.listed++;
-        Vec top = topOf(e);
+        const Vec anchor = anchorOf(e);
+        logAnchor(e, anchor);
+        Vec top = smoothed(i, e, anchor);
         top.y += 250.0f;
         const f32 dx = top.x - cam.x, dy = top.y - cam.y, dz = top.z - cam.z;
         const f32 dist = sqrtf(dx * dx + dy * dy + dz * dz);
@@ -554,11 +784,34 @@ void re4_health_bars(void)
     }
     if (gCount.listed && pG->Frame_cnt % 300 == 0 && gSums < 40) {
         gSums++;
+        unsigned doors = 0, pieces = 0;
+        for (u32 i = 0; i < EmMgr.getArrayNum(); i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (e && e->isAlive() && e->id == 0x41) {
+                doors++;
+                for (int k = 1; k < 6; k++) {
+                    cSat* sat = EMDOOR_WK(e)->pSat[k];
+                    pieces += sat && sat->isAlive() ? 1 : 0;
+                }
+            }
+        }
+        re4_log("health bars: r%03x: %u doors, %u of their collision pieces on", (unsigned) pG->room_id, doors, pieces);
+        // RE4_HB_LOG_POS=1 (PC checks): where the player, the doors and the listed enemies are
+        static const bool where = getenv("RE4_HB_LOG_POS") != 0;
+        for (u32 i = 0; where && i < EmMgr.getArrayNum(); i++) {
+            cEm* e = EmMgr.fastAt(i);
+            if (e && e->isAlive() && (e->id == 0x41 || listed(e->id) || (cEm*) e == (cEm*) pPL)) {
+                re4_log("health bars: where: id 0x%02x hp %d at (%.0f %.0f %.0f) ang %.2f", e->id, e->hp, e->pos.x,
+                        e->pos.y, e->pos.z, e->ang.y);
+            }
+        }
         re4_log("health bars: r%03x frame %u: %u enemies, %u bars; left out: %u far, %u behind the camera, %u off the "
-                "screen, %u behind a wall", (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, gCount.listed,
-                gCount.shown, gCount.far, gCount.behind, gCount.off, gCount.wall);
+                "screen, %u behind a wall (%u sight lines through a door)", (unsigned) pG->room_id,
+                (unsigned) pG->Frame_cnt, gCount.listed, gCount.shown, gCount.far, gCount.behind, gCount.off,
+                gCount.wall, gDoorLines);
     }
     gCount = Count();
+    gDoorLines = 0;
     if (f->n > 0) {
         AddOtDirect(0x13, f, (void (*)()) draw, 0xFFFF, 0x1000, 0, 0.0f);
     }
