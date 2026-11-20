@@ -80,6 +80,7 @@
 #include "pl_npc.h"
 #include "puzzle.h"
 #include <dolphin/dvd.h>
+#include "re4_mem1_map.h"
 
 #include <algorithm>
 
@@ -518,15 +519,16 @@ void hook(unsigned frame)
 
 // Leon's player archive for a stand-in (the events, the radio screen, what the character's archive
 // lacks) and Krauser's weapon buffer (read.cpp: Game.omake_wep_addr, made by gameInit only for his own
-// game), in the development half of MEM1 that nothing else uses (re4_runtime.h: the core's and the
-// option data's second places end at 0x82000000)
-const u32 kLeonArcAddr = 0x82000000u;
+// game), in the cheats' place of MEM1 that nothing else uses (re4_mem1_map.h RE4_MEM1_CHEAT_ADDR, 5 MB; until 1.1.0
+// at 0x82000000, now above the larger heaps)
+const u32 kLeonArcAddr = RE4_MEM1_CHEAT_ADDR;
 const u32 kLeonArcMax = 0x118000u;  // read.cpp ReadPlayerData: Leon's limit
-const u32 kWepPlaceAddr = 0x82200000u;
+const u32 kWepPlaceAddr = RE4_MEM1_CHEAT_ADDR + 0x200000u;
 // Ada's own right hands for Leon's weapons (patch 0196): her handgun's, TMP's and rifle's files (their grip
 // hands 0xA, 0xC, 0xD, as wep38/39/40.cpp give initWepHand), each in a place of 0x80000 after Krauser's
 // buffer (WEP_DATA_MAX 0x70000)
-const u32 kAdaGripAddr[3] = {0x82300000u, 0x82380000u, 0x82400000u};
+const u32 kAdaGripAddr[3] = {RE4_MEM1_CHEAT_ADDR + 0x300000u, RE4_MEM1_CHEAT_ADDR + 0x380000u,
+                             RE4_MEM1_CHEAT_ADDR + 0x400000u};
 const u32 kAdaGripMax = 0x80000u;
 const char* const kAdaGripFile[3] = {"em/wep38.drs", "em/wep39.drs", "em/wep40.drs"};
 const u8 kAdaGripNo[3] = {0xA, 0xC, 0xD};
@@ -547,8 +549,10 @@ int gAdaGrips;  // bit k: kAdaGripFile[k] read
 // empty tag: the entry whose data it shares). Left out: Ada's em4d entry 0x18E, the stun rod Ganado's weapon
 // model, no motion. Leon and the stand-ins' own Mercenaries are not touched (only while a stand-in plays the
 // story).
-const u32 kSetAddr = 0x82480000u;
+const u32 kSetAddr = RE4_MEM1_CHEAT_ADDR + 0x480000u;
 const u32 kSetMax = 0x60000u;  // Ada's set: 0x41700 bytes
+// (the set and the scratch behind it, 0x400 bytes, inside the cheats' place)
+static_assert(0x480000u + 0x60000u + 0x400u <= RE4_MEM1_CHEAT_MAX, "the cheats' places outgrow RE4_MEM1_CHEAT_MAX");
 const unsigned kSetLo = 0xFB;
 const unsigned kSetHi = 0x2BD;
 const unsigned kMeleeFirst = 0x2B4;  // the melee block, missing in the story's files

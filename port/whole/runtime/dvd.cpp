@@ -337,7 +337,7 @@ bool insertDisc(int no)
                     d.release == RE4_DISC_RETAIL_JP ? "Japanese" : "European");
         }
     }
-    // the top of retail memory (ILP32), on LP64 above the higher heap end
+    // above the game's heaps (re4_mem1_map.h), at the top of its place
     u32 top = RE4_MEM1_FST_ADDR + RE4_MEM1_FST_MAX;
     u32 fstAddr = (top - d.fstSize) & ~31u;
     if (d.fstSize > RE4_MEM1_FST_MAX) {

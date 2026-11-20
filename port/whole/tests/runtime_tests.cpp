@@ -760,8 +760,8 @@ static void testTasks()
         re4_log("  trace: %s", gTrace);
     }
     CHECK(TaskStatus(3) == 0 && TaskStatus(1) != 0);
-    // the game's heaps end where the runtime puts the FST (lp64_sizes.json Heap_end_addr and
-    // RE4_MEM1_LP64_HEAP_EXTRA: 0x817F4000 on ILP32, 1 MB higher on LP64)
+    // the game's heaps end where the runtime puts the FST (patch 0245 Heap_end_addr and re4_mem1_map.h
+    // RE4_MEM1_HEAP_END: 0x826F4000 on ILP32 and LP64 since 1.1.0)
     CHECK(gHeapEnd == RE4_MEM1_FST_ADDR);
     if (gHeapEnd != RE4_MEM1_FST_ADDR) {
         re4_log("  heap end 0x%lx, FST at 0x%x", gHeapEnd, RE4_MEM1_FST_ADDR);

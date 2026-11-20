@@ -271,6 +271,7 @@
 //   die: area 0x05 id 0 on 1 trg 1: floor .. (corners), for 1    each area hit, at most 8
 //   pl: Leon's position is not a number in r21d (frame N, M frames after the room started)
 #include "types.h"
+#include "re4_mem1_map.h"
 #include "em.h"
 #include "em10.h"
 #include "emwep.h"
@@ -2257,12 +2258,12 @@ void frame(unsigned n)
     // RE4_TEST_PL_MOTION: an archive motion IDX (and sequence SEQ) on the player as the player routines start
     // them (MotionSetCore ..., 3, 1, 0), held in routine 6/1 (pl_R0_Dijection only moves the motion on): what a
     // stand-in looks like with a motion of Leon's it lacks (cheats.cpp re4_arc_stand_in; 0.99.3, Ada's pose).
-    // Leon's own archive with Leon, else his copy at 0x82000000 (cheats.cpp kLeonArcAddr); ",own" the player's
+    // Leon's own archive with Leon, else his copy at RE4_MEM1_CHEAT_ADDR (cheats.cpp kLeonArcAddr); ",own" the player's
     // own archive. IDX-LAST/EVERY: every motion entry (tag FCV) from IDX to LAST in turn, EVERY frames each
     if (g_plMotionAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_plMotionAfter && g->Rno0 == 3 && live(pPL)) {
         g_plMotionAfter = -1;
         const u32* arc = g->pl_type == 0 || g_plMotionOwn ? (const u32*) g->pPlayer
-                                                          : (const u32*) (unsigned long) 0x82000000u;
+                                                          : (const u32*) (unsigned long) RE4_MEM1_CHEAT_ADDR;
         unsigned idx = g_plMotion;
         while (idx <= g_plMotionLast && idx - 4 < arc[0] && memcmp(&arc[arc[0] + idx], "FCV", 3) != 0) {
             idx++;
