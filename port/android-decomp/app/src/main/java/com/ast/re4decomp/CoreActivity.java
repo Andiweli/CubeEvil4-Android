@@ -159,6 +159,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String PHOTO_MODE = "photoMode";
   /** "Prepare shaders at start" (1.1.0, GRAPHICS_PREFS, off by default; ShaderPrepScreen). */
   static final String SHADER_PREP = "shaderPrepAtStart";
+  /** "Display resolution" (1.1.0, GRAPHICS_PREFS): the picture's shorter side sent to the screen (1080, 900, 720), the
+   *  screen's scaler stretches it to the panel; 0 the panel's own (Native, the default). */
+  static final String OUTPUT_RES = "outputRes";
   /** The RAM below which the menu warns when it is switched on: a "4 GB" phone reports about 3.6-3.8 GB. */
   static final long SHADER_PREP_RAM = 3_500_000_000L;
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
@@ -417,6 +420,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     root.addView(surface);
     surfaceCallbacks(surface);
+    // "Display resolution": the surface's buffer for the view's size, again when the size changes (a turn, a fold)
+    surface.addOnLayoutChangeListener((sv, sl, st, sr, sb, osl, ost, osr, osb) -> {
+      if (sr - sl != osr - osl || sb - st != osb - ost) applyOutputSize();
+    });
     // the benchmark's line at the top while it runs (Display -> GRAPHICS -> Benchmark)
     benchView = new TextView(this);
     benchView.setTextSize(14);
@@ -666,7 +673,46 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
+  private int outputW, outputH;  // the buffer set (applyOutputSize); 0: the view's own
+  private String outputLine = "";
+
+  /**
+   * "Display resolution" (1.1.0; the idea from the RE4Wii-Android port's review, our own code): the picture is drawn
+   * into a smaller buffer than the panel (SurfaceHolder.setFixedSize) and the display's scaler stretches it; the post
+   * effects (CRT, bloom, FXAA, Sharpen) and the composition then work on fewer pixels. The touch controls, the photo
+   * mode's bar and every other view keep the panel's pixels (they are views of their own); the renderer learns the
+   * buffer's size from its surface. Only ever smaller than the panel, the aspect kept.
+   */
+  private void applyOutputSize() {
+    if (surface == null) return;
+    int vw = surface.getWidth(), vh = surface.getHeight();
+    if (vw <= 0 || vh <= 0) return;
+    int target = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt(OUTPUT_RES, 0);
+    int shortSide = Math.min(vw, vh);
+    int w = 0, h = 0;
+    if (target > 0 && shortSide > target) {
+      w = (Math.round((float) vw * target / shortSide) + 1) & ~1;
+      h = (Math.round((float) vh * target / shortSide) + 1) & ~1;
+    }
+    String line = w > 0 ? "display resolution: " + w + "x" + h + " stretched to the panel's " + vw + "x" + vh
+        : "display resolution: the panel's own " + vw + "x" + vh;
+    if (w == outputW && h == outputH && line.equals(outputLine)) return;
+    outputW = w;
+    outputH = h;
+    outputLine = line;
+    if (w > 0) surface.getHolder().setFixedSize(w, h);
+    else surface.getHolder().setSizeFromLayout();
+    Log.i(TAG, line);
+  }
+
+  /** The picture's buffer: the "Display resolution" one, else the view's. */
+  int[] outputSize() {
+    if (outputW > 0 && outputH > 0) return new int[] {outputW, outputH};
+    return new int[] {surface != null ? surface.getWidth() : 0, surface != null ? surface.getHeight() : 0};
+  }
+
   private void applyGraphics() {
+    applyOutputSize();
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
     CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
@@ -811,7 +857,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
-    int rows = CoreMenu.pictureRows(aspect, surface.getWidth(), surface.getHeight());
+    int[] out = outputSize();
+    int rows = CoreMenu.pictureRows(aspect, out[0], out[1]);
     return String.format(Locale.ROOT, "%d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
@@ -2637,7 +2684,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
           float dx = e.getX(i) - tapX, dy = e.getY(i) - tapY;
           if (!tapMoved && time <= TAP_MS) {
             surface.getLocationInWindow(surfaceAt);
-            CoreBridge.tap(e.getX(i) - surfaceAt[0], e.getY(i) - surfaceAt[1]);
+            // (in the picture's buffer: "Display resolution" makes it smaller than the view)
+            float tsx = outputW > 0 && surface.getWidth() > 0 ? (float) outputW / surface.getWidth() : 1f;
+            float tsy = outputH > 0 && surface.getHeight() > 0 ? (float) outputH / surface.getHeight() : 1f;
+            CoreBridge.tap((e.getX(i) - surfaceAt[0]) * tsx, (e.getY(i) - surfaceAt[1]) * tsy);
           } else if (time <= SWIPE_MS) {
             if (Math.abs(dx) >= surface.getWidth() / 8f && Math.abs(dx) >= 2 * Math.abs(dy)) {
               CoreBridge.swipe(dx < 0 ? 1 : -1);
@@ -2726,7 +2776,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     // the screen's rows of a 16:9 picture (PerfProfile.screenLevel: MSAA only beyond them); the game's surface, else
     // the display
-    int w = surface != null ? surface.getWidth() : 0, h = surface != null ? surface.getHeight() : 0;
+    int[] out = outputSize();
+    int w = out[0], h = out[1];
     if (w <= 0 || h <= 0) {
       android.util.DisplayMetrics m = getResources().getDisplayMetrics();
       w = m.widthPixels; h = m.heightPixels;

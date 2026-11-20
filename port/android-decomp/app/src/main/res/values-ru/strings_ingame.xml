@@ -514,6 +514,8 @@
     <string name="ingame_shader_prep_low_ram">У этого устройства %1$s ГБ ОЗУ. Загружать все шейдеры при запуске рекомендуется от 4 ГБ: при меньшем объёме это может длиться очень долго, и Android может закрыть приложение во время подготовки (следующий запуск продолжит с того же места). Всё равно включить?</string>
     <string name="ingame_shader_prep_title">Подготовка шейдеров…</string>
     <string name="ingame_shader_prep_line">Однажды подготовленные, они не будут тормозить. Любая кнопка или касание пропускает; остальное готовится в фоне.</string>
+    <string name="ingame_output_res">Разрешение вывода</string>
+    <string name="ingame_output_res_help">Разрешение вывода: размер изображения, которое отправляется на экран; экран растягивает его до своих пикселей. Ниже — быстрее на телефонах с очень чёткими экранами (выше 1080p), особенно с CRT, bloom, FXAA или резкостью, и чуть мягче. Родное: собственный размер экрана. Разрешение выше (3D игры) не меняется.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Моды</string>
     <string name="ingame_hd_textures">HD-текстуры</string>

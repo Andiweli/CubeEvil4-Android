@@ -5,6 +5,7 @@
 #   port/tools/whole_build.sh i686       # one target
 #   RE4_JOBS=4 port/tools/whole_build.sh # at most 4 compile jobs (memory)
 #   RE4_OPT=2 port/tools/whole_build.sh  # optimised like the Android build
+#   RE4_PGO=generate|FILE.profdata       # profile-guided optimisation (folders ...-pgogen / -pgo, port/docs/pgo.md)
 #                                        # (build folders whole-<target>-O2)
 #   RE4_SANITIZE=address,undefined ...   # check build with sanitizers (CMakeLists.txt;
 #                                        # build folders whole-<target>-O2-san), the checks
@@ -48,7 +49,9 @@ targets=("$@")
 status=0
 # the runtime test checks the per-thread wait record of the hang search
 export RE4_WAIT_TRACE=1
-suffix="${RE4_OPT:+-O$RE4_OPT}${RE4_SANITIZE:+-san}"
+pgo_suffix=""
+[ -n "${RE4_PGO:-}" ] && { [ "$RE4_PGO" = generate ] && pgo_suffix=-pgogen || pgo_suffix=-pgo; }
+suffix="${RE4_OPT:+-O$RE4_OPT}${RE4_SANITIZE:+-san}$pgo_suffix"
 if [ -n "${RE4_SANITIZE:-}" ]; then
     # no leak check (the game frees little before it ends), no ODR check (a module carries its own
     # copies of shared units, CMakeLists.txt -Bsymbolic), the port's own crash handler for SIGSEGV,
@@ -64,7 +67,7 @@ for t in "${targets[@]}"; do
     log="$root/port/build/$name.log"
     mkdir -p "$root/port/build"
     cmake -S "$root/port/whole" -B "$build" -G Ninja \
-        -DCMAKE_TOOLCHAIN_FILE="$root/port/whole/cmake/linux-$t.cmake" -DRE4_OPT_LEVEL="${RE4_OPT:-}" -DRE4_SANITIZE="${RE4_SANITIZE:-}" \
+        -DCMAKE_TOOLCHAIN_FILE="$root/port/whole/cmake/linux-$t.cmake" -DRE4_OPT_LEVEL="${RE4_OPT:-}" -DRE4_SANITIZE="${RE4_SANITIZE:-}" -DRE4_PGO="${RE4_PGO:-}" \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON > "$log" 2>&1 &&
         ninja -C "$build" -k 0 ${RE4_JOBS:+-j "$RE4_JOBS"} >> "$log" 2>&1
     code=$?

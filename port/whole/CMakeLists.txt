@@ -59,6 +59,17 @@ endif()
 # effects, a few runtime functions; armhf (VFPv3) and x86 have none, so the 32/64-bit compare
 # on the PC could not see it (19.10.2026). whole_build.sh counts them in the aarch64 build.
 add_compile_options(-ffp-contract=off)
+# Profile-guided optimisation (1.1.0, measured first: port/docs/pgo.md). RE4_PGO=generate: an instrumented build
+# (clang -fprofile-instr-generate; LLVM_PROFILE_FILE names the raw profiles, one per module); RE4_PGO=<file>: the
+# merged .profdata used (-fprofile-instr-use; functions the profile does not know or that changed are built as without).
+set(RE4_PGO "" CACHE STRING "profile-guided optimisation: empty none, generate, or the .profdata to use")
+if(RE4_PGO STREQUAL "generate")
+    add_compile_options(-fprofile-instr-generate)
+    add_link_options(-fprofile-instr-generate)
+elseif(RE4_PGO)
+    add_compile_options(-fprofile-instr-use=${RE4_PGO} -Wno-profile-instr-out-of-date -Wno-profile-instr-unprofiled
+                        -Wno-profile-instr-missing)
+endif()
 # Check build with sanitizers (whole_build.sh RE4_SANITIZE=address,undefined: build folder
 # whole-<target>-O2-san; the room tour of the PC check, whole_r100_check.sh --sanitize).
 # AddressSanitizer stops at the first access outside a global, a local or a block of the C

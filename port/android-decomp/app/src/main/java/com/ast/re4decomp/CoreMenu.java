@@ -948,6 +948,10 @@ final class CoreMenu extends Dialog {
         new int[] {1, 3, 0, 5, 2}, 0, Integer.MAX_VALUE);
     resolutionChoices();
     graphicsLine = indentedHelp(""); graphicsLine.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(10)); showGraphics();
+    // "Display resolution" (1.1.0): the size sent to the screen, the display's scaler stretches it (CoreActivity)
+    graphicChoices(R.string.ingame_output_res, CoreActivity.OUTPUT_RES, new String[] {s(R.string.ingame_native), "1080p",
+        "900p", "720p"}, new int[] {0, 1080, 900, 720}, 0, Integer.MAX_VALUE);
+    indentedHelp(s(R.string.ingame_output_res_help));
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fxaa, graphics.getBoolean("fxaa", false), on -> {

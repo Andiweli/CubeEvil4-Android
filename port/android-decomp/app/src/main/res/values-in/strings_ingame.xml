@@ -504,6 +504,8 @@
     <string name="ingame_shader_prep_low_ram">Perangkat ini punya RAM %1$s GB. Memuat semua shader saat mulai disarankan mulai 4 GB: di bawahnya bisa sangat lama, dan Android bisa menutup aplikasi saat menyiapkan (mulai berikutnya melanjutkan dari titik berhenti). Tetap nyalakan?</string>
     <string name="ingame_shader_prep_title">Menyiapkan shader…</string>
     <string name="ingame_shader_prep_line">Setelah disiapkan, tidak akan tersendat lagi. Tombol apa pun atau ketukan melewati; sisanya disiapkan di latar belakang.</string>
+    <string name="ingame_output_res">Resolusi tampilan</string>
+    <string name="ingame_output_res_help">Resolusi tampilan: ukuran gambar yang dikirim ke layar; layar meregangkannya ke pikselnya sendiri. Lebih rendah lebih cepat di ponsel dengan layar sangat tajam (di atas 1080p), terutama dengan CRT, bloom, FXAA, atau penajaman, dan sedikit lebih lembut. Asli: ukuran layar itu sendiri. Resolusi di atas (3D permainan) tetap sama.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mod</string>
     <string name="ingame_hd_textures">Tekstur HD</string>

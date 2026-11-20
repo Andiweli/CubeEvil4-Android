@@ -525,6 +525,8 @@
     <string name="ingame_shader_prep_low_ram">&#x200F;في هذا الجهاز %1$s غيغابايت من الذاكرة. يوصى بتحميل جميع المظللات عند البدء من 4 غيغابايت: دون ذلك قد يستغرق وقتًا طويلًا جدًا، وقد يغلق Android التطبيق أثناء التجهيز (يتابع البدء التالي من حيث توقف). هل تريد تفعيله على أي حال؟</string>
     <string name="ingame_shader_prep_title">&#x200F;جارٍ تجهيز المظللات…</string>
     <string name="ingame_shader_prep_line">&#x200F;بعد تجهيزها مرة لن تتقطع لاحقًا. أي زر أو نقرة يتخطى؛ ويُجهَّز الباقي في الخلفية.</string>
+    <string name="ingame_output_res">&#x200F;دقة العرض</string>
+    <string name="ingame_output_res_help">&#x200F;دقة العرض: حجم الصورة المرسلة إلى الشاشة؛ تمدّها الشاشة إلى بكسلاتها. الأدنى أسرع في الهواتف ذات الشاشات الحادة جدًا (فوق 1080p)، خاصةً مع CRT أو التوهج أو FXAA أو التوضيح، وأنعم قليلًا. أصلي: حجم الشاشة نفسه. تبقى الدقة أعلاه (ثلاثي الأبعاد في اللعبة) كما هي.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">التعديلات</string>
     <string name="ingame_hd_textures">الأنسجة عالية الدقة</string>

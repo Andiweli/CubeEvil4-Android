@@ -506,6 +506,8 @@
     <string name="ingame_shader_prep_low_ram">此设备有 %1$s GB 内存。建议 4 GB 及以上内存时在启动时加载全部着色器：低于此值可能耗时很久，Android 也可能在准备期间关闭应用（下次启动会从中断处继续）。仍要开启吗？</string>
     <string name="ingame_shader_prep_title">正在准备着色器…</string>
     <string name="ingame_shader_prep_line">准备一次后便不会再卡顿。按任意键或轻点跳过；剩余部分将在后台准备。</string>
+    <string name="ingame_output_res">输出分辨率</string>
+    <string name="ingame_output_res_help">输出分辨率：发送到屏幕的画面尺寸，屏幕会将其拉伸到自身像素。在屏幕非常精细（高于 1080p）的手机上，较低的值更快，尤其是开启 CRT、泛光、FXAA 或锐化时，画面会略柔和。原生：屏幕自身尺寸。上方的分辨率（游戏的 3D）保持不变。</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">模组</string>
     <string name="ingame_hd_textures">高清纹理</string>

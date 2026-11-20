@@ -511,6 +511,8 @@
     <string name="ingame_shader_prep_low_ram">Questo dispositivo ha %1$s GB di RAM. Caricare tutti gli shader all’avvio è consigliato da 4 GB: sotto può richiedere molto tempo e Android può chiudere l’app durante la preparazione (l’avvio successivo riprende da dove si era fermato). Attivarlo comunque?</string>
     <string name="ingame_shader_prep_title">Preparazione degli shader…</string>
     <string name="ingame_shader_prep_line">Preparati una volta, non scatteranno più. Qualsiasi tasto o un tocco salta; il resto viene preparato in background.</string>
+    <string name="ingame_output_res">Risoluzione di uscita</string>
+    <string name="ingame_output_res_help">Risoluzione di uscita: la dimensione dell’immagine inviata allo schermo; lo schermo la allarga ai propri pixel. Più bassa è più veloce sui telefoni con schermi molto nitidi (oltre 1080p), soprattutto con CRT, bloom, FXAA o nitidezza, e un po’ più morbida. Nativa: la dimensione propria dello schermo. La risoluzione sopra (il 3D del gioco) resta invariata.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mod</string>
     <string name="ingame_hd_textures">Texture HD</string>
