@@ -481,6 +481,26 @@ Durchsicht `reports/fork-checks/summary-2026-11-20.md`; nur Ideen, eigener Code 
    Bild `builds/workthread-1.1.0/menu/9-controls-button-mapping-force-controller-detection.png` vor dem APK-Bau an den
    Projektinhaber. **Nicht auf einem Gerät geprüft.**
 
+### 19. r333 (Flucht am Ende) stürzt mit den EU-Discs ab (Projektinhaber, 20.11.2026: „Prüfe Raum r333 bitte noch.“)
+
+Der Altbefund der Rundgänge (EU 125/126 seit mindestens 0.99.11, Abschnitt 18 und früher) ist **kein Spielfehler**,
+sondern einer des Port-Protokolls: `state_trace.cpp` `playerLog` prüft jedes Bild „Leons Kopf ab“ (`live(pPL->Body)
+&& pPL->Body->m_pFace == 0`, seit 0.98.6, 3f6b4cbf). In r333 (Jetski-Flucht) läuft im Rundgang der Zeitgeber ab (keine
+Lenk-Tasten), Leon stirbt in der Explosion (4365–4800 Bilder nach dem Start); dabei steht in seinem `Body` Müll, mit
+den EU-Discs 0x8c748a75. `live()` prüfte nur „≥ 0x80000000“ und ließ die Adresse durch: SIGSEGV
+(`libre4_main.so+0x323167`, aus dem PAD-Rückruf). Debug-, US- und JP-Discs lasen zufällig lesbaren Speicher
+(„head is off“ mehrfach, JP einmal „position is not a number“). Das Protokoll läuft auch in der App: ein Spieler mit
+EU-Discs, der am Ende stirbt oder den Zeitgeber ablaufen lässt, konnte so abstürzen (am PC nur im Rundgang gesehen;
+eine Ankunft aus r332 per Spielstand gibt es zum Prüfen nicht).
+
+- **Behoben:** `live()` folgt nur noch Zeigern in MEM1 (bis `RE4_MEM1_END`) oder in Port-Speicher
+  (`re4_valid_port_ptr`: die Spielbibliotheken, Host-Stapel; dieselbe Prüfung wie `VALID_PTR`, Patch 0037). Kein Patch
+  am Spielcode.
+- **Geprüft am PC:** r333 allein mit 9000 Bildern auf Debug-, EU-, US- und JP-Discs: kein Absturz mehr (EU vorher
+  in jedem Lauf); i686-Kern mit Laufzeit- und Kerntests; EU-Rundgang aller 126 Räume: 126 von 126 ohne Fehler (vorher 125). JP meldet beim Tod in r333
+  weiterhin einmal „position is not a number“ (nur eine Protokollzeile, kein Absturz). **Nicht auf einem Gerät
+  geprüft.**
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

@@ -394,11 +394,20 @@ namespace {
 
 FILE* g_trace;
 
+extern "C" int re4_valid_port_ptr(const void* p);  // runtime/os_thread.cpp (patch 0037's VALID_PTR)
+
 bool live(const void* p)
 {
     unsigned long a = (unsigned long) p;
-    // the managers and the player can live in the libraries (above MEM1) or in MEM1
-    return a >= 0x80000000ul;
+    // the managers and the player can live in the libraries (above MEM1) or in MEM1. Only those: a pointer above
+    // MEM1 that is no library's nor a host stack's is not followed (1.1.0, the project owner, 20.11.2026: "Prüfe Raum
+    // r333": in the ending's room r333 with the European discs Leon's Body pointed to 0x8c748a75 once the ending had
+    // taken his memory, and the head check below read it: SIGSEGV in the room tour since at least 0.99.11, and on a
+    // device at the end of the game)
+    if (a < 0x80000000ul) {
+        return false;
+    }
+    return a < RE4_MEM1_END || re4_valid_port_ptr(p) != 0;
 }
 
 void vec(FILE* f, const Vec& v)
