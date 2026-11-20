@@ -142,6 +142,16 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String BODY_TURN = "bodyTurn";
   // "Reload without aiming" (1.1.0, keyboard; INPUT_PREFS): the reload key alone reloads (CoreBridge.quickReload)
   static final String QUICK_RELOAD = "quickReload";
+  /** "Force controller detection" (1.1.0, INPUT_PREFS, off by default; the idea from a fork): forceController. */
+  static final String FORCE_CONTROLLER = "forceController";
+  /**
+   * "Force controller detection" on: the keys of every external input device count as a controller's buttons (the
+   * controller's mapping, its "Device" in the button mapping), for gamepads Android lists as a keyboard or does not
+   * see as a gamepad. Only key events, only external devices: the device's own buttons and keys, the touch controls,
+   * a mouse's movement and the system's keys (volume, power, home, media; systemKey) stay as they are. A real
+   * external keyboard counts as a controller as well while it is on (the menu's help says so).
+   */
+  static volatile boolean forceController;
   static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
@@ -499,6 +509,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setSource(inputPrefs.getInt(GYRO_SOURCE, GyroAim.SOURCE_AUTO));
+    forceController = inputPrefs.getBoolean(FORCE_CONTROLLER, false);
+    if (forceController) Log.i(TAG, "force controller detection: on (the keys of external devices count as a controller's)");
     gyroAim.setController(lastPad >= 0 ? InputDevice.getDevice(lastPad) : null);
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
@@ -2257,6 +2269,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private static boolean controller(android.view.InputEvent e) {
+    // "Force controller detection" (1.1.0): an external device's keys are a controller's
+    if (e instanceof KeyEvent && forcedController(e.getDevice(), ((KeyEvent) e).getKeyCode())) return true;
     // a keyboard's events carry the D-pad's source too when it has arrow keys (keyboardDevice)
     if (keyboardDevice(e.getDevice())) return false;
     return (e.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
@@ -2339,6 +2353,33 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * 0x301): that alone does not make it a controller (tester report 05.11.2026, OnePlus 9R: a keyboard was taken
    * for a controller, its keys did nothing in the game and in the button mapping).
    */
+  /** With "Force controller detection" on: a key `code` of device `d` counts as a controller's (external, not virtual,
+   *  no system key). */
+  static boolean forcedController(InputDevice d, int code) {
+    return forceController && d != null && !d.isVirtual() && externalDevice(d) && !systemKey(code);
+  }
+
+  /** A device plugged in or paired (Android 10: InputDevice.isExternal; before: a vendor id, which the device's own
+   *  buttons and keys lack). */
+  static boolean externalDevice(InputDevice d) {
+    if (Build.VERSION.SDK_INT >= 29) return d.isExternal();
+    return d.getVendorId() != 0;
+  }
+
+  /** The system's keys, which "Force controller detection" leaves to Android: volume, power, home, the task switcher,
+   *  the camera, media and brightness keys. */
+  static boolean systemKey(int code) {
+    switch (code) {
+      case KeyEvent.KEYCODE_VOLUME_UP: case KeyEvent.KEYCODE_VOLUME_DOWN: case KeyEvent.KEYCODE_VOLUME_MUTE:
+      case KeyEvent.KEYCODE_POWER: case KeyEvent.KEYCODE_HOME: case KeyEvent.KEYCODE_APP_SWITCH:
+      case KeyEvent.KEYCODE_CAMERA: case KeyEvent.KEYCODE_BRIGHTNESS_UP: case KeyEvent.KEYCODE_BRIGHTNESS_DOWN:
+      case KeyEvent.KEYCODE_SLEEP: case KeyEvent.KEYCODE_WAKEUP:
+        return true;
+      default:
+        return KeyEvent.isMediaSessionKey(code);
+    }
+  }
+
   static boolean keyboardDevice(InputDevice d) {
     if (d == null || d.isVirtual()) return false;
     return keyboardSources(d.getSources(), d.getKeyboardType());
@@ -3503,6 +3544,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     view.getHolder().addCallback(new SurfaceHolder.Callback() {
       @Override public void surfaceCreated(SurfaceHolder holder) {
         Log.i(TAG, "picture surface (" + kind + "): made");
+        pictureSurface = holder.getSurface();
         surfaceSixtyHz(holder.getSurface());
       }
       @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
@@ -3510,6 +3552,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       @Override public void surfaceDestroyed(SurfaceHolder holder) {
         Log.i(TAG, "picture surface (" + kind + "): gone");
+        pictureSurface = null;
       }
     });
     // the surface takes the fingers beside the touch controls: Android gives the further fingers
@@ -3663,8 +3706,43 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final DisplayManager.DisplayListener displayTurns = new DisplayManager.DisplayListener() {
     @Override public void onDisplayAdded(int id) {}
     @Override public void onDisplayRemoved(int id) {}
-    @Override public void onDisplayChanged(int id) { logDisplayTurn(); }
+    @Override public void onDisplayChanged(int id) {
+      logDisplayTurn();
+      if (id == Display.DEFAULT_DISPLAY) askSixtyAgain("the display changed");
+    }
   };
+
+  /**
+   * The 60 Hz request again (1.1.0, the project owner, 20.11.2026; the idea from a fork): some phones go back to their
+   * fastest mode after Home, a notification shade or a game mode of their own (user report 20.11.2026: a nubia stayed
+   * at 120 Hz). On resume and when the display changes, while the screen runs faster than 60 Hz: the window's 60 Hz
+   * mode and the surface's 60 pictures a second asked once more; at most once in 5 s, the first 10 times logged.
+   */
+  private long sixtyAskedAt = Long.MIN_VALUE;
+  private int sixtyAsks;
+  private Surface pictureSurface;
+  private void askSixtyAgain(String why) {
+    if (!askSixty || Build.VERSION.SDK_INT < 23) return;
+    final float hz = getWindowManager().getDefaultDisplay().getRefreshRate();
+    final long now = SystemClock.uptimeMillis();
+    if (hz < 65f || now - sixtyAskedAt < 5000) return;
+    sixtyAskedAt = now;
+    if (++sixtyAsks <= 10)
+      Log.i(TAG, String.format(Locale.ROOT, "display at %.1f Hz (%s): 60 Hz asked again", hz, why));
+    Display display = getWindowManager().getDefaultDisplay();
+    Display.Mode current = display.getMode();
+    for (Display.Mode m : display.getSupportedModes()) {
+      if (m.getPhysicalWidth() == current.getPhysicalWidth() && m.getPhysicalHeight() == current.getPhysicalHeight()
+          && Math.abs(m.getRefreshRate() - 60f) < 1.5f) {
+        WindowManager.LayoutParams attributes = getWindow().getAttributes();
+        attributes.preferredDisplayModeId = m.getModeId();
+        getWindow().setAttributes(attributes);
+        break;
+      }
+    }
+    Surface s = pictureSurface;
+    if (s != null && s.isValid()) surfaceSixtyHz(s);
+  }
 
   private void logDisplayTurn() {
     final int turn = getWindowManager().getDefaultDisplay().getRotation() * 90;
@@ -3694,6 +3772,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     DisplayManager displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
     if (displays != null) displays.registerDisplayListener(displayTurns, main);
     logDisplayTurn();
+    askSixtyAgain("resumed");
     hideSystemUi();
     picture.onResume();
     resumed = true;

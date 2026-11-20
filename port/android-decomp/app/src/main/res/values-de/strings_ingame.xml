@@ -426,6 +426,8 @@
     <string name="ingame_keyboard_c_help">Das Messer: seine Taste halten und mit der Maus zielen. Die Tasten des C-Sticks (I, K, J, L, wenn nicht geändert) drehen die Kamera und zoomen Zielfernrohr und Fernglas.</string>
     <string name="ingame_quick_reload">Nachladen ohne Zielen</string>
     <string name="ingame_quick_reload_help">Nachladen ohne Zielen (Tastatur): Die Nachladetaste allein (Standard R) lädt nach, ohne erst die Waffe anzulegen.</string>
+    <string name="ingame_force_controller">Controller-Erkennung erzwingen</string>
+    <string name="ingame_force_controller_help">Controller-Erkennung erzwingen: für Gamepads, die nicht erkannt werden oder die Android als Tastatur führt: Jede Taste eines externen Geräts zählt dann als Controller-Taste und lässt sich oben belegen. Auch eine echte Tastatur zählt dann als Controller; zum Spielen mit Tastatur und Maus also ausschalten (die Maus funktioniert weiter). Die eigenen Tasten des Geräts, die Touch-Steuerung und die Lautstärketasten bleiben, wie sie sind.</string>
     <string name="ingame_mouse_sensitivity">Maus-Empfindlichkeit</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Gerät</string>

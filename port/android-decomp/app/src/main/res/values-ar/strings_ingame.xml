@@ -443,6 +443,8 @@
     <string name="ingame_keyboard_c_help">السكين: اضغط مطولًا على مفتاحه وصوّب بالفأرة. مفاتيح عصا C (I وK وJ وL افتراضيًا) تدير الكاميرا وتكبّر المنظار والمنظار المزدوج.</string>
     <string name="ingame_quick_reload">&#x200F;إعادة التلقيم دون تصويب</string>
     <string name="ingame_quick_reload_help">&#x200F;إعادة التلقيم دون تصويب (لوحة المفاتيح): مفتاح إعادة التلقيم وحده (R افتراضيًا) يعيد التلقيم دون رفع السلاح أولًا.</string>
+    <string name="ingame_force_controller">&#x200F;فرض التعرف على وحدة التحكم</string>
+    <string name="ingame_force_controller_help">&#x200F;فرض التعرف على وحدة التحكم: استخدمه إذا لم تُكتشف وحدة التحكم أو عدّها Android لوحة مفاتيح: يُحسب عندها كل مفتاح في جهاز خارجي زرًا لوحدة التحكم ويمكن تعيينه أعلاه. وتُحسب لوحة المفاتيح الحقيقية عندها وحدة تحكم أيضًا، فأوقفه للعب بلوحة المفاتيح والفأرة (يبقى الفأرة يعمل). أزرار الجهاز نفسه وعناصر اللمس ومفاتيح الصوت تبقى كما هي.</string>
     <string name="ingame_mouse_sensitivity">حساسية الفأرة</string>
     <string name="ingame_map_controller">وحدة التحكم</string>
     <string name="ingame_map_device">الجهاز</string>

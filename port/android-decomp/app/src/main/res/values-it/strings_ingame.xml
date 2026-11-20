@@ -429,6 +429,8 @@
     <string name="ingame_keyboard_c_help">Il coltello: tieni premuto il suo tasto e mira con il mouse. I tasti dello stick C (predefiniti I, K, J, L) ruotano la telecamera e zoomano mirino e binocolo.</string>
     <string name="ingame_quick_reload">Ricarica senza mirare</string>
     <string name="ingame_quick_reload_help">Ricarica senza mirare (tastiera): il tasto di ricarica da solo (R di default) ricarica senza alzare prima l’arma.</string>
+    <string name="ingame_force_controller">Forza rilevamento controller</string>
+    <string name="ingame_force_controller_help">Forza rilevamento controller: usalo se il gamepad non viene rilevato o Android lo vede come tastiera: ogni tasto di un dispositivo esterno conta allora come pulsante del controller e si può assegnare sopra. Anche una vera tastiera conta allora come controller; disattivalo per giocare con tastiera e mouse (il mouse continua a funzionare). I tasti del dispositivo, i comandi touch e i tasti del volume restano come sono.</string>
     <string name="ingame_mouse_sensitivity">Sensibilità del mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Dispositivo</string>

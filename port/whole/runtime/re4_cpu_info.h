@@ -599,6 +599,7 @@ public:
         const auto manager = reinterpret_cast<Manager>(dlsym(lib, "APerformanceHint_getManager"));
         const auto create = reinterpret_cast<Create>(dlsym(lib, "APerformanceHint_createSession"));
         report_ = reinterpret_cast<int (*)(void*, int64_t)>(dlsym(lib, "APerformanceHint_reportActualWorkDuration"));
+        retarget_ = reinterpret_cast<int (*)(void*, int64_t)>(dlsym(lib, "APerformanceHint_updateTargetWorkDuration"));
         close_ = reinterpret_cast<void (*)(void*)>(dlsym(lib, "APerformanceHint_closeSession"));
         if (!manager || !create || !report_) {
             *why = "not on this Android (before 13)";
@@ -625,6 +626,13 @@ public:
 
     bool On() const { return session_ != nullptr; }
 
+    // a new target for the work of one picture (1.1.0: the render thread's with 60 FPS on or off); false without a
+    // session
+    bool Retarget(long long targetNs)
+    {
+        return session_ && retarget_ && targetNs > 0 && retarget_(session_, targetNs) == 0;
+    }
+
     void Close()
     {
         if (session_ && close_) {
@@ -636,6 +644,7 @@ public:
 private:
     void* session_ = nullptr;
     int (*report_)(void*, int64_t) = nullptr;
+    int (*retarget_)(void*, int64_t) = nullptr;
     void (*close_)(void*) = nullptr;
 };
 

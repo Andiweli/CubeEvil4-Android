@@ -430,6 +430,8 @@
     <string name="ingame_keyboard_c_help">A faca: segure a tecla dela e mire com o mouse. As teclas do analógico C (I, K, J, L por padrão) giram a câmera e dão zoom na luneta e nos binóculos.</string>
     <string name="ingame_quick_reload">Recarregar sem mirar</string>
     <string name="ingame_quick_reload_help">Recarregar sem mirar (teclado): a tecla de recarga sozinha (R por padrão) recarrega sem erguer a arma antes.</string>
+    <string name="ingame_force_controller">Forçar detecção de controle</string>
+    <string name="ingame_force_controller_help">Forçar detecção de controle: use se o seu gamepad não for detectado ou o Android o tratar como teclado: cada tecla de um dispositivo externo passa a contar como botão de controle e pode ser atribuída acima. Um teclado de verdade também conta como controle; desligue para jogar com teclado e mouse (o mouse continua funcionando). Os botões do próprio aparelho, os controles de toque e as teclas de volume continuam como estão.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidade do mouse</string>
     <string name="ingame_map_controller">Controle</string>
     <string name="ingame_map_device">Dispositivo</string>

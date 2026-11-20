@@ -1014,6 +1014,12 @@ bool autoLevelOn = false;
 // with the first renderer of each render thread (Android starts a new one after the app was in
 // the background), then each chunk's Run against 33.3 ms
 re4cpu::PerfHint renderHint;
+// The render thread's target per picture (1.1.0, the project owner, 20.11.2026; the idea from a fork): 16.7 ms while
+// 60 FPS is on (two pictures in a game frame), else 33.3 ms. With 33.3 ms at 60 FPS Android saw half the time spare
+// and lowered the render core's clock, the pictures then came late on 120 Hz phones (user report 20.11.2026: the
+// render core at 0.8-1.8 GHz instead of 3.2, the steady rhythm set aside).
+long long renderHintTarget = 0;
+long long renderTargetFor(bool sixty) { return sixty ? 16666667LL : 33333333LL; }
 int renderPlaced = 0;  // the render thread set up
 // The menu's "Force Performance" (CoreBridge.setFastCores, wish of the project owner, 24.10.2026):
 // 1 "Use performance cores" (the render thread and, through the core, the game thread on the fast
@@ -2688,6 +2694,15 @@ bool drawGx() {
       gxHitShotsLeft--;
     }
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count();
+    // 60 FPS switched (or given up for a while): the target follows
+    if (renderHint.On() && renderHintTarget != renderTargetFor(smoothOn)) {
+      renderHintTarget = renderTargetFor(smoothOn);
+      const bool done = renderHint.Retarget(renderHintTarget);
+      static unsigned retargets;
+      if (++retargets <= 10 || retargets % 100 == 0)
+        LOG("performance hint: the render thread's target %.1f ms a picture (60 FPS %s)%s", renderHintTarget / 1e6,
+            smoothOn ? "on" : "off", done ? "" : "; not taken by this Android");
+    }
     renderHint.Report(static_cast<long long>(ms * 1e6));
     // (1.0.0) the pictures' times for the line when 60 FPS gives up (SmoothPacer)
     if (smoothOn && !benchForcing())
@@ -2747,8 +2762,9 @@ bool drawGx() {
         LOG("cores: the render thread %s", cores);
         const int tid = re4cpu::ThreadId();
         const char *why = "";
-        renderHint.Open(&tid, 1, 33333333LL, &why);
-        LOG("performance hint: %s (the render thread, 33.3 ms a picture)", why);
+        renderHintTarget = renderTargetFor(smoothOn);
+        renderHint.Open(&tid, 1, renderHintTarget, &why);
+        LOG("performance hint: %s (the render thread, %.1f ms a picture)", why, renderHintTarget / 1e6);
       } else {
         renderHint.Close();
         if (!first) re4cpu::ReleaseCores();

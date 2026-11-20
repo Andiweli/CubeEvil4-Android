@@ -422,6 +422,8 @@
     <string name="ingame_keyboard_c_help">Pisau: tahan tombolnya dan bidik dengan mouse. Tombol stik C (bawaan I, K, J, L) memutar kamera dan melakukan zoom pada teropong senjata dan teropong.</string>
     <string name="ingame_quick_reload">Isi ulang tanpa membidik</string>
     <string name="ingame_quick_reload_help">Isi ulang tanpa membidik (keyboard): tombol isi ulang saja (bawaan R) mengisi ulang tanpa mengangkat senjata dulu.</string>
+    <string name="ingame_force_controller">Paksa deteksi kontroler</string>
+    <string name="ingame_force_controller_help">Paksa deteksi kontroler: gunakan jika gamepad tidak terdeteksi atau Android menganggapnya keyboard: setiap tombol perangkat eksternal lalu dihitung sebagai tombol kontroler dan bisa diatur di atas. Keyboard sungguhan juga dihitung sebagai kontroler, jadi matikan ini untuk bermain dengan keyboard dan mouse (mouse tetap berfungsi). Tombol perangkat sendiri, kontrol sentuh, dan tombol volume tetap seperti biasa.</string>
     <string name="ingame_mouse_sensitivity">Sensitivitas Mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Perangkat</string>

@@ -429,6 +429,8 @@
     <string name="ingame_keyboard_c_help">El cuchillo: mantén su tecla y apunta con el ratón. Las teclas del stick C (I, K, J, L por defecto) giran la cámara y hacen zoom en la mira y los prismáticos.</string>
     <string name="ingame_quick_reload">Recargar sin apuntar</string>
     <string name="ingame_quick_reload_help">Recargar sin apuntar (teclado): la tecla de recarga sola (R por defecto) recarga sin levantar antes el arma.</string>
+    <string name="ingame_force_controller">Forzar detección de mando</string>
+    <string name="ingame_force_controller_help">Forzar detección de mando: úsalo si tu mando no se detecta o Android lo trata como teclado: cada tecla de un dispositivo externo cuenta entonces como botón de mando y se puede asignar arriba. Un teclado real también cuenta entonces como mando; desactívalo para jugar con teclado y ratón (el ratón sigue funcionando). Los botones del propio dispositivo, los controles táctiles y las teclas de volumen no cambian.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidad del ratón</string>
     <string name="ingame_map_controller">Mando</string>
     <string name="ingame_map_device">Dispositivo</string>

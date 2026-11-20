@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0245 (0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+Nächste freie Patch-Nummer: 0246 (0245 größerer Raum-Heap, 0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -438,6 +438,48 @@ Frameskip zu bauen. Bei 3 aber einen Menüschalter unter 'Performance'“.
   Neuladen von st2_2 nicht als „relinked“ erkannt, Sprung in die alte Raumfunktion) und ist seit 0.98.1 behoben
   (380edc39, `os_link.cpp` `isRelink`). Die Sitzungen vom 19.11. liefen ohne Absturz; nur einige Vulkan-Pipelines beim
   ersten Betreten der Burgräume (bis 114 ms je Pipeline). Nichts geändert.
+
+### 18. Drei Ideen aus der Fork-Durchsicht (Projektinhaber, 20.11.2026: „1 bis 3 sind gute Ideen. Bitte sauber übernehmen.“)
+
+Durchsicht `reports/fork-checks/summary-2026-11-20.md`; nur Ideen, eigener Code (wie beim Wii-Port).
+
+1. **Größerer Raum-Heap 4** (Idee: Tim-ui-boop 181995fd). Die Heaps des Spiels enden an `RE4_MEM1_HEAP_END`
+   0x826F4000 statt 0x817F4000 (LP64 bisher 0x818F4000 über `lp64_sizes.json`; der Eintrag entfällt), auf ILP32 und
+   LP64 gleich: **Patch 0245** (`SystemMemInit` `Heap_end_addr`). Heap 4 (die Gegner-Module eines Raums) wächst von
+   14,5 MB auf 29,5 MB (LP64 von 15,5 MB). Neue Karte in `runtime/re4_mem1_map.h` (nur Zahlen, auch für die Dateien mit
+   Spiel-Flags; `#error` bei Überlappung): FST 0x826F4000–0x82700000, die Plätze der Cheats 0x82700000–0x82C00000
+   (bisher 0x82000000–0x824E0400 mitten im neuen Heap: Leons Archiv, Krausers Waffenpuffer, Adas Griffe, die
+   Ganado-Einträge der Stellvertreter; `cheats.cpp`, `state_trace.cpp`, `static_assert` für die 5 MB), das größere
+   core.das 0x82C00000–0x82F00000 (bisher 0x81C00000), das größere option.dat 0x82F00000–0x83000000 (bisher 0x81F00000).
+   Alles unter der Zeigergrenze des Spiels 0x82FFFFFF. Der USB-Puffer `file.cpp usb_buf` 0x81800000 des
+   Debug-Builds wird nie benutzt. Sofortspeicher speichern die Schreibmaschinen-Daten, nicht den Speicher: unberührt.
+   Geprüft am PC: i686 und x86_64 mit allen Laufzeit- und Kerntests (Test `tasks`: Heap-Ende = FST); Raumrundgang
+   126 Räume mit „More enemies“ und „Random enemies“ (Seed 4242), alter gegen neuen Kern: Debug-Discs beide
+   ALLES OK, Heap 4 voll (Rückfall über ARAM beim Koffer) alt 2-mal, neu 0-mal, kein Gegner abgelehnt; EU-Discs beide
+   125/126 mit demselben **schon vorhandenen Absturz in r333** (auch ohne die Gegner-Cheats und mit dem alten Kern,
+   gleiche Adresse; Befund für später, nicht durch den Heap); Stellvertreter Ada, Krauser, HUNK in r100/r105 lesen an
+   die neuen Plätze, kein Absturz; Speicherkarte (Speichern in r100, Neustart, Laden, „Retry“) mit altem und neuem Kern,
+   Debug- und EU-Discs: alle OK; der neue Kern lädt die Karten des alten (Debug und EU: Spielstand geladen, r100 läuft,
+   auch nach „Retry“). Hinweis zum Prüfen: `libre4_host.so` findet `libre4_main.so` über einen absoluten RUNPATH
+   in den Build-Ordner; eine kopierte Build-Kopie braucht `LD_LIBRARY_PATH` auf sich selbst, und parallele
+   `whole_r100_check.sh` brauchen eigene `--work`-Ordner (sonst derselbe Lauf-Ordner nach der Sekunde).
+2. **120-Hz-Handys** (Idee: DevJunior 799db53c; nicht abgerufen, die Beschreibung reichte): der Leistungshinweis des
+   Render-Threads (`core_mode.cpp` `renderHint`) zielt bei 60 FPS auf 16,7 ms je Bild statt 33,3 ms und folgt einem
+   Umschalten (`PerfHint::Retarget`, `APerformanceHint_updateTargetWorkDuration`). Die App fragt den 60-Hz-Modus und
+   die 60 Bilder der Oberfläche erneut beim Zurückkommen und wenn sich der Bildschirm ändert, solange er schneller als
+   60 Hz läuft (`CoreActivity.askSixtyAgain`, höchstens alle 5 s). Automatisch, kein Schalter; „Even frame pacing“ und
+   `PresentPacer` bleiben, wie sie sind. Zum Bericht von Spieler A (nubia, 20.11.): dort gab Android **keine**
+   Hinweis-Sitzung („the system gave no session“), der Bildschirm ging nach 0,5 s auf 60 Hz wieder auf 120 Hz; die
+   neue Nachfrage fängt so einen Wechsel, ob das nubia ihr folgt, ist offen. **Nicht auf einem Gerät geprüft.**
+3. **„Force controller detection“** (Idee: xianmod99; Projektinhaber: „Die Position bei 3 passt“): Steuerung →
+   Tastenbelegung, direkt unter „Device“, so breit wie dessen zwei Knöpfe, aus (`INPUT_PREFS` `forceController`).
+   Ein: Tastendrücke jedes externen Geräts (`InputDevice.isExternal`, vor Android 10 eine Hersteller-Kennung) zählen
+   als Controller-Tasten (`CoreActivity.controller`, die Belegung des Controllers, oben zuweisbar). Ausgenommen: die
+   eigenen Tasten des Geräts, Touch, Mausbewegung (nur Tastenereignisse) und Systemtasten (Lautstärke, Ein/Aus, Home,
+   App-Wechsel, Kamera, Medien, Helligkeit). Eine echte externe Tastatur zählt dann auch als Controller (der Hilfetext
+   sagt das: zum Spielen mit Tastatur und Maus ausschalten, die Maus geht weiter). Texte in 11 Sprachen (529).
+   Bild `builds/workthread-1.1.0/menu/9-controls-button-mapping-force-controller-detection.png` vor dem APK-Bau an den
+   Projektinhaber. **Nicht auf einem Gerät geprüft.**
 
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 

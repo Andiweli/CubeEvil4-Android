@@ -1453,6 +1453,20 @@ final class CoreMenu extends Dialog {
         new int[] {ActionMap.KIND_CONTROLLER, ActionMap.KIND_KEYBOARD}, mapKind, kind -> {
           captureAction = -1; main.removeCallbacks(captureTimeout); mapKind = kind; showPage(CONTROLLER, false);
         });
+    // "Force controller detection" (1.1.0, the project owner, 20.11.2026: "Die Position bei 3 passt"; the idea from a
+    // fork): right under "Device", as wide as its two buttons, its explanation under it
+    MenuLayout.Columns forceRow = new MenuLayout.Columns(getContext(), 0, 640, true);
+    forceRow.setWeights(1, 3);
+    forceRow.addView(new View(getContext()));
+    MenuLayout.Buttons force = new MenuLayout.Buttons(getContext(), 1);
+    forceRow.addView(force);
+    body.addView(forceRow);
+    toggle(force, R.string.ingame_force_controller, input.getBoolean(CoreActivity.FORCE_CONTROLLER, false), on -> {
+      input.edit().putBoolean(CoreActivity.FORCE_CONTROLLER, on).apply();
+      CoreActivity.forceController = on;
+      android.util.Log.i("RE4Input", "force controller detection: " + (on ? "on" : "off"));
+    });
+    help(R.string.ingame_force_controller_help);
     if (!keyboard && input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
     help(keyboard ? R.string.ingame_map_fixed_keyboard : R.string.ingame_map_fixed_controller);
     if (keyboard) mouseSlider();

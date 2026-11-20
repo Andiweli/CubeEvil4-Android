@@ -426,6 +426,8 @@
     <string name="ingame_keyboard_c_help">चाकू: उसकी की दबाए रखें और माउस से निशाना लगाएँ। C स्टिक की कीज़ (डिफ़ॉल्ट रूप से I, K, J, L) कैमरा घुमाती हैं और स्कोप और दूरबीन में ज़ूम करती हैं।</string>
     <string name="ingame_quick_reload">बिना निशाना लगाए रीलोड</string>
     <string name="ingame_quick_reload_help">बिना निशाना लगाए रीलोड (कीबोर्ड): सिर्फ़ रीलोड कुंजी (डिफ़ॉल्ट R) हथियार उठाए बिना रीलोड करती है।</string>
+    <string name="ingame_force_controller">कंट्रोलर पहचान ज़बरदस्ती करें</string>
+    <string name="ingame_force_controller_help">कंट्रोलर पहचान ज़बरदस्ती करें: अगर आपका गेमपैड पहचाना नहीं जाता या Android उसे कीबोर्ड मानता है: तब किसी बाहरी डिवाइस की हर कुंजी कंट्रोलर बटन गिनी जाती है और ऊपर असाइन की जा सकती है। असली कीबोर्ड भी तब कंट्रोलर गिना जाता है, इसलिए कीबोर्ड और माउस से खेलने के लिए इसे बंद करें (माउस काम करता रहता है)। डिवाइस के अपने बटन, टच कंट्रोल और वॉल्यूम कुंजियाँ जैसी हैं वैसी रहती हैं।</string>
     <string name="ingame_mouse_sensitivity">माउस संवेदनशीलता</string>
     <string name="ingame_map_controller">कंट्रोलर</string>
     <string name="ingame_map_device">डिवाइस</string>

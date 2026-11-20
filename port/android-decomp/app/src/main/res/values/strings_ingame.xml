@@ -444,6 +444,8 @@
     <string name="ingame_keyboard_c_help">The knife: hold its key and aim with the mouse. The C stick\'s keys (I, K, J, L by default) turn the camera and zoom the scope and the binoculars.</string>
     <string name="ingame_quick_reload">Reload without aiming</string>
     <string name="ingame_quick_reload_help">Reload without aiming (keyboard): the reload key alone (R by default) reloads, without raising the weapon first.</string>
+    <string name="ingame_force_controller">Force controller detection</string>
+    <string name="ingame_force_controller_help">Force controller detection: use this if your gamepad is not detected or Android lists it as a keyboard: every key of an external device then counts as a controller button, and you can assign it above. A real keyboard then counts as a controller too, so switch this off to play with keyboard and mouse (the mouse keeps working). The device\'s own buttons, the touch controls and the volume keys stay as they are.</string>
     <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>

@@ -424,6 +424,8 @@
     <string name="ingame_keyboard_c_help">刀：按住刀的按键并用鼠标瞄准。C 摇杆的按键（默认 I、K、J、L）可转动视角，并缩放瞄准镜和望远镜。</string>
     <string name="ingame_quick_reload">无需瞄准即可装弹</string>
     <string name="ingame_quick_reload_help">无需瞄准即可装弹（键盘）：单按装弹键（默认 R）即可装弹，无需先举起武器。</string>
+    <string name="ingame_force_controller">强制识别为手柄</string>
+    <string name="ingame_force_controller_help">强制识别为手柄：当手柄未被识别或 Android 将其识别为键盘时使用：外部设备的每个按键都将视为手柄按键，可在上方分配。真正的键盘此时也会被视为手柄，因此用键盘和鼠标游戏时请关闭（鼠标仍可使用）。设备自带的按键、触屏控制和音量键保持不变。</string>
     <string name="ingame_mouse_sensitivity">鼠标灵敏度</string>
     <string name="ingame_map_controller">手柄</string>
     <string name="ingame_map_device">设备</string>
