@@ -660,18 +660,39 @@ final class CoreMenu extends Dialog {
   }
   /**
    * Frame skip (0.99.8, one button; wish of the project owner, 10.11.2026): 0 off, 1 Normal (the renderer leaves out a
-   * picture while it is behind, CoreBridge.setFrameSkip), 2 Aggressive (the game itself, CoreBridge.setCpuSkip).
-   * Before it two switches, "frameskip" and "cpuSkip"; both on: Aggressive.
+   * picture while it is behind, CoreBridge.setFrameSkip), 2 Aggressive (the game itself, CoreBridge.setCpuSkip), since
+   * 1.1.0 3 Auto (both, only while the game stays under 30, CoreBridge.setFrameSkipAuto; the project owner's decision
+   * of 20.11.2026). Before it two switches, "frameskip" and "cpuSkip"; both on: Aggressive.
    */
   static final String FRAME_SKIP = "frameSkipMode";
+  /** The button's order: Off > Auto > Normal > Aggressive (the stored values stay 0, 3, 1, 2). */
+  static final int[] SKIP_ORDER = {0, 3, 1, 2};
+  /** The label of each stored value. */
+  static final int[] SKIP_LABELS = {R.string.ingame_off, R.string.ingame_skip_normal, R.string.ingame_skip_aggressive,
+      R.string.ingame_skip_auto};
+  /** The button's next value after `now` (SKIP_ORDER). */
+  static int nextFrameSkip(int now) {
+    int at = 0;
+    for (int i = 0; i < SKIP_ORDER.length; i++) if (SKIP_ORDER[i] == now) at = i;
+    return SKIP_ORDER[(at + 1) % SKIP_ORDER.length];
+  }
+  /** The frame skip `mode` to the core (with 60 FPS on the caller sends 0). */
+  static void sendFrameSkip(int mode) {
+    CoreBridge.setFrameSkip(mode == 1);
+    CoreBridge.setCpuSkip(mode == 2);
+    CoreBridge.setFrameSkipAuto(mode == 3);
+  }
+  /** "Even frame pacing" (1.1.0, Performance; on by default; CoreBridge.setEvenPacing). */
+  static final String EVEN_PACING = "evenPacing";
+  static boolean evenPacing(SharedPreferences g) { return g.getBoolean(EVEN_PACING, true); }
   static int frameSkipMode(SharedPreferences g) {
-    if (g.contains(FRAME_SKIP)) return Math.max(0, Math.min(2, g.getInt(FRAME_SKIP, 0)));
+    if (g.contains(FRAME_SKIP)) return Math.max(0, Math.min(3, g.getInt(FRAME_SKIP, 0)));
     if (g.getBoolean("cpuSkip", false)) return 2;
     return g.getBoolean("frameskip", false) ? 1 : 0;
   }
   /** Frame skip stored as `mode` (frameSkipMode), the two switches of before gone. */
   static void storeFrameSkipMode(SharedPreferences g, int mode) {
-    g.edit().putInt(FRAME_SKIP, Math.max(0, Math.min(2, mode))).remove("frameskip").remove("cpuSkip").apply();
+    g.edit().putInt(FRAME_SKIP, Math.max(0, Math.min(3, mode))).remove("frameskip").remove("cpuSkip").apply();
   }
   /** The depth of field's level (0 off, 1 light, 2 strong); until 0.98.3 the switch "dof" (on: light). */
   static final String DOF_LEVEL = "dofLevel";
@@ -1769,8 +1790,8 @@ final class CoreMenu extends Dialog {
     // Frame skip leaves pictures out, 60 FPS adds pictures between: one or the other (wish of the
     // project owner, 26.10.2026: both on jerked back and forth); switching one on switches the other off.
     // Frame skip one button (wish of the project owner, 10.11.2026: the two frame skips were on at once): each press
-    // moves it on, Off > Normal (the renderer's) > Aggressive (the game's own, patch 0227) > Off
-    final int[] skipLabels = {R.string.ingame_off, R.string.ingame_skip_normal, R.string.ingame_skip_aggressive};
+    // moves it on, Off > Auto (1.1.0) > Normal (the renderer's) > Aggressive (the game's own, patch 0227) > Off
+    final int[] skipLabels = SKIP_LABELS;
     final Button[] skipAndSmooth = new Button[2];
     // 0.99.9 (frame pacing): with 60 FPS on a screen that 60 does not divide evenly (90 Hz) a line suggests 30
     final double screenHz = host != null ? host.displayHz() : 0;
@@ -1780,9 +1801,9 @@ final class CoreMenu extends Dialog {
     final Runnable showHint = () -> unevenHint.setVisibility(
         FramePacing.sixtyUneven(screenHz) && graphics.getBoolean("smooth60", false) ? View.VISIBLE : View.GONE);
     skipAndSmooth[0] = cellAction(output, "", v -> {
-      int next = (frameSkipMode(graphics) + 1) % 3;
+      int next = nextFrameSkip(frameSkipMode(graphics));
       storeFrameSkipMode(graphics, next);
-      CoreBridge.setFrameSkip(next == 1); CoreBridge.setCpuSkip(next == 2);
+      sendFrameSkip(next);
       valueLabel((Button) v, R.string.ingame_frame_skip, skipLabels[next], next != 0);
       if (next != 0 && skipAndSmooth[1].isSelected()) {
         toggleLabel(skipAndSmooth[1], R.string.ingame_smooth60, false);
@@ -1796,7 +1817,7 @@ final class CoreMenu extends Dialog {
       graphics.edit().putBoolean("smooth60", on).apply(); CoreBridge.setSmooth(on);
       if (on && frameSkipMode(graphics) != 0) {
         storeFrameSkipMode(graphics, 0);
-        CoreBridge.setFrameSkip(false); CoreBridge.setCpuSkip(false);
+        sendFrameSkip(0);
         valueLabel(skipAndSmooth[0], R.string.ingame_frame_skip, R.string.ingame_off, false);
       }
       showHint.run();
@@ -1807,6 +1828,10 @@ final class CoreMenu extends Dialog {
     // the vertices through mapped buffers (gx_vk.cpp, the vertex ring has no effect there) and its draw calls are
     // cheap, merging only adds pipelines to build (core_mode.cpp leaves it out); the choice stays for OpenGL ES
     final boolean vulkanRun = host != null && host.vulkanRunning();
+    // "Even frame pacing" (1.1.0, the project owner's decision of 20.11.2026): on the row of the merged draws
+    toggle(more, R.string.ingame_even_pacing, evenPacing(graphics), on -> {
+      graphics.edit().putBoolean(EVEN_PACING, on).apply(); CoreBridge.setEvenPacing(on);
+    });
     Button merge = toggle(more, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
       graphics.edit().putBoolean("mergeDraws", on).apply(); CoreBridge.setMerge(on);
     });
@@ -1829,6 +1854,8 @@ final class CoreMenu extends Dialog {
     showHint.run();
     help(R.string.ingame_skip_normal_help);
     help(R.string.ingame_skip_aggressive_help);
+    help(R.string.ingame_skip_auto_help);
+    help(R.string.ingame_even_pacing_help);
     help(R.string.ingame_vk_bandwidth_help);
     help(R.string.ingame_smooth_help);
     help(R.string.ingame_skip_or_smooth);

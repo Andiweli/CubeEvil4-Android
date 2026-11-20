@@ -317,6 +317,10 @@
     <string name="ingame_colour_help">Film chaud fait ressortir les bruns et les dorés ; Survival horror pâlit les couleurs et durcit le contraste. Intensité règle la force.</string>
     <string name="ingame_skip_normal_help">Saut d’images Normal : si la puce graphique prend du retard, une image déjà prête est sautée pour que le jeu garde sa vitesse normale.</string>
     <string name="ingame_skip_aggressive_help">Saut d’images Agressif\u00A0: le jeu saute lui-même au plus une image sur deux quand il prend du retard\u00A0; bien plus rapide sur les téléphones au processeur lent.</string>
+    <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_skip_auto_help">Saut d’images Auto : tant que le jeu tourne à pleine vitesse, rien n’est sauté ; seulement s’il reste sous 30 images par seconde pendant environ une demi-seconde, les deux sortes de saut aident (comme en Agressif), jusqu’à ce qu’il ait de nouveau tourné deux secondes à pleine vitesse.</string>
+    <string name="ingame_even_pacing">Rythme d’images régulier</string>
+    <string name="ingame_even_pacing_help">Rythme d’images régulier : Oui (par défaut) retient une image si besoin pour que chaque image reste affichée aussi longtemps (30 réguliers, et 60 sur les écrans de plus de 60 Hz). Non affiche chaque image dès qu’elle est prête, comme dans les versions plus anciennes : un peu plus direct, mais moins régulier.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan uniquement\u00A0: économise de la bande passante mémoire sur les puces Mali et Adreno\u00A0; l’image reste identique.</string>
     <string name="ingame_skip_or_smooth">Le saut d’images et les 60 FPS s’excluent : activer l’un désactive l’autre.</string>
     <string name="ingame_merge_help">Regroupe plusieurs objets en un seul appel au pilote graphique. Peut aider les téléphones au pilote lent (p. ex. GPU Mali)\u00A0; sans effet avec les 60 FPS.</string>

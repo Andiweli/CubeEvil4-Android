@@ -2436,6 +2436,8 @@ static void testCpuInfo()
     // (two) yes, the Retroid (four) and alike cores no; a helper thread of this machine, the cores
     // above the lowest two made slow, lands below them; RE4_HELPERS_SLOW=0 leaves it
     ok &= re4cpu::FasterCores(a30) == 2 && re4cpu::FasterCores(sd) == 4 && re4cpu::FasterCores(alike) == 0;
+    // HelpersGoSlow: the placement's tries and the hint without the helpers only where they go on the slow cores
+    ok &= re4cpu::HelpersGoSlow(a30) && !re4cpu::HelpersGoSlow(sd) && !re4cpu::HelpersGoSlow(alike);
     ok &= !re4cpu::PutOnSlowCores(sd, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
           strstr(text, "4 faster cores") != nullptr;
     ok &= !re4cpu::PutOnSlowCores(alike, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
@@ -2443,6 +2445,7 @@ static void testCpuInfo()
     setenv("RE4_HELPERS_SLOW", "0", 1);
     ok &= !re4cpu::PutOnSlowCores(a30, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
           strstr(text, "RE4_HELPERS_SLOW=0") != nullptr;
+    ok &= !re4cpu::HelpersGoSlow(a30);
     unsetenv("RE4_HELPERS_SLOW");
     if (cores >= 3 && cores <= re4cpu::Layout::kMax) {
         re4cpu::Layout two;  // the two highest cores fast
@@ -2484,6 +2487,19 @@ static void testCpuInfo()
             CPU_ZERO(&now);
             sched_getaffinity(helperTid, sizeof(now), &now);
             lower &= CPU_ISSET(cores - 1, &now) != 0;
+            // a helper that has only the two fast cores (started by a thread already on them; user report
+            // 20.11.2026): the main thread's cores count, it still lands below them
+            cpu_set_t top;
+            CPU_ZERO(&top);
+            CPU_SET(cores - 2, &top);
+            CPU_SET(cores - 1, &top);
+            if (sched_setaffinity(helperTid, sizeof(top), &top) == 0) {
+                const bool again = re4cpu::PutOnSlowCores(two, helperTid, &set, where, sizeof(where));
+                CPU_ZERO(&now);
+                sched_getaffinity(helperTid, sizeof(now), &now);
+                lower &= again && !CPU_ISSET(cores - 1, &now) && CPU_ISSET(0, &now);
+                re4cpu::ReleaseThread(helperTid);
+            }
         } else {
             placed = true;  // a test machine that does not give this process every core
         }

@@ -330,6 +330,10 @@
     <string name="ingame_colour_help">Warm film brings out the browns and golds; Survival horror pales the colours and hardens the contrast. Strength sets how much.</string>
     <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
     <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out up to every second picture while it falls behind; much faster on phones with a slow processor.</string>
+    <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_skip_auto_help">Frame skip Auto: nothing is left out while the game runs at full speed; only when it stays under 30 pictures a second for about half a second do both kinds of frame skip help (as with Aggressive), until it has run at full speed for two seconds again.</string>
+    <string name="ingame_even_pacing">Even frame pacing</string>
+    <string name="ingame_even_pacing_help">Even frame pacing: On (the default) holds a picture back where needed so that every picture stays on the screen equally long (a steady 30, and 60 on screens faster than 60 Hz). Off shows each picture as soon as it is ready, as in older versions: a little more direct, but less even.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan only: saves memory bandwidth on Mali and Adreno chips; the picture stays the same.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow driver (e.g. Mali GPUs); no effect with 60 FPS.</string>

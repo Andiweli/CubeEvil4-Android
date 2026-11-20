@@ -316,6 +316,10 @@
     <string name="ingame_colour_help">Filme quente realça os castanhos e dourados; Survival horror empalidece as cores e endurece o contraste. Intensidade define quanto.</string>
     <string name="ingame_skip_normal_help">Salto de quadros Normal: se o chip gráfico atrasa, um quadro já pronto é pulado para o jogo manter a velocidade normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de quadros Agressivo: o próprio jogo pula no máximo um quadro a cada dois quando atrasa; bem mais rápido em celulares com processador lento.</string>
+    <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_skip_auto_help">Salto de quadros Auto: enquanto o jogo roda em velocidade total, nada é pulado; só quando fica abaixo de 30 imagens por segundo por cerca de meio segundo os dois tipos de salto ajudam (como no Agressivo), até ele rodar de novo dois segundos em velocidade total.</string>
+    <string name="ingame_even_pacing">Ritmo de imagens uniforme</string>
+    <string name="ingame_even_pacing_help">Ritmo de imagens uniforme: Sim (padrão) segura uma imagem quando preciso para que cada imagem fique na tela pelo mesmo tempo (30 constantes, e 60 em telas acima de 60 Hz). Não mostra cada imagem assim que fica pronta, como nas versões antigas: um pouco mais direto, mas menos uniforme.</string>
     <string name="ingame_vk_bandwidth_help">Só Vulkan: economiza largura de banda de memória em chips Mali e Adreno; a imagem continua igual.</string>
     <string name="ingame_skip_or_smooth">Salto de quadros e 60 FPS se excluem: ativar um desativa o outro.</string>
     <string name="ingame_merge_help">Agrupa vários objetos em uma só chamada ao driver gráfico. Pode ajudar celulares com driver lento (ex.: GPUs Mali); sem efeito com 60 FPS.</string>

@@ -309,6 +309,10 @@
     <string name="ingame_colour_help">Film hangat menonjolkan warna cokelat dan emas; Survival horror memudarkan warna dan mempertajam kontras. Kekuatan mengatur seberapa banyak.</string>
     <string name="ingame_skip_normal_help">Lewati frame Normal: saat chip grafis tertinggal, satu gambar yang sudah jadi dilewati agar game tetap berjalan dengan kecepatan normal.</string>
     <string name="ingame_skip_aggressive_help">Lewati frame Agresif: game sendiri melewati paling banyak satu dari dua gambar saat tertinggal; jauh lebih cepat di ponsel dengan prosesor lambat.</string>
+    <string name="ingame_skip_auto">Otomatis</string>
+    <string name="ingame_skip_auto_help">Lewati frame Otomatis: selama game berjalan dengan kecepatan penuh, tidak ada yang dilewati; hanya saat game bertahan di bawah 30 gambar per detik selama sekitar setengah detik, kedua jenis lewati frame membantu (seperti Agresif), sampai game kembali berjalan dua detik dengan kecepatan penuh.</string>
+    <string name="ingame_even_pacing">Ritme gambar merata</string>
+    <string name="ingame_even_pacing_help">Ritme gambar merata: Nyala (bawaan) menahan satu gambar bila perlu agar setiap gambar tampil sama lama di layar (30 stabil, dan 60 di layar lebih cepat dari 60 Hz). Mati menampilkan setiap gambar begitu siap, seperti di versi lama: sedikit lebih langsung, tapi kurang merata.</string>
     <string name="ingame_vk_bandwidth_help">Hanya Vulkan: menghemat bandwidth memori pada chip Mali dan Adreno; gambar tetap sama.</string>
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver lambat (mis. GPU Mali); tidak berpengaruh dengan 60 FPS.</string>

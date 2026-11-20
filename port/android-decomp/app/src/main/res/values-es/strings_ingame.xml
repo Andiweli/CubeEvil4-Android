@@ -315,6 +315,10 @@
     <string name="ingame_colour_help">Película cálida realza los marrones y dorados; Survival horror apaga los colores y endurece el contraste. Intensidad indica cuánto.</string>
     <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; mucho más rápido en móviles con un procesador lento.</string>
+    <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_skip_auto_help">Salto de fotogramas Auto: mientras el juego va a velocidad completa no se salta nada; solo cuando se queda por debajo de 30 imágenes por segundo durante medio segundo ayudan los dos tipos de salto (como en Agresivo), hasta que vuelve a ir dos segundos a velocidad completa.</string>
+    <string name="ingame_even_pacing">Ritmo de imagen uniforme</string>
+    <string name="ingame_even_pacing_help">Ritmo de imagen uniforme: Sí (por defecto) retiene una imagen cuando hace falta para que cada una se vea el mismo tiempo (30 constantes, y 60 en pantallas de más de 60 Hz). No muestra cada imagen en cuanto está lista, como en versiones anteriores: algo más directo, pero menos uniforme.</string>
     <string name="ingame_vk_bandwidth_help">Solo Vulkan: ahorra ancho de banda de memoria en chips Mali y Adreno; la imagen no cambia.</string>
     <string name="ingame_skip_or_smooth">El salto de fotogramas y los 60 FPS se excluyen: al activar uno se desactiva el otro.</string>
     <string name="ingame_merge_help">Agrupa varios objetos en una sola llamada al controlador gráfico. Puede ayudar en móviles con un controlador lento (p. ej., GPU Mali); sin efecto con 60 FPS.</string>

@@ -46,17 +46,18 @@ public class FrameSkipModeTest {
     assertFalse(g.contains("frameskip"));
     assertFalse(g.contains("cpuSkip"));
     CoreMenu.storeFrameSkipMode(g, 7);
-    assertEquals(2, CoreMenu.frameSkipMode(g));
+    assertEquals(3, CoreMenu.frameSkipMode(g));  // (1.1.0: 3 Auto the highest value)
   }
 
   @Test public void eachPressMovesOnAndBackToOff() {
     int mode = 0;
-    int[] seen = new int[4];
-    for (int i = 0; i < 4; i++) {
-      mode = (CoreMenu.frameSkipMode(g) + 1) % 3;
+    int[] seen = new int[5];
+    for (int i = 0; i < 5; i++) {
+      mode = CoreMenu.nextFrameSkip(CoreMenu.frameSkipMode(g));
       CoreMenu.storeFrameSkipMode(g, mode);
       seen[i] = CoreMenu.frameSkipMode(g);
     }
-    assertArrayEquals(new int[] {1, 2, 0, 1}, seen);
+    // 1.1.0: Off > Auto (3) > Normal (1) > Aggressive (2) > Off; the stored values of before stay
+    assertArrayEquals(new int[] {3, 1, 2, 0, 3}, seen);
   }
 }

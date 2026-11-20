@@ -451,6 +451,20 @@ inline int FasterCores(const Layout& l)
     return n;
 }
 
+// Whether helpers go on the slow cores here (PutOnSlowCores): one or two faster cores, not switched off by
+// RE4_FAST_CORES=0 or RE4_HELPERS_SLOW=0. Then a failed placement is worth another try (hintChunk) and the helpers stay
+// out of the performance hint's session (it would pull them back on the two fast cores).
+inline bool HelpersGoSlow(const Layout& l)
+{
+    const char* env = getenv("RE4_FAST_CORES");
+    const char* helpers = getenv("RE4_HELPERS_SLOW");
+    if ((env && *env == '0') || (helpers && *helpers == '0')) {
+        return false;
+    }
+    const int faster = FasterCores(l);
+    return faster > 0 && faster <= 2;
+}
+
 // Puts thread `tid` (a helper, e.g. a vertex thread) on the slowest kind of core when no more than
 // two cores are faster: those two are for the game thread and the render thread, which each need a
 // whole one (decision of the project owner, 29.10.2026; Redmi 15C, Helio G81 with two fast cores
@@ -475,32 +489,57 @@ inline bool PutOnSlowCores(const Layout& l, int tid, cpu_set_t* set, char* out, 
         snprintf(out, size, "left to Android (%d faster cores: room for them too)", faster);
         return false;
     }
-    cpu_set_t allowed;
+    // the cores allowed: the thread's own and the app's main thread's (a helper started by a thread already on the fast
+    // cores has only those; a Xiaomi with Android 16, user report 20.11.2026: "no slow core allowed to the app" at the
+    // start, all helpers then beside the game and the render thread); neither with a slow core (Android's start boost
+    // gives the app only the fast cores for its first seconds): the slow cores asked for anyway, and when Android
+    // refuses, hintChunk tries again later
+    cpu_set_t allowed, mainSet;
     CPU_ZERO(&allowed);
-    if (sched_getaffinity(tid, sizeof(allowed), &allowed) != 0) {
+    CPU_ZERO(&mainSet);
+    const bool own = sched_getaffinity(tid, sizeof(allowed), &allowed) == 0;
+    if (sched_getaffinity(getpid(), sizeof(mainSet), &mainSet) == 0) {
+        CPU_OR(&allowed, &allowed, &mainSet);
+    } else if (!own) {
         snprintf(out, size, "left to Android (its cores not readable)");
         return false;
     }
     cpu_set_t slow;
-    CPU_ZERO(&slow);
-    int n = 0, len = snprintf(out, size, "on cores");
-    for (int cpu = 0; cpu < l.count; cpu++) {
-        if (l.Kind(cpu) != 0 || !CPU_ISSET(cpu, &allowed)) {
-            continue;
+    for (int pass = 0; pass < 2; pass++) {
+        CPU_ZERO(&slow);
+        int n = 0;
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (l.Kind(cpu) != 0 || (pass == 0 && !CPU_ISSET(cpu, &allowed)) || (pass == 1 && !CoreOnline(cpu))) {
+                continue;
+            }
+            CPU_SET(cpu, &slow);
+            n++;
         }
-        CPU_SET(cpu, &slow);
-        n++;
-        if (len < static_cast<int>(size)) {
-            len += snprintf(out + len, size - len, " %d", cpu);
+        if (n) {
+            break;
         }
-    }
-    if (!n) {
-        snprintf(out, size, "left to Android (no slow core allowed to the app)");
-        return false;
+        if (pass == 1) {
+            snprintf(out, size, "left to Android (no slow core allowed to the app)");
+            return false;
+        }
     }
     if (sched_setaffinity(tid, sizeof(slow), &slow) != 0) {
-        snprintf(out, size, "left to Android (not allowed: %s)", strerror(errno));
+        snprintf(out, size, errno == EINVAL ? "left to Android (no slow core allowed to the app)"
+                                            : "left to Android (not allowed: %s)",
+                 strerror(errno));
         return false;
+    }
+    // the cores it got (Android may have narrowed them)
+    cpu_set_t got;
+    CPU_ZERO(&got);
+    if (sched_getaffinity(tid, sizeof(got), &got) == 0 && CPU_COUNT(&got) > 0) {
+        CPU_AND(&slow, &slow, &got);
+    }
+    int len = snprintf(out, size, "on cores");
+    for (int cpu = 0; cpu < l.count && len < static_cast<int>(size); cpu++) {
+        if (CPU_ISSET(cpu, &slow)) {
+            len += snprintf(out + len, size - len, " %d", cpu);
+        }
     }
     if (len < static_cast<int>(size)) {
         snprintf(out + len, size - len, ", the slowest (only %d faster cores)", faster);

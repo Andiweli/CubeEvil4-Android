@@ -542,8 +542,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (g.getBoolean("smooth60", false)) skip = 0;
       if (!g.contains(CoreMenu.FRAME_SKIP) || g.getInt(CoreMenu.FRAME_SKIP, 0) != skip) CoreMenu.storeFrameSkipMode(g, skip);
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
-      CoreBridge.setFrameSkip(skip == 1);
-      CoreBridge.setCpuSkip(skip == 2);
+      CoreMenu.sendFrameSkip(skip);
+      CoreBridge.setEvenPacing(CoreMenu.evenPacing(g));
       CoreBridge.setVkBandwidth(g.getBoolean("vkBandwidth", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
@@ -2822,8 +2822,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     applyGraphics();
     CoreBridge.setDof(CoreMenu.dofLevel(g));
     CoreBridge.setSmooth(g.getBoolean("smooth60", false));
-    CoreBridge.setFrameSkip(skip == 1);
-    CoreBridge.setCpuSkip(skip == 2);
+    CoreMenu.sendFrameSkip(skip);
+    CoreBridge.setEvenPacing(CoreMenu.evenPacing(g));
     CoreBridge.setFxaa(g.getBoolean("fxaa", false));
     CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
     CoreBridge.setSharperText(CoreMenu.sharperText(g));
@@ -2853,8 +2853,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreActivity.this.applyOptions();
       CoreBridge.setGraphics(CoreMenu.scaleHalves(g), 1, 1, 5);
       CoreBridge.setFxaa(false);
-      CoreBridge.setFrameSkip(false);
-      CoreBridge.setCpuSkip(false);
+      CoreMenu.sendFrameSkip(0);
       CoreBridge.setFastCores(true);
       CoreBridge.setPotato(0);
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[0]);
@@ -2865,8 +2864,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setGraphics(v[PerfProfile.SCALE], v[PerfProfile.SAMPLES], v[PerfProfile.ANISO], g.getInt("aspect", 0));
       CoreBridge.setFxaa(v[PerfProfile.FXAA] != 0);
       CoreBridge.setSmooth(v[PerfProfile.SMOOTH] != 0);
-      CoreBridge.setFrameSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 1);
-      CoreBridge.setCpuSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 2);
+      CoreMenu.sendFrameSkip(v[PerfProfile.SMOOTH] == 0 ? v[PerfProfile.SKIP] : 0);
       CoreBridge.setFastCores(v[PerfProfile.CORES] == 1);
       CoreBridge.setPotato((v[PerfProfile.WEATHER] != 0 ? 0 : 1) | (v[PerfProfile.SPECIAL] != 0 ? 0 : 2)
           | (v[PerfProfile.PARTICLES] << 2) | (v[PerfProfile.SHADOWS] != 0 ? 0 : 16));

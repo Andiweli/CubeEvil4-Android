@@ -764,6 +764,11 @@ std::atomic<long long> displayVsyncAt{0}, displayVsyncPeriod{0};
 re4gx::PictureCadence pictureCadence;
 // 0.99.12: a steady rhythm at 30 pictures a second (picture_cadence.h PictureHold)
 re4gx::PictureHold pictureHold;
+// The menu's "Even frame pacing" (CoreBridge.setEvenPacing, 1.1.0; the project owner, 20.11.2026, after a user's
+// "0.97.0 felt like 120 fps"): on (the default) the steady rhythms as since 0.99.12/0.99.13 (PictureHold at 30, the
+// present times of PresentPacer at 60 on screens faster than 60 Hz); off each picture goes to the next free vsync as
+// in 0.97.0: shown sooner (up to two vsyncs), less even.
+std::atomic<int> optEvenPacing{1};
 namespace present {
 std::string Summary();  // 0.99.13: the present times of the last window (below)
 }
@@ -945,7 +950,7 @@ void beforeSwap(long long began, bool active, unsigned dropped) {
         pacer.asides);
   }
   long long target = 0;
-  if (presentationTime) {
+  if (presentationTime && optEvenPacing.load()) {
     const long long asked = pacer.Target(began, displayVsyncPeriod.load(), active ? n : 1);
     if (asked > 0 && presentationTime(display, surface, asked) == EGL_TRUE)
       target = asked + pacer.period / 2;
@@ -967,6 +972,33 @@ const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
 // Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
 const Re4GxChunk *skipNext = nullptr;
 std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
+// Frame skip "Auto" (CoreBridge.setFrameSkipAuto, 1.1.0, the project owner's decision of 20.11.2026): both frame skips
+// (the renderer's and the game's own, as "Aggressive") only while the game stays under 30 (picture_cadence.h AutoSkip);
+// off while 60 FPS is on
+std::atomic<int> optSkipAuto{0};
+re4gx::AutoSkip autoSkip;
+// Frame skip now: the menu's Normal, or Auto while the game is behind
+bool skipNow() { return optFrameSkip.load() != 0 || (optSkipAuto.load() != 0 && autoSkip.on); }
+// Auto: a chunk the render thread took from the core (its number, the time)
+void autoNote(const Re4GxChunk *c, bool smoothOn) {
+  if (!c)
+    return;
+  if (!optSkipAuto.load() || smoothOn) {
+    if (autoSkip.on || !autoSkip.marks.empty()) {
+      autoSkip.on = false;
+      autoSkip.Reset();
+    }
+    return;
+  }
+  const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  if (autoSkip.Note(t, c->sequence)) {
+    const unsigned n = autoSkip.ons + autoSkip.offs;
+    if (n <= 20 || n % 50 == 0)
+      LOG("auto frame skip: %s (%.1f game pictures a second; %u times on so far)",
+          autoSkip.on ? "on, the game under 30 for half a second" : "off, two seconds at full pace", autoSkip.rate,
+          autoSkip.ons);
+  }
+}
 re4gx::SmoothPacer smoothPacer;
 // when the last chunks came: 60 a second is the game's own pace (movies, title)
 re4gx::ChunkRate chunkRate;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
@@ -2478,6 +2510,8 @@ bool drawGx() {
   const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
   if (chunk == skipNext)
     skipNext = nullptr;
+  else if (chunk && !deferred)
+    autoNote(chunk, smoothOn);  // (each chunk once: a held one comes back as skipNext)
   // A steady rhythm (0.99.12, a user's Helio G85 phone at 30 FPS on 60 Hz: 46 % of the new pictures two vsyncs apart,
   // the others 1 and 3 in turn, felt as small frame drops): a new game picture that is ready one vsync after the last
   // one (that one came late) waits for the next vsync, so every picture shows for two. Only at 30 game pictures a
@@ -2488,7 +2522,8 @@ bool drawGx() {
     const long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
     const double nowSec = std::chrono::duration<double>(now.time_since_epoch()).count();
-    if (!chunkRate.Sixty(nowSec) && pictureHold.Wait(re4gx::PictureCadence::Snap(nowNs, at, period), period)) {
+    if (optEvenPacing.load() && !chunkRate.Sixty(nowSec) &&
+        pictureHold.Wait(re4gx::PictureCadence::Snap(nowNs, at, period), period)) {
       skipNext = chunk;
       chunk = nullptr;
       if (pictureHold.held == 1 || pictureHold.held % 600 == 0)
@@ -2503,12 +2538,13 @@ bool drawGx() {
   // applied, GxRenderer::Skip) and the next one drawn at once: the game keeps its pace instead of
   // waiting for a slow GPU. Not while a graphics capture is on its way.
   bool behind = false;
-  if (chunk && !deferred && (optFrameSkip.load() != 0 || smoothOn) && !gxDumpWanted && !gxDumpSeriesLeft &&
+  if (chunk && !deferred && (skipNow() || smoothOn) && !gxDumpWanted && !gxDumpSeriesLeft &&
       !gxHitShotsLeft && !gxHitSeriesPending) {
     if (const Re4GxChunk *next = api.gxAcquire()) {
       behind = true;
+      autoNote(next, smoothOn);
       // (Frame skip and 60 FPS are one or the other, CoreMenu; with both set, 60 FPS wins)
-      if (optFrameSkip.load() != 0 && !smoothOn && gx->CanSkip(*chunk, *next)) {
+      if (skipNow() && !smoothOn && gx->CanSkip(*chunk, *next)) {
         gx->Skip(*chunk);
         api.gxRelease(chunk);
         chunk = next;
@@ -2678,12 +2714,15 @@ bool drawGx() {
           : viewDistance >= 50 ? "Short" : "Very short", viewDistance);
     }
     // (60 FPS and the game's frame skip exclude each other: the in-between pictures need every picture)
-    const int cpuSkip = optCpuSkip.load() != 0 && !smoothOn ? 1 : 0;
+    // (Auto: while the game is under 30, as "Aggressive"; its own line says when, so no line here for it)
+    const bool autoOn = optSkipAuto.load() != 0 && autoSkip.on;
+    const int cpuSkip = (optCpuSkip.load() != 0 || autoOn) && !smoothOn ? 1 : 0;
     if (api.setCpuSkip && cpuSkip != cpuSkipSent) {
       api.setCpuSkip(cpuSkip);
       cpuSkipSent = cpuSkip;
-      LOG("aggressive frame skip to the core: %s", cpuSkip ? "on (the game leaves a picture out while it is behind)"
-                                                           : optCpuSkip.load() ? "off (60 FPS is on)" : "off");
+      if (optCpuSkip.load() || !optSkipAuto.load())
+        LOG("aggressive frame skip to the core: %s", cpuSkip ? "on (the game leaves a picture out while it is behind)"
+                                                             : optCpuSkip.load() ? "off (60 FPS is on)" : "off");
     }
     const int vibration = optGameVibration.load();
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
@@ -3816,6 +3855,21 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_cheatAction(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
+}
+
+// Frame skip "Auto" (the menu, 1.1.0): both frame skips only while the game stays under 30 (picture_cadence.h AutoSkip).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkipAuto(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optSkipAuto.exchange(want) != want)
+    LOG("frame skip Auto: %s", want ? "on (both frame skips while the game stays under 30 a second)" : "off");
+}
+
+// "Even frame pacing" (the menu, 1.1.0): the steady rhythms (on) or each picture at the next free vsync (off).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setEvenPacing(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optEvenPacing.exchange(want) != want)
+    LOG("frame pacing: %s", want ? "even (pictures held for a steady rhythm, present times on fast screens)"
+                                 : "fast (each picture at the next free vsync)");
 }
 
 // Aggressive frame skip (the menu, patch 0227): the game leaves a picture out while it is behind (drawGx tells the core).

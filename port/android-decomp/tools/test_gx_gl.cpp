@@ -1745,6 +1745,68 @@ static std::string HoldRun(bool hold, double from, double to, unsigned *held, un
   return last;
 }
 
+// Frame skip "Auto" (1.1.0, picture_cadence.h AutoSkip): on after about half a second under 30, off after two seconds
+// at full pace, nothing at an even 30, a room's load pause keeps the state
+void TestAutoSkip() {
+  re4gx::AutoSkip a;
+  double t = 0.0;
+  unsigned seq = 0, changes = 0;
+  // 3 s at an even 30 (the Retroid): never on
+  for (int i = 0; i < 90; i++, t += 1.0 / 30, seq++)
+    changes += a.Note(t, seq);
+  Check(!a.on && changes == 0, "auto frame skip: an even 30 a second: never on");
+  // a little jitter (32.0 / 34.6 ms in turn; its first picture one late, 67 ms after the last): still never on
+  for (int i = 0; i < 90; i++, seq++) {
+    t += i % 2 ? 0.0320 : 0.0346;
+    changes += a.Note(t, seq);
+  }
+  Check(!a.on && changes == 0, "auto frame skip: 30 a second with jitter and one late picture: never on");
+  // one late picture now and then (every 20th 67 ms): never on
+  for (int i = 0; i < 120; i++, seq++) {
+    t += i % 20 == 19 ? 2.0 / 30 : 1.0 / 30;  // (the late one: its number the next, no chunk left out)
+    changes += a.Note(t, seq);
+  }
+  Check(!a.on && changes == 0, "auto frame skip: a single late picture now and then: never on");
+  // the game at 24 a second (the user's Helio G85 in r105): on within about 0.6 s
+  const double slowFrom = t;
+  double onAt = -1.0;
+  for (int i = 0; i < 48; i++, seq++) {
+    t += 1.0 / 24;
+    if (a.Note(t, seq) && a.on && onAt < 0)
+      onAt = t;
+  }
+  std::fprintf(stderr, "  auto frame skip: on %.2f s after the game fell to 24 a second\n", onAt - slowFrom);
+  Check(a.on && onAt > 0 && onAt - slowFrom <= 0.7, "auto frame skip: 24 a second: on within 0.7 s");
+  // back at 30: off after about 2 s, not before
+  const double fullFrom = t;
+  double offAt = -1.0;
+  for (int i = 0; i < 120; i++, seq++) {
+    t += 1.0 / 30;
+    if (a.Note(t, seq) && !a.on && offAt < 0)
+      offAt = t;
+  }
+  std::fprintf(stderr, "  auto frame skip: off %.2f s after the game was back at 30\n", offAt - fullFrom);
+  Check(!a.on && offAt - fullFrom >= 2.0 && offAt - fullFrom <= 3.0, "auto frame skip: back at 30: off after 2-3 s");
+  // pictures the game left out count by their numbers: 20 chunks a second, every second number missing (40 game
+  // pictures' worth, the skip working): not "slow"
+  for (int i = 0; i < 30; i++, seq++)
+    a.Note(t += 1.0 / 24, seq);
+  Check(a.on, "auto frame skip: on again at 24");
+  for (int i = 0; i < 90; i++) {
+    t += 1.0 / 15;
+    seq += 2;
+    a.Note(t, seq);
+  }
+  Check(!a.on, "auto frame skip: the numbers of pictures left out count: off at full pace");
+  // a room's load (2 s without chunks) and one slow chunk after it: no switch
+  changes = a.ons + a.offs;
+  t += 2.0;
+  a.Note(t, seq++);
+  for (int i = 0; i < 60; i++, seq++)
+    a.Note(t += 1.0 / 30, seq);
+  Check(!a.on && a.ons + a.offs == changes, "auto frame skip: a load pause switches nothing");
+}
+
 void TestPictureHold() {
   unsigned held = 0, shown = 0;
   double lag = 0.0;
@@ -5896,8 +5958,10 @@ int main() {
     TestPictureCadence();
     TestVsyncPeriod();
     TestPictureHold();
-    if (!poison)
+    if (!poison) {
       TestPresentPacer();
+      TestAutoSkip();
+    }
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);

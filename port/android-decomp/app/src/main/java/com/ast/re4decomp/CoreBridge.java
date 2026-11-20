@@ -307,6 +307,16 @@ public final class CoreBridge {
    */
   public static native void setCpuSkip(boolean on);
   /**
+   * Frame skip "Auto" (1.1.0): both frame skips (setFrameSkip's and setCpuSkip's) only while the game stays under 30
+   * pictures a second for about half a second, off again after two seconds at full pace. Not with 60 FPS.
+   */
+  public static native void setFrameSkipAuto(boolean on);
+  /**
+   * "Even frame pacing" (1.1.0): on (the default) the steady rhythms (a picture held back one vsync at 30, each picture
+   * asked for its vsync at 60 on screens faster than 60 Hz); off each picture at the next free vsync.
+   */
+  public static native void setEvenPacing(boolean on);
+  /**
    * Save bandwidth (Vulkan; 0.99.8): the clear after an EFB copy goes with the next pass, which then loads nothing
    * there (less memory traffic on a tiling GPU such as Mali or Adreno); the pictures stay the same. OpenGL ES: nothing.
    */

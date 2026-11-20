@@ -304,4 +304,65 @@ struct PresentPacer {
   }
 };
 
+// Frame skip "Auto" (1.1.0, the project owner's decision of 20.11.2026): the frame skips (the renderer's and the game's
+// own, as "Aggressive") only while the game stays below 30 pictures a second. The game's pace from the chunks' own
+// numbers (Re4GxChunk::sequence counts every chunk the core built, a picture the game left out included, one the
+// renderer leaves out too): over the last half second below 27 a second (two pictures or more missing; a single late
+// picture switches nothing) turns it on, two seconds at 29 a second or more turn it off again. A pause of more than 0.25 s between two chunks (a room loading,
+// the menu, a stall) starts the measurement anew and keeps the state.
+struct AutoSkip {
+  static constexpr double kWindow = 0.5, kCalm = 2.0, kGap = 0.25, kLow = 27.0, kFull = 29.0;
+  bool on = false;
+  unsigned ons = 0, offs = 0;  // the switches so far
+  double rate = 0.0;           // the pace of the last window (pictures a second)
+  struct Mark {
+    double t;
+    unsigned seq;
+  };
+  std::vector<Mark> marks;  // the chunks of the last window
+  double goodSince = -1.0;  // since when the pace is full (on), -1 not
+
+  void Reset() {
+    marks.clear();
+    goodSince = -1.0;
+  }
+  // A chunk taken at `t` seconds, its sequence number: true when `on` changed.
+  bool Note(double t, unsigned seq) {
+    if (!marks.empty() && (t - marks.back().t > kGap || seq <= marks.back().seq || t < marks.back().t))
+      Reset();
+    marks.push_back({t, seq});
+    std::size_t old = 0;
+    while (old + 1 < marks.size() && t - marks[old + 1].t >= kWindow)
+      old++;
+    if (old)
+      marks.erase(marks.begin(), marks.begin() + static_cast<long>(old));
+    const double span = t - marks.front().t;
+    if (span < kWindow * 0.9)
+      return false;  // not half a second yet
+    rate = (seq - marks.front().seq) / span;
+    if (!on) {
+      if (rate < kLow) {
+        on = true;
+        ons++;
+        goodSince = -1.0;
+        return true;
+      }
+      return false;
+    }
+    if (rate < kFull) {
+      goodSince = -1.0;
+      return false;
+    }
+    if (goodSince < 0.0)
+      goodSince = t;
+    if (t - goodSince >= kCalm) {
+      on = false;
+      offs++;
+      goodSince = -1.0;
+      return true;
+    }
+    return false;
+  }
+};
+
 } // namespace re4gx

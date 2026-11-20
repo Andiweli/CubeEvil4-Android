@@ -392,6 +392,47 @@ Aus der Durchsicht `reports/fork-checks/re4wii-android-2026-11-20.md` (GPL-3.0-o
   `111-hb-*.png`. **Nicht auf einem Gerät geprüft.** Nebenbefund: ein Zealot in r202 (Typ 7) hat 1 von 900 Leben und
   zeigt einen fast leeren Balken (so schon vorher).
 
+### 17. Zwei FPS-Berichte: Hilfsthreads, Bildfolge-Schalter, Frame-Skip „Auto“ (Projektinhaber, 20.11.2026)
+
+Auswertung: `reports/workthread-1.1.0/user-fps/analyse-2026-11-20.md` (nubia NX709S mit 120-Hz-Bildschirm, Xiaomi
+25078RA3EY mit Helio G85-Klasse). Entscheidung des Projektinhabers: „120 FPS brauchen wir nicht“ … „1, 2, 3 und Auto
+Frameskip zu bauen. Bei 3 aber einen Menüschalter unter 'Performance'“.
+
+1. **Hilfsthreads auf die langsamen Kerne, auch beim Start** (`re4_cpu_info.h` `PutOnSlowCores`, `gx_decode.cpp`
+   `hintChunk`/`placeHelpers`): mit nur zwei schnellen Kernen sollen die 3 Eckpunkt-Threads auf die langsamen (Regel
+   vom 29.10.2026). Mit „Leistungskerne“ ab dem Start scheiterte das beim ersten Chunk (~1,5 s nach dem Start):
+   „left to Android (no slow core allowed to the app)“ – und wurde nie wiederholt; dann teilen sich Spiel-, Grafik-
+   und Eckpunkt-Threads die zwei schnellen Kerne. Jetzt: die erlaubten Kerne aus dem Thread **und** dem Hauptthread der
+   App (ein Thread, den ein schon festgelegter Thread startet, erbt nur dessen Kerne); keiner davon langsam (Androids
+   Start-Boost): die langsamen Kerne trotzdem verlangt; lehnt Android ab, alle 90 Chunks (~3 s) neu, höchstens 10
+   Versuche (~30 s), Logzeile beim Erfolg („(try n)“) oder nach dem letzten Versuch. `HelpersGoSlow` (ein oder zwei
+   schnellere Kerne, nicht abgeschaltet) entscheidet, ob es Versuche gibt.
+2. **Leistungshinweis ohne die Hilfsthreads** bei nur zwei schnellen Kernen: die Sitzung von `APerformanceHint` hält
+   dann nur den Spiel-Thread (die Hilfsthreads darin würden auf die schnellen Kerne zurückgeholt). Logzeile
+   „performance hint: on (the game thread alone, …; the 3 vertex threads on the slow cores, not in it)“.
+3. **Schalter „Even frame pacing“** (Leistung, Zeile der zusammengefassten Draw-Calls; `GRAPHICS_PREFS` `evenPacing`,
+   Standard an; `CoreBridge.setEvenPacing`, `optEvenPacing`): an = wie bisher (`PictureHold` bei 30, die Present-Zeiten
+   von `PresentPacer` bei 60 auf Bildschirmen über 60 Hz); aus = jedes Bild zum nächsten freien Bildwechsel wie in
+   0.97.0 (früher zu sehen, bis zwei Bildwechsel, ungleichmäßiger). Name bewusst nicht „V-Sync“: der Bildwechsel-Takt
+   und kein Tearing bleiben. GLES und Vulkan (Vulkan hat nur `PictureHold`). `RE4_GX_PRESENT_TIME=0` bleibt.
+4. **Frame-Skip „Auto“** (Wert 3; Reihenfolge des Knopfs Aus > Auto > Normal > Aggressiv, `CoreMenu.SKIP_ORDER`, die
+   gespeicherten Werte 0/1/2 unverändert; `CoreBridge.setFrameSkipAuto`, `optSkipAuto`): `picture_cadence.h`
+   `AutoSkip` misst das Tempo des Spiels an den Nummern der Chunks (`Re4GxChunk::sequence`, auch ausgelassene zählen):
+   über die letzte halbe Sekunde unter 27/s (mindestens zwei Bilder fehlen; ein einzelnes verspätetes Bild schaltet nichts) → beide Frame-Skips an (der des Renderers und der des Spiels, Patch 0227,
+   wie „Aggressiv“); zwei Sekunden mit mindestens 29/s → aus. Eine Pause über 0,25 s (Laden, Menü) misst neu und lässt
+   den Zustand. Mit 60 FPS aus. Logzeile „auto frame skip: on/off (… game pictures a second; n times on so far)“.
+   Benchmark-Vorschläge und Profile kennen den Wert (Anzeige „Auto“).
+- Texte in 11 Sprachen (523). Geprüft am PC: i686-Kern mit Laufzeit- und Kerntests (cpuinfo: `HelpersGoSlow`, ein
+  Hilfsthread mit nur den zwei schnellen Kernen landet trotzdem auf den langsamen), `gx_gl_check` mit
+  `TestAutoSkip` (gleichmäßige 30, Zittern, ab und zu ein verspätetes Bild: nie an; 24/s: an nach höchstens 0,7 s; zurück bei 30: aus nach 2 s; ausgelassene
+  Nummern zählen; Ladepause schaltet nichts), App (Gradle, Unit-Tests, `FrameSkipModeTest` mit der neuen Reihenfolge).
+  **Nicht auf einem Gerät geprüft**, besonders nicht, ob Android die langsamen Kerne nach dem Start-Boost erlaubt.
+- **Dritter Bericht** (Galaxy S10, Exynos 9820, 0.99.18-rc, `reports/workthread-1.1.0/user-log-20261119`): der
+  Absturz in `logs/last-crash` stammt aus 0.96.8-beta (01.11.2026, r214, nach dem Schließen des Koffers ein
+  Neuladen von st2_2 nicht als „relinked“ erkannt, Sprung in die alte Raumfunktion) und ist seit 0.98.1 behoben
+  (380edc39, `os_link.cpp` `isRelink`). Die Sitzungen vom 19.11. liefen ohne Absturz; nur einige Vulkan-Pipelines beim
+  ersten Betreten der Burgräume (bis 114 ms je Pipeline). Nichts geändert.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
