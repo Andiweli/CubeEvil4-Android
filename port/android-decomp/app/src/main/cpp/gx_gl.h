@@ -301,6 +301,8 @@ public:
   // to the screen's height, which blurs the textures. Not for a movie's pictures (RE4_GX_CHUNK_MOVIE). Takes
   // effect with the next display copy; costs one pass over the XFB per picture (the in-between pictures too).
   void SetSharpen(int level);
+  // the upscaler (1.1.0, gx_upscale.h): 0 off, 1 SGSR, 2 FSR (EASU + RCAS)
+  void SetUpscaler(int kind);
   // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026; word_sharpen.h): while on, the menus'
   // word pictures (tex_pack_words.h) are enlarged 2x (small ones 4x from 3x on) with a contour snap on a thread of
   // their own and shown in place of the game's own picture once ready; nothing below 1.5x or in the PSone demake.

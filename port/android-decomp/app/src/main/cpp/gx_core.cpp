@@ -1318,6 +1318,7 @@ void GxCore::SetOptions(const GxOptions &options) { this->options = options; }
 void GxCore::SetDepthSink(DepthSink sink) { this->depthSink = std::move(sink); }
 void GxCore::SetFxaa(bool on) { this->fxaaOn = on; }
 void GxCore::SetSharpen(int level) { this->sharpLevel = level < 0 ? 0 : level > 2 ? 2 : level; }
+void GxCore::SetUpscaler(int kind) { this->upscaler = kind < 0 || kind > 2 ? 0 : kind; }
 void GxCore::SetPsx(bool on) {
   if (on == psxOn) return;
   this->psxOn = on;

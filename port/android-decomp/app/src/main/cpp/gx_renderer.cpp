@@ -45,6 +45,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) { impl_->Run(chunk); }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->SetDepthSink(std::move(sink)); }
 void GxRenderer::SetFxaa(bool on) { impl_->SetFxaa(on); }
 void GxRenderer::SetSharpen(int level) { impl_->SetSharpen(level); }
+void GxRenderer::SetUpscaler(int kind) { impl_->SetUpscaler(kind); }
 void GxRenderer::SetTvFilter(bool on) { impl_->SetTvFilter(on); }
 void GxRenderer::SetBandwidthSave(bool on) { impl_->SetBandwidthSave(on); }
 void GxRenderer::SetPsx(bool on) { impl_->SetPsx(on); }

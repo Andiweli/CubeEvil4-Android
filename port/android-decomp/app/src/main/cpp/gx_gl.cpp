@@ -5,6 +5,7 @@
 
 #include "gx_gl_shader.h"
 #include "gx_texture.h"
+#include "gx_upscale.h"
 #include "re4_gx_frame.h"
 
 #include <algorithm>
@@ -325,6 +326,13 @@ struct GlRenderer final : GxCore {
   GLuint sharpTex = 0, sharpFbo = 0, sharpProgram = 0;
   unsigned sharpTexW = 0, sharpTexH = 0;
   GLint sharpAmountLoc = -1, sharpLimitLoc = -1;
+  // the upscaler (1.1.0): its programs (SGSR, EASU, RCAS), their uniforms, the targets (the box's size), a failure
+  GLuint upProgram[3] = {0, 0, 0};
+  GLint upRows[3] = {-1, -1, -1}, upCon[3] = {-1, -1, -1}, upCon2[3] = {-1, -1, -1}, upCon3[3] = {-1, -1, -1},
+        upCon4[3] = {-1, -1, -1};
+  GLuint upTex[2] = {0, 0}, upFbo = 0;
+  int upW = 0, upH = 0;
+  bool upFailed[3] = {false, false, false};
   GLuint psxTex = 0, psxFbo = 0, psxProgram = 0;
   unsigned psxTexW = 0, psxTexH = 0;
   GLint psxGridLoc = -1;
@@ -1739,6 +1747,109 @@ struct GlRenderer final : GxCore {
     current = nullptr;
     fxaaShown = true;
     stats.fxaaPasses++;
+  }
+
+  // --- the upscaler (1.1.0, gx_upscale.h) -------------------------------------------------------
+
+  // program 1 SGSR, 2 EASU, 3 RCAS: linked once (GLSL ES 3.10: a GLES 3.0 driver cannot, the plain stretch then)
+  bool UpscaleProgram(int program) {
+    const int i = program - 1;
+    if (upProgram[i])
+      return true;
+    if (upFailed[i])
+      return false;
+    const UpscaleSources s = UpscaleShaders(false, program);
+    std::string log;
+    upProgram[i] = Link(s.vs, program == 1 ? s.sgsr : program == 2 ? s.easu : s.rcas, &log);
+    if (!upProgram[i]) {
+      upFailed[i] = true;
+      GXLOG("upscaler: the %s shader failed (the plain stretch instead): %s",
+            program == 1 ? "SGSR" : program == 2 ? "FSR EASU" : "FSR RCAS", log.c_str());
+      return false;
+    }
+    glUseProgram(upProgram[i]);
+    glUniform1i(glGetUniformLocation(upProgram[i], program == 1 ? "ps0" : "src"), 0);
+    upRows[i] = glGetUniformLocation(upProgram[i], "rows");
+    upCon[i] = glGetUniformLocation(upProgram[i], program == 1 ? "ViewportInfo" : program == 2 ? "con0" : "con");
+    upCon2[i] = glGetUniformLocation(upProgram[i], "con1");
+    upCon3[i] = glGetUniformLocation(upProgram[i], "con2");
+    upCon4[i] = glGetUniformLocation(upProgram[i], "con3");
+    GXLOG("upscaler: %s ready", program == 1 ? "SGSR" : program == 2 ? "FSR EASU" : "FSR RCAS");
+    return true;
+  }
+
+  // The picture shown (`src`, the XFB's size; the rows r0 + r1 of it) at the box's size w x h through the upscaler:
+  // the texture to show 1:1 (rows 0..1), 0 for the plain stretch (off, not larger, no shader). The caller's
+  // framebuffer and viewport are its own again afterwards.
+  GLuint Upscale(GLuint src, float r0, float r1, int w, int h) {
+    if (upscaler == kUpscaleOff || !src || w < 16 || h < 16 || xfbWidth < 16 || xfbHeight < 16)
+      return 0;
+    const float inW = static_cast<float>(xfbWidth), inH = r1 * static_cast<float>(xfbHeight);
+    if (static_cast<float>(w) <= inW * 1.02f && static_cast<float>(h) <= inH * 1.02f)
+      return 0;  // not larger: the plain (shrinking) stretch
+    const bool fsr = upscaler == kUpscaleFsr;
+    if (!UpscaleProgram(fsr ? 2 : 1) || (fsr && !UpscaleProgram(3)))
+      return 0;
+    GLint was = 0;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &was);
+    if (!upFbo)
+      glGenFramebuffers(1, &upFbo);
+    if (upW != w || upH != h || !upTex[0]) {
+      for (GLuint &t : upTex) {
+        if (t)
+          glDeleteTextures(1, &t);
+        glGenTextures(1, &t);
+        glBindTexture(GL_TEXTURE_2D, t);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      }
+      upW = w;
+      upH = h;
+    }
+    BindFbo(upFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, upTex[0], 0);
+    glViewport(0, 0, w, h);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, src);
+    glBindSampler(0, 0);
+    glBindVertexArray(quadVao);
+    const int first = fsr ? 1 : 0;
+    glUseProgram(upProgram[first]);
+    glUniform2f(upRows[first], r0, r1);
+    if (!fsr) {
+      const float info[4] = {1.0f / static_cast<float>(xfbWidth), 1.0f / static_cast<float>(xfbHeight),
+                             static_cast<float>(xfbWidth), static_cast<float>(xfbHeight)};
+      glUniform4fv(upCon[0], 1, info);
+    } else {
+      std::uint32_t con[16];
+      EasuConstants(con, inW, inH, static_cast<float>(xfbWidth), static_cast<float>(xfbHeight), static_cast<float>(w),
+                    static_cast<float>(h), r0 * static_cast<float>(xfbHeight));
+      glUniform4uiv(upCon[1], 1, con);
+      glUniform4uiv(upCon2[1], 1, con + 4);
+      glUniform4uiv(upCon3[1], 1, con + 8);
+      glUniform4uiv(upCon4[1], 1, con + 12);
+    }
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    GLuint out = upTex[0];
+    if (fsr) {
+      // RCAS: the upscaled picture sharpened (AMD's 0.2 stops)
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, upTex[1], 0);
+      glBindTexture(GL_TEXTURE_2D, upTex[0]);
+      glUseProgram(upProgram[2]);
+      glUniform2f(upRows[2], 0.0f, 1.0f);
+      std::uint32_t con[4];
+      RcasConstants(con, 0.2f);
+      glUniform4uiv(upCon[2], 1, con);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+      out = upTex[1];
+    }
+    glBindVertexArray(0);
+    BindFbo(static_cast<GLuint>(was));
+    upscalePasses++;
+    return out;
   }
 
   // --- Sharpen ---------------------------------------------------------------------------------
@@ -3844,20 +3955,24 @@ bool GlRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
     m.PresentTimerEnd();
     return true;
   }
-  glViewport(x, y, w, h);
   const float lines = static_cast<float>(m.xfbHeight ? m.xfbHeight : 1);
   float r0 = 0.0f, r1 = 1.0f;
   if (rows != 0 && top + rows <= m.xfbHeight) {
     r0 = static_cast<float>(top) / lines;
     r1 = static_cast<float>(rows) / lines;
   }
-  if (m.crtLevel > 0 && m.crtReady && m.crtProgram) {
+  const bool crt = m.crtLevel > 0 && m.crtReady && m.crtProgram;
+  // the upscaler (1.1.0): the picture at the box's size first, then shown 1:1 (not with the CRT, which makes its own
+  // lines from the picture's, nor for a movie's pictures)
+  const GLuint up = crt || m.chunkMovie ? 0 : m.Upscale(m.ShownXfb(), r0, r1, w, h);
+  glViewport(x, y, w, h);
+  if (crt) {
     m.CrtPresent(w, h, r0, r1);  // the CRT (0.99.9)
   } else {
     glUseProgram(m.presentProgram);
-    glUniform2f(m.presentRows, r0, r1);
+    glUniform2f(m.presentRows, up ? 0.0f : r0, up ? 1.0f : r1);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m.ShownXfb());
+    glBindTexture(GL_TEXTURE_2D, up ? up : m.ShownXfb());
     glBindSampler(0, 0);
   }
   glBindVertexArray(m.quadVao);
@@ -4104,6 +4219,12 @@ void GlRenderer::Release() {
   glDeleteProgram(m.copyProgram);
   glDeleteProgram(m.paletteProgram);
   glDeleteProgram(m.presentProgram);
+  for (GLuint p : m.upProgram)
+    if (p)
+      glDeleteProgram(p);
+  glDeleteTextures(2, m.upTex);
+  if (m.upFbo)
+    glDeleteFramebuffers(1, &m.upFbo);
   glDeleteProgram(m.focusProgram);
   glDeleteProgram(m.blurProgram);
   glDeleteProgram(m.halfProgram);

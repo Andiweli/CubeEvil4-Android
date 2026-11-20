@@ -217,6 +217,9 @@ int main(int argc, char **argv) {
       renderer->SetPsx(psx && *psx == '1');
       const char *sharpen = std::getenv("RE4_GX_SHARPEN");
       renderer->SetSharpen(sharpen ? std::atoi(sharpen) : 0);
+      // RE4_GX_UPSCALER=1|2: the menu's upscaler (SGSR, FSR; 1.1.0) for the -screen pictures (RE4_GX_SCREEN)
+      const char *upscaler = std::getenv("RE4_GX_UPSCALER");
+      renderer->SetUpscaler(upscaler ? std::atoi(upscaler) : 0);
       // RE4_GX_CRT=1|2, RE4_GX_COLOUR=MODE,LEVEL: the menu's CRT and colour (SetCrt, SetColour; 0.99.9)
       const char *crt = std::getenv("RE4_GX_CRT");
       renderer->SetCrt(crt ? std::atoi(crt) : 0);

@@ -716,6 +716,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
     CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
+    CoreBridge.setUpscaler(CoreMenu.upscaler(g));
     TexturePacks.apply(this, g);
   }
 

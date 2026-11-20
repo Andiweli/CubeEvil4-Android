@@ -510,6 +510,8 @@
     <string name="ingame_shader_prep_line">एक बार तैयार होने पर बाद में नहीं अटकेंगे। कोई भी बटन या टैप छोड़ देता है; बाकी बैकग्राउंड में तैयार होता है।</string>
     <string name="ingame_output_res">आउटपुट रिज़ॉल्यूशन</string>
     <string name="ingame_output_res_help">आउटपुट रिज़ॉल्यूशन: स्क्रीन पर भेजी जाने वाली तस्वीर का आकार; स्क्रीन उसे अपने पिक्सेल तक खींचती है। बहुत तेज़ स्क्रीन (1080p से ऊपर) वाले फ़ोन पर कम मान तेज़ है, ख़ासकर CRT, ब्लूम, FXAA या शार्पन के साथ, और थोड़ा नरम। नेटिव: स्क्रीन का अपना आकार। ऊपर का रिज़ॉल्यूशन (खेल का 3D) वैसा ही रहता है।</string>
+    <string name="ingame_upscaler">अपस्केलर</string>
+    <string name="ingame_upscaler_help">अपस्केलर: जब गेम की तस्वीर स्क्रीन पर अपनी जगह से छोटी हो (ऊपर का रेज़ोल्यूशन स्क्रीन से कम), तो उसे कैसे बड़ा किया जाए। बंद: सादा, नरम खिंचाव। SGSR (Qualcomm Snapdragon Game Super Resolution): ज़्यादा साफ़ किनारे, फ़ोन पर कम काम; अनुशंसित। FSR (AMD FidelityFX Super Resolution 1): सबसे साफ़, SGSR से लगभग दोगुना काम। जब तस्वीर अपनी जगह जितनी बड़ी हो, या CRT फ़िल्टर के साथ, कुछ नहीं बदलता।</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">मॉड्स</string>
     <string name="ingame_hd_textures">HD टेक्सचर</string>

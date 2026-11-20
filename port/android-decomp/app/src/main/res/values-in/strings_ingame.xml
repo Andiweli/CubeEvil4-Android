@@ -506,6 +506,8 @@
     <string name="ingame_shader_prep_line">Setelah disiapkan, tidak akan tersendat lagi. Tombol apa pun atau ketukan melewati; sisanya disiapkan di latar belakang.</string>
     <string name="ingame_output_res">Resolusi tampilan</string>
     <string name="ingame_output_res_help">Resolusi tampilan: ukuran gambar yang dikirim ke layar; layar meregangkannya ke pikselnya sendiri. Lebih rendah lebih cepat di ponsel dengan layar sangat tajam (di atas 1080p), terutama dengan CRT, bloom, FXAA, atau penajaman, dan sedikit lebih lembut. Asli: ukuran layar itu sendiri. Resolusi di atas (3D permainan) tetap sama.</string>
+    <string name="ingame_upscaler">Upscaler</string>
+    <string name="ingame_upscaler_help">Upscaler: cara gambar game diperbesar saat lebih kecil dari tempatnya di layar (resolusi di atas lebih rendah dari resolusi layar). Mati: peregangan biasa yang lembut. SGSR (Qualcomm Snapdragon Game Super Resolution): tepi lebih tajam, kerja ringan bagi ponsel; disarankan. FSR (AMD FidelityFX Super Resolution 1): paling tajam, sekitar dua kali kerja SGSR. Tidak ada yang berubah saat gambar sebesar tempatnya, juga dengan filter CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mod</string>
     <string name="ingame_hd_textures">Tekstur HD</string>

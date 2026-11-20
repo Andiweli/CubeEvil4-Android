@@ -316,6 +316,11 @@ public final class CoreBridge {
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
   /**
+   * The upscaler (1.1.0; 0 off, 1 SGSR, 2 FSR): the picture enlarged by Qualcomm's SGSR or AMD's FSR 1 instead of the
+   * plain stretch when it is smaller than its place on the screen (gx_upscale.h).
+   */
+  public static native void setUpscaler(int kind);
+  /**
    * "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words are enlarged with
    * clean edges on a thread of their own and drawn sharper at high resolutions (word_sharpen.h); on by default.
    */

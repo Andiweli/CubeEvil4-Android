@@ -510,6 +510,8 @@
     <string name="ingame_shader_prep_line">Einmal vorbereitet, ruckeln sie später nicht. Jede Taste oder ein Tippen überspringt; der Rest wird dann im Hintergrund vorbereitet.</string>
     <string name="ingame_output_res">Ausgabeauflösung</string>
     <string name="ingame_output_res_help">Ausgabeauflösung: die Größe des Bildes, das an den Bildschirm geht; der Bildschirm zieht es auf seine eigenen Pixel. Niedriger ist schneller auf Handys mit sehr feinen Bildschirmen (über 1080p), vor allem mit CRT, Bloom, FXAA oder Schärfen, und etwas weicher. Nativ: die eigene Größe des Bildschirms. Die Auflösung darüber (das 3D des Spiels) bleibt, wie sie ist.</string>
+    <string name="ingame_upscaler">Hochskalierer</string>
+    <string name="ingame_upscaler_help">Hochskalierer: wie das Bild des Spiels vergrößert wird, wenn es kleiner ist als sein Platz auf dem Bildschirm (eine Auflösung oben unter der des Bildschirms). Aus: das einfache, weiche Strecken. SGSR (Qualcomm Snapdragon Game Super Resolution): schärfere Kanten, wenig Arbeit für das Handy; empfohlen. FSR (AMD FidelityFX Super Resolution 1): am schärfsten, etwa doppelt so viel Arbeit wie SGSR. Nichts ändert sich, wenn das Bild so groß ist wie sein Platz, und mit dem CRT-Filter.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
     <string name="ingame_hd_textures">HD-Texturen</string>

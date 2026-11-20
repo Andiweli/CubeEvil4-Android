@@ -12,6 +12,7 @@
 // running, FXAA, Sharpen, the PSone pass, the lens flares' pass, the autofocus, the pipeline cache on disk.
 #include "gx_core.h"
 #include "gx_fixed_shaders.h"
+#include "gx_upscale.h"
 #include "gx_vk_shader.h"
 #include "vk_context.h"
 #include "vk_memory.h"
@@ -427,6 +428,11 @@ struct VkRenderer final : GxCore {
   Image efbMsColor, efbMsDepth;
   // the display copy's filters (DisplayEffects): their pictures and pipelines
   Image fxaaImg, sharpImg, psxImg, psxPrevImg;
+  // the upscaler (1.1.0, gx_upscale.h): its pictures at the box's size (SGSR or EASU; RCAS) and pipelines (SGSR,
+  // EASU, RCAS), a shader that failed
+  Image upImg[2];
+  Fixed upFx[3];
+  bool upFailed[3] = {false, false, false};
   // Colour and the CRT (0.99.9): the graded picture, the CRT's lines and glow; their pipelines (the CRT's screen: one
   // for the screenshot's pass, one for the swapchain's)
   Image colourImg, crtLineImg, crtGlowImg;
@@ -3739,6 +3745,87 @@ struct VkRenderer final : GxCore {
     return fs;
   }
   // whether the CRT draws the screen now; its pipeline for `rp` (the screenshot's pass or the swapchain's) made once
+  bool CrtOn() const {
+    return crtLevel > 0 && crtReady && !crtFailed && crtLineImg.image && crtGlowImg.image;
+  }
+  // the upscaler's program 1 SGSR, 2 EASU, 3 RCAS (gx_upscale.h): made once, in the filters' pass
+  bool UpscaleFx(int program) {
+    Fixed &f = upFx[program - 1];
+    if (f.pipeline)
+      return true;
+    if (upFailed[program - 1])
+      return false;
+    const UpscaleSources s = UpscaleShaders(true, program);
+    VkFixedLayout l;
+    l.samplers = {program == 1 ? "ps0" : "src"};
+    if (program == 1) {
+      l.constants = {{"ViewportInfo", 0, 16}, {"rows", 16, 8}};
+      l.bytes = kSgsrPushBytes;
+    } else if (program == 2) {
+      l.constants = {{"con0", 0, 16}, {"con1", 16, 16}, {"con2", 32, 16}, {"con3", 48, 16}, {"rows", 64, 8}};
+      l.bytes = kEasuPushBytes;
+    } else {
+      l.constants = {{"con", 0, 16}, {"rows", 16, 8}};
+      l.bytes = kRcasPushBytes;
+    }
+    const char *what = program == 1 ? "SGSR" : program == 2 ? "FSR EASU" : "FSR RCAS";
+    std::string error;
+    const VkColorComponentFlags all = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                                      VK_COLOR_COMPONENT_A_BIT;
+    if (MakeFixed(f, s.vs, program == 1 ? s.sgsr : program == 2 ? s.easu : s.rcas, copyPass, all, false, &error, true,
+                  &l)) {
+      GXLOG("upscaler: %s ready (Vulkan)", what);
+      return true;
+    }
+    GXLOG("upscaler: the %s shader failed (Vulkan; the plain stretch instead): %s", what, error.c_str());
+    FreeFixed(f);
+    upFailed[program - 1] = true;
+    return false;
+  }
+  // The picture shown (`src`; its rows r0 + r1) at the box's size w x h through the upscaler (GlRenderer::Upscale):
+  // the picture to show 1:1 (rows 0..1), nullptr for the plain stretch (off, not larger, the CRT, a movie, no
+  // shader). Outside a render pass (before the screen's).
+  Image *Upscale(Image *src, float r0, float r1, int w, int h) {
+    if (upscaler == kUpscaleOff || !src || !src->view || chunkMovie || CrtOn() || w < 16 || h < 16 ||
+        src->width < 16 || src->height < 16)
+      return nullptr;
+    const float texW = static_cast<float>(src->width), texH = static_cast<float>(src->height);
+    const float inW = texW, inH = r1 * texH;
+    if (static_cast<float>(w) <= inW * 1.02f && static_cast<float>(h) <= inH * 1.02f)
+      return nullptr;  // not larger: the plain (shrinking) stretch
+    const bool fsr = upscaler == kUpscaleFsr;
+    if (!UpscaleFx(fsr ? 2 : 1) || (fsr && !UpscaleFx(3)))
+      return nullptr;
+    if (!FilterImage(upImg[0], w, h) || (fsr && !FilterImage(upImg[1], w, h)))
+      return nullptr;
+    const Fixed &f = upFx[fsr ? 1 : 0];
+    std::vector<std::uint8_t> pc(f.constants.bytes, 0);
+    const float rows[2] = {r0, r1};
+    Put(pc, f, "rows", rows);
+    if (!fsr) {
+      const float info[4] = {1.0f / texW, 1.0f / texH, texW, texH};
+      Put(pc, f, "ViewportInfo", info);
+    } else {
+      std::uint32_t con[16];
+      EasuConstants(con, inW, inH, texW, texH, static_cast<float>(w), static_cast<float>(h), r0 * texH);
+      std::memcpy(pc.data(), con, sizeof(con));
+    }
+    Image *in[1] = {src};
+    FilterPass(f, upImg[0], in, 1, pc);
+    if (fsr) {
+      // RCAS: the upscaled picture sharpened (AMD's 0.2 stops)
+      std::vector<std::uint8_t> pr(upFx[2].constants.bytes, 0);
+      const float whole[2] = {0.0f, 1.0f};
+      Put(pr, upFx[2], "rows", whole);
+      std::uint32_t con[4];
+      RcasConstants(con, 0.2f);
+      std::memcpy(pr.data(), con, sizeof(con));
+      Image *mid[1] = {&upImg[0]};
+      FilterPass(upFx[2], upImg[1], mid, 1, pr);
+    }
+    upscalePasses++;
+    return &upImg[fsr ? 1 : 0];
+  }
   bool CrtWanted(Fixed &f, const char *vs, VkRenderPass rp) {
     if (crtLevel <= 0 || !crtReady || crtFailed || !crtLineImg.image || !crtGlowImg.image || !rp)
       return false;
@@ -3862,24 +3949,30 @@ struct VkRenderer final : GxCore {
   }
   // the latest display copy into `target` (whose pass is begun), at (x, y, w, h) counted from its top left
   void DrawPresent(Image &target, int x, int y, int w, int h, unsigned top, unsigned rows) {
-    VkCommandBuffer cb = F().draw;
-    BeginTargetPass(screenPass, target);
-    target.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    if (viBlack)
-      return;  // VISetBlack: black, whatever the XFB holds
-    Image *xfb = ShownImage();
-    if (!xfb)
-      return;
-    const VkViewport vp{float(x), float(y), float(w), float(h), 0.0f, 1.0f};
-    const VkRect2D sc{{std::max(0, x), std::max(0, y)}, {target.width, target.height}};
-    vkCmdSetViewport(cb, 0, 1, &vp);
-    vkCmdSetScissor(cb, 0, 1, &sc);
     const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
     float r[2] = {0.0f, 1.0f};
     if (rows && top + rows <= xfbHeight) {
       r[0] = static_cast<float>(top) / lines;
       r[1] = static_cast<float>(rows) / lines;
     }
+    // the upscaler (1.1.0): the picture at the box's size first, then shown 1:1
+    Image *up = viBlack ? nullptr : Upscale(ShownImage(), r[0], r[1], w, h);
+    if (up) {
+      r[0] = 0.0f;
+      r[1] = 1.0f;
+    }
+    VkCommandBuffer cb = F().draw;
+    BeginTargetPass(screenPass, target);
+    target.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    if (viBlack)
+      return;  // VISetBlack: black, whatever the XFB holds
+    Image *xfb = up ? up : ShownImage();
+    if (!xfb)
+      return;
+    const VkViewport vp{float(x), float(y), float(w), float(h), 0.0f, 1.0f};
+    const VkRect2D sc{{std::max(0, x), std::max(0, y)}, {target.width, target.height}};
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
     if (CrtWanted(crtShotFx, fixed::kQuadVs, screenPass)) {
       std::vector<std::uint8_t> pc(crtShotFx.constants.bytes, 0);
       CrtConstants(crtShotFx, pc, w, h, r[0], r[1]);
@@ -4266,6 +4359,14 @@ struct VkRenderer final : GxCore {
     }
     if (r == VK_SUBOPTIMAL_KHR)
       swapCheck = true;
+    // the upscaler (1.1.0): the picture at the box's size before the swapchain's pass, then shown 1:1
+    Image *up = nullptr;
+    if (!viBlack && screenW > 0 && screenH > 0) {
+      const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
+      const bool part = rows && top + rows <= xfbHeight;
+      up = Upscale(ShownImage(), part ? static_cast<float>(top) / lines : 0.0f,
+                   part ? static_cast<float>(rows) / lines : 1.0f, w, h);
+    }
     EndPass();
     VkCommandBuffer cb = F().draw;
     auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
@@ -4280,7 +4381,7 @@ struct VkRenderer final : GxCore {
     pass = kOtherPass;
     boundPipeline = VK_NULL_HANDLE;
     scissorValid = false;
-    Image *xfb = ShownImage();
+    Image *xfb = up ? up : ShownImage();
     if (!viBlack && xfb && xfb->view && screenW > 0 && screenH > 0) {
       const VkViewport vp{0.0f, 0.0f, float(swapExtent.width), float(swapExtent.height), 0.0f, 1.0f};
       const VkRect2D sc{{0, 0}, swapExtent};
@@ -4299,7 +4400,7 @@ struct VkRenderer final : GxCore {
         pc[4] = 0.0f, pc[5] = 1.0f, pc[6] = -1.0f, pc[7] = 0.0f;
       }
       const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
-      if (rows && top + rows <= xfbHeight) {
+      if (rows && top + rows <= xfbHeight && !up) {
         pc[8] = static_cast<float>(top) / lines;
         pc[9] = static_cast<float>(rows) / lines;
       }
@@ -4942,8 +5043,11 @@ struct VkRenderer final : GxCore {
       vkDestroyFramebuffer(dev, depthResolveFb, nullptr);
     depthResolveFb = VK_NULL_HANDLE;
     FreeFixed(depthResolve);
-    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg})
+    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg, &upImg[0],
+                       &upImg[1]})
       Destroy(*img);
+    for (Fixed &f : upFx)
+      FreeFixed(f);
     for (Fixed *f : {&colourFx, &crtLineFx, &crtGlowFx, &crtShotFx, &crtSwapFx})
       FreeFixed(*f);
     colourShown = crtReady = false;

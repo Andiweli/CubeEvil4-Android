@@ -338,6 +338,30 @@ die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_RE
 - **Auto-Frame-Skip:** nur Analyse (Vorschlag an den Projektinhaber): „Normal“ und „Aggressiv“ lassen schon nur bei
   Rückstand Bilder aus; nichts gebaut.
 
+### 15. Ideen aus dem RE4Wii-Android-Port: Ausgabeauflösung, Upscaler, PGO (Projektinhaber, 20.11.2026)
+
+Aus der Durchsicht `reports/fork-checks/re4wii-android-2026-11-20.md` (GPL-3.0-only: nur Ideen übernommen, kein Code).
+
+- **A. Ausgabeauflösung** (Anzeige, unter „Auflösung“; `GRAPHICS_PREFS` `outputRes`: 0 Nativ, 1080, 900, 720 = kurze
+  Seite): `SurfaceHolder.setFixedSize` in `CoreActivity.applyOutputSize`, der Bildschirm streckt; Tippen, Overlay,
+  Maus über `outputSize()` umgerechnet; GLES und Vulkan. Texte in 11 Sprachen. **Nicht auf einem Gerät geprüft.**
+- **B. Upscaler** (Anzeige, unter „Ausgabeauflösung“; `upscaler`: 0 Aus, 1 SGSR, 2 FSR; `CoreBridge.setUpscaler`,
+  `GxRenderer::SetUpscaler`, `RE4_GX_UPSCALER` für Tests): ist der Kasten des Bildes auf dem Bildschirm größer als das
+  Bild (> 2 %), bringt `gx_upscale.cpp` es vor der Ausgabe auf die Größe des Kastens, dann 1:1 gezeigt: **SGSR 1**
+  (Qualcomm, BSD-3, `third_party/snapdragon-gsr`, ein Durchgang) oder **FSR 1** (AMD, MIT,
+  `third_party/fidelityfx-fsr`, EASU + RCAS 0,2 Stufen). Reihenfolge: Spielbild → FXAA → Schärfen → PSone → Farbe →
+  Upscaler → Ausgabe (Farbe vor dem Upscaler: rechnet auf dem kleineren Bild); mit CRT und bei Filmen aus. Fremddateien unverändert, per CMake als Text eingebettet; zur Laufzeit
+  angepasst: SGSR `#version 310 es`/`450`, `const int mode`, `highp vec2(` → `vec2(` (Mesa/glslang lehnen Genauigkeit an
+  Konstruktoren ab), Vulkan-Uniforms als Push-Konstanten; aus `ffx_fsr1.h` die Konstanten-Funktionen herausgeschnitten
+  (int→uint in GLSL ES verboten; laufen auf dem Prozessor mit `A_CPU`). Braucht GLSL ES 3.10 (`textureGather`); ein
+  GLES-3.0-Treiber bekommt einmal eine Logzeile und das normale Strecken. Hinweise in `app/THIRD_PARTY_NOTICES.md`
+  (Kopie in der APK: `assets/THIRD_PARTY_NOTICES.md`). Geprüft am PC: alle Shader mit glslangValidator (GLES 3.10,
+  Vulkan SPIR-V) und Mesa; Bilder r208/r103 bei 1× (512×448 → 1920×1080) und 1,5× (768×672) mit Aus/SGSR/FSR,
+  GLES und Vulkan (lavapipe) gleich; `gx_gl_check` 0 Fehler; App (Gradle, Unit-Tests); 519 Texte in 11 Sprachen.
+  **Kosten (Schätzung, nicht gemessen):** bei 1080p auf einer Mali-G57-Klasse SGSR ≈ 0,5–1 ms, FSR ≈ 2,5–4 ms je
+  Bild; Standard Aus, Empfehlung SGSR. **Nicht auf einem Gerät geprüft.**
+- **C. PGO:** gemessen +2,1 % langsamer (`port/docs/pgo.md`), nicht eingebaut; Schalter `RE4_PGO` bleibt.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

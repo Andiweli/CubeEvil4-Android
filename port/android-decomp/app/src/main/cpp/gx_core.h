@@ -202,6 +202,10 @@ struct GxCore {
   // sharpTex, shown instead of it while sharpShown. A movie's pictures stay as they are (RE4_GX_CHUNK_MOVIE)
   int sharpLevel = 0;
   bool sharpShown = false, chunkMovie = false;
+  // the upscaler (GxRenderer::SetUpscaler, 1.1.0, gx_upscale.h): 0 off, 1 SGSR, 2 FSR; the picture shown through it
+  // when its box on the screen is larger than the picture (not with the CRT, not for a movie)
+  int upscaler = 0;
+  unsigned upscalePasses = 0;
   // PSone demake (GxRenderer::SetPsx): the 3D programs' key bit and point-sampled textures, and the last pass
   // over the display copy (a 320-wide grid, 15-bit colour with the PlayStation's 4 x 4 dither) into psxTex,
   // shown instead of it while psxShown
@@ -923,6 +927,7 @@ struct GxCore {
   void SetDepthSink(GxRenderer::DepthSink sink);
   void SetFxaa(bool on);
   void SetSharpen(int level);
+  void SetUpscaler(int kind);
   void SetTvFilter(bool on);
   void SetBandwidthSave(bool on);
   void SetPsx(bool on);

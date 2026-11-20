@@ -693,6 +693,11 @@ final class CoreMenu extends Dialog {
   static boolean sharperText(SharedPreferences g) {
     return g.getBoolean(SHARPER_TEXT, true);
   }
+  /** The upscaler (1.1.0, gx_upscale.h): 0 off (the default), 1 SGSR, 2 FSR. */
+  static final String UPSCALER = "upscaler";
+  static int upscaler(SharedPreferences g) {
+    return Math.max(0, Math.min(2, g.getInt(UPSCALER, 0)));
+  }
   /** The filter "Sharpen" (0.99.2): 0 off (the default), 1 light, 2 strong. */
   static final String SHARPEN_LEVEL = "sharpenLevel";
   static int sharpenLevel(SharedPreferences g) {
@@ -952,6 +957,10 @@ final class CoreMenu extends Dialog {
     graphicChoices(R.string.ingame_output_res, CoreActivity.OUTPUT_RES, new String[] {s(R.string.ingame_native), "1080p",
         "900p", "720p"}, new int[] {0, 1080, 900, 720}, 0, Integer.MAX_VALUE);
     indentedHelp(s(R.string.ingame_output_res_help));
+    // "Upscaler" (1.1.0): SGSR or FSR instead of the plain stretch when the picture is smaller than its box
+    graphicChoices(R.string.ingame_upscaler, UPSCALER, new String[] {s(R.string.ingame_off), "SGSR", "FSR"},
+        new int[] {0, 1, 2}, 0, Integer.MAX_VALUE);
+    indentedHelp(s(R.string.ingame_upscaler_help));
     graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
         new int[] {1, 2, 4}, 1, samples);
     toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fxaa, graphics.getBoolean("fxaa", false), on -> {

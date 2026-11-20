@@ -732,6 +732,7 @@ Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSharpen{0};  // the menu's sharpening (CoreBridge.setSharpen: 0 off, 1 light, 2 strong)
+std::atomic<int> optUpscaler{0};  // the menu's upscaler (CoreBridge.setUpscaler: 0 off, 1 SGSR, 2 FSR; 1.1.0)
 std::atomic<int> optSharperText{1};  // "Sharper menu text" (CoreBridge.setSharperText; on by default)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
@@ -2354,6 +2355,8 @@ bool drawGx() {
   gx->SetFxaa(optFxaa.load() != 0);
   static const int sharpenEnv = getenv("RE4_GX_SHARPEN") ? atoi(getenv("RE4_GX_SHARPEN")) : 0;
   gx->SetSharpen(sharpenEnv > 0 ? sharpenEnv : optSharpen.load());
+  static const char *upscalerEnv = getenv("RE4_GX_UPSCALER");
+  gx->SetUpscaler(upscalerEnv && *upscalerEnv ? atoi(upscalerEnv) : optUpscaler.load());
   // "Sharper menu text" (1.0.0): RE4_WORD_SHARPEN=0/1 wins over the menu
   static const char *wordsEnv = getenv("RE4_WORD_SHARPEN");
   gx->SetWordSharpen(wordsEnv && *wordsEnv ? *wordsEnv == '1' : optSharperText.load() != 0);
@@ -4020,6 +4023,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharpen(J
   const int want = level < 0 ? 0 : level > 2 ? 2 : level;
   if (optSharpen.exchange(want) != want)
     LOG("sharpen: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
+}
+
+// The upscaler (1.1.0, gx_upscale.h): SGSR or FSR 1 instead of the plain stretch when the picture is smaller than its
+// box on the screen (GxRenderer::SetUpscaler); 0 off, 1 SGSR, 2 FSR.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setUpscaler(JNIEnv *, jclass, jint kind) {
+  const int want = kind < 0 || kind > 2 ? 0 : kind;
+  if (optUpscaler.exchange(want) != want)
+    LOG("upscaler: %s", want == 2 ? "FSR" : want == 1 ? "SGSR" : "off");
 }
 
 // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words drawn sharper at
