@@ -2126,7 +2126,8 @@ struct VkRenderer final : GxCore {
     const std::uint64_t shift16 = static_cast<std::uint64_t>(std::lround(std::min(15.0f, lodShift) * 16.0f)) & 0xFF;
     const std::uint64_t k = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
                             (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49) |
-                            shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9;
+                            shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9 |
+                            static_cast<std::uint64_t>(stillLook) << 58;  // (a menu screen's: SamplerFor)
     auto it = samplers.find(k);
     if (it != samplers.end())
       return it->second;

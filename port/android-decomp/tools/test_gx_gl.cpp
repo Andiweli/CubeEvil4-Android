@@ -2084,9 +2084,11 @@ void TestMadeMips(re4gx::GxApi api, const char *tag) {
   std::string error;
   Require(r.Init(1, &error), error.c_str());
   const auto checker = I8Texture(256, 256, [](unsigned x, unsigned y) { return ((x + y) & 1) ? 255 : 0; });
-  auto spread = [&](unsigned mode0, unsigned key, double *mean) {
+  auto spread = [&](unsigned mode0, unsigned key, double *mean, bool still = false) {
     Builder b;
     Baseline(b);
+    if (still)
+      b.flags |= RE4_GX_CHUNK_STILL;
     DisplayCopy(b, true, kBlack);
     b.Bp(0x00, 1u | 1u << 4);
     b.Xf(0x103F, {1});
@@ -2124,6 +2126,9 @@ void TestMadeMips(re4gx::GxApi api, const char *tag) {
   double meanLinear = 0, meanNearest = 0;
   const double linear = spread(1u << 4 | 4u << 5, 0x7101, &meanLinear);   // min "linear" (the rooms' walls and floors)
   const double nearest = spread(1u << 4 | 0u << 5, 0x7102, &meanNearest);  // min "nearest"
+  // a menu screen of the game (RE4_GX_CHUNK_STILL, the attaché case): the made levels left out, level 0 as in 1.0.0
+  double meanStill = 0;
+  const double still = spread(1u << 4 | 4u << 5, 0x7103, &meanStill, true);
   std::fprintf(stderr, "  mipmaps (%s): a checker at 1/7 size: linear mean %.0f, spread %.1f; nearest spread %.1f; "
                "%u textures given levels, %.2f MB more, %.2f ms\n", tag, meanLinear, linear, nearest,
                r.Stats().mipTextures, r.Stats().mipBytes / 1048576.0, r.Stats().mipUs / 1000.0);
@@ -2131,7 +2136,9 @@ void TestMadeMips(re4gx::GxApi api, const char *tag) {
         (std::string("mipmaps (") + tag + "): a far checker an even grey, no shimmer").c_str());
   // (nearest: black and white texels, the display copy's vertical filter softens them a little)
   Check(nearest > 30.0, (std::string("mipmaps (") + tag + "): a texture sampled nearest keeps its look").c_str());
-  Check(r.Stats().mipTextures == 2 && r.Stats().mipBytes > 20000,
+  std::fprintf(stderr, "  mipmaps (%s): the same linear checker on a menu screen: spread %.1f\n", tag, still);
+  Check(still > 30.0, (std::string("mipmaps (") + tag + "): a menu screen's texture keeps level 0 (1.0.0's look)").c_str());
+  Check(r.Stats().mipTextures == 3 && r.Stats().mipBytes > 20000,
         (std::string("mipmaps (") + tag + "): levels made for the game's texture without").c_str());
   r.Release();
 }

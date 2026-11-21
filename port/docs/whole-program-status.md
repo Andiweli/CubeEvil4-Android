@@ -869,6 +869,22 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 - Kerntest `stack-items`: Munition 250/500/999, Granate, Kraut und Spray bei jedem Wert 1, Schatz 999, Waffe 0.
   Hilfetext in 11 Sprachen. **Nicht auf einem Gerät geprüft.**
 
+### 32. Koffer: fehlende waagrechte Rasterlinien (Projektinhaber, Retroid Pocket Flip 2, 21.11.2026)
+
+- **Befund:** Bericht `reports/workthread-1.1.0/owner-case-grid` (Vulkan, Adreno 650, 2,5× Dynamisch, Anisotropie 16,
+  CRT 1, FXAA, Schärfen 1, Farbe warm, HD-Paket 512 an). Im Koffer fehlen einige waagrechte Linien, die senkrechten sind da.
+- **Am PC nicht nachstellbar:** Nachbau mit Mitschnitt (r100, Koffer L per Cheat, Y öffnet den Koffer) und
+  `gx_chunk_render` (neu: `RE4_GX_ANISO`), Debug- und EU-Daten (`disc-ri`), HD-Paket 512 (`RE4_TEX_PACK_SYNC=1`: 24 von 60
+  ersetzt, der Kofferboden aus dem Paket wie beim Projektinhaber), Vulkan und GLES, mit und ohne die neuen Mipmaps
+  (0f0a13fb), mit allen Filtern des Projektinhabers: alle Linien da. Die neuen Mipmaps sind beim Kofferboden mit HD-Paket
+  nicht im Spiel (das Paket bringt eigene Stufen); ohne Paket ändern sie dort kaum etwas.
+- **Vermutete Ursache:** die anisotrope Filterung des Adreno-Treibers (16×) auf dem schräg liegenden, feinen Raster
+  (am PC rechnet Mesa sie anders); gab es mit HD-Paket wohl schon in 1.0.0.
+- **Änderung:** auf Menübildschirmen des Spiels (`RE4_GX_CHUNK_STILL`: Koffer/Untermenüs, Optionen, Laden) keine
+  Anisotropie und die vom Renderer gemachten Stufen ausgelassen (Stufe 0 wie in 1.0.0); `GxCore::stillLook`, Teil der
+  Sampler-Schlüssel (GL und Vulkan). Test `TestMadeMips`: dieselbe Textur auf einem Menübildschirm behält Stufe 0.
+- **Nicht auf einem Gerät geprüft** – ob die Linien auf dem Retroid wieder da sind, zeigt erst sein Test.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

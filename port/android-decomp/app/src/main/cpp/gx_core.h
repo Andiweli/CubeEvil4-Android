@@ -388,6 +388,10 @@ struct GxCore {
   };
   std::unordered_map<std::uint32_t, UploadSeen> uploadsAt;
   bool makeMips = true;  // RE4_GX_MAKE_MIPS=0: none (a test's comparison)
+  // a menu screen of the game (RE4_GX_CHUNK_STILL: the sub screens with the attaché case, the option screen; 1.1.0, the
+  // project owner's Retroid, 21.11.2026: grid lines of the case missing): its textures without anisotropy and the made
+  // levels left out (SamplerFor), the look of 1.0.0's menus; part of the samplers' keys
+  bool stillLook = false;
   XfBlock xf = {};
   // the XF parts as last sent (UploadXf): a part the game wrote again with the same values is not
   // sent again (about 5 % of the uploads of a village picture, Retroid series r226, 28.10.2026)

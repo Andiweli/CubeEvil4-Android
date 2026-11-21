@@ -2022,6 +2022,7 @@ void GxCore::Run(const Re4GxChunk &chunk) {
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
   m.chunkWide = (chunk.flags & RE4_GX_CHUNK_WIDE) != 0;
   m.chunkMovie = (chunk.flags & RE4_GX_CHUNK_MOVIE) != 0;
+  m.stillLook = (chunk.flags & RE4_GX_CHUNK_STILL) != 0;
   if (chunk.flags & RE4_GX_CHUNK_XFB)
     m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
   if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
@@ -3712,15 +3713,18 @@ GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsig
   s.minLod = static_cast<float>(mode1 & 0xFF) / 16.0f;
   s.maxLod = static_cast<float>((mode1 >> 8) & 0xFF) / 16.0f;
   // anisotropic filtering (the menu's option): only where the game filters
-  // linearly through mipmaps; point-sampled effects keep their look
+  // linearly through mipmaps; point-sampled effects keep their look; none on a menu screen of the game (stillLook:
+  // the attaché case's thin grid lines, near the screen's size anyway, lost some rows on an Adreno 650 with 16x)
+  const float anisotropy = stillLook ? 1.0f : this->anisotropy;
   s.anisotropy = anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point
                      ? anisotropy
                      : 1.0f;
   if (made && levels > 1) {
     // levels the renderer made for a game texture without (1.1.0, gx_mips.h): where the game filters linearly, through
     // them (as a texture with the game's own levels: trilinear, the game's level limits mean nothing for one level);
-    // a texture the game samples nearest (or the PSone demake's point sampling) keeps level 0 only, its look as before
-    if (minLinear[minFilter] && !point) {
+    // a texture the game samples nearest (or the PSone demake's point sampling) keeps level 0 only, its look as before;
+    // so does every texture of a menu screen of the game (stillLook: its pictures near their own size, the look of 1.0.0)
+    if (minLinear[minFilter] && !point && !stillLook) {
       s.minLinear = true;
       s.mip = 2;
       s.minLod = 0.0f;

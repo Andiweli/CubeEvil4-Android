@@ -211,6 +211,9 @@ int main(int argc, char **argv) {
       // RE4_GX_DOF_FULL=1: the depth of field's blur at the full resolution (GxOptions::halfDof off)
       const char *dofFull = std::getenv("RE4_GX_DOF_FULL");
       options.halfDof = !(dofFull && *dofFull == '1');
+      // RE4_GX_ANISO=N: the menu's texture filter (anisotropy 2..16; 1.1.0, the case's grid lines)
+      const char *aniso = std::getenv("RE4_GX_ANISO");
+      options.anisotropy = aniso ? static_cast<float>(std::max(1, std::atoi(aniso))) : 1.0f;
       renderer->SetOptions(options);
       // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
       const char *psx = std::getenv("RE4_GX_PSX");
