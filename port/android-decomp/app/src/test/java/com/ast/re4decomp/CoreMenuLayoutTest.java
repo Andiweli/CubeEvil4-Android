@@ -642,8 +642,26 @@ public class CoreMenuLayoutTest {
       assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
       qte.performClick(); assertEquals(12, sent[0]);
       qte.performClick(); assertEquals(4, sent[0]);
-      // "Random items" (0.99.2): a row of its own, on with a seed in bits 11..30, off without one
-      ViewGroup items = (ViewGroup) body.getChildAt(8);
+      // the case, the money and "Stack items" under them (16.11.2026; 21.11.2026: "Stack items" after the money,
+      // a switch of its own kept in core_game stackItems, the cheat switches untouched)
+      ViewGroup goods = (ViewGroup) body.getChildAt(8);
+      assertEquals(3, goods.getChildCount());
+      assertTrue(((Button) goods.getChildAt(0)).getText().toString().contains(activity.getString(R.string.ingame_cheat_case)));
+      assertTrue(((Button) goods.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_money)));
+      Button stack = (Button) goods.getChildAt(2);
+      assertTrue(stack.getText().toString().contains(activity.getString(R.string.ingame_cheat_stack)));
+      assertFalse(stack.isSelected());
+      stack.performClick();
+      assertTrue(stack.isSelected());
+      assertEquals("the cheat switches unchanged", 4, sent[0]);
+      stack.performClick();
+      assertFalse(stack.isSelected());
+      assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_stack_help)));
+      // "Random items" (0.99.2): on with a seed in bits 11..30, off without one; since 21.11.2026 with "Random enemies"
+      // the first row of ENEMIES AND WORLD
+      int world = heading(body, activity, R.string.ingame_cheat_section_world);
+      assertTrue(world > 8);
+      ViewGroup items = (ViewGroup) body.getChildAt(world + 1);
       Button random = (Button) items.getChildAt(0);
       assertTrue(random.getText().toString().contains(activity.getString(R.string.ingame_cheat_random_items)));
       random.performClick();
@@ -664,11 +682,6 @@ public class CoreMenuLayoutTest {
       assertEquals(0, game.getInt(CoreActivity.ENEMY_SEED, -1));
       assertEquals(0, enemySeed[0]);
       assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_random_enemies_help)));
-      // the case and the money under them (16.11.2026)
-      ViewGroup goods = (ViewGroup) body.getChildAt(9);
-      assertEquals(2, goods.getChildCount());
-      assertTrue(((Button) goods.getChildAt(0)).getText().toString().contains(activity.getString(R.string.ingame_cheat_case)));
-      assertTrue(((Button) goods.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_money)));
       Button killer7 = (Button) weapons.getChildAt(1);
       // a button lights up for a moment after a press
       killer7.performClick(); assertTrue(killer7.isSelected());

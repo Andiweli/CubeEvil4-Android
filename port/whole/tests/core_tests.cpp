@@ -58,6 +58,7 @@ extern "C" int re4probe_movie_test(void);
 extern "C" int re4_formats_entry_status(const void* entry);
 extern "C" int re4probe_card_test(void);
 extern "C" int re4probe_instant_game_test(void);
+extern "C" int re4probe_stack_items(void);  // tests/game_probe.cpp (1.1.0, patch 0254)
 
 namespace {
 
@@ -1384,6 +1385,15 @@ int re4_core_tests()
         int failed = re4probe_instant_game_test();
         gFailures += failed;
         report("instant-game", failed == 0);
+    }
+    {
+        // the cheat "Stack items" (patch 0254): the item table's limits off and on
+        int bad = re4probe_stack_items();
+        if (bad) {
+            re4_log("  stack items: checks failed: 0x%x", bad);
+            gFailures++;
+        }
+        report("stack-items", bad == 0);
     }
     testPause();
     testPeekDepth();

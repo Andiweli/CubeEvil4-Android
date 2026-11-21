@@ -2077,6 +2077,33 @@ extern EspTransFunc EspTransTbl[0xFF];
 // The app menu's Potato mode (runtime/potato.cpp, patch 0149): which sprites the two switches leave out; since
 // 0.99.3 the particle effects (less: every second, none: all but glowing ones, which stay at half) and shadows and
 // light effects (glows, shafts, blooms; re4_potato_no_shadows for patch 0219). Bits: each failed check.
+// The cheat "Stack items" (1.1.0, patch 0254; runtime/cheats.cpp): off the game's own limits a slot, on 999 for the
+// ammo, the grenades and the recovery items; weapons and treasures as they are. 0: all as expected.
+extern "C" int re4_stack_items(void);
+extern "C" void re4_stack_items_set(int on);
+extern "C" int re4probe_stack_items(void)
+{
+    int bad = 0;
+    const int keep = re4_stack_items();
+    re4_stack_items_set(0);
+    bad |= itemMaxNum(0x04) != 50 ? 0x1 : 0;    // handgun ammo
+    bad |= itemMaxNum(0x18) != 15 ? 0x2 : 0;    // shotgun shells
+    bad |= itemMaxNum(0x01) != 1 ? 0x4 : 0;     // hand grenade
+    bad |= itemMaxNum(0x06) != 1 ? 0x8 : 0;     // green herb
+    bad |= itemMaxNum(0x05) != 1 ? 0x10 : 0;    // first aid spray
+    re4_stack_items_set(1);
+    bad |= itemMaxNum(0x04) != 999 ? 0x20 : 0;
+    bad |= itemMaxNum(0x18) != 999 ? 0x40 : 0;
+    bad |= itemMaxNum(0x01) != 999 ? 0x80 : 0;
+    bad |= itemMaxNum(0x06) != 999 ? 0x100 : 0;
+    bad |= itemMaxNum(0x05) != 999 ? 0x200 : 0;
+    bad |= itemMaxNum(0x03) != 0 ? 0x400 : 0;   // a weapon (type 1) stays
+    bad |= itemMaxNum(0x56) != 999 ? 0x800 : 0; // a treasure (type 12) as before
+    bad |= itemType(0x04) != 2 || itemType(0x01) != 3 || itemType(0x06) != 6 ? 0x1000 : 0;
+    re4_stack_items_set(keep);
+    return bad;
+}
+
 extern "C" int re4probe_potato(void)
 {
     static cEsp e;

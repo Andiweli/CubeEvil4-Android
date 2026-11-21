@@ -1396,6 +1396,24 @@ int re4_invisible(void)
     return wanted != -1 && (wanted & kInvisible) ? 1 : 0;
 }
 
+// Patch 0254 (item.cpp itemInfo, ss_item.cpp): the cheat "Stack items" (1.1.0, the project owner, 21.11.2026: "Gegenstaende
+// stapeln"): ammo, grenades and recovery items up to 999 a slot. The app's switch comes as bit 21 of the aim bits
+// (runtime/aim_options.cpp re4_aim_set, not a cheat bit: those are all taken); any thread.
+static std::atomic<int> gStackItems(0);
+void re4_stack_items_set(int on)
+{
+    on = on ? 1 : 0;
+    if (gStackItems.exchange(on) != on) {
+        re4_log("cheat: stack items %s (ammo, grenades and recovery items %s)", on ? "on" : "off",
+                on ? "up to 999 a slot" : "as the game; larger stacks stay and are used up");
+    }
+}
+
+int re4_stack_items(void)
+{
+    return gStackItems.load(std::memory_order_relaxed);
+}
+
 // Patch 0233 (pl_wep.cpp, cam_extra.cpp): the cheat "Steady aim" (any thread; the game frames read it).
 int re4_steady_aim(void)
 {

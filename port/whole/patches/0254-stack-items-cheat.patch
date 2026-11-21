@@ -1,0 +1,44 @@
+# Port patch, a new cheat (1.1.0, wish of the project owner, 21.11.2026: "Gegenstaende stapeln", the app menu's CHEATS
+# page, GENERAL AND INVENTORY, after "+1,000,000 PTAS", off by default): while runtime/cheats.cpp re4_stack_items says so
+# (bit 21 of the app's aim bits, runtime/aim_options.cpp), itemInfo gives the ammo (type 2: handgun 50, magnum 10,
+# shotgun 15, rifle 10, TMP/machine gun 100 ...), the grenades (type 3: hand, incendiary, flash; one a slot) and the
+# recovery items (type 6: herbs and their mixes, first aid spray, eggs, fish; one a slot) up to 999 a slot; treasures
+# stack to 999 anyway, weapons, keys and the rest stay. The slots hold a 16-bit count (cItem::num, ItemSaveWork::num),
+# so saves keep a stack as it is. Switched off, a larger stack stays as it is and is used up one by one (the game takes
+# one at a time and frees the slot at 0, cItemMgr::use/dump); a pick-up then goes to a new slot. The inventory shows
+# the count of such a stack too (ss_item.cpp: before only where more than one fits a slot). Off: as the game.
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -1300,6 +1300,8 @@
+     return 1;
+ }
+ 
++extern "C" int re4_stack_items(void); /* port (patch 0254): runtime/cheats.cpp, the cheat "Stack items" */
++
+ // Static item table: type (1 weapon, 2 ammo, 3 knife-like, 5/12 treasure, 6 grenade, 7 map, 8 money,
+ // 9 weapon part, 10 file, 11 key, 13 gem, 14 ...), default pick-up count and max per slot for every id.
+ void itemInfo(ITEM_ID id, ITEM_INFO* info)
+@@ -1625,6 +1627,10 @@
+         info->maxNum = 1;
+         break;
+     }
++    /* port (patch 0254): "Stack items": ammo (2), grenades (3) and recovery items (6) up to 999 a slot */
++    if (re4_stack_items() && (info->type == 2 || info->type == 3 || info->type == 6)) {
++        info->maxNum = 999;
++    }
+ }
+ 
+ // Initialises a slot for item `id`: weapons get their level nibbles (special fixed ones: 0x21
+--- a/src/Sscrn/ss_item.cpp
++++ b/src/Sscrn/ss_item.cpp
+@@ -636,7 +636,9 @@
+                 m->texNo = itemTexNo(item->id);
+                 maxNum = itemMaxNum(item->id);
+             } while (0);
+-            if (maxNum != 1) {
++            /* port (patch 0254): a stack of an item the game keeps one a slot (the cheat "Stack items", switched
++               off since) shows its count as well */
++            if (maxNum != 1 || item->num > 1) {
+                 Vec pos;
+                 pos.x = (f32) item_num_x;
+                 pos.y = (f32) item_num_y;

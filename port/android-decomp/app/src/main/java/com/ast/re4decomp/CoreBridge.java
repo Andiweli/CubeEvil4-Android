@@ -140,6 +140,8 @@ public final class CoreBridge {
   public static native int vibrationFromGame();
   /** "Enemy health bars" (1.1.0, Cheats & Mods): a bar above each living enemy (runtime/health_bars.cpp). */
   public static native void setHealthBars(boolean on);
+  /** The cheat "Stack items" (1.1.0, Cheats & Mods): ammo, grenades and recovery items up to 999 a slot (patch 0254). */
+  public static native void setStackItems(boolean on);
   /** The mouse in the game's title and options menus (1.1.0): the app's own pointer (u, v 0..1 over the game's
    *  picture) at each move, `click` for a left click (runtime/mouse_menu.cpp). */
   public static native void mouseMenu(float u, float v, boolean click);

@@ -39,6 +39,7 @@
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_health_bars_set(int on);                 // runtime/health_bars.cpp (1.1.0)
+extern "C" void re4_stack_items_set(int on);                 // runtime/cheats.cpp (1.1.0, patch 0254)
 
 namespace {
 
@@ -152,6 +153,7 @@ struct StartSetting {
             gFar = (bits & 8) != 0;
             gVib = (bits & 0x20) ? (bits >> 4) & 1 : -1;
             re4_health_bars_set((bits >> 20) & 1);
+            re4_stack_items_set((bits >> 21) & 1);
             gHooked = true;
             gPending = true;
             re4_add_frame_hook(hook);
@@ -194,11 +196,13 @@ extern "C" {
 
 // The app (core_api.cpp re4_core_set_aim): bit 0 "Invert vertical", bit 1 "Auto aim", bit 2 "Always run",
 // bit 3 "Far camera", bit 4 the game's vibration on with bit 5 set (1.1.0; bit 5 clear: the game's own switch),
-// bits 8..19 the aim speed in percent, bit 20 "Enemy health bars" (1.1.0, runtime/health_bars.cpp), bits 24..29
+// bits 8..19 the aim speed in percent, bit 20 "Enemy health bars" (1.1.0, runtime/health_bars.cpp), bit 21 the cheat
+// "Stack items" (1.1.0, runtime/cheats.cpp, patch 0254), bits 24..29
 // "Field of view" (degrees + 32; 0.98.4). Any thread.
 void re4_aim_set(int bits)
 {
     re4_health_bars_set((bits >> 20) & 1);
+    re4_stack_items_set((bits >> 21) & 1);
     int speed = (bits >> 8) & 0xFFF;
     if (speed < 50) speed = 50;
     if (speed > 300) speed = 300;

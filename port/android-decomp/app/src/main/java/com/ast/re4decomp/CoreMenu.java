@@ -142,6 +142,8 @@ final class CoreMenu extends Dialog {
     /** The cheat "Random enemies" (0.99.12): a new seed each time it goes on, 0 off (CoreActivity.ENEMY_SEED holds
      *  it). */
     void enemyRandomChanged(int seed);
+    /** The cheat "Stack items" (1.1.0, GENERAL AND INVENTORY; CoreActivity.STACK_ITEMS holds it). */
+    void stackItemsChanged(boolean on);
     /** "Enemy health bars" (1.1.0, ENEMIES AND WORLD; CoreActivity.HEALTH_BARS holds it). */
     void healthBarsChanged(boolean on);
     /** "More enemies" (1.1.0, ENEMIES AND WORLD): a new seed each time it goes on, 0 off (CoreActivity.MORE_ENEMIES). */
@@ -2101,7 +2103,22 @@ final class CoreMenu extends Dialog {
       v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
       cheatAction(4, R.string.ingame_cheat_extras);
     });
-    // "Random items" (wish of the project owner, 07.11.2026, GitHub issue #161): a new seed each time it goes on
+    // the case and the money under them (the project owner, 16.11.2026), then "Stack items" (1.1.0, the project owner,
+    // 21.11.2026: "nach +1,000,000 PTAS"; patch 0254)
+    final SharedPreferences game = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
+    MenuLayout.Buttons inventory = cheatRow(3);
+    cheatButton(inventory, 2, R.string.ingame_cheat_case);
+    cheatButton(inventory, 3, R.string.ingame_cheat_money);
+    toggle(inventory, R.string.ingame_cheat_stack, game.getBoolean(CoreActivity.STACK_ITEMS, false),
+        on -> host.stackItemsChanged(on));
+    help(R.string.ingame_cheat_stack_help);
+    cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
+    cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
+    body.addView(cheatStatus);
+    // ENEMIES AND WORLD (1.1.0, wish of the project owner, 19.11.2026): "Enemy health bars", off by default
+    heading(R.string.ingame_cheat_section_world);
+    // "Random items" (wish of the project owner, 07.11.2026, GitHub issue #161): a new seed each time it goes on; with
+    // "Random enemies" the first row of ENEMIES AND WORLD (1.1.0, the project owner, 21.11.2026)
     MenuLayout.Buttons items = cheatRow(2);
     toggle(items, R.string.ingame_cheat_random_items, (cheatBits & RANDOM_ITEMS_BIT) != 0, on -> {
       cheatBits = withRandomItems(cheatBits, on, new java.util.Random().nextInt(1 << 20));
@@ -2109,32 +2126,22 @@ final class CoreMenu extends Dialog {
     });
     // "Random enemies" next to it (decision of the project owner, 12.11.2026; port/docs/gegner-randomizer-plan.md
     // stage 1): a seed of its own, a new one each time it goes on
-    final SharedPreferences game = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
     toggle(items, R.string.ingame_cheat_random_enemies, game.getInt(CoreActivity.ENEMY_SEED, 0) != 0, on -> {
       int seed = on ? 1 + new java.util.Random().nextInt((1 << 20) - 1) : 0;
       game.edit().putInt(CoreActivity.ENEMY_SEED, seed).apply();
       host.enemyRandomChanged(seed);
     });
-    // the case and the money under them (the project owner, 16.11.2026)
-    MenuLayout.Buttons inventory = cheatRow(2);
-    cheatButton(inventory, 2, R.string.ingame_cheat_case);
-    cheatButton(inventory, 3, R.string.ingame_cheat_money);
-    cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
-    cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
-    body.addView(cheatStatus);
-    // ENEMIES AND WORLD (1.1.0, wish of the project owner, 19.11.2026): "Enemy health bars", off by default
-    heading(R.string.ingame_cheat_section_world);
     MenuLayout.Buttons world = cheatRow(2);
     toggle(world, R.string.ingame_health_bars, game.getBoolean(CoreActivity.HEALTH_BARS, false),
         on -> host.healthBarsChanged(on));
     // "More enemies" beside it (1.1.0, wish of the project owner, 19.11.2026): a seed of its own, a new one each time
     toggle(world, R.string.ingame_more_enemies, game.getInt(CoreActivity.MORE_ENEMIES, 0) != 0, on ->
         host.moreEnemiesChanged(on ? 1 + new java.util.Random().nextInt((1 << 20) - 1) : 0));
+    help(R.string.ingame_cheat_random_items_help);
+    help(R.string.ingame_cheat_random_enemies_help);
     help(R.string.ingame_health_bars_help);
     help(R.string.ingame_more_enemies_help);
     help(R.string.ingame_cheats_help);
-    help(R.string.ingame_cheat_random_items_help);
-    help(R.string.ingame_cheat_random_enemies_help);
     playerCharacter();
     mods();
   }

@@ -355,6 +355,8 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Mallette L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
+    <string name="ingame_cheat_stack">Empiler les objets</string>
+    <string name="ingame_cheat_stack_help">Empiler les objets : munitions, grenades et objets de soin (herbes, spray de premiers soins, œufs, poissons) s’empilent jusqu’à 999 dans une case ; les trésors s’empilent de toute façon. Désactivé, les piles plus grandes restent et s’utilisent une par une ; ce que vous ramassez ensuite prend une nouvelle case.</string>
     <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez\u00A0; les sauvegardes ne les gardent pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Invisibilité\u00A0: les ennemis vous ignorent, pas les boss ni les scènes scriptées. Visée stable\u00A0: le laser et la lunette n’oscillent pas. Costumes\u00A0: Veste de Leon garde à Leon sa veste marron pendant tout le jeu\u00A0; Spécial habille Leon et Ashley de leurs tenues spéciales. Les boutons modifient votre partie\u00A0: les armes, la mallette et l’argent restent dans votre prochaine sauvegarde. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre.</string>
     <string name="ingame_cheat_done">Fait : %1$s.</string>
     <string name="ingame_cheat_already">Déjà là : %1$s.</string>

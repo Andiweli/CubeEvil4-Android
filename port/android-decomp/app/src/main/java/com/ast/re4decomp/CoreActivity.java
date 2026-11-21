@@ -200,6 +200,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String ENEMY_SEED = "enemySeed";
   /** "Enemy health bars" (1.1.0, GAME_PREFS; CoreBridge.setHealthBars): off by default. */
   static final String HEALTH_BARS = "enemyHealthBars";
+  /** The cheat "Stack items" (1.1.0, GAME_PREFS; CoreBridge.setStackItems, patch 0254): off by default. */
+  static final String STACK_ITEMS = "stackItems";
   /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
   static final String MORE_ENEMIES = "moreEnemiesSeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
@@ -602,6 +604,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       boolean bars = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(HEALTH_BARS, false);
       if (bars) Log.i(TAG, "enemy health bars on");
       CoreBridge.setHealthBars(bars);
+      boolean stack = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(STACK_ITEMS, false);
+      if (stack) Log.i(TAG, "cheats: stack items on");
+      CoreBridge.setStackItems(stack);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -1426,6 +1431,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(MORE_ENEMIES, seed).apply();
       Log.i(TAG, "cheats: more enemies " + (seed != 0 ? "on with seed " + seed : "off"));
       CoreBridge.setMoreEnemies(seed);
+    }
+
+    @Override public void stackItemsChanged(boolean on) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putBoolean(STACK_ITEMS, on).apply();
+      Log.i(TAG, "cheats: stack items " + (on ? "on" : "off"));
+      CoreBridge.setStackItems(on);
     }
 
     @Override public void healthBarsChanged(boolean on) {
