@@ -130,10 +130,14 @@ public class ModsPageTest {
     assertNotNull("the Mods page's Weapons", weapons);
     int[] i = place(importPack), s = place(sharpness), d = place(delete), o = place(onOff), c = place(costumes),
         w = place(weapons);
-    assertTrue("left column: Import, Sharpness, Delete one under the other", i[0] == s[0] && s[0] == d[0] && i[1] < s[1] && s[1] < d[1]);
-    assertTrue("right column: HD textures, Costumes, Weapons", o[0] == c[0] && c[0] == w[0] && o[1] < c[1] && c[1] < w[1]);
-    assertTrue("the right column right of the left one", o[0] > i[0]);
-    assertTrue("rows side by side", i[1] == o[1] && s[1] == c[1] && d[1] == w[1]);
+    // (1.1.0, the project owner's fourth menu round, 21.11.2026) "Manage": Import | Delete; "Texture options": HD
+    // textures | Sharpness, Costumes | Weapons
+    assertTrue("Import | Delete", i[1] == d[1] && d[0] > i[0]);
+    assertTrue("HD textures | Sharpness under them", o[1] == s[1] && s[0] > o[0] && o[1] > i[1]);
+    assertTrue("Costumes | Weapons under those", c[1] == w[1] && w[0] > c[0] && c[1] > o[1]);
+    assertTrue("left column", i[0] == o[0] && o[0] == c[0]);
+    assertEquals(activity.getString(R.string.ingame_side_manage), CoreMenuLayoutTest.sideLabel(importPack));
+    assertEquals(activity.getString(R.string.ingame_side_texture_options), CoreMenuLayoutTest.sideLabel(onOff));
     assertTrue("all of them usable with a pack", costumes.isEnabled() && weapons.isEnabled() && delete.isEnabled());
     String pack = activity.getString(R.string.ingame_hd_pack), original = activity.getString(R.string.ingame_hd_original);
     assertTrue("Costumes at first: " + costumes.getText(), costumes.getText().toString().contains(pack));

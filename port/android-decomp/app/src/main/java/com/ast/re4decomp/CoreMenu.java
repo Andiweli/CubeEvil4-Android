@@ -383,7 +383,30 @@ final class CoreMenu extends Dialog {
     /** The heading's text as shown (upper case). */
     String title() { return ((TextView) getChildAt(0)).getText().toString(); }
   }
-  private void help(int id) { help(body, id); }
+  private void help(int id) {
+    // (1.1.0, the project owner's fourth menu round) on the pages with side labels under the option column
+    if (sideLabels()) indentedHelp(s(id)); else help(body, id);
+  }
+  /** The pages laid out as DISPLAY (1.1.0, the project owner's fourth menu round, 21.11.2026: "alle Unterseiten ... mit
+   *  den Beschriftungen links"): labels on the left beside their rows, the rows and helps in the option column. */
+  private boolean sideLabels() {
+    return page == DISPLAY || page == AUDIO || page == CONTROLS || page == PERFORMANCE || page == CHEATS;
+  }
+  /** A row without a side label: in the option column on those pages, else over the body's width. */
+  private MenuLayout.Buttons plainRow() { return sideLabels() ? buttonsRow(labelledOptions(0)) : buttonsRow(body); }
+  /** A view (a status line) in the option column, as the helps. */
+  private void indentedView(View v) {
+    MenuLayout.Columns outer = new MenuLayout.Columns(getContext(), 170, 640, true);
+    outer.addView(new View(getContext()));
+    outer.addView(v);
+    body.addView(outer);
+  }
+  /** A line of text inside a side label's group, under its rows (as a help). */
+  private TextView groupText(LinearLayout group, String label) {
+    TextView t = text(label, 15, false); t.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    group.addView(t);
+    return t;
+  }
   private void help(LinearLayout parent, int id) {
     TextView t = text(s(id), 15, false); t.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8)); parent.addView(t);
   }
@@ -499,7 +522,7 @@ final class CoreMenu extends Dialog {
   private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
                            boolean quarters, int def, Changed<Integer> changed) {
     if (labels.length > 2) {
-      MenuLayout.Buttons row = into != null ? into : page == DISPLAY ? buttonsRow(labelledOptions(0)) : buttonsRow(body);
+      MenuLayout.Buttons row = into != null ? into : plainRow();
       into = null;
       ArrowSelector a = selector(row, label, labels, stepOf(values, selected), stepOf(values, def),
           i -> changed.accept(values[i]));
@@ -533,12 +556,18 @@ final class CoreMenu extends Dialog {
    */
   private Button[] rowChoices(String[] labels, int[] values, int selected, int columns, Changed<Integer> changed) {
     if (labels.length > 2) {
-      // (1.1.0) an arrow selector without a name (the heading above names it), half the row
-      ArrowSelector a = selector(buttonsRow(body), 0, labels, stepOf(values, selected), 0, i -> changed.accept(values[i]));
+      // (1.1.0) an arrow selector without a name (the heading above names it, or the side label: `into`)
+      MenuLayout.Buttons row = into != null ? into : plainRow();
+      into = null;
+      ArrowSelector a = selector(row, 0, labels, stepOf(values, selected), 0, i -> changed.accept(values[i]));
       return new Button[] {a};
     }
-    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), columns, 2);
-    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    MenuLayout.Buttons row = into;
+    into = null;
+    if (row == null) {
+      row = new MenuLayout.Buttons(getContext(), columns, 2);
+      body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
@@ -569,7 +598,8 @@ final class CoreMenu extends Dialog {
     int[] values = {0, 2, 3, 4, 5, 6, 7, 8};
     String[] labels = new String[values.length];
     for (int i = 0; i < values.length; i++) labels[i] = values[i] == 0 ? s(R.string.ingame_dynamic) : scaleLabel(values[i]);
-    MenuLayout.Buttons row = buttonsRow(labelledOptions(0));
+    MenuLayout.Buttons row = into != null ? into : buttonsRow(labelledOptions(0));
+    into = null;
     selector(row, R.string.ingame_resolution, labels, stepOf(values, scaleHalves(graphics)), 0, i -> {
       graphics.edit().putInt("scaleHalves", values[i]).apply(); host.graphicsChanged(); showGraphics();
     });
@@ -1058,15 +1088,19 @@ final class CoreMenu extends Dialog {
     // Unknown GPU capabilities must not enable unsupported samples or anisotropy.
     int samples = info == null ? 1 : Math.max(1, info[0]);
     int anisotropy = info == null ? 1 : Math.max(1, info[1]);
+    // (1.1.0, the project owner's fourth menu round, 21.11.2026) side labels: "Resolution" (picture format, resolution |
+    // benchmark, display resolution | upscaler), "Filtering" (MSAA | FXAA, texture filter | sharper menu text)
+    LinearLayout resolution = labelledOptions(R.string.ingame_resolution);
     // "Native" (5, wish of the project owner, 07.11.2026): the screen's own aspect (core_mode.cpp, re4mm::Native)
-    graphicChoices(R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_native), s(R.string.ingame_stretched)},
+    graphicChoices(buttonsRow(resolution), R.string.ingame_picture, "aspect", new String[] {s(R.string.ingame_original_43), s(R.string.ingame_43_no_bars), "16:9", s(R.string.ingame_native), s(R.string.ingame_stretched)},
         new int[] {1, 3, 0, 5, 2}, 0, Integer.MAX_VALUE);
+    into = buttonsRow(resolution);
     resolutionChoices();
-    graphicsLine = indentedHelp(""); graphicsLine.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(10)); showGraphics();
+    graphicsLine = groupText(resolution, ""); graphicsLine.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(10)); showGraphics();
     // "Display resolution" (1.1.0): the size sent to the screen, the display's scaler stretches it (CoreActivity)
     // (1.1.0, the project owner's third menu round, 21.11.2026) side by side: display resolution | upscaler, MSAA | FXAA,
     // texture filter | sharper menu text
-    MenuLayout.Buttons outputRow = buttonsRow(labelledOptions(0));
+    MenuLayout.Buttons outputRow = buttonsRow(resolution);
     graphicChoices(outputRow, R.string.ingame_output_res, CoreActivity.OUTPUT_RES, new String[] {s(R.string.ingame_native),
         "1080p", "900p", "720p"}, new int[] {0, 1080, 900, 720}, 0, Integer.MAX_VALUE);
     // "Upscaler" (1.1.0): SGSR or FSR instead of the plain stretch when the picture is smaller than its box
@@ -1074,14 +1108,14 @@ final class CoreMenu extends Dialog {
         new int[] {0, 1, 2}, 0, Integer.MAX_VALUE);
     indentedHelp(s(R.string.ingame_output_res_help));
     indentedHelp(s(R.string.ingame_upscaler_help));
-    MenuLayout.Buttons aaRow = buttonsRow(labelledOptions(0));
+    LinearLayout filtering = labelledOptions(R.string.ingame_side_filtering);
+    MenuLayout.Buttons aaRow = buttonsRow(filtering);
     graphicChoices(aaRow, R.string.ingame_aa_msaa, "samples", new String[] {s(R.string.ingame_off), "2×", "4×"},
         new int[] {1, 2, 4}, 1, samples);
     toggle(aaRow, R.string.ingame_aa_fxaa, graphics.getBoolean("fxaa", false), on -> {
       graphics.edit().putBoolean("fxaa", on).apply(); CoreBridge.setFxaa(on);
     });
-    indentedHelp(s(R.string.ingame_fxaa_help));
-    MenuLayout.Buttons textureRow = buttonsRow(labelledOptions(0));
+    MenuLayout.Buttons textureRow = buttonsRow(filtering);
     graphicChoices(textureRow, R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×",
         "8×", "16×"}, new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026: "Bitte baue den Schärfefilter für die
@@ -1089,6 +1123,7 @@ final class CoreMenu extends Dialog {
     toggle(textureRow, R.string.ingame_sharper_text, sharperText(graphics), on -> {
       graphics.edit().putBoolean(SHARPER_TEXT, on).apply(); CoreBridge.setSharperText(on);
     });
+    indentedHelp(s(R.string.ingame_fxaa_help));
     indentedHelp(s(R.string.ingame_sharper_text_help));
     heading(R.string.ingame_postprocessing);
     LinearLayout effects = labelledOptions(R.string.ingame_effects);
@@ -1185,7 +1220,9 @@ final class CoreMenu extends Dialog {
     // the current room's outline at the bottom left, turning with the player (wish of the project owner, 04.11.2026)
     // (1.1.0, the project owner's third menu round, 21.11.2026) minimap | photo mode on top, the Information HUD under
     // them with "Skip intro" beside it
-    MenuLayout.Buttons topRow = buttonsRow(labelledOptions(0));
+    // (the fourth menu round) the side label "Features", the heading "Optional"
+    LinearLayout features = labelledOptions(R.string.ingame_side_features);
+    MenuLayout.Buttons topRow = buttonsRow(features);
     toggle(topRow, R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
     });
@@ -1199,7 +1236,7 @@ final class CoreMenu extends Dialog {
     // (InfoHud), with a sentence on the play time
     final int[] fpsLabels = {R.string.ingame_off, R.string.ingame_fps_bottom_left, R.string.ingame_fps_bottom_centre,
         R.string.ingame_fps_top_left, R.string.ingame_fps_top_centre};
-    LinearLayout hud = labelledOptions(0);
+    LinearLayout hud = features;
     MenuLayout.Buttons hudRow = buttonsRow(hud);
     MenuLayout.Buttons parts = new MenuLayout.Buttons(getContext(), 2);
     TextView hudHelp = text(s(R.string.ingame_hud_help), 15, false);
@@ -1278,7 +1315,8 @@ final class CoreMenu extends Dialog {
     heading(R.string.ingame_touch_controls);
     // (1.1.0, the project owner's third menu round, 21.11.2026) the touch controls and the button style side by side,
     // both with their names, the helps under them
-    MenuLayout.Buttons touchRow = buttonsRow(body);
+    // (the fourth menu round, 21.11.2026) beside the side label "Touch style"
+    MenuLayout.Buttons touchRow = buttonsRow(labelledOptions(R.string.ingame_side_touch_style));
     final int[] touchModes = {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS};
     selector(touchRow, R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto),
         s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)}, stepOf(touchModes, CoreActivity.touchMode(input)),
@@ -1298,6 +1336,10 @@ final class CoreMenu extends Dialog {
     Button[] invert = new Button[2];
     Button[][] sources = new Button[1][];
     View[][] sensitivity = new View[1][];
+    // (the fourth menu round, 21.11.2026) "Gyroscope": gyro aiming | its sensitivity, "Gyro from" under them (a row up,
+    // above the axes); "Axes": the two directions
+    LinearLayout gyroGroup = labelledOptions(R.string.ingame_side_gyro);
+    into = buttonsRow(gyroGroup);
     sensitivity[0] = switchWithSlider(gyro ? R.string.ingame_gyro : R.string.ingame_gyro_none, gyroOn, enabled -> {
       host.gyroChanged(enabled);
       sensitivity[0][1].setEnabled(enabled); sensitivity[0][2].setEnabled(enabled);
@@ -1307,41 +1349,45 @@ final class CoreMenu extends Dialog {
         GyroAim.clampSensitivity(input.getFloat(CoreActivity.GYRO_SENSITIVITY, 1f)), value -> host.gyroSensitivityChanged(value));
     sensitivity[0][0].setEnabled(gyro);
     sensitivity[0][1].setEnabled(gyroOn); sensitivity[0][2].setEnabled(gyroOn);
-    // the gyro's directions (wish of the project owner, 27.10.2026): at once in GyroAim
-    MenuLayout.Buttons directions = buttonsRow(body);
-    invert[0] = toggle(directions, R.string.ingame_gyro_invert_v, input.getBoolean(CoreActivity.GYRO_INVERT_V, false),
-        value -> host.gyroInvertChanged(true, value));
-    invert[1] = toggle(directions, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
-        value -> host.gyroInvertChanged(false, value));
-    for (Button b : invert) b.setEnabled(gyroOn);
     // "Gyro from" (1.1.0, the project owner's choice "Gyro A"): this device's gyroscope or a controller's own
+    into = buttonsRow(gyroGroup);
     sources[0] = quarterChoices(R.string.ingame_gyro_source, new String[] {s(R.string.ingame_touch_auto),
         s(R.string.ingame_vibration_device), s(R.string.ingame_vibration_controller)},
         new int[] {GyroAim.SOURCE_AUTO, GyroAim.SOURCE_DEVICE, GyroAim.SOURCE_CONTROLLER},
         GyroAim.clampSource(input.getInt(CoreActivity.GYRO_SOURCE, GyroAim.SOURCE_AUTO)),
         value -> host.gyroSourceChanged(value));
     for (Button b : sources[0]) b.setEnabled(gyroOn);
+    // the gyro's directions (wish of the project owner, 27.10.2026): at once in GyroAim
+    MenuLayout.Buttons directions = buttonsRow(labelledOptions(R.string.ingame_side_axes));
+    invert[0] = toggle(directions, R.string.ingame_gyro_invert_v, input.getBoolean(CoreActivity.GYRO_INVERT_V, false),
+        value -> host.gyroInvertChanged(true, value));
+    invert[1] = toggle(directions, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
+        value -> host.gyroInvertChanged(false, value));
+    for (Button b : invert) b.setEnabled(gyroOn);
     help(R.string.ingame_gyro_source_help);
     heading(R.string.ingame_comfort);
-    MenuLayout.Buttons first = buttonsRow(body);
+    // (the fourth menu round, 21.11.2026) "Control type": the four rows; "Assists": Turn Leon | gentler QTEs
+    LinearLayout controlType = labelledOptions(R.string.ingame_side_control_type);
+    MenuLayout.Buttons first = buttonsRow(controlType);
     toggle(first, R.string.ingame_alternate, input.getBoolean(CoreActivity.ALT_CONTROLS, false), on -> host.alternateChanged(on));
     toggle(first, R.string.ingame_knife_swipe, input.getBoolean(CoreActivity.KNIFE_SWIPE, true), on -> host.knifeSwipeChanged(on));
-    MenuLayout.Buttons second = buttonsRow(body);
+    MenuLayout.Buttons second = buttonsRow(controlType);
     toggle(second, R.string.ingame_latch, input.getBoolean(CoreActivity.TOUCH_LATCH, false), on -> host.latchChanged(on));
     toggle(second, R.string.ingame_latch_b, input.getBoolean(CoreActivity.TOUCH_LATCH_B, false), on -> host.latchBChanged(on));
     // "Auto aim" and "Always run" (wish of the project owner, 30.10.2026): after the latches, before the aiming row
-    MenuLayout.Buttons third = buttonsRow(body);
+    MenuLayout.Buttons third = buttonsRow(controlType);
     toggle(third, R.string.ingame_auto_aim, input.getBoolean(CoreActivity.AUTO_AIM, false), on -> host.autoAimChanged(on));
     toggle(third, R.string.ingame_always_run, input.getBoolean(CoreActivity.ALWAYS_RUN, false), on -> host.alwaysRunChanged(on));
     // aiming the knife and the guns by touch or a controller (wish of the project owner, 30.10.2026): the game's
     // own "reverse" option and the stick's speed while aiming, right under the latches
+    into = buttonsRow(controlType);
     switchWithSlider(R.string.ingame_aim_invert_v, input.getBoolean(CoreActivity.AIM_INVERT_V, false),
         on -> host.aimInvertChanged(on), R.string.ingame_aim_speed, CoreActivity.AIM_SPEED_MIN,
         CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
     // "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026): off by default, under
     // aiming; since the project owner's third menu round (1.1.0) beside "Gentler QTEs"
-    MenuLayout.Buttons lastRow = buttonsRow(body);
+    MenuLayout.Buttons lastRow = buttonsRow(labelledOptions(R.string.ingame_side_assists));
     toggle(lastRow, R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
         on -> host.bodyTurnChanged(on));
     // "Gentler QTEs" (wish of the project owner, 14.11.2026: Professional's quick-time events "not to be done by touch,
@@ -1355,6 +1401,7 @@ final class CoreMenu extends Dialog {
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section
     // of its own, a third of the row each
     heading(R.string.ingame_touch_aim);
+    into = buttonsRow(labelledOptions(R.string.ingame_side_aim_with));  // (the fourth menu round: "Aim with")
     rowChoices(new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
         input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), 3, mode -> host.touchAimChanged(mode));
@@ -1363,6 +1410,8 @@ final class CoreMenu extends Dialog {
     // PLAYER VIEW above the laser sight (wish of the project owner, 05.11.2026): the far camera (a user's wish,
     // 01.11.2026; patch 0171) in the left half, the field of view (patch 0205) as a slider in the right half
     heading(R.string.ingame_player_view);
+    // (the fourth menu round, 21.11.2026) "View": far camera | field of view; under it "Laser sight" (its section gone)
+    into = buttonsRow(labelledOptions(R.string.ingame_side_view));
     View[] view = switchWithSlider(R.string.ingame_far_camera, input.getBoolean(CoreActivity.FAR_CAMERA, false), on -> {
       input.edit().putBoolean(CoreActivity.FAR_CAMERA, on).apply(); CoreBridge.setFarCamera(on);
     }, R.string.ingame_fov, -CoreActivity.FOV_RANGE, CoreActivity.FOV_RANGE, 1,
@@ -1371,16 +1420,15 @@ final class CoreMenu extends Dialog {
           input.edit().putInt(CoreActivity.FOV_OFFSET, degrees).apply(); CoreBridge.setFov(degrees);
         }, CoreMenu::degrees);
     view[1].setContentDescription(s(R.string.ingame_fov));
-    help(R.string.ingame_far_camera_help); help(R.string.ingame_fov_help);
-    // the laser sight's colour, beam and dot (wish of the project owner, 04.11.2026); since 05.11.2026 without a
-    // row label, a quarter of the row each
-    heading(R.string.ingame_laser_section);
+    // the laser sight's colour, beam and dot (wish of the project owner, 04.11.2026)
+    into = buttonsRow(labelledOptions(R.string.ingame_laser_section));
     rowChoices(new String[] {s(R.string.ingame_laser_red), s(R.string.ingame_laser_blue),
         s(R.string.ingame_laser_green), s(R.string.ingame_laser_yellow)}, new int[] {0, 1, 2, 3},
         input.getInt(CoreActivity.LASER_COLOUR, 0), 4, colour -> {
           input.edit().putInt(CoreActivity.LASER_COLOUR, colour).apply();
           CoreBridge.setLaserColour(colour);
         });
+    help(R.string.ingame_far_camera_help); help(R.string.ingame_fov_help);
     // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
     // since 30.10.2026 under a heading of its own
     heading(R.string.ingame_controller_section);
@@ -1390,21 +1438,27 @@ final class CoreMenu extends Dialog {
     final int[] shape = {CoreInput.clampDeadZone(input.getInt(CoreActivity.STICK_DEAD_ZONE, 0)),
         CoreInput.clampRange(input.getInt(CoreActivity.STICK_RANGE, 100))};
     // the dead zone and the range side by side (the project owner, 21.11.2026)
-    MenuLayout.Buttons sticks = buttonsRow(body);
+    // (the fourth menu round, 21.11.2026) "Stick options": dead zone | range, the vibration under them
+    LinearLayout stickGroup = labelledOptions(R.string.ingame_side_stick);
+    MenuLayout.Buttons sticks = buttonsRow(stickGroup);
     percentSlider(sticks, R.string.ingame_stick_dead_zone, 0, CoreInput.DEAD_ZONE_MAX, shape[0], value -> {
       shape[0] = value; host.stickShapeChanged(shape[0], shape[1]);
     });
     percentSlider(sticks, R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
       shape[1] = value; host.stickShapeChanged(shape[0], shape[1]);
     });
-    help(R.string.ingame_stick_help);
+    into = buttonsRow(stickGroup);
     choices(R.string.ingame_vibration, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_vibration_device),
         s(R.string.ingame_vibration_controller), s(R.string.ingame_off)}, new int[] {RumbleTarget.AUTO,
         RumbleTarget.DEVICE, RumbleTarget.CONTROLLER, RumbleTarget.OFF},
         RumbleTarget.clampMode(input.getInt(CoreActivity.VIBRATION, RumbleTarget.AUTO)), Integer.MAX_VALUE, 4,
         mode -> host.vibrationChanged(mode));
+    help(R.string.ingame_stick_help);
     help(R.string.ingame_vibration_help);
-    controllerButton = cellAction(buttonsRow(body), s(R.string.ingame_controller_config) + "   ›",
+    // the button mapping in a section of its own (the fourth menu round): "Map buttons and keys", the side label "Assign"
+    heading(R.string.ingame_mapping_section);
+    controllerButton = cellAction(buttonsRow(labelledOptions(R.string.ingame_side_assign)),
+        s(R.string.ingame_controller_config) + "   ›",
         v -> showPage(CONTROLLER, true));
     controllerButton.setEnabled(host != null && (host.controllerConnected() || host.keyboardConnected()));
     help(R.string.ingame_controller_config_help);
@@ -1426,8 +1480,10 @@ final class CoreMenu extends Dialog {
   }
   private View[] switchWithSlider(int label, boolean on, Changed<Boolean> toggled, int title, float min, float max,
       float step, float stored, Changed<Float> moved, Format format) {
-    // (1.1.0, the project owner's feedback of 21.11.2026) the switch and the slider as two cells of a row
-    MenuLayout.Buttons row = buttonsRow(body);
+    // (1.1.0, the project owner's feedback of 21.11.2026) the switch and the slider as two cells of a row (`into`: a
+    // side label's group)
+    MenuLayout.Buttons row = into != null ? into : plainRow();
+    into = null;
     Button toggle = toggle(row, label, on, toggled);
     SliderCell cell = sliderCell(row, title, Math.round((max - min) / step), Math.round((stored - min) / step),
         p -> format.of(min + p * step), p -> moved.accept(min + p * step));
@@ -1726,10 +1782,11 @@ final class CoreMenu extends Dialog {
    */
   private void audio() {
     heading(R.string.ingame_volume);
-    MenuLayout.Buttons volumes = buttonsRow(body);
+    // (1.1.0, the project owner's fourth menu round) side labels "Levels" and "Mute"
+    MenuLayout.Buttons volumes = buttonsRow(labelledOptions(R.string.ingame_side_levels));
     volumeSlider(volumes, R.string.ingame_music_volume, "musicVolume");
     volumeSlider(volumes, R.string.ingame_effects_volume, "effectsVolume");
-    MenuLayout.Buttons sound = buttonsRow(body);
+    MenuLayout.Buttons sound = buttonsRow(labelledOptions(R.string.ingame_side_mute));
     toggle(sound, R.string.ingame_music_volume, graphics.getBoolean("musicOn", true), on -> {
       graphics.edit().putBoolean("musicOn", on).apply(); CoreBridge.sendSoundVolume(graphics);
     });
@@ -1753,7 +1810,9 @@ final class CoreMenu extends Dialog {
 
   private void performance() {
     heading(R.string.ingame_perf_section);
-    // without a row label, half the row each (wish of the project owner, 05.11.2026)
+    // half the row each (wish of the project owner, 05.11.2026); since the fourth menu round (1.1.0) beside the side
+    // label "Profile"
+    into = buttonsRow(labelledOptions(R.string.ingame_side_profile));
     rowChoices(new String[] {s(R.string.ingame_perf_default), s(R.string.ingame_perf_cores)},
         new int[] {0, 1}, graphics.getInt("fastCores", 0), 2, value -> {
           graphics.edit().putInt("fastCores", value).apply(); CoreBridge.setFastCores(value == 1);
@@ -1762,7 +1821,8 @@ final class CoreMenu extends Dialog {
     // Potato mode (decision of the project owner, 30.10.2026): two switches that leave the expensive
     // surroundings effects out; the explanation only below them (runtime/potato.cpp in the core)
     heading(R.string.ingame_potato);
-    MenuLayout.Buttons potato = buttonsRow(body);
+    LinearLayout potatoGroup = labelledOptions(R.string.ingame_effects);  // (the fourth menu round: "Effects")
+    MenuLayout.Buttons potato = buttonsRow(potatoGroup);
     toggle(potato, R.string.ingame_potato_weather, graphics.getBoolean("weatherEffects", true), on -> {
       graphics.edit().putBoolean("weatherEffects", on).apply(); CoreBridge.setPotato(CoreBridge.potatoSent(graphics)); CoreBridge.setBloom(CoreBridge.bloomSent(graphics));
     });
@@ -1774,7 +1834,7 @@ final class CoreMenu extends Dialog {
     // light effects
     final int[] particleLabels = {R.string.ingame_particles_normal, R.string.ingame_particles_less,
         R.string.ingame_particles_none};
-    MenuLayout.Buttons morePotato = buttonsRow(body);
+    MenuLayout.Buttons morePotato = buttonsRow(potatoGroup);
     selector(morePotato, R.string.ingame_potato_particles, texts(particleLabels), CoreBridge.particleEffects(graphics), 0,
         next -> {
           graphics.edit().putInt("particleEffects", next).apply();
@@ -1793,7 +1853,7 @@ final class CoreMenu extends Dialog {
     // (1.1.0) an arrow selector from the farthest to the nearest (VIEW_ORDER), Normal the default
     final String[] viewLabels = new String[CoreBridge.VIEW_ORDER.length];
     for (int i = 0; i < viewLabels.length; i++) viewLabels[i] = s(CoreBridge.VIEW_LABEL[CoreBridge.VIEW_ORDER[i]]);
-    selector(buttonsRow(body), R.string.ingame_potato_view, viewLabels,
+    selector(buttonsRow(potatoGroup), R.string.ingame_potato_view, viewLabels,
         stepOf(CoreBridge.VIEW_ORDER, CoreBridge.viewDistance(graphics)), stepOf(CoreBridge.VIEW_ORDER, CoreBridge.VIEW_NORMAL),
         i -> {
           int next = CoreBridge.VIEW_ORDER[i];
@@ -1827,8 +1887,10 @@ final class CoreMenu extends Dialog {
     final Runnable showHint = () -> unevenHint.setVisibility(
         FramePacing.sixtyUneven(screenHz) && graphics.getBoolean("smooth60", false) ? View.VISIBLE : View.GONE);
     // (1.1.0, the project owner's design of 21.11.2026) one arrow selector "Frame skip": Off, Auto, Normal,
-    // Aggressive, beside 60 FPS; then Even frame pacing | merged draws, vertex ring | save bandwidth
-    MenuLayout.Buttons output = buttonsRow(body), more = buttonsRow(body), vkRow = buttonsRow(body);
+    // Aggressive, beside 60 FPS; since the fourth menu round beside the side label "Options", then Even frame pacing |
+    // save bandwidth (Vulkan), under them the two that Vulkan greys out: merged draws | vertex ring
+    LinearLayout options = labelledOptions(R.string.ingame_side_options);
+    MenuLayout.Buttons output = buttonsRow(options), more = buttonsRow(options), vkRow = buttonsRow(options);
     final String[] skipValues = {s(R.string.ingame_off), s(R.string.ingame_touch_auto), s(R.string.ingame_skip_normal),
         s(R.string.ingame_skip_aggressive)};
     final ArrowSelector skip = selector(output, R.string.ingame_frame_skip, skipValues,
@@ -1863,7 +1925,7 @@ final class CoreMenu extends Dialog {
     toggle(more, R.string.ingame_even_pacing, evenPacing(graphics), on -> {
       graphics.edit().putBoolean(EVEN_PACING, on).apply(); CoreBridge.setEvenPacing(on);
     });
-    Button merge = toggle(more, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
+    Button merge = toggle(vkRow, R.string.ingame_merge_draws, graphics.getBoolean("mergeDraws", false), on -> {
       graphics.edit().putBoolean("mergeDraws", on).apply(); CoreBridge.setMerge(on);
     });
     // the vertex ring at the bottom (wish of the project owner, 01.11.2026: off by default, for Mali)
@@ -1872,7 +1934,7 @@ final class CoreMenu extends Dialog {
     });
     // "Save bandwidth (Vulkan)" (wish of the project owner, 10.11.2026): under them; Vulkan only (with OpenGL ES greyed
     // out and shown off, the choice kept), off by default until a Mali or Adreno report shows it helps
-    Button bandwidth = toggle(vkRow, R.string.ingame_vk_bandwidth, graphics.getBoolean("vkBandwidth", false), on -> {
+    Button bandwidth = toggle(more, R.string.ingame_vk_bandwidth, graphics.getBoolean("vkBandwidth", false), on -> {
       graphics.edit().putBoolean("vkBandwidth", on).apply(); CoreBridge.setVkBandwidth(on);
     });
     if (vulkanRun) {
@@ -1881,7 +1943,7 @@ final class CoreMenu extends Dialog {
     } else {
       toggleLabel(bandwidth, R.string.ingame_vk_bandwidth, false); bandwidth.setEnabled(false);
     }
-    body.addView(unevenHint);
+    indentedView(unevenHint);
     showHint.run();
     help(R.string.ingame_skip_normal_help);
     help(R.string.ingame_skip_aggressive_help);
@@ -2057,9 +2119,11 @@ final class CoreMenu extends Dialog {
     bits &= ~(RANDOM_ITEMS_BIT | SEED_BITS);
     return on ? bits | RANDOM_ITEMS_BIT | ((seed << SEED_SHIFT) & SEED_BITS) : bits;
   }
-  private MenuLayout.Buttons cheatRow(int columns) {
-    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), columns);
-    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+  /** A row of two in a side label's group (1.1.0, the project owner's fourth menu round: "nie mehr 3 Buttons in einer
+   *  Reihe, immer 2 Spalten"). */
+  private MenuLayout.Buttons cheatRow(LinearLayout group) {
+    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), 2);
+    group.addView(row, new LinearLayout.LayoutParams(-1, -2));
     return row;
   }
   /** The CHEATS page (out of MANAGEMENT since 30.10.2026, wish of the project owner). Since 05.11.2026 in three
@@ -2070,28 +2134,35 @@ final class CoreMenu extends Dialog {
   private void cheats() {
     cheatBits = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).getInt(CoreActivity.CHEATS, 0);
     heading(R.string.ingame_cheat_section_player);
-    MenuLayout.Buttons player = cheatRow(3);
+    // (1.1.0, the project owner's fourth menu round, 21.11.2026) two columns and side labels: "Options"; "Basic
+    // weapons" and "Explosives"; "Unlocks" and "Stacking"; "Randomizer" and "Advanced"
+    LinearLayout playerGroup = labelledOptions(R.string.ingame_side_options);
+    MenuLayout.Buttons player = cheatRow(playerGroup);
     cheatSwitch(player, R.string.ingame_cheat_health, 1);
     cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
-    cheatSwitch(player, R.string.ingame_cheat_invisible, INVISIBLE_BIT);
-    MenuLayout.Buttons player2 = cheatRow(3);
+    MenuLayout.Buttons player2 = cheatRow(playerGroup);
+    cheatSwitch(player2, R.string.ingame_cheat_invisible, INVISIBLE_BIT);
     cheatSwitch(player2, R.string.ingame_cheat_onehit, 4);
-    cheatSwitch(player2, R.string.ingame_cheat_steady, STEADY_AIM_BIT);
+    MenuLayout.Buttons player3 = cheatRow(playerGroup);
+    cheatSwitch(player3, R.string.ingame_cheat_steady, STEADY_AIM_BIT);
     // the special costumes, out of the player character's section (the project owner, 16.11.2026)
-    costumeSwitch(player2);
+    costumeSwitch(player3);
     heading(R.string.ingame_cheat_section_weapons);
-    MenuLayout.Buttons weapons = cheatRow(3);
+    LinearLayout basic = labelledOptions(R.string.ingame_side_basic_weapons);
+    MenuLayout.Buttons weapons = cheatRow(basic);
     cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
     cheatButton(weapons, 1, R.string.ingame_cheat_killer7);
-    cheatButton(weapons, 9, R.string.ingame_cheat_matilda);
-    MenuLayout.Buttons launchers = cheatRow(3);
-    cheatButton(launchers, 6, R.string.ingame_cheat_chicago);
+    MenuLayout.Buttons weapons2 = cheatRow(basic);
+    cheatButton(weapons2, 9, R.string.ingame_cheat_matilda);
+    cheatButton(weapons2, 6, R.string.ingame_cheat_chicago);
+    MenuLayout.Buttons launchers = cheatRow(labelledOptions(R.string.ingame_side_explosive_weapons));
     cheatButton(launchers, 8, R.string.ingame_cheat_mine);
     cheatButton(launchers, 7, R.string.ingame_cheat_rocket);
     // the switch "Automatic QTEs" and the button "Unlock extra games" (Assignment Ada, The Mercenaries), half the
     // row each (wish of the project owner, 29.10.2026)
     heading(R.string.ingame_cheat_section_game);
-    MenuLayout.Buttons more = cheatRow(2);
+    LinearLayout unlocks = labelledOptions(R.string.ingame_side_unlocks);
+    MenuLayout.Buttons more = cheatRow(unlocks);
     cheatSwitch(more, R.string.ingame_cheat_qte, 8);
     cellAction(more, s(R.string.ingame_cheat_extras), v -> {
       v.setSelected(true); main.postDelayed(() -> v.setSelected(false), CHEAT_FLASH_MS);
@@ -2100,11 +2171,11 @@ final class CoreMenu extends Dialog {
     // the case and the money under them (the project owner, 16.11.2026), then "Stack items" (1.1.0, the project owner,
     // 21.11.2026: "nach +1,000,000 PTAS"; patch 0254)
     final SharedPreferences game = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
-    MenuLayout.Buttons inventory = cheatRow(2);
+    MenuLayout.Buttons inventory = cheatRow(unlocks);
     cheatButton(inventory, 2, R.string.ingame_cheat_case);
     cheatButton(inventory, 3, R.string.ingame_cheat_money);
     // "Refill ammo" beside it (1.1.0, the project owner, 21.11.2026: "Munition auffüllen", runtime/cheats.cpp action 10)
-    MenuLayout.Buttons ammo = cheatRow(2);
+    MenuLayout.Buttons ammo = cheatRow(labelledOptions(R.string.ingame_side_stacking));
     // (the project owner's design of 21.11.2026) an arrow selector: Standard > 250 > 500 > 999 > Standard
     final int[] stackSteps = CoreActivity.STACK_STEPS;
     selector(ammo, R.string.ingame_cheat_stack, new String[] {s(R.string.ingame_stack_standard), "250", "500", "999"},
@@ -2114,12 +2185,12 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_cheat_refill_help);
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
-    body.addView(cheatStatus);
+    indentedView(cheatStatus);
     // ENEMIES AND WORLD (1.1.0, wish of the project owner, 19.11.2026): "Enemy health bars", off by default
     heading(R.string.ingame_cheat_section_world);
     // "Random items" (wish of the project owner, 07.11.2026, GitHub issue #161): a new seed each time it goes on; with
     // "Random enemies" the first row of ENEMIES AND WORLD (1.1.0, the project owner, 21.11.2026)
-    MenuLayout.Buttons items = cheatRow(2);
+    MenuLayout.Buttons items = cheatRow(labelledOptions(R.string.ingame_side_random));
     toggle(items, R.string.ingame_cheat_random_items, (cheatBits & RANDOM_ITEMS_BIT) != 0, on -> {
       cheatBits = withRandomItems(cheatBits, on, new java.util.Random().nextInt(1 << 20));
       host.cheatsChanged(cheatBits);
@@ -2131,7 +2202,7 @@ final class CoreMenu extends Dialog {
       game.edit().putInt(CoreActivity.ENEMY_SEED, seed).apply();
       host.enemyRandomChanged(seed);
     });
-    MenuLayout.Buttons world = cheatRow(2);
+    MenuLayout.Buttons world = cheatRow(labelledOptions(R.string.ingame_side_advanced));
     toggle(world, R.string.ingame_health_bars, game.getBoolean(CoreActivity.HEALTH_BARS, false),
         on -> host.healthBarsChanged(on));
     // "More enemies" beside it (1.1.0, wish of the project owner, 19.11.2026): a seed of its own, a new one each time
@@ -2157,17 +2228,20 @@ final class CoreMenu extends Dialog {
     hdStatus = text(hdLine(info), 15, false);
     hdStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
     hdStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-    body.addView(hdStatus);
-    // the layout (wish of the project owner, 17.11.2026): left Import, Sharpness, Delete (in the quiet red of "Delete All
-    // Data"); right the switch and under it "Costumes" and "Weapons"
-    MenuLayout.Buttons first = cheatRow(2), second = cheatRow(2), third = cheatRow(2);
+    indentedView(hdStatus);
+    // the layout (the project owner's fourth menu round, 21.11.2026): "Manage" with Import | Delete (in the quiet red of
+    // "Delete All Data"); "Texture options" with HD textures | Sharpness, under them Costumes | Weapons
+    MenuLayout.Buttons first = cheatRow(labelledOptions(R.string.ingame_side_manage));
+    LinearLayout textureOptions = labelledOptions(R.string.ingame_side_texture_options);
+    MenuLayout.Buttons second = cheatRow(textureOptions), third = cheatRow(textureOptions);
     hdImport = cellAction(first, s(TexturePacks.importing ? R.string.ingame_hd_cancel : R.string.ingame_hd_import), v -> {
       if (host == null) return;
       if (TexturePacks.importing) host.cancelTexturePackImport();
       else if (info != null) askReplacePack(info);
       else host.importTexturePack(textureListener);
     });
-    Button onOff = toggle(first, R.string.ingame_hd_textures, info != null && graphics.getBoolean(TexturePacks.ON, true), on -> {
+    Button delete = quietRed(cellAction(first, s(R.string.ingame_hd_delete), v -> askDeletePack()));
+    Button onOff = toggle(second, R.string.ingame_hd_textures, info != null && graphics.getBoolean(TexturePacks.ON, true), on -> {
       graphics.edit().putBoolean(TexturePacks.ON, on).apply();
       if (host != null) host.graphicsChanged();
       main.postDelayed(this::refreshHd, 500);
@@ -2184,8 +2258,7 @@ final class CoreMenu extends Dialog {
     valueLabel(sharpness, R.string.ingame_hd_sharpness, half ? R.string.ingame_hd_half : R.string.ingame_hd_full, !half);
     // "Costumes" and "Weapons" (1.0.0, wish of the project owner, 17.11.2026): each press moves it between "Texture
     // pack" (the default) and "Original", the playable characters' (or the weapons') own textures with a pack on
-    Button costumes = groupSwitch(second, R.string.ingame_hd_costumes, TexturePacks.COSTUMES);
-    Button delete = quietRed(cellAction(third, s(R.string.ingame_hd_delete), v -> askDeletePack()));
+    Button costumes = groupSwitch(third, R.string.ingame_hd_costumes, TexturePacks.COSTUMES);
     Button weapons = groupSwitch(third, R.string.ingame_hd_weapons, TexturePacks.WEAPONS);
     onOff.setEnabled(info != null);
     sharpness.setEnabled(info != null);
@@ -2308,15 +2381,17 @@ final class CoreMenu extends Dialog {
     final String[] labels = {"Leon", "Ada", "HUNK", "Krauser", "Wesker"};
     final int[] values = {0, 2, 3, 4, 5};
     int selected = (cheatBits & CHARACTER_BITS) >> CHARACTER_SHIFT;
-    MenuLayout.Buttons row = new MenuLayout.Buttons(getContext(), 3);
-    body.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    // (1.1.0, the project owner's fourth menu round, 21.11.2026) "Main character" with Leon over the row, "Mercenaries"
+    // with Ada | HUNK and Krauser | Wesker under it
+    MenuLayout.Buttons leon = cheatRow(labelledOptions(R.string.ingame_side_main_character));
+    LinearLayout mercenaries = labelledOptions(R.string.ingame_side_mercenaries);
+    MenuLayout.Buttons[] rows = {leon, cheatRow(mercenaries), null, cheatRow(mercenaries), null};
+    rows[2] = rows[1];
+    rows[4] = rows[3];
     Button[] buttons = new Button[labels.length];
     for (int i = 0; i < labels.length; i++) {
       final int index = i;
-      // Leon, Ada, HUNK; under them Krauser and Wesker, under Ada and HUNK (the project owner, 16.11.2026: "Unter dem
-      // Button von Leon bleibt der Platz also frei")
-      if (i == 3) row.addGap();
-      Button b = cellAction(row, labels[i], v -> {
+      Button b = cellAction(rows[i], labels[i], v -> {
         Runnable choose = () -> {
           select(buttons, labels, index);
           cheatBits = (cheatBits & ~CHARACTER_BITS) | (values[index] << CHARACTER_SHIFT); host.cheatsChanged(cheatBits);

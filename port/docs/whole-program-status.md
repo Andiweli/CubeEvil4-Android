@@ -885,6 +885,24 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   Sampler-Schlüssel (GL und Vulkan). Test `TestMadeMips`: dieselbe Textur auf einem Menübildschirm behält Stufe 0.
 - **Nicht auf einem Gerät geprüft** – ob die Linien auf dem Retroid wieder da sind, zeigt erst sein Test.
 
+### 33. Vierte Menü-Runde: Beschriftungen links auf allen Unterseiten (Projektinhaber, 21.11.2026)
+
+- Wie ANZEIGE haben jetzt AUDIO, STEUERUNG, LEISTUNG und CHEATS & MODS links Gruppen-Beschriftungen, die Felder und
+  Hilfetexte stehen in der eingerückten Spalte (`CoreMenu.sideLabels`, `plainRow`, `indentedView`, `groupText`; `help()`
+  rückt dort ein; `into` auch für `rowChoices`, `switchWithSlider`, `resolutionChoices`). VERWALTUNG unverändert.
+- ANZEIGE: „Auflösung“ (Bildformat, Auflösung | Benchmark, Ausgabeauflösung | Hochskalierer), „Filterung“ (MSAA | FXAA,
+  Texturfilter | Schärfere Menüschrift), „Features“; Abschnitt „OPTIONAL“. AUDIO: „Pegel“, „Stummschaltung“.
+- STEUERUNG: „Touch-Stil“; „Gyroskop“ (Gyro-Zielen | Empfindlichkeit, „Gyro von“ darunter), „Achsen“; „Steuerungsart“
+  (vier Reihen), „Erleichterungen“; „Zielen mit“; „Ansicht“ und darunter „Laservisier“ (Abschnitt LASERVISIER entfällt);
+  „Stick-Optionen“ (Totzone | Reichweite, Vibration darunter); neuer Abschnitt „BUTTONS UND TASTEN BELEGEN“ mit „Belegen“.
+- LEISTUNG: „Leistungsprofil“; „Effekte“; „Optionen“ (Frame-Skip | 60 FPS, Gleichmäßige Bildfolge | Bandbreite sparen,
+  darunter Zeichenaufrufe bündeln | Vertex-Ringpuffer).
+- CHEATS & MODS: immer zwei Spalten; „Optionen“, „Einfache Waffen“, „Explosive Waffen“, „Freischaltungen“, „Stapelbar“
+  (Zelle „Munition stapeln“), „Zufallssteuerung“, „Erweitert“, „Hauptfigur“ (Leon über die Breite), „Mercenaries“
+  (Ada | HUNK, Krauser | Wesker), „Verwaltung“ (Import | Löschen), „Texturoptionen“ (HD-Texturen | Schärfe, Kostüme | Waffen).
+- 26 neue Texte in 11 Sprachen (563), Tests angepasst (233, Breitentest 11 Sprachen); Bilder `builds/workthread-1.1.0/
+  menu/d2`–`d6` (DE/EN). **Nicht auf einem Gerät geprüft.**
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
