@@ -2450,6 +2450,40 @@ static void testCpuInfo()
         }
         ok &= pick;
     }
+    // the kinds by the system's capacity (1.1.0): the user's OPPO A53 (Snapdragon 460): cores 0-3 Cortex-A53 at 1804
+    // MHz (capacity 494), 4-7 Cortex-A73 at 1612 (1024); by the clock the small ones were "fast"
+    {
+        re4cpu::Layout o;
+        o.count = 8;
+        for (int i = 0; i < 8; i++) {
+            o.maxKHz[i] = i < 4 ? 1804800 : 1612800;
+            o.capacity[i] = i < 4 ? 494 : 1024;
+        }
+        o.slowest = 1612800;
+        o.fastest = 1804800;
+        bool kinds = o.Kind(0) == 2 && o.Kind(7) == 0;  // (by the clock, as before)
+        o.RankByCapacity();
+        kinds &= o.Kind(0) == 0 && o.Kind(3) == 0 && o.Kind(4) == 2 && o.Kind(7) == 2 && !o.Alike() &&
+                 o.fastest == 1612800 && o.slowest == 1804800 && !re4cpu::HasPrimeCores(o) &&
+                 re4cpu::FasterCores(o) == 4 && !re4cpu::HelpersGoSlow(o);
+        o.Describe(text, sizeof(text));
+        kinds &= strstr(text, "kinds by the system's capacity: 0-3 494, 4-7 1024 (the last the fastest)") != nullptr;
+        // the Snapdragon 865 with a kernel that gives the prime core and the big ones the same 1024: still three kinds
+        re4cpu::Layout p = sd;
+        for (int i = 0; i < 8; i++) {
+            p.capacity[i] = i < 4 ? 410 : 1024;
+        }
+        p.RankByCapacity();
+        kinds &= p.Kind(3) == 0 && p.Kind(5) == 1 && p.Kind(7) == 2 && re4cpu::HasPrimeCores(p);
+        // a core without a capacity, or all alike: by the clock as before
+        re4cpu::Layout q = sd;
+        q.RankByCapacity();
+        kinds &= q.rankFast == 0 && q.Kind(7) == 2 && q.Kind(0) == 0;
+        if (!kinds) {
+            re4_log("  cpuinfo: kinds by capacity: \"%s\"", text);
+        }
+        ok &= kinds;
+    }
     setenv("RE4_PRIME_CORE", "0", 1);
     ok &= !re4cpu::HasPrimeCores(sd);
     unsetenv("RE4_PRIME_CORE");
@@ -2584,6 +2618,31 @@ static void testCpuInfo()
         re4_log("  cpuinfo: %s", text);
     }
     report("cpuinfo", ok);
+}
+
+// The enemy health bars' fade (runtime/health_bars.cpp, 1.1.0): 12 game frames (0.4 s) from nothing to whole and back,
+// a step of up to 3 frames at once, never below 0 or above 1
+extern "C" float re4_hb_fade_step(float a, int want, unsigned frames);
+static void testHealthBarFade()
+{
+    bool ok = true;
+    float a = 0.0f;
+    int frames = 0;
+    while (a < 1.0f && frames < 100) {
+        a = re4_hb_fade_step(a, 1, 1);
+        frames++;
+    }
+    ok &= frames == 12;
+    a = re4_hb_fade_step(a, 1, 1);
+    ok &= a == 1.0f;
+    a = re4_hb_fade_step(a, 0, 6);  // a gap of 6 frames counts as 3
+    ok &= a > 0.74f && a < 0.76f;
+    a = re4_hb_fade_step(a, 0, 3);
+    a = re4_hb_fade_step(a, 0, 3);
+    a = re4_hb_fade_step(a, 0, 3);
+    ok &= a == 0.0f;
+    ok &= re4_hb_fade_step(0.5f, 1, 0) == 0.5f;
+    report("health bar fade", ok);
 }
 
 // The error log's core file (log.cpp re4_log_file, CoreBridge.setLogFile): the lines remembered
@@ -2736,6 +2795,7 @@ int re4_runtime_tests()
     testArcTable();
     testMovieSubtitles();
     testCpuInfo();
+    testHealthBarFade();
     testPartnerDamage();
     testCaseFreePlace();
     testMenuTouch();

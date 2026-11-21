@@ -20,7 +20,13 @@
 //    and mine carts 0x3B, the support helicopter 0x3D, the shooting-gallery targets 0x3E; never the player or the
 //    partner (Ashley, Luis: ids below 0x10, the sub characters). The Plaga dogs 0x22, the parasites 0x25, the bosses
 //    (Del Lago 0x2F too) keep theirs. Alive (hp > 0), drawn by
-//    the game (cModel::isTrans), within 30 m of the camera, in front of it and on the screen, no wall between.
+//    the game (cModel::isTrans), within 15 m of the camera (kShow; 30 m before 1.1.0's fade), in front of it and on
+//    the screen, no wall between.
+//  - Fading (the project owner, 21.11.2026: "erst ab einer gewissen Entfernung einblenden und einfaden. Nicht hart
+//    einblenden"): each enemy's bar fades in over 0.4 s (kFadeFrames, 12 of the game's 30 frames a second, the same at
+//    30 and 60 FPS) when it comes within 15 m with a clear sight, and fades out over the same time when it goes
+//    farther, behind a wall or a closed door, or dies (its last sliver of red). Off the screen, behind the camera, or
+//    after a pause of the bars (an event, a sub screen, a new room) it starts from nothing again.
 //  - Where: 25 cm above the head, centred on it: the humanoids' head part (see anchorOf; a raised axe or sickle no
 //    longer pulls it away), the other enemies' highest part (a boss's top); small jumps smoothed. The width by the
 //    distance (14 to 44 of the 512 units of the game's screen), a dark frame and the missing part dark grey. "No wall
@@ -64,12 +70,15 @@ namespace {
 std::atomic<bool> gOn(false);  // the app's switch (runtime/aim_options.cpp, bit 20 of the aim bits)
 
 constexpr int kMaxBars = 48;
-constexpr float kFar = 30000.0f;  // 30 m
+constexpr float kFar = 30000.0f;   // 30 m: the figures the room's log line names (nearby)
+constexpr float kShow = 15000.0f;  // 15 m: the bars' distance from the camera (1.1.0, with the fade)
+constexpr float kFadeFrames = 12.0f;  // 0.4 s of the game's 30 frames a second
 
 struct Bar {
     f32 x, y, w, h;  // the bar's box in the viewport's units (its centre at x, its top at y)
     f32 frac;        // health 0..1
     u8 plaga;        // the Plaga phase: orange
+    u8 alpha;        // the fade (255: whole)
 };
 
 struct Frame {
@@ -233,6 +242,70 @@ Vec smoothed(u32 slot, cEm* e, const Vec& now)
     return a.v;
 }
 
+// The fade of each enemy's bar by its slot (see the head comment): 0 nothing .. 1 whole
+struct Fade {
+    const cEm* e;
+    u32 frame;
+    f32 a;
+};
+Fade gFade[256];
+
+}  // namespace
+
+// One step of a bar's fade: `frames` game frames since its last step, towards whole (`want`) or nothing
+extern "C" float re4_hb_fade_step(float a, int want, unsigned frames)
+{
+    const float step = (float) (frames > 3 ? 3 : frames) / kFadeFrames;
+    a += want ? step : -step;
+    return a < 0.001f ? 0.0f : a > 0.999f ? 1.0f : a;  // (the float sum of 12 twelfths: whole)
+}
+
+namespace {
+
+// The fade of the enemy in `slot` this frame: a new enemy there or a gap of more than 3 frames (the bars paused, off
+// the screen, a new room) starts from nothing, so a bar always fades in
+// RE4_HB_NO_FADE=1 (a PC comparison only): as before 1.1.0's fade, 30 m and no fade
+bool noFade()
+{
+    static const bool off = getenv("RE4_HB_NO_FADE") != 0;
+    return off;
+}
+
+f32 fadeTo(u32 slot, cEm* e, bool want)
+{
+    if (slot >= 256 || noFade()) {
+        return want ? 1.0f : 0.0f;
+    }
+    Fade& f = gFade[slot];
+    const u32 frame = (u32) pG->Frame_cnt;
+    if (f.e != e || frame - f.frame > 3) {
+        f.a = 0.0f;
+        f.frame = frame - 1;
+    }
+    f.a = re4_hb_fade_step(f.a, want ? 1 : 0, frame - f.frame);
+    f.e = e;
+    f.frame = frame;
+    return f.a;
+}
+
+// Whether the enemy in `slot` still shows a bar fading out (without a step)
+bool fading(u32 slot, cEm* e)
+{
+    if (slot >= 256) {
+        return false;
+    }
+    const Fade& f = gFade[slot];
+    return f.e == e && f.a > 0.0f && (u32) pG->Frame_cnt - f.frame <= 3;
+}
+
+// A bar dropped at once (off the screen, behind the camera): from nothing when it comes back
+void dropFade(u32 slot)
+{
+    if (slot < 256) {
+        gFade[slot].a = 0.0f;
+    }
+}
+
 // The doors (cEmDoor, construct id 0x41) between a and b: their effect collision pieces (emdoor.cpp emDoorSatSet: the
 // leaf, the panel above it, the panes; turning with the leaf as it opens, a broken pane's piece gone) carry
 // EAT_ATTR_SMALL_NOHIT (the door takes the bullets itself), which the sight test below leaves out as the game's aim
@@ -354,9 +427,10 @@ void draw(void* data)
         const Bar& b = f->bar[i];
         const f32 x0 = b.x - b.w * 0.5f, x1 = b.x + b.w * 0.5f, y0 = b.y, y1 = b.y + b.h;
         const f32 e = 1.0f;  // the frame
-        quad(x0 - e, y0 - e, x1 + e, y1 + e, 0, 0, 0, 200);
+        const u8 frameA = (u8) (200 * b.alpha / 255), barA = (u8) (235 * b.alpha / 255);  // the fade
+        quad(x0 - e, y0 - e, x1 + e, y1 + e, 0, 0, 0, frameA);
         const f32 split = x0 + b.w * b.frac;
-        quad(split, y0, x1, y1, 60, 60, 60, 200);
+        quad(split, y0, x1, y1, 60, 60, 60, frameA);
         u8 r = 70, g = 200, bl = 60;  // green
         if (b.plaga) {
             r = 245, g = 130, bl = 20;  // orange: the Plaga phase
@@ -365,7 +439,7 @@ void draw(void* data)
         } else if (b.frac <= 0.25f) {
             r = 235, g = 200, bl = 40;  // yellow
         }
-        quad(x0, y0, split, y1, r, g, bl, 235);
+        quad(x0, y0, split, y1, r, g, bl, barA);
     }
     LightMgr.setFog();
 }
@@ -690,28 +764,42 @@ void re4_health_bars(void)
     nearby(cam);
     for (u32 i = 0; i < EmMgr.getArrayNum() && f->n < kMaxBars; i++) {
         cEm* e = EmMgr.fastAt(i);
-        if (!e || !e->isAlive() || !listed(e->id) || traderForm(e) || (cEm*) e == (cEm*) pPL || e == pSUB || e->hp <= 0 ||
+        if (!e || !e->isAlive() || !listed(e->id) || traderForm(e) || (cEm*) e == (cEm*) pPL || e == pSUB ||
             !e->isTrans()) {
+            continue;
+        }
+        // a dying enemy (no life left) only fades its bar out
+        bool want = e->hp > 0;
+        if (!want && !fading(i, e)) {
             continue;
         }
         const int max = maxOf(i, e);
         if (max <= 0 || e->hp > max) {
             continue;
         }
-        gCount.listed++;
+        gCount.listed += want ? 1 : 0;
         const Vec anchor = anchorOf(e);
         logAnchor(e, anchor);
         Vec top = smoothed(i, e, anchor);
         top.y += 250.0f;
         const f32 dx = top.x - cam.x, dy = top.y - cam.y, dz = top.z - cam.z;
         const f32 dist = sqrtf(dx * dx + dy * dy + dz * dz);
-        if (dist > kFar || dist < 300.0f) {
+        if (dist < 300.0f) {
             gCount.far++;
+            dropFade(i);
             continue;
+        }
+        if (dist > (noFade() ? kFar : kShow)) {
+            gCount.far += want ? 1 : 0;
+            want = false;
+            if (!fading(i, e)) {
+                continue;
+            }
         }
         Vec scr;
         if (!GetScreenPos(&top, &scr)) {
             gCount.behind++;
+            dropFade(i);
             continue;
         }
         f32 sx = scr.x - vp[0], sy = scr.y - vp[1];
@@ -724,13 +812,18 @@ void re4_health_bars(void)
         }
         if (!(sx > -20.0f && sx < f->vw + 20.0f && sy > 0.0f && sy < f->vh)) {
             gCount.off++;
+            dropFade(i);
             continue;
         }
-        if (!seen(cam, top, e)) {
+        if (want && !seen(cam, top, e)) {
             gCount.wall++;
+            want = false;
+        }
+        const f32 fade = fadeTo(i, e, want);
+        if (fade <= 0.0f) {
             continue;
         }
-        gCount.shown++;
+        gCount.shown += want ? 1 : 0;
         f32 w = 44.0f * 4000.0f / dist;
         w = w < 14.0f ? 14.0f : w > 44.0f ? 44.0f : w;
         f32 h = w * 0.11f;
@@ -748,6 +841,7 @@ void re4_health_bars(void)
             static unsigned thin;
             if (thin < 20) {
                 thin++;
+                if (e->hp > 0)  // (a dying enemy's bar fading out: expected)
                 re4_log("health bars: r%03x frame %u: nearly empty bar: id 0x%02x type %d hp %d of %d (%s) at %.1f m",
                         (unsigned) pG->room_id, (unsigned) pG->Frame_cnt, (unsigned) e->id, (int) e->type, (int) e->hp,
                         max, e->hp_max > 0 && e->hp <= e->hp_max ? "hp_max" : "highest seen", dist / 1000.0f);
@@ -755,6 +849,7 @@ void re4_health_bars(void)
             b.frac = b.w > 0.0f ? 1.0f / b.w : 0.0f;
         }
         b.plaga = plagaPhase(e) ? 1 : 0;
+        b.alpha = (u8) (fade * 255.0f + 0.5f);
         bool known = false;
         for (unsigned k = 0; k < gLines && k < 64; k++) {
             known |= gLogged[k] == e;

@@ -84,15 +84,73 @@ struct Layout {
     int count = 0;
     unsigned maxKHz[kMax] = {};
     unsigned slowest = 0, fastest = 0;  // highest clocks of the slowest / fastest kind
+    // 1.1.0: the kinds by the system's capacity of each core where it tells it (cpu_capacity: what a core does at its
+    // highest clock, 1024 the strongest), ahead of the clock; 0 everywhere: by the clock as before. A user's OPPO A53
+    // (Snapdragon 460, 21.11.2026): its four small cores (Cortex-A53) reach 1804 MHz, its four big ones (Cortex-A73)
+    // only 1612, so by the clock "Performance cores" (on in every profile) put the game on the small ones.
+    unsigned capacity[kMax] = {};
+    unsigned rank[kMax] = {};
+    unsigned rankSlow = 0, rankFast = 0;  // 0: by the clock
+
+    unsigned Rank(int cpu) const { return rankFast ? rank[cpu] : maxKHz[cpu]; }
+    unsigned RankSlow() const { return rankFast ? rankSlow : slowest; }
+    unsigned RankFast() const { return rankFast ? rankFast : fastest; }
+    // every core alike (or the clocks not readable): no kinds
+    bool Alike() const { return RankSlow() == RankFast(); }
 
     // 0 the slowest kind of core, 2 the fastest, 1 in between; 2 when all are alike or the
     // clocks are not readable
     int Kind(int cpu) const
     {
-        if (cpu < 0 || cpu >= count || !maxKHz[cpu] || slowest == fastest) {
+        if (cpu < 0 || cpu >= count || !maxKHz[cpu] || Alike()) {
             return 2;
         }
-        return maxKHz[cpu] == fastest ? 2 : maxKHz[cpu] == slowest ? 0 : 1;
+        return Rank(cpu) == RankFast() ? 2 : Rank(cpu) == RankSlow() ? 0 : 1;
+    }
+
+    // The kinds by `capacity` (GetLayout; the tests): a core's rank its capacity, then its clock (two kinds of the
+    // same capacity, as some kernels give a prime core and the big ones, stay apart by the clock); slowest / fastest
+    // then the highest clocks of the slowest / fastest kind (for the log lines). Nothing when a core with a clock has
+    // no capacity or all capacities are alike.
+    void RankByCapacity()
+    {
+        unsigned lo = 0, hi = 0;
+        for (int cpu = 0; cpu < count; cpu++) {
+            if (!maxKHz[cpu]) {
+                continue;
+            }
+            if (!capacity[cpu]) {
+                return;
+            }
+            lo = !lo || capacity[cpu] < lo ? capacity[cpu] : lo;
+            hi = capacity[cpu] > hi ? capacity[cpu] : hi;
+        }
+        if (lo == hi) {
+            return;
+        }
+        rankSlow = rankFast = 0;
+        for (int cpu = 0; cpu < count; cpu++) {
+            rank[cpu] = maxKHz[cpu] ? capacity[cpu] * 4096u + maxKHz[cpu] / 1000u : 0;
+            if (rank[cpu] && (!rankSlow || rank[cpu] < rankSlow)) {
+                rankSlow = rank[cpu];
+            }
+            rankFast = rank[cpu] > rankFast ? rank[cpu] : rankFast;
+        }
+        slowest = fastest = 0;
+        for (int cpu = 0; cpu < count; cpu++) {
+            if (!maxKHz[cpu]) {
+                continue;
+            }
+            if (rank[cpu] == rankSlow) {
+                slowest = maxKHz[cpu] > slowest ? maxKHz[cpu] : slowest;
+            }
+            if (rank[cpu] == rankFast) {
+                fastest = maxKHz[cpu] > fastest ? maxKHz[cpu] : fastest;
+            }
+        }
+        if (slowest == fastest) {
+            slowest = fastest - 1;  // (kept apart for the "all alike" checks of the clock)
+        }
     }
 
     // "8 cores: 0-5 at most 1586 MHz, 6-7 at most 1794 MHz"
@@ -115,6 +173,22 @@ struct Layout {
             }
             i = j + 1;
         }
+        // the kinds by the capacity where they differ from the clock's order (1.1.0)
+        if (rankFast && n < static_cast<int>(size)) {
+            n += snprintf(out + n, size - n, "; kinds by the system's capacity:");
+            for (int i = 0; i < count && n < static_cast<int>(size);) {
+                int j = i;
+                while (j + 1 < count && capacity[j + 1] == capacity[i]) {
+                    j++;
+                }
+                n += j > i ? snprintf(out + n, size - n, "%s %d-%d %u", i ? "," : "", i, j, capacity[i])
+                           : snprintf(out + n, size - n, "%s %d %u", i ? "," : "", i, capacity[i]);
+                i = j + 1;
+            }
+            if (n < static_cast<int>(size)) {
+                snprintf(out + n, size - n, " (%s the fastest)", Kind(count - 1) == 2 ? "the last" : "not the last");
+            }
+        }
     }
 };
 
@@ -130,6 +204,8 @@ inline const Layout& GetLayout()
             }
             snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu);
             l.maxKHz[cpu] = ReadNumber(path);
+            snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpu_capacity", cpu);
+            l.capacity[cpu] = ReadNumber(path);
             l.count = cpu + 1;
         }
         for (int cpu = 0; cpu < l.count; cpu++) {
@@ -140,6 +216,11 @@ inline const Layout& GetLayout()
             if (khz > l.fastest) {
                 l.fastest = khz;
             }
+        }
+        // (RE4_CPU_CAPACITY=0: by the clock only, as before 1.1.0)
+        const char* byCapacity = getenv("RE4_CPU_CAPACITY");
+        if (!(byCapacity && *byCapacity == '0')) {
+            l.RankByCapacity();
         }
         return l;
     }();
@@ -174,7 +255,7 @@ struct ThreadUse {
         const Layout& l = GetLayout();
         const double n = pictures ? pictures : 1;
         int len = snprintf(out, size, "%.1f ms of processor time each", cpuNs / 1e6 / n);
-        if (l.slowest != l.fastest && len < static_cast<int>(size)) {
+        if (!l.Alike() && len < static_cast<int>(size)) {
             len += snprintf(out + len, size - len, ", on fast/middle/slow cores %.0f/%.0f/%.0f %%",
                             onKind[2] * 100.0 / n, onKind[1] * 100.0 / n, onKind[0] * 100.0 / n);
         }
@@ -248,7 +329,7 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role =
         snprintf(out, size, "left to Android (RE4_FAST_CORES=0)");
         return false;
     }
-    if (!l.fastest || l.slowest == l.fastest) {
+    if (!l.fastest || l.Alike()) {
         snprintf(out, size, "left to Android (%s)", l.fastest ? "all cores alike" : "clocks not readable");
         return false;
     }
@@ -444,7 +525,7 @@ inline bool KeepOffSlowCores(char* out, size_t size, int role = kAnyThread)
 // The cores faster than the slowest kind (0 when all are alike or the clocks are not readable).
 inline int FasterCores(const Layout& l)
 {
-    if (!l.fastest || l.slowest == l.fastest) {
+    if (!l.fastest || l.Alike()) {
         return 0;
     }
     int n = 0;
@@ -601,7 +682,7 @@ struct RenderPick {
                 anyOnline = true;
                 have_ = score > have_ ? score : have_;
             }
-            if (l.Kind(cpu) == 0 && !slowOk && l.slowest != l.fastest) {
+            if (l.Kind(cpu) == 0 && !slowOk && !l.Alike()) {
                 continue;
             }
             if (score > best || (score == best && l.Kind(cpu) > bestKind)) {
