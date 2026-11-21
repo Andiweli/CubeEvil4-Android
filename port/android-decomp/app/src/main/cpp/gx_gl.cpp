@@ -1268,8 +1268,7 @@ struct GlRenderer final : GxCore {
     const std::uint64_t shift16 = static_cast<std::uint64_t>(std::lround(std::min(15.0f, lodShift) * 16.0f)) & 0xFF;
     const std::uint64_t key = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
                               (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49) |
-                              shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9 |
-                              static_cast<std::uint64_t>(stillLook) << 58;  // (a menu screen's: SamplerFor)
+                              shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9;
     auto it = samplers.find(key);
     if (it != samplers.end())
       return it->second;
@@ -1403,7 +1402,8 @@ struct GlRenderer final : GxCore {
       glEnable(GL_CULL_FACE);
       glCullFace(s.cull == 1 ? GL_BACK : s.cull == 2 ? GL_FRONT : GL_FRONT_AND_BACK);
     }
-    glLineWidth(std::max(1.0f, s.lineWidth));
+    glLineWidth(std::max(1.0f, std::min(s.lineWidth, LineMax())));
+    drawLineWidth = s.lineWidth;
   }
 
   // --- draws --------------------------------------------------------------------
@@ -1653,8 +1653,41 @@ struct GlRenderer final : GxCore {
       drawBaseVertex(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices, baseVertex);
     else
       glDrawElements(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices);
+    // a line wider than this GPU draws (GxCore::lineAxis): again, the viewport moved by whole pixels across it
+    if (primitive == RE4_GX_LINES) {
+      const float can = LineMax();
+      const int copies = WideLineCopies(drawLineWidth, can);
+      if (copies > 0) {
+        const GLint vp[4] = {0, 0, Lo(kEfbWidth), Lo(kEfbHeight)};  // (ApplyDrawState's)
+        for (int i = 1; i <= copies; i++) {
+          const int move = static_cast<int>(WideLineMove(i, can));
+          for (int axis = 0; axis < 2; axis++) {
+            if (lineAxis != 2 && lineAxis != axis)
+              continue;
+            glViewport(vp[0] + (axis == 1 ? move : 0), vp[1] + (axis == 0 ? move : 0), vp[2], vp[3]);
+            if (drawBaseVertex)
+              drawBaseVertex(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices, baseVertex);
+            else
+              glDrawElements(mode, static_cast<GLsizei>(indexCount), GL_UNSIGNED_SHORT, indices);
+          }
+        }
+        glViewport(vp[0], vp[1], vp[2], vp[3]);
+        stats.wideLineCopies += static_cast<unsigned>(copies);
+      }
+    }
     Split(GxStats::kSplitDraw);
   }
+  /** The widest line this context draws (GL_ALIASED_LINE_WIDTH_RANGE; RE4_GX_NO_WIDE_LINES: 1). */
+  float LineMax() {
+    if (lineMax <= 0.0f) {
+      GLfloat range[2] = {1.0f, 1.0f};
+      glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, range);
+      lineMax = std::max(1.0f, range[1]);
+    }
+    return NoWideLines() ? 1.0f : lineMax;
+  }
+  float lineMax = 0.0f;
+  float drawLineWidth = 1.0f;  // the draw's (ApplyDrawState)
   bool KeyProgram() override {
     keyProgram = ProgramFor(key);
     return keyProgram != nullptr;

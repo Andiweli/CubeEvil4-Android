@@ -884,6 +884,20 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   Anisotropie und die vom Renderer gemachten Stufen ausgelassen (Stufe 0 wie in 1.0.0); `GxCore::stillLook`, Teil der
   Sampler-Schlüssel (GL und Vulkan). Test `TestMadeMips`: dieselbe Textur auf einem Menübildschirm behält Stufe 0.
 - **Nicht auf einem Gerät geprüft** – ob die Linien auf dem Retroid wieder da sind, zeigt erst sein Test.
+- **Nachtrag (Projektinhaber, Retroid: „Die Koffer-Linien hängen an den Texturpaketen“; ohne Paket alle Linien da):**
+  Die Rasterlinien und die orangen Fachecken zeichnet das Spiel als **GX-Linien** (vier Linien-Draws, Breite 6/6 bis 12/6
+  Pixel, halbdurchsichtig, ohne Tiefenschreiben) über den Kofferboden. Der Boden kommt aus der Sammeltextur
+  `tex1_64x64_a16f52f8553a398f_14` (Ordner „Attache-Case“ des Pakets, 1024², Rahmen, Schloss, Boden); das Paket ersetzt
+  nur den Boden (dunkleres Grau, Inhalt des Pakets, nicht vom Packer), die Linien nicht. Ursache: Der Grafikchip des Retroid
+  zeichnet Linien nur **1 Pixel** breit (Vulkan ohne `wideLines` bzw. kleiner Linienbreiten-Bereich), statt 2,5 Pixel bei
+  2,5×; am PC (Mesa) sind sie breit. Nachgestellt mit `RE4_GX_NO_WIDE_LINES=2`: Linien und Fachecken fast weg, auf dem
+  dunkleren Paket-Boden mit CRT einzelne Zeilen ganz. **Änderung:** Linien, die breiter sein sollen als das Gerät zeichnet,
+  werden zusätzlich um ganze Pixel quer versetzt gezeichnet (`GxCore::WideLineCopies`/`WideLineMove`; die Richtung jedes
+  Linien-Draws aus seinen Segmenten auf dem Bild, `LineAxis`: waagrecht → Kopien nach oben/unten, senkrecht → seitlich,
+  gemischt → beides); GL (`GL_ALIASED_LINE_WIDTH_RANGE`) und Vulkan (`wideLines`, `lineWidthRange`). Wirkt auch auf den
+  Laserstrahl. Test `TestWideLines`; Testschalter `RE4_GX_NO_WIDE_LINES=1` (wie ein Gerät ohne breite Linien, mit Kopien),
+  `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
+  Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
 ### 33. Vierte Menü-Runde: Beschriftungen links auf allen Unterseiten (Projektinhaber, 21.11.2026)
 

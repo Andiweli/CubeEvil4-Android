@@ -61,6 +61,7 @@ struct GxStats {
   // levels' bytes, the time it took (microseconds, summed), uploads left without (new texels at the same place soon
   // again: a movie's frames)
   unsigned mipTextures = 0, mipCutouts = 0, mipSkippedDynamic = 0;
+  unsigned wideLineCopies = 0;  // lines drawn again for a GPU without wide lines (GxCore::WideLineCopies, 1.1.0)
   std::size_t mipBytes = 0;
   std::uint64_t mipUs = 0;
   // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)

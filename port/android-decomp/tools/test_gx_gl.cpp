@@ -2079,16 +2079,29 @@ static std::vector<std::uint8_t> I8Texture(unsigned w, unsigned h, int (*value)(
 // The renderer: a 256 x 256 checker (texels 0 and 255, no levels of its own) on a 37 x 37 quad, linear: with the made
 // levels an even grey (the GameCube's and the old renderer's shimmer is a noise of black and white texels); the same
 // texture sampled nearest keeps its look (only level 0). Read back as the display copy (GL and Vulkan).
+// 1.1.0 (the project owner's Retroid, 21.11.2026: the attaché case's grid lines faint or gone with an HD pack): lines
+// wider than the GPU draws are drawn again, moved by whole pixels across them. The copies and their moves.
+void TestWideLines() {
+  using re4gx::GxCore;
+  Check(GxCore::WideLineCopies(2.5f, 1.0f) == 2, "wide lines: 2.5 px on a 1 px GPU: two copies");
+  Check(GxCore::WideLineCopies(4.17f, 1.0f) == 3 && GxCore::WideLineCopies(5.0f, 1.0f) == 4,
+        "wide lines: 4.17 and 5 px: three and four");
+  Check(GxCore::WideLineCopies(2.5f, 8.0f) == 0 && GxCore::WideLineCopies(1.0f, 1.0f) == 0 &&
+            GxCore::WideLineCopies(1.2f, 1.0f) == 0,
+        "wide lines: none where the GPU draws them (or a hair wider)");
+  Check(GxCore::WideLineMove(1, 1.0f) == 1.0f && GxCore::WideLineMove(2, 1.0f) == -1.0f &&
+            GxCore::WideLineMove(3, 1.0f) == 2.0f && GxCore::WideLineMove(4, 1.0f) == -2.0f,
+        "wide lines: the copies 1, -1, 2, -2 px across");
+}
+
 void TestMadeMips(re4gx::GxApi api, const char *tag) {
   re4gx::GxRenderer r(api);
   std::string error;
   Require(r.Init(1, &error), error.c_str());
   const auto checker = I8Texture(256, 256, [](unsigned x, unsigned y) { return ((x + y) & 1) ? 255 : 0; });
-  auto spread = [&](unsigned mode0, unsigned key, double *mean, bool still = false) {
+  auto spread = [&](unsigned mode0, unsigned key, double *mean) {
     Builder b;
     Baseline(b);
-    if (still)
-      b.flags |= RE4_GX_CHUNK_STILL;
     DisplayCopy(b, true, kBlack);
     b.Bp(0x00, 1u | 1u << 4);
     b.Xf(0x103F, {1});
@@ -2126,9 +2139,6 @@ void TestMadeMips(re4gx::GxApi api, const char *tag) {
   double meanLinear = 0, meanNearest = 0;
   const double linear = spread(1u << 4 | 4u << 5, 0x7101, &meanLinear);   // min "linear" (the rooms' walls and floors)
   const double nearest = spread(1u << 4 | 0u << 5, 0x7102, &meanNearest);  // min "nearest"
-  // a menu screen of the game (RE4_GX_CHUNK_STILL, the attaché case): the made levels left out, level 0 as in 1.0.0
-  double meanStill = 0;
-  const double still = spread(1u << 4 | 4u << 5, 0x7103, &meanStill, true);
   std::fprintf(stderr, "  mipmaps (%s): a checker at 1/7 size: linear mean %.0f, spread %.1f; nearest spread %.1f; "
                "%u textures given levels, %.2f MB more, %.2f ms\n", tag, meanLinear, linear, nearest,
                r.Stats().mipTextures, r.Stats().mipBytes / 1048576.0, r.Stats().mipUs / 1000.0);
@@ -2136,9 +2146,7 @@ void TestMadeMips(re4gx::GxApi api, const char *tag) {
         (std::string("mipmaps (") + tag + "): a far checker an even grey, no shimmer").c_str());
   // (nearest: black and white texels, the display copy's vertical filter softens them a little)
   Check(nearest > 30.0, (std::string("mipmaps (") + tag + "): a texture sampled nearest keeps its look").c_str());
-  std::fprintf(stderr, "  mipmaps (%s): the same linear checker on a menu screen: spread %.1f\n", tag, still);
-  Check(still > 30.0, (std::string("mipmaps (") + tag + "): a menu screen's texture keeps level 0 (1.0.0's look)").c_str());
-  Check(r.Stats().mipTextures == 3 && r.Stats().mipBytes > 20000,
+  Check(r.Stats().mipTextures == 2 && r.Stats().mipBytes > 20000,
         (std::string("mipmaps (") + tag + "): levels made for the game's texture without").c_str());
   r.Release();
 }
@@ -6159,6 +6167,7 @@ int main() {
     gr.Release();
   }
   TestMipFunctions();
+  TestWideLines();
   TestMadeMips(re4gx::GxApi::kGl, "GL");
   TestSoftAlpha(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN

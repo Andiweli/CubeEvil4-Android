@@ -1063,6 +1063,72 @@ bool GxCore::DrawArea(const Re4GxDraw &d, const Re4GxChunk &chunk, int area[4]) 
   return true;
 }
 
+// A line draw's direction on the picture (lineAxis): its segments (index pairs, at most 256) through the position
+// matrices and the projection as FlareNote's; 0 when nine in ten run more across than up and down, 1 the other way,
+// else 2 (and for what cannot be told).
+int GxCore::LineAxis(const Re4GxDraw &d, const Re4GxChunk &chunk) const {
+  if (d.stride < 12 || d.indexCount < 2 || !chunk.indices || !chunk.vertices)
+    return 2;
+  unsigned mtxAt = 12;
+  if (d.layout & RE4_GX_V_NORMAL)
+    mtxAt += (d.layout & RE4_GX_V_BINORMAL_TANGENT) ? 36 : 12;
+  mtxAt += ((d.layout & RE4_GX_V_COLOR0) ? 4 : 0) + ((d.layout & RE4_GX_V_COLOR1) ? 4 : 0);
+  for (int t = 0; t < 8; t++)
+    mtxAt += (d.layout & (RE4_GX_V_TEX0 << t)) ? 8 : 0;
+  const bool ortho = (xfReg[0x26] & 1) != 0;
+  const float *vp0 = xf.viewport[0], *pr0 = xf.proj[0];
+  auto screen = [&](std::uint32_t v, float out[2]) {
+    if (v >= d.vertexCount)
+      return false;
+    const std::uint8_t *at = chunk.vertices + d.vertexOffset + static_cast<std::size_t>(v) * d.stride;
+    float pos[3];
+    std::memcpy(pos, at, 12);
+    unsigned row = d.matrices[0] & 63;
+    if ((d.layout & RE4_GX_V_MATRIX) && mtxAt < d.stride)
+      row = at[mtxAt] & 63;
+    if (row > 61)
+      return false;
+    float e[3];
+    for (int r = 0; r < 3; r++)
+      e[r] = xf.posTex[row + r][0] * pos[0] + xf.posTex[row + r][1] * pos[1] + xf.posTex[row + r][2] * pos[2] +
+             xf.posTex[row + r][3];
+    float cx, cy, w = 1.0f;
+    if (ortho) {
+      cx = pr0[0] * e[0] + pr0[1];
+      cy = pr0[2] * e[1] + pr0[3];
+    } else {
+      w = -e[2];
+      if (!(w > 1e-3f))
+        return false;
+      cx = pr0[0] * e[0] + pr0[1] * e[2];
+      cy = pr0[2] * e[1] + pr0[3] * e[2];
+    }
+    out[0] = vp0[0] * cx / w;
+    out[1] = vp0[1] * cy / w;
+    return std::isfinite(out[0]) && std::isfinite(out[1]);
+  };
+  unsigned across = 0, upDown = 0;
+  const std::uint16_t *idx = chunk.indices + d.indexOffset;
+  for (std::uint32_t i = 0; i + 1 < d.indexCount && i < 512; i += 2) {
+    float a[2], b[2];
+    if (!screen(idx[i], a) || !screen(idx[i + 1], b))
+      continue;
+    const float dx = std::fabs(b[0] - a[0]), dy = std::fabs(b[1] - a[1]);
+    if (dx >= dy)
+      across++;
+    else
+      upDown++;
+  }
+  const unsigned all = across + upDown;
+  if (!all)
+    return 2;
+  if (across * 10 >= all * 9)
+    return 0;
+  if (upDown * 10 >= all * 9)
+    return 1;
+  return 2;
+}
+
 void GxCore::FlareTrack() {
   std::vector<FlareCand> merged;
   for (const FlareCand &f : flareCands) {
@@ -2022,7 +2088,6 @@ void GxCore::Run(const Re4GxChunk &chunk) {
   m.holdXfb = (chunk.flags & RE4_GX_CHUNK_HOLD) != 0;
   m.chunkWide = (chunk.flags & RE4_GX_CHUNK_WIDE) != 0;
   m.chunkMovie = (chunk.flags & RE4_GX_CHUNK_MOVIE) != 0;
-  m.stillLook = (chunk.flags & RE4_GX_CHUNK_STILL) != 0;
   if (chunk.flags & RE4_GX_CHUNK_XFB)
     m.viBlack = (chunk.flags & RE4_GX_CHUNK_BLACK) != 0;
   if ((chunk.flags & RE4_GX_CHUNK_RESET) && !m.interpPass) {
@@ -2195,8 +2260,15 @@ void GxCore::Draw(const Re4GxDraw &d, const Re4GxChunk &chunk, const MergeCall *
     }
   }
   Split(GxStats::kSplitUniform);
+  if (primitive == RE4_GX_LINES)
+    lineAxis = LineAxis(d, chunk);
   // the program, its constants, the textures, the vertices and the draw call
   SubmitDraw(d, p, merge);
+  if (primitive == RE4_GX_LINES && stats.wideLineCopies && !wideLinesLogged) {
+    wideLinesLogged = true;
+    GXLOG("wide lines: this GPU draws lines thinner than the game asks; drawn again across them (%u copies so far)",
+          stats.wideLineCopies);
+  }
   if (!interpPass) {
     const MergeSnap now{stats.uniformUploads, stats.programSwitches, stats.textureBinds, stats.stateChanges,
                         stats.attributeSetups, stats.textureCopies, stats.displayCopies, primitive};
@@ -3713,18 +3785,15 @@ GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsig
   s.minLod = static_cast<float>(mode1 & 0xFF) / 16.0f;
   s.maxLod = static_cast<float>((mode1 >> 8) & 0xFF) / 16.0f;
   // anisotropic filtering (the menu's option): only where the game filters
-  // linearly through mipmaps; point-sampled effects keep their look; none on a menu screen of the game (stillLook:
-  // the attaché case's thin grid lines, near the screen's size anyway, lost some rows on an Adreno 650 with 16x)
-  const float anisotropy = stillLook ? 1.0f : this->anisotropy;
+  // linearly through mipmaps; point-sampled effects keep their look
   s.anisotropy = anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point
                      ? anisotropy
                      : 1.0f;
   if (made && levels > 1) {
     // levels the renderer made for a game texture without (1.1.0, gx_mips.h): where the game filters linearly, through
     // them (as a texture with the game's own levels: trilinear, the game's level limits mean nothing for one level);
-    // a texture the game samples nearest (or the PSone demake's point sampling) keeps level 0 only, its look as before;
-    // so does every texture of a menu screen of the game (stillLook: its pictures near their own size, the look of 1.0.0)
-    if (minLinear[minFilter] && !point && !stillLook) {
+    // a texture the game samples nearest (or the PSone demake's point sampling) keeps level 0 only, its look as before
+    if (minLinear[minFilter] && !point) {
       s.minLinear = true;
       s.mip = 2;
       s.minLod = 0.0f;

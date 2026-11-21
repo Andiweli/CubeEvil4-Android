@@ -9,8 +9,11 @@
 #include "re4_gx_frame.h"
 
 #include <atomic>
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -388,10 +391,34 @@ struct GxCore {
   };
   std::unordered_map<std::uint32_t, UploadSeen> uploadsAt;
   bool makeMips = true;  // RE4_GX_MAKE_MIPS=0: none (a test's comparison)
-  // a menu screen of the game (RE4_GX_CHUNK_STILL: the sub screens with the attaché case, the option screen; 1.1.0, the
-  // project owner's Retroid, 21.11.2026: grid lines of the case missing): its textures without anisotropy and the made
-  // levels left out (SamplerFor), the look of 1.0.0's menus; part of the samplers' keys
-  bool stillLook = false;
+  // a line draw's direction on the picture (LineAxis, before SubmitDraw): 0 mostly across (its copies moved up and down),
+  // 1 mostly up and down (moved sideways), 2 both. Lines wider than the GPU can draw (1.1.0, the project owner's
+  // Retroid: the attaché case's grid at 1 px instead of 2.5, with an HD pack's darker floor some rows gone) are drawn
+  // again, moved by whole pixels across them (WideLineCopies), as wide as the game asked
+  int lineAxis = 2;
+  bool wideLinesLogged = false;
+  int LineAxis(const Re4GxDraw &d, const Re4GxChunk &chunk) const;
+  // The copies of a line `want` pixels wide where the GPU draws `can` at most (0: none needed), and the i-th copy's move
+  // in pixels (1, -1, 2, -2 ... times the drawn width)
+  static int WideLineCopies(float want, float can) {
+    if (!(can >= 1.0f) || !(want > can + 0.25f) || WideLinesTest() == 2)
+      return 0;
+    return std::max(0, std::min(8, static_cast<int>(std::lround(want / can)) - 1));
+  }
+  static float WideLineMove(int i, float can) {
+    const float step = static_cast<float>((i + 1) / 2) * can;
+    return (i & 1) ? step : -step;
+  }
+  // RE4_GX_NO_WIDE_LINES=1 (tests): as a GPU without wide lines (1 px at most, the copies); =2 the same without the
+  // copies (as before 1.1.0)
+  static int WideLinesTest() {
+    static const int mode = [] {
+      const char *v = std::getenv("RE4_GX_NO_WIDE_LINES");
+      return v && (*v == '1' || *v == '2') ? *v - '0' : 0;
+    }();
+    return mode;
+  }
+  static bool NoWideLines() { return WideLinesTest() != 0; }
   XfBlock xf = {};
   // the XF parts as last sent (UploadXf): a part the game wrote again with the same values is not
   // sent again (about 5 % of the uploads of a village picture, Retroid series r226, 28.10.2026)

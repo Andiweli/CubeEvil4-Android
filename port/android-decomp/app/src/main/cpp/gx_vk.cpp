@@ -2126,8 +2126,7 @@ struct VkRenderer final : GxCore {
     const std::uint64_t shift16 = static_cast<std::uint64_t>(std::lround(std::min(15.0f, lodShift) * 16.0f)) & 0xFF;
     const std::uint64_t k = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
                             (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49) |
-                            shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9 |
-                            static_cast<std::uint64_t>(stillLook) << 58;  // (a menu screen's: SamplerFor)
+                            shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9;
     auto it = samplers.find(k);
     if (it != samplers.end())
       return it->second;
@@ -3258,7 +3257,7 @@ struct VkRenderer final : GxCore {
       scissorValid = true;
     }
     if (vk.enabled.wideLines && (primitive == RE4_GX_LINES)) {
-      const float lw = std::max(1.0f, std::min(state.lineWidth, vk.properties.limits.lineWidthRange[1]));
+      const float lw = std::max(1.0f, std::min(state.lineWidth, LineMax()));
       if (lw != boundLineWidth) {
         vkCmdSetLineWidth(cb, lw);
         boundLineWidth = lw;
@@ -3352,8 +3351,32 @@ struct VkRenderer final : GxCore {
     const std::uint32_t indexCount = merge ? merge->count : d.indexCount;
     Split(GxStats::kSplitBind);
     vkCmdDrawIndexed(cb, indexCount, 1, indexAt, baseVertex, 0);
+    // a line wider than this GPU draws (GxCore::lineAxis): again, the EFB's viewport moved by whole pixels across it
+    if (primitive == RE4_GX_LINES) {
+      const float can = vk.enabled.wideLines ? std::max(1.0f, LineMax()) : 1.0f;
+      const int copies = WideLineCopies(state.lineWidth, can);
+      if (copies > 0) {
+        const float w = float(efbColor.width), h = float(efbColor.height);
+        for (int i = 1; i <= copies; i++) {
+          const float move = WideLineMove(i, can);
+          for (int axis = 0; axis < 2; axis++) {
+            // axis 0: up and down (for lines across), 1: sideways
+            if (lineAxis != 2 && lineAxis != axis)
+              continue;
+            const VkViewport vp{axis == 1 ? move : 0.0f, axis == 0 ? move : 0.0f, w, h, 0.0f, 1.0f};
+            vkCmdSetViewport(cb, 0, 1, &vp);
+            vkCmdDrawIndexed(cb, indexCount, 1, indexAt, baseVertex, 0);
+          }
+        }
+        const VkViewport whole{0.0f, 0.0f, w, h, 0.0f, 1.0f};
+        vkCmdSetViewport(cb, 0, 1, &whole);
+        stats.wideLineCopies += static_cast<unsigned>(copies);
+      }
+    }
     Split(GxStats::kSplitDraw);
   }
+  /** The widest line this device draws (RE4_GX_NO_WIDE_LINES: 1). */
+  float LineMax() const { return NoWideLines() ? 1.0f : vk.properties.limits.lineWidthRange[1]; }
   void InterpBegin(const Re4GxChunk &) override { blendAt = -1; }
   void InterpEnd() override { blendAt = -1; }
 
