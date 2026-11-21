@@ -592,6 +592,94 @@ Vulkan liegen Schatten und Streifen auf Krausers Körper, mit OpenGL ES nicht; d
   sein, nicht nicht mehr verfügbar sein“) wieder der Schalter wie bisher, standardmäßig an (unverändert seit jeher).
 - Bilder `builds/workthread-1.1.0/menu/b1`–`b5` (DE/EN); App-Tests bestanden. **Nicht auf einem Gerät geprüft.**
 
+### 24. Seilbahn (r10f) auf einem Snapdragon 460: ~20 FPS mit Blick in Fahrtrichtung (Spielerbericht vom 21.11.2026)
+
+Bericht `reports/workthread-1.1.0/user-cablecar-sd460/` (OPPO A53 „CPH2127“, Snapdragon 460, Adreno 610, OpenGL ES,
+3,6 GB, Android 12, 1.0.0; Potato mode und Sichtweite „Short“ erst kurz vor der Seilbahn eingeschaltet, Frame Skip
+„Normal“, „Performance cores“ aus, 60 FPS aus). Der Raum ist **r10f** (Gondeln/Lore laut Objektliste; der Spieler
+kam aus r11e).
+
+- **Was kostet (sein Protokoll, r10f):** mit Blick in Fahrtrichtung 741–782 Zeichenaufträge je Spielbild statt 263,
+  der Grafikchip dabei nur 15,6–19,3 ms von 33,4 (47–58 %, „not the resolution's doing“). Am Ende sind die beiden
+  Prozessor-Threads: der Spiel-Thread 28–30 ms Rechenzeit je Bild (Zeichnen im Spiel 19–21 ms, die Umrechnung von
+  135 000 Eckpunkten mit drei Helfern), der Zeichen-Thread 23–28 ms (Zeichenaufrufe 5,9–6,5 ms, Kopien/Effekte
+  6,5–6,9 ms). Ergebnis 25,7–27,2 Spielbilder/s, auf dem Bildschirm 26–29,5, einzelne Hänger bis 296 ms. Andere Räume
+  dieses Handys liegen ähnlich (Dorf r101 672 Aufträge, 23–30 Bilder/s): die Seilbahn ist die vollste Stelle, kein
+  Sonderfehler.
+- **Warum vorn so viel:** das Spiel zeichnet alles im Blickfeld bis zur fernen Ebene, ohne zu prüfen, ob es verdeckt
+  ist: das ganze Tal, die Seilbahnlinie bis ~175 m (Objekte bis z −175 000) und alle entgegenkommenden Gondeln samt
+  Ganados. Am PC (Debug-Disc, r10f, Leon an der Startstelle, sieben Blickrichtungen): die volle Richtung 747
+  Aufträge / 88 000 Dreiecke, die übrigen 234–418. „Short“ (50 %) senkt die volle Richtung nur auf 626 (−16 %),
+  „None“ (35 %) auf 259 (−65 %); die anderen Richtungen ändern sich kaum. In der gemessenen Stellung lagen die
+  eingesparten Aufträge sogar ganz hinter dem Fels (Bilder bei allen drei Stufen gleich); auf der Fahrt selbst ist
+  das Tal dagegen sichtbar, dort verschwindet bei „None“ die Ferne im Nebel.
+- **„Kirchen-Zeitlupe“ (0.96.7):** im Protokoll ist das die Zeitlupe, wenn das Spiel selbst unter 30 Bilder/s fällt;
+  dafür gibt es seit 0.99.x „Aggressive frame skip“ und seit 1.1.0 „Frame skip Auto“ (beide Bildsprünge nur, solange
+  das Spiel unter 27 Bilder/s fällt). Der Spieler hatte nur „Normal“ an (hilft nur, wenn der Grafikchip zurückliegt,
+  hier nicht).
+- **Behoben (`re4_cpu_info.h`, 1.1.0):** die Kernarten richten sich jetzt zuerst nach der Leistungsangabe des Systems
+  je Kern (`/sys/devices/system/cpu/cpuN/cpu_capacity`), dann nach dem Takt. Beim Snapdragon 460 erreichen die vier
+  kleinen Kerne (Cortex-A53) 1804 MHz, die vier großen (Cortex-A73) nur 1612 MHz; nach dem Takt galten die kleinen als
+  „schnell“, und „Performance cores“ (in **jedem** Leistungsprofil an, `PerfProfile` `v[CORES] = 1`) hätte Spiel-
+  und Zeichen-Thread auf die kleinen Kerne gelegt, sobald der Spieler ein Profil wählt. Rang = Leistung × 4096 + MHz
+  (gleiche Leistung bei Prime- und großen Kernen bleibt durch den Takt getrennt); fehlt einem Kern die Angabe oder ist
+  sie überall gleich, alles wie bisher. `RE4_CPU_CAPACITY=0` schaltet es ab. Die Zeile „processor:“ nennt die Leistungen
+  („kinds by the system's capacity: 0-3 494, 4-7 1024 (the last the fastest)“). Spieler mit „Performance cores“ aus
+  (wie dieser) merken heute nichts davon: Android legte die Threads schon selbst auf die großen Kerne (Protokoll: 98–100 %
+  auf den Kernen 4–7).
+- **Nicht geändert:** kein Abschneiden ohne sichtbaren Verlust möglich (das Spiel kennt keine Verdeckung; eine eigene
+  Verdeckungsprüfung wäre ein großer Umbau). „Merge draw calls“ fasst in diesem Bild nichts zusammen (0 von 747).
+  Vorschlag für schwache Prozessoren ohne neuen Schalter: in den Profilen „Low“ die Sichtweite „None“ und Frame skip
+  „Auto“ (nur mit OK des Projektinhabers).
+- **Geprüft am PC:** Kern i686 0 Fehler, Laufzeit- und Kerntests (neu: Layout des Snapdragon 460 mit Leistungen,
+  Snapdragon 865 mit gleicher Leistung für Prime- und große Kerne, Kerne ohne Angabe); Messungen r10f mit
+  `gx_chunk_render`. **Nicht auf einem Gerät geprüft**, ob sein Kernel `cpu_capacity` lesen lässt (Android-Kernel mit
+  EAS haben es; sonst bleibt es beim Takt).
+
+### 25. Lebensbalken: nur in der Nähe, weich ein- und ausblenden (Projektinhaber, 21.11.2026: „erst ab einer gewissen Entfernung einblenden und einfaden. Nicht hart einblenden.“)
+
+`runtime/health_bars.cpp`, kein neuer Patch, kein Schalter.
+
+- **Entfernung:** Balken nur noch bis 15 m von der Kamera (`kShow` 15000 Spieleinheiten; vorher 30 m). Die Kamera steht
+  etwa 2 m hinter Leon, also rund 13 m von Leon. 15 m ist die Entfernung, auf die Ganados losstürmen und Leon gut
+  zielen kann; weiter weg waren die Balken nur noch 14 Einheiten breit und eher Unruhe im Bild.
+- **Einblenden/Ausblenden:** je Gegner eine Deckkraft 0..1 (`gFade`, nach dem Platz in der Gegnerliste wie `gAnchor`),
+  in 12 Spielbildern ganz da oder ganz weg, also 0,4 s (das Spiel rechnet bei 30 und bei 60 FPS mit 30 Bildern je
+  Sekunde; ein Sprung zählt höchstens 3 Bilder). Einblenden, sobald ein Gegner innerhalb von 15 m frei sichtbar ist;
+  ausblenden, wenn er weiter weg geht, hinter eine Wand oder eine geschlossene Tür gerät oder stirbt (dann mit dem
+  letzten roten Streifen). Rahmen, grauer Rest und Farbe bekommen dieselbe Deckkraft.
+- **Sofort weg wie bisher:** außerhalb des Bildes, hinter der Kamera, näher als 30 cm, nicht gezeichnet (`isTrans`),
+  in Zwischensequenzen, Filmen, Untermenüs, Türszenen. Danach beginnt der Balken wieder bei nichts und blendet ein
+  (eine Pause von mehr als 3 Bildern setzt zurück; so auch nach einem Raumwechsel).
+- Die bisherigen Prüfungen bleiben: Sicht ohne Wand (`seen`, `clearLine`), Türen (`doorBetween`), Kopfanker
+  (`anchorOf`), Glättung (`smoothed`), Plaga-Phase, Händler, Liste der Gegnerarten.
+- PC-Vergleich alt: `RE4_HB_NO_FADE=1` (30 m, kein Ausblenden). Laufzeittest `health bar fade` (12 Schritte bis ganz,
+  Sprünge höchstens 3 Bilder, Grenzen 0 und 1).
+- **Geprüft am PC:** i686-Kern 0 Fehler, Laufzeit- und Kerntests bestanden (der Zeittest „vsync“ fiel einmal unter Last
+  durch, die Wiederholung bestand; hat mit den Balken nichts zu tun); r208 (Burg) und r106 alt gegen neu, Bilder jede
+  Sekunde mit GLES und Vulkan/lavapipe: in r208 bei Bild 900 alt 4 Balken, neu 3 (ein Zealot zwischen 15 und 30 m
+  bekommt keinen mehr); Bilder `builds\workthread-1.1.0\health-bars\r208-before-left-after-right-*.png` (links alt,
+  rechts neu). Das Ein- und Ausblenden selbst ist in Standbildern im Sekundenabstand nicht zu sehen; geprüft über den
+  Laufzeittest. **Nicht auf einem Gerät geprüft** (wie weich es mit 60 FPS wirkt).
+
+### 26. Cheat „Gegenstände stapeln“ und Reihenfolge der Zufalls-Cheats (Projektinhaber, 21.11.2026)
+
+- **Gegenstände stapeln** (Cheats & Mods → Allgemein und Inventar, nach „+1,000,000 PTAS“, aus): **Patch 0254**
+  (`item.cpp` `itemInfo`, `ss_item.cpp`). Solange `runtime/cheats.cpp` `re4_stack_items` an ist (Bit 21 der
+  Ziel-Bits der App, `aim_options.cpp`; die Cheat-Bits sind alle belegt; `CoreBridge.setStackItems`, `GAME_PREFS`
+  `stackItems`), dürfen Munition (Typ 2: Pistole 50, Magnum 10, Schrot 15, Gewehr 10, TMP/MG 100 …), Granaten (Typ 3:
+  Hand-, Brand-, Blendgranate; sonst 1 je Platz) und Heilmittel (Typ 6: Kräuter und Mischungen, Erste-Hilfe-Spray,
+  Eier, Fische; sonst 1 je Platz) bis 999 je Platz haben. Schätze stapeln sich ohnehin bis 999; Waffen, Schlüssel,
+  Dateien bleiben. Die Anzahl je Platz ist 16 bit (`cItem::num`, `ItemSaveWork::num`): Spielstände behalten Stapel.
+  Ausgeschaltet bleibt ein größerer Stapel, das Spiel nimmt eins nach dem anderen (`cItemMgr::use`/`dump`, der Platz
+  wird bei 0 frei), Neues kommt auf einen neuen Platz; das Inventar zeigt die Anzahl solcher Stapel weiter
+  (`ss_item.cpp`: vorher nur, wo mehr als eins auf einen Platz passt). Texte in 11 Sprachen (531).
+- **Reihenfolge:** „Zufällige Gegenstände“ und „Zufällige Gegner“ sind die erste Reihe von „Gegner und Umgebung“.
+- **Geprüft am PC:** Kern i686 0 Fehler, Laufzeit- und Kerntests bestanden (neu: `core-test stack-items`, die
+  Grenzen der Tabelle aus und an); App-Tests 229 (4 übersprungen) bestanden; Bilder
+  `builds/workthread-1.1.0/menu/c1`–`c3` (DE/EN). **Nicht geprüft:** ein Spiellauf mit Aufheben und Benutzen
+  gestapelter Granaten und Kräuter (nur auf einem Gerät oder mit einem eigenen Spielskript); nicht auf einem Gerät.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
