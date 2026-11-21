@@ -727,6 +727,50 @@ kam aus r11e).
   `builds/workthread-1.1.0/menu/c1`–`c3` (DE/EN). **Nicht geprüft:** ein Spiellauf mit Aufheben und Benutzen
   gestapelter Granaten und Kräuter (nur auf einem Gerät oder mit einem eigenen Spielskript); nicht auf einem Gerät.
 
+### 27. Mipmaps für Raumtexturen ohne und weicher Alpha-Test mit MSAA (Projektinhaber, 21.11.2026)
+
+Aus der Texturen-Recherche (`reports/textures-research/bericht.md`, Punkte 2 und 3). Kein Schalter, kein Patch am
+Spielcode, nur der Renderer (OpenGL ES und Vulkan gleich).
+
+1. **Mipmaps für Spieltexturen ohne eigene Stufen** (`gx_mips.h`, `GxCore::Upload`). 3.076 Raumtexturen haben keine
+   verkleinerten Stufen und flimmern in der Ferne (auf der GameCube auch).
+   - Welche: die Textur des Spiels hat nur Stufe 0, die längere Seite hat mindestens 64 Texel, die kürzere mindestens 8
+     (`GxWantsMips`; Rampen und Nachschlage-Streifen bleiben). Nicht: HD-Pakete (eigener Weg `UploadHd`, unverändert),
+     EFB-Kopien (eigener Weg), Menüwörter („Schärfere Menüschrift“ hat eigene Stufen), Texturen, an deren Adresse in
+     60 Bildstücken zweimal neue Texel kamen (Filmbilder, `uploadsAt`). `RE4_GX_MAKE_MIPS=0`: keine (Vergleich).
+   - Wie: auf dem Prozessor beim Hochladen, jede Stufe der 2x2-Mittelwert der darüber, in den gespeicherten Werten (wie
+     Capcoms Werkzeug die vorhandenen Stufen gemacht hat: laut Recherche 1.566 von 1.567 Stufen Box-Mittel, nicht im
+     linearen Licht; so sehen gemachte Stufen aus wie die des Spiels). Ausgestanzte Texturen (Alpha nur 0 und 255:
+     Laub, Zäune, Haare) mitteln die Farbe nach Alpha (kein dunkler Rand aus verdeckten Texeln; nicht bei I4/I8, deren
+     Alpha die Helligkeit ist) und behalten ihre Deckung: jede Stufe so skaliert, dass gleich viele Texel die Schwelle
+     128 erreichen wie in Stufe 0 (Bäume dünnen in der Ferne nicht aus; Test: Stufe 3 ohne 16 %, mit 30 % bei 30 %).
+   - Abtasten (`SamplerFor`, Parameter `made`): wo das Spiel linear filtert, trilinear durch die gemachten Stufen
+     (die Stufengrenzen des Spiels gelten für eine Stufe nicht), mit der Anisotropie des Menüs; wo es nearest abtastet
+     (und im PSone-Modus) nur Stufe 0, Aussehen wie bisher. Die Stufenzahl ist im Schlüssel des Samplers.
+   - Kosten (PC, je Raum beim ersten Bild): r10f (Seilbahn) 80 Texturen, +2,4 MB, 5–6 ms; r100 (Waldweg) 68 Texturen,
+     +1,8 MB, 4 ms; etwa 0,07 ms je Textur, einmal beim Laden. Logzeile „mipmaps made …“ (erste und jede 500.),
+     `gx_chunk_render` je Bild „mipmaps: N textures given levels …“.
+2. **Weicher Alpha-Test mit MSAA** (`gx_gl_shader.cpp`, Alpha-to-Coverage über die Sample-Maske). Nur in den Programmen
+   mit MSAA (Bit 0 von `centroid`): jede Ordnungs-Prüfung („<“, „<=“, „>“, „>=“; „nie“ 0, „immer“ 1) bekommt ihren Anteil
+   nach dem Abstand des Alphas von der Kante, gemessen an der Änderung zum Nachbarpixel (`fwidth`); UND das Kleinere,
+   ODER das Größere (das Spiel setzt meist „> ref ODER > ref“ oder „> ref ODER > 255“, `GXSetAlphaCompare(4,…,1,4,…)`);
+   „==“, „!=“ und XOR/XNOR bleiben hart. So viele Samples wie der Anteil × Samples (`alphaRef.w` = Samples des EFB)
+   bekommt der Pixel (`gl_SampleMask`), das geschriebene Alpha bleibt (anders als `GL_SAMPLE_ALPHA_TO_COVERAGE`).
+   OpenGL ES braucht `GL_OES_sample_variables` (oder 3.2; sonst der harte Test), Vulkan hat es (`VulkanGlsl` lässt die
+   `#extension`-Zeile weg). Ohne MSAA ist der Programmtext unverändert: Bilder bytegleich, Shader-Zwischenspeicher
+   gültig; mit MSAA werden die Programme mit Alpha-Test einmal neu übersetzt. `RE4_GX_SOFT_ALPHA=0`: hart (Vergleich).
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan (lavapipe) 0 Fehler; neu: `TestMipFunctions` (Stufenzahl, 2x2-Mittel,
+  ungerade Größen, Farbe nach Alpha, Deckung), `TestMadeMips` (Schachbrett 256² auf 37 Pixel: mit Stufen gleichmäßiges
+  Grau 128, Streuung 0; nearest wie vorher), `TestSoftAlpha` (Programmtext nur mit MSAA und Ordnungs-Prüfungen; schräge
+  Kante: mit 4 Samples 26 teilweise bedeckte Pixel, mit 1 Sample 0, Kante an derselben Stelle). Spielszenen (Kern-Dumps,
+  2x, gegen ein Referenzbild 4x ohne Stufen, auf 2x gemittelt): Rauschen der feinsten Details in der Ferne r10f ohne
+  2,20 / mit 1,95 (Referenz 1,82), r100 ohne 6,51 / mit 6,35 (5,52); nah unverändert (mittlere Abweichung 0,15 von 255).
+  Weicher Alpha-Test in denselben Szenen mit 4 Samples: r100 13.500 Pixel je Bild an Kanten ausgestanzter Texturen
+  anders (1 %), r10f 960. Bilder `builds/workthread-1.1.0/mipmaps/`.
+- **Nicht geprüft, nur auf einem Gerät:** wie stark das Flimmern beim Gehen am Handy-Bildschirm abnimmt; die Ladezeit
+  auf langsamen Handys (am PC 4–6 ms je Raum, auf dem Handy grob das 3–6-fache); die Bildzeit (Mipmaps senken die
+  Speicherlast der GPU meist, lavapipe misst das nicht); ob der GLES-Treiber `GL_OES_sample_variables` hat.
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

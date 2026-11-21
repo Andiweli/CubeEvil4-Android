@@ -1262,15 +1262,17 @@ struct GlRenderer final : GxCore {
 
   // point: the PSone demake's 3D textures, every texel a hard square (the PlayStation filtered nothing)
   // lodShift: an HD replacement's (Bound::lodShift), in sixteenths in the key
-  GLuint Sampler(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point = false, float lodShift = 0.0f) {
+  // made: the levels below level 0 made by the renderer (Bound::made, 1.1.0), with the levels' count in the key
+  GLuint Sampler(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point = false, float lodShift = 0.0f,
+                 bool made = false) {
     const std::uint64_t shift16 = static_cast<std::uint64_t>(std::lround(std::min(15.0f, lodShift) * 16.0f)) & 0xFF;
     const std::uint64_t key = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
                               (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49) |
-                              shift16 << 50;
+                              shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9;
     auto it = samplers.find(key);
     if (it != samplers.end())
       return it->second;
-    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point, static_cast<float>(shift16) / 16.0f);
+    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point, static_cast<float>(shift16) / 16.0f, made);
     GLuint s = 0;
     glGenSamplers(1, &s);
     static const GLenum wrap[3] = {GL_CLAMP_TO_EDGE, GL_REPEAT, GL_MIRRORED_REPEAT};
@@ -1611,7 +1613,8 @@ struct GlRenderer final : GxCore {
         stats.textureBinds++;
       }
       const std::uint32_t mode0 = bp[(m < 4 ? 0x80 : 0xA0) + (m & 3)], mode1 = bp[(m < 4 ? 0x84 : 0xA4) + (m & 3)];
-      const GLuint sampler = Sampler(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0, bound[m].lodShift);
+      const GLuint sampler =
+          Sampler(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0, bound[m].lodShift, bound[m].made);
       if (unitSampler[m] != sampler) {
         glBindSampler(static_cast<GLuint>(m), sampler);
         unitSampler[m] = sampler;

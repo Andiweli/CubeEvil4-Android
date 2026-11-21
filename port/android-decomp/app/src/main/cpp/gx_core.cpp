@@ -3,6 +3,7 @@
 #include "gx_core.h"
 
 #include "etc2.h"
+#include "gx_mips.h"
 #include "gx_texture.h"
 #include "tex_pack.h"
 #include "word_sharpen.h"
@@ -625,6 +626,8 @@ void GxCore::FillPixel(const ShaderKey &k) {
   std::memcpy(px.konst, tevKonst, sizeof(tevKonst));
   px.alphaRef[0] = static_cast<std::int32_t>(bp[0xF3] & 0xFF);
   px.alphaRef[1] = static_cast<std::int32_t>((bp[0xF3] >> 8) & 0xFF);
+  // the EFB's samples (1.1.0): the soft alpha test of MSAA's programs covers that many (GxFragmentShader)
+  px.alphaRef[3] = samples;
   const auto fogFloat = [](std::uint32_t v) {
     const std::uint32_t bits = ((v >> 19) & 1) << 31 | ((v >> 11) & 0xFF) << 23 | (v & 0x7FF) << 12;
     return AsFloat(bits);
@@ -2787,6 +2790,7 @@ void GxCore::BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   b.height = t.height ? t.height : 1;
   b.levels = 1;
   b.lodShift = 0.0f;
+  b.made = false;
   if (t.flags & RE4_GX_TEX_COPY) {
     boundKey[map] = 1ull << 63 | t.address;
     // the in-between pass reads its own copies, and the real ones of the picture before
@@ -2829,6 +2833,7 @@ void GxCore::BindTexture(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   b.id = it->second.id;
   b.levels = it->second.levels;
   b.lodShift = it->second.lodShift;
+  b.made = it->second.made;
 }
 
 void GxCore::Forget(std::uint64_t key) {
@@ -3404,6 +3409,30 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   tex.width = t.width;
   tex.height = t.height;
   tex.levels = t.levels ? t.levels : 1;
+  // mipmaps for a game texture without (1.1.0, gx_mips.h): not for new texels at the same place soon again (a movie's
+  // frames, 2 changes within 60 chunks), a menu word (its sharper picture has levels of its own), RE4_GX_MAKE_MIPS=0
+  static const bool mipsOff = [] {
+    const char *v = std::getenv("RE4_GX_MAKE_MIPS");
+    return v && *v == '0';
+  }();
+  bool make = makeMips && !mipsOff && GxWantsMips(tex.levels, t.width, t.height) &&
+              !(wordActive && MaybeMenuWord(t.format, t.width, t.height));
+  if (make) {
+    if (uploadsAt.size() > 8192)
+      uploadsAt.clear();
+    UploadSeen &seen = uploadsAt[t.address];
+    if (seen.key != 0 && seen.key != key) {
+      seen.changes = stats.chunks - seen.chunk <= 60 ? seen.changes + 1 : 0;
+    }
+    seen.key = key;
+    seen.chunk = stats.chunks;
+    if (seen.changes >= 2) {
+      make = false;
+      stats.mipSkippedDynamic++;
+    }
+  }
+  if (make)
+    tex.levels = GxMipCount(t.width, t.height);
   tex.id = BeginTexture(t.width, t.height, tex.levels);
   const std::uint8_t *data = chunk.blob + t.dataOffset;
   std::size_t left = t.dataBytes;
@@ -3416,7 +3445,7 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
   }
   unsigned w = t.width, h = t.height, levels = 0;
   std::vector<std::uint8_t> &rgba = decoded;
-  for (unsigned l = 0; l < tex.levels; l++) {
+  for (unsigned l = 0; l < (make ? 1u : tex.levels); l++) {
     const std::size_t bytes = GxTextureLevelBytes(t.format, w, h);
     if (bytes > left)
       break;
@@ -3427,6 +3456,39 @@ void GxCore::Upload(const Re4GxTexture &t, const Re4GxChunk &chunk) {
     left -= bytes;
     w = std::max(1u, w / 2);
     h = std::max(1u, h / 2);
+  }
+  if (make && levels == 1) {
+    // the levels below, each the 2x2 average of the one above (a cut-out by alpha, its coverage kept); rgba keeps
+    // level 0 for the menu word below (made only where it is none)
+    const auto started = std::chrono::steady_clock::now();
+    // (the intensity formats I4 and I8 have alpha = intensity: their colour stays the plain average, as the game's own
+    // levels of them, only their coverage is kept)
+    const bool cutout = GxCutout(rgba.data(), t.width, t.height);
+    const bool byAlpha = cutout && t.format != 0 && t.format != 1;
+    const float coverage = cutout ? GxCoverage(rgba.data(), t.width, t.height) : 0.0f;
+    static thread_local std::vector<std::uint8_t> above, below;
+    above.assign(rgba.begin(), rgba.end());
+    unsigned lw = t.width, lh = t.height;
+    for (unsigned l = 1; l < tex.levels; l++) {
+      GxMipDown(above.data(), lw, lh, byAlpha, below);
+      lw = std::max(1u, lw / 2);
+      lh = std::max(1u, lh / 2);
+      if (cutout)
+        GxKeepCoverage(below.data(), lw, lh, coverage);
+      TextureLevel(tex.id, l, lw, lh, below.data());
+      stats.mipBytes += below.size();
+      above.swap(below);
+      levels++;
+    }
+    tex.made = true;
+    stats.mipTextures++;
+    stats.mipCutouts += cutout ? 1 : 0;
+    stats.mipUs += static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count());
+    if (stats.mipTextures == 1 || stats.mipTextures % 500 == 0)
+      GXLOG("mipmaps made for the game's textures without: %u so far (%u cut-outs), %.1f MB more, %.1f ms in all; "
+            "%u left without (new texels at the same place soon again)", stats.mipTextures, stats.mipCutouts,
+            stats.mipBytes / 1048576.0, stats.mipUs / 1000.0, stats.mipSkippedDynamic);
   }
   tex.levels = std::max(1u, levels);
   EndTexture(tex.id, tex.levels);
@@ -3626,7 +3688,7 @@ bool GxCore::PutHd(const c4tex::Entry &e, unsigned first, unsigned gameW, unsign
 }
 
 GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point,
-                                 float lodShift) const {
+                                 float lodShift, bool made) const {
   GxSamplerDesc s;
   static const std::uint8_t wrap[4] = {0, 1, 2, 1};  // clamp, repeat, mirror, (repeat)
   s.wrapS = wrap[mode0 & 3];
@@ -3654,6 +3716,24 @@ GxSamplerDesc GxCore::SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsig
   s.anisotropy = anisotropy > 1.0f && levels > 1 && ((mode0 >> 4) & 1) && minFilter >= 5 && minFilter <= 6 && !point
                      ? anisotropy
                      : 1.0f;
+  if (made && levels > 1) {
+    // levels the renderer made for a game texture without (1.1.0, gx_mips.h): where the game filters linearly, through
+    // them (as a texture with the game's own levels: trilinear, the game's level limits mean nothing for one level);
+    // a texture the game samples nearest (or the PSone demake's point sampling) keeps level 0 only, its look as before
+    if (minLinear[minFilter] && !point) {
+      s.minLinear = true;
+      s.mip = 2;
+      s.minLod = 0.0f;
+      s.maxLod = static_cast<float>(levels - 1);
+      s.anisotropy = anisotropy > 1.0f && ((mode0 >> 4) & 1) ? anisotropy : 1.0f;
+    } else {
+      s.mip = 0;
+      s.minLod = 0.0f;
+      s.maxLod = 0.0f;
+      s.anisotropy = 1.0f;
+    }
+    return s;
+  }
   if (lodShift > 0.0f && levels > 1 && !point) {
     // an HD replacement, lodShift levels finer than the game's texture, with a full chain of its own: the game's
     // level limits move by it (a minimum above 0 is the game's wish for a blur), and a texture the game shows

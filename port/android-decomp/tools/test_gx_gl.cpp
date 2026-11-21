@@ -22,6 +22,7 @@
 #include "gx_core.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
+#include "gx_mips.h"
 #include "gx_selfcheck.h"
 #include "gx_texture.h"
 #include "re4_gx_frame.h"
@@ -2011,6 +2012,211 @@ static PresentRun PresentSim(bool pace, double from, double to, int pictures, un
   out.asked = pacer.asked;
   out.twoShare = intervals ? static_cast<int>(100 * two / intervals) : 0;
   return out;
+}
+
+// 1.1.0 (the project owner, 21.11.2026): mipmaps made for the game's textures without (gx_mips.h). The functions
+// alone: the levels' count, the 2x2 average, a cut-out's colour by alpha and its coverage kept.
+void TestMipFunctions() {
+  Check(re4gx::GxMipCount(256, 256) == 9 && re4gx::GxMipCount(256, 64) == 9 && re4gx::GxMipCount(1, 1) == 1,
+        "mipmaps: the levels down to 1 x 1");
+  Check(re4gx::GxWantsMips(1, 256, 128) && re4gx::GxWantsMips(1, 64, 8) && !re4gx::GxWantsMips(1, 32, 32) &&
+            !re4gx::GxWantsMips(1, 256, 4) && !re4gx::GxWantsMips(9, 256, 256),
+        "mipmaps: only for textures of 64 or more without the game's own levels");
+  // a 4 x 2 RGBA8: the 2x2 average (rounded), an odd size takes its last texel twice
+  std::vector<std::uint8_t> src = {0, 0, 0, 255,  100, 0, 0, 255,  200, 0, 0, 255,  50, 0, 0, 255,
+                                   0, 100, 0, 255,  0, 0, 0, 255,  0, 0, 0, 255,  0, 0, 200, 255}, dst;
+  re4gx::GxMipDown(src.data(), 4, 2, false, dst);
+  Check(dst.size() == 8 && dst[0] == 25 && dst[1] == 25 && dst[2] == 0 && dst[3] == 255 && dst[4] == 63 &&
+            dst[6] == 50,
+        "mipmaps: each texel the 2x2 average of the level above");
+  std::vector<std::uint8_t> odd = {10, 0, 0, 255, 20, 0, 0, 255, 30, 0, 0, 255}, oddDst;  // 3 x 1
+  re4gx::GxMipDown(odd.data(), 3, 1, false, oddDst);
+  Check(oddDst.size() == 4 && oddDst[0] == 15, "mipmaps: an odd size averages its own texels");
+  // a cut-out: hidden texels black, visible ones white; by alpha the colour stays white, not grey
+  std::vector<std::uint8_t> cut = {255, 255, 255, 255,  0, 0, 0, 0,  0, 0, 0, 0,  255, 255, 255, 255};
+  Check(re4gx::GxCutout(cut.data(), 2, 2) && !re4gx::GxCutout(src.data(), 4, 2), "mipmaps: a cut-out found by its alpha");
+  std::vector<std::uint8_t> cutDst;
+  re4gx::GxMipDown(cut.data(), 2, 2, true, cutDst);
+  Check(cutDst[0] == 255 && cutDst[3] == 128, "mipmaps: a cut-out's colour by alpha (no dark fringe)");
+  // coverage: a 64 x 64 leaf pattern (30 % solid, in single texels) keeps about 30 % at 128 or more in its levels
+  std::vector<std::uint8_t> leaf(64 * 64 * 4);
+  std::mt19937 rnd(7);
+  for (std::size_t i = 0; i < 64 * 64; i++) {
+    const bool solid = rnd() % 100 < 30;
+    leaf[i * 4] = 40, leaf[i * 4 + 1] = 120, leaf[i * 4 + 2] = 30, leaf[i * 4 + 3] = solid ? 255 : 0;
+  }
+  const float cover = re4gx::GxCoverage(leaf.data(), 64, 64);
+  std::vector<std::uint8_t> above = leaf, below;
+  unsigned w = 64;
+  float plain = 0.0f, kept = 0.0f;
+  for (int l = 1; l <= 3; l++) {
+    re4gx::GxMipDown(above.data(), w, w, true, below);
+    w /= 2;
+    std::vector<std::uint8_t> raw = below;
+    plain = re4gx::GxCoverage(raw.data(), w, w);
+    re4gx::GxKeepCoverage(below.data(), w, w, cover);
+    kept = re4gx::GxCoverage(below.data(), w, w);
+    above.swap(below);
+  }
+  std::fprintf(stderr, "  mipmaps: a cut-out's coverage %.0f %%, level 3 plain %.0f %%, kept %.0f %%\n", cover * 100,
+               plain * 100, kept * 100);
+  Check(std::fabs(kept - cover) < 0.08f && std::fabs(plain - cover) > std::fabs(kept - cover),
+        "mipmaps: a cut-out's coverage kept in its levels (trees do not thin out)");
+}
+
+// An I8 texture, w x h, value(x, y) per texel, tiled as the GameCube keeps it (8 x 4 tiles).
+static std::vector<std::uint8_t> I8Texture(unsigned w, unsigned h, int (*value)(unsigned, unsigned)) {
+  std::vector<std::uint8_t> t;
+  t.reserve(static_cast<std::size_t>(w) * h);
+  for (unsigned ty = 0; ty < h; ty += 4)
+    for (unsigned tx = 0; tx < w; tx += 8)
+      for (unsigned y = ty; y < ty + 4; y++)
+        for (unsigned x = tx; x < tx + 8; x++)
+          t.push_back(static_cast<std::uint8_t>(value(x, y)));
+  return t;
+}
+
+// The renderer: a 256 x 256 checker (texels 0 and 255, no levels of its own) on a 37 x 37 quad, linear: with the made
+// levels an even grey (the GameCube's and the old renderer's shimmer is a noise of black and white texels); the same
+// texture sampled nearest keeps its look (only level 0). Read back as the display copy (GL and Vulkan).
+void TestMadeMips(re4gx::GxApi api, const char *tag) {
+  re4gx::GxRenderer r(api);
+  std::string error;
+  Require(r.Init(1, &error), error.c_str());
+  const auto checker = I8Texture(256, 256, [](unsigned x, unsigned y) { return ((x + y) & 1) ? 255 : 0; });
+  auto spread = [&](unsigned mode0, unsigned key, double *mean) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+    b.Bp(0x80, mode0);  // wrap repeat; mag linear; min as given
+    b.Bp(0x84, 0);      // the game's level limits 0 .. 0 (no levels of its own)
+    b.Bp(0x88, 255 | 255 << 10 | 1u << 20);  // 256 x 256, I8
+    b.Bp(0x30, 255);
+    b.Bp(0x31, 255);
+    b.Texture(0, key, 0, 0x180000 + key, 256, 256, 1, checker);
+    std::vector<std::uint8_t> v;
+    VT(v, 101, 101, 0, kWhite, 0, 0);
+    VT(v, 138, 101, 0, kWhite, 1, 0);
+    VT(v, 138, 138, 0, kWhite, 1, 1);
+    VT(v, 101, 138, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    if (!r.ReadXfb(&rgba, &w, &h) || w < 200 || h < 200)
+      return 999.0;
+    double sum = 0, sq = 0;
+    int n = 0;
+    for (unsigned y = 106; y < 133; y++)
+      for (unsigned x = 106; x < 133; x++) {
+        const double g = rgba[(static_cast<std::size_t>(y) * w + x) * 4];
+        sum += g, sq += g * g, n++;
+      }
+    *mean = sum / n;
+    return std::sqrt(std::max(0.0, sq / n - *mean * *mean));
+  };
+  double meanLinear = 0, meanNearest = 0;
+  const double linear = spread(1u << 4 | 4u << 5, 0x7101, &meanLinear);   // min "linear" (the rooms' walls and floors)
+  const double nearest = spread(1u << 4 | 0u << 5, 0x7102, &meanNearest);  // min "nearest"
+  std::fprintf(stderr, "  mipmaps (%s): a checker at 1/7 size: linear mean %.0f, spread %.1f; nearest spread %.1f; "
+               "%u textures given levels, %.2f MB more, %.2f ms\n", tag, meanLinear, linear, nearest,
+               r.Stats().mipTextures, r.Stats().mipBytes / 1048576.0, r.Stats().mipUs / 1000.0);
+  Check(linear < 12.0 && meanLinear > 100.0 && meanLinear < 155.0,
+        (std::string("mipmaps (") + tag + "): a far checker an even grey, no shimmer").c_str());
+  // (nearest: black and white texels, the display copy's vertical filter softens them a little)
+  Check(nearest > 30.0, (std::string("mipmaps (") + tag + "): a texture sampled nearest keeps its look").c_str());
+  Check(r.Stats().mipTextures == 2 && r.Stats().mipBytes > 20000,
+        (std::string("mipmaps (") + tag + "): levels made for the game's texture without").c_str());
+  r.Release();
+}
+
+// 1.1.0: the soft alpha test of MSAA (gx_gl_shader.cpp): a 32 x 32 cut-out (I8, alpha = value) over 256 pixels,
+// tested "alpha >= 128": with 4 samples the pixels at the edge get some of their samples (grey after the resolve);
+// with 1 sample the shader is the one of before (no sample mask in its text) and the edge stays hard.
+void TestSoftAlpha(re4gx::GxApi api, const char *tag) {
+  // the programs' text: the sample mask only in MSAA's programs (bit 0 of centroid), for "<", "<=", ">", ">=" with
+  // AND / OR (the game's "> ref OR > ref" too), not for "==" or XOR
+  re4gx::ShaderKey k{};
+  k.numStages = 1;
+  k.alphaTest = 6u | 7u << 3;  // >= ref0 AND always
+  const std::string one = re4gx::GxFragmentShader(k);
+  k.centroid = 1;
+  const std::string four = re4gx::GxFragmentShader(k);
+  k.alphaTest = 4u | 4u << 3 | 1u << 6;  // > ref0 OR > ref1 (the game's)
+  const std::string game = re4gx::GxFragmentShader(k);
+  k.alphaTest = 2u | 7u << 3;  // == ref0: the hard one
+  const std::string equal = re4gx::GxFragmentShader(k);
+  k.alphaTest = 4u | 4u << 3 | 2u << 6;  // XOR: the hard one
+  const std::string exclusive = re4gx::GxFragmentShader(k);
+  Check(one.find("gl_SampleMask") == std::string::npos && four.find("gl_SampleMask") != std::string::npos &&
+            game.find("gl_SampleMask") != std::string::npos && game.find("max(") != std::string::npos &&
+            equal.find("gl_SampleMask") == std::string::npos && exclusive.find("gl_SampleMask") == std::string::npos,
+        "soft alpha test: only in MSAA's programs, for the ordering compares with AND / OR");
+  for (int samples : {1, 4}) {
+    re4gx::GxRenderer r(api);
+    re4gx::GxOptions o;
+    o.samples = samples;
+    r.SetOptions(o);
+    std::string error;
+    Require(r.Init(1, &error), error.c_str());
+    // a cut-out: texels 0 .. 15 clear, 16 .. 31 solid; filtered linearly the alpha climbs about 32 a pixel there
+    const auto ramp = I8Texture(32, 32, [](unsigned x, unsigned) { return x >= 16 ? 255 : 0; });
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 12u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);   // colour white (ONE)
+    b.Bp(0xC1, 4u << 4 | 7u << 7 | 7u << 10 | 7u << 13 | 1u << 19);  // alpha = the texture's
+    b.Bp(0x80, 1u << 4 | 4u << 5);
+    b.Bp(0x84, 0);
+    b.Bp(0x88, 31 | 31 << 10 | 1u << 20);
+    b.Bp(0x30, 31);
+    b.Bp(0x31, 31);
+    b.Texture(0, 0x7201, 0, 0x1A0000, 32, 32, 1, ramp);
+    b.Bp(0xF3, 128 | 128u << 8 | 4u << 16 | 4u << 19 | 1u << 22);  // alpha > 128 OR > 128 (as the game sets it)
+    // a slanted quad (each row a third of a pixel further right): the edge crosses the pixels at every place
+    std::vector<std::uint8_t> v;
+    VT(v, 100, 100, 0, kWhite, 0, 0);
+    VT(v, 356, 100, 0, kWhite, 1, 0);
+    VT(v, 368, 136, 0, kWhite, 1, 1);
+    VT(v, 112, 136, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&rgba, &w, &h) && w >= 400, "soft alpha test: the display copy read back");
+    // rows 105 .. 130: black where the test fails, white where it passes; with 4 samples a pixel at the edge grey
+    // (some of its samples covered); firstLit: the edge in row 105
+    int partial = 0, firstLit = -1;
+    for (unsigned y = 105; y <= 130; y++)
+      for (unsigned x = 200; x < 300; x++) {
+        const int g = rgba[(y * w + x) * 4];
+        if (y == 105 && firstLit < 0 && g > 0)
+          firstLit = static_cast<int>(x);
+        if (g > 0 && g < 240)
+          partial++;
+      }
+    const bool msaa = r.Samples() > 1;
+    std::fprintf(stderr, "  soft alpha test (%s, %d samples): the edge at x %d, %d pixels partly covered\n", tag,
+                 r.Samples(), firstLit, partial);
+    if (msaa)
+      Check(partial >= 5 && firstLit > 220 && firstLit < 240,
+            (std::string("soft alpha test (") + tag + "): with MSAA the edge's pixels partly covered, in place").c_str());
+    else
+      Check(partial == 0 && firstLit > 220 && firstLit < 240,
+            (std::string("soft alpha test (") + tag + "): with 1 sample the hard edge as before").c_str());
+    r.Release();
+  }
 }
 
 void TestPresentPacer() {
@@ -5945,6 +6151,15 @@ int main() {
     TestShadows(gr, "GL 2x");
     gr.Release();
   }
+  TestMipFunctions();
+  TestMadeMips(re4gx::GxApi::kGl, "GL");
+  TestSoftAlpha(re4gx::GxApi::kGl, "GL");
+#ifdef RE4_GX_VULKAN
+  if (VulkanStarts()) {
+    TestMadeMips(re4gx::GxApi::kVulkan, "Vulkan");
+    TestSoftAlpha(re4gx::GxApi::kVulkan, "Vulkan");
+  }
+#endif
   TestAutoLevel();
   TestAutoLevelGpu();
   TestBenchSteps();

@@ -63,6 +63,9 @@ std::string VulkanGlsl(const std::string &es, bool vertex, bool glDepth) {
       out += "#version 450\n";
       continue;
     }
+    // (Vulkan's GLSL has the sample mask built in: the soft alpha test of MSAA, gx_gl_shader.cpp)
+    if (Starts(line, "#extension GL_OES_sample_variables"))
+      continue;
     if (Starts(line, "precision "))
       continue;
     if (Starts(line, "layout(std140) uniform ")) {

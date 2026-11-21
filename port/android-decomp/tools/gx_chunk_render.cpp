@@ -453,6 +453,12 @@ int main(int argc, char **argv) {
                                                       "x zurückgemalt").c_str() : "",
                 s.missingTextures > before.missingTextures ? ", fehlende Texturen" : "",
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
+    // 1.1.0: the mipmaps made for the game's textures without (gx_mips.h)
+    if (s.mipTextures > before.mipTextures || s.mipSkippedDynamic > before.mipSkippedDynamic)
+      std::printf("  mipmaps: %u textures given levels (%u cut-outs), %.2f MB more, %.1f ms; %u left without\n",
+                  s.mipTextures - before.mipTextures, s.mipCutouts - before.mipCutouts,
+                  (s.mipBytes - before.mipBytes) / 1048576.0, (s.mipUs - before.mipUs) / 1000.0,
+                  s.mipSkippedDynamic - before.mipSkippedDynamic);
     if (s.hdLookups > before.hdLookups)
       std::printf("  HD: %u of %u textures replaced, %u without a replacement, %u over the budget, %u not readable; "
                   "replacements on the GPU %.1f MB\n",

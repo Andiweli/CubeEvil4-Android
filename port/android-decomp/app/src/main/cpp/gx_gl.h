@@ -57,6 +57,12 @@ struct GxStats {
   // for the budget, not readable from the file; the replacements' bytes on the GPU now
   unsigned hdLookups = 0, hdTextures = 0, hdMisses = 0, hdOverBudget = 0, hdReadErrors = 0;
   std::size_t hdBytesNow = 0;
+  // mipmaps for the game's textures without (1.1.0, gx_mips.h): textures given levels, of them cut-outs, the made
+  // levels' bytes, the time it took (microseconds, summed), uploads left without (new texels at the same place soon
+  // again: a movie's frames)
+  unsigned mipTextures = 0, mipCutouts = 0, mipSkippedDynamic = 0;
+  std::size_t mipBytes = 0;
+  std::uint64_t mipUs = 0;
   // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
   std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
   // T4 (0.99.18), the reads in the background: asked for, put in place of the game's texture, dropped (the texture or
