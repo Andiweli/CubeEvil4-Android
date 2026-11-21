@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Hindi (हिन्दी): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 इन-गेम मेन्यू</string>
+    <string name="ingame_title">CubeEvil4 विकल्प</string>
     <string name="ingame_back">गेम पर लौटें</string>
 
     <string name="ingame_graphics">ग्राफ़िक्स</string>
@@ -351,10 +351,11 @@
     <string name="ingame_cheat_case">अटैची केस L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
     <string name="ingame_cheat_stack">आइटम स्टैक करें</string>
-    <string name="ingame_cheat_stack_help">आइटम स्टैक करें: गोला-बारूद, ग्रेनेड और उपचार आइटम (जड़ी-बूटियाँ, फ़र्स्ट एड स्प्रे, अंडे, मछली) एक खाने में 999 तक जमा होते हैं; ख़ज़ाने वैसे भी जमा होते हैं। बंद करने पर बड़े ढेर बने रहते हैं और एक-एक करके इस्तेमाल होते हैं; बाद में उठाई चीज़ें नए खाने में जाती हैं।</string>
+    <string name="ingame_cheat_stack_help">आइटम स्टैक करें: गोला-बारूद, ग्रेनेड और उपचार आइटम (जड़ी-बूटियाँ, फ़र्स्ट एड स्प्रे, अंडे, मछली) एक खाने में 250, 500 या 999 तक जमा होते हैं (मानक: खेल की अपनी सीमाएँ); ख़ज़ाने वैसे भी जमा होते हैं। बाद में कम चुनने पर बड़े ढेर बने रहते हैं और एक-एक करके इस्तेमाल होते हैं; बाद में उठाई चीज़ें नए खाने में जाती हैं।</string>
+    <string name="ingame_stack_standard">मानक</string>
     <string name="ingame_cheat_refill">गोला-बारूद भरें</string>
     <string name="ingame_cheat_refill_full">भरने को कुछ नहीं: केस में गोला-बारूद नहीं है, या सब भरा हुआ है।</string>
-    <string name="ingame_cheat_refill_help">गोला-बारूद भरें: केस का हर गोला-बारूद ढेर अपनी किस्म की अधिकतम संख्या तक भरा जाता है (\"आइटम स्टैक करें\" चालू होने पर 999 तक); नया गोला-बारूद नहीं मिलता, हथियारों में भरी गोलियाँ वैसी ही रहती हैं।</string>
+    <string name="ingame_cheat_refill_help">गोला-बारूद भरें: केस का हर गोला-बारूद ढेर \"आइटम स्टैक करें\" के मान तक भरा जाता है (मानक: अपनी किस्म की सामान्य अधिकतम संख्या); नया गोला-बारूद नहीं मिलता, हथियारों में भरी गोलियाँ वैसी ही रहती हैं।</string>
     <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखते। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। अदृश्यता: दुश्मन आपको अनदेखा करते हैं, बॉस और तय दृश्य नहीं। स्थिर निशाना: लेज़र और स्कोप नहीं हिलते। पोशाकें: लियोन की जैकेट से Leon पूरे गेम में अपनी भूरी जैकेट पहने रहता है; विशेष से Leon और Ashley अपनी विशेष पोशाक पहनते हैं। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। एक्स्ट्रा गेम अनलॉक करें Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है।</string>
     <string name="ingame_cheat_done">हो गया: %1$s।</string>
     <string name="ingame_cheat_already">पहले से है: %1$s।</string>

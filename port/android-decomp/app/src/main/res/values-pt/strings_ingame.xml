@@ -2,7 +2,7 @@
 <!-- Portuguese (Português, worded for Brazil; Portugal gets the same texts): the texts of
      values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 · Menu do jogo</string>
+    <string name="ingame_title">Opções do CubeEvil4</string>
     <string name="ingame_back">Voltar ao jogo</string>
 
     <string name="ingame_graphics">Gráficos</string>
@@ -355,10 +355,11 @@
     <string name="ingame_cheat_case">Maleta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Empilhar itens</string>
-    <string name="ingame_cheat_stack_help">Empilhar itens: munição, granadas e itens de cura (ervas, spray de primeiros socorros, ovos, peixes) se empilham até 999 em um espaço; tesouros se empilham de qualquer forma. Desativado, pilhas maiores continuam e são usadas uma a uma; o que você pegar depois ocupa um espaço novo.</string>
+    <string name="ingame_cheat_stack_help">Empilhar itens: munição, granadas e itens de cura (ervas, spray de primeiros socorros, ovos, peixes) se empilham até 250, 500 ou 999 em um espaço (Padrão: os limites do jogo); tesouros se empilham de qualquer forma. Se depois você escolher menos, pilhas maiores continuam e são usadas uma a uma; o que você pegar depois ocupa um espaço novo.</string>
+    <string name="ingame_stack_standard">Padrão</string>
     <string name="ingame_cheat_refill">Reabastecer munição</string>
     <string name="ingame_cheat_refill_full">Nada para reabastecer: não há munição na maleta, ou tudo já está cheio.</string>
-    <string name="ingame_cheat_refill_help">Reabastecer munição: cada pilha de munição da maleta é completada até o máximo do seu tipo (com \"Empilhar itens\" ligado, até 999); nenhuma munição nova, as balas carregadas nas armas continuam.</string>
+    <string name="ingame_cheat_refill_help">Reabastecer munição: cada pilha de munição da maleta é completada até o valor de \"Empilhar itens\" (Padrão: o máximo normal do seu tipo); nenhuma munição nova, as balas carregadas nas armas continuam.</string>
     <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; os saves não os guardam. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Invisibilidade: os inimigos ignoram você, chefes e cenas fixas não. Mira firme: o laser e a luneta não balançam. Trajes: Jaqueta do Leon mantém Leon com a jaqueta marrom o jogo todo; Especial veste Leon e Ashley com seus trajes especiais. Os botões mudam seu jogo: as armas, a maleta e o dinheiro ficam no seu próximo save. Desbloquear jogos extras coloca Assignment Ada e The Mercenaries no menu principal.</string>
     <string name="ingame_cheat_done">Feito: %1$s.</string>
     <string name="ingame_cheat_already">Já existe: %1$s.</string>

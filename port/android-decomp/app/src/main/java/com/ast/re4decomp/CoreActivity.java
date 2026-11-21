@@ -200,8 +200,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String ENEMY_SEED = "enemySeed";
   /** "Enemy health bars" (1.1.0, GAME_PREFS; CoreBridge.setHealthBars): off by default. */
   static final String HEALTH_BARS = "enemyHealthBars";
-  /** The cheat "Stack items" (1.1.0, GAME_PREFS; CoreBridge.setStackItems, patch 0254): off by default. */
-  static final String STACK_ITEMS = "stackItems";
+  /** The cheat "Stack items" (1.1.0, GAME_PREFS; CoreBridge.setStackItems, patch 0254): until the arrow selector a switch
+   *  (true: 999), since STACK_MAX a slot's most (0 Standard, the game's own limits; 250, 500, 999). */
+  static final String STACK_ITEMS = "stackItems", STACK_MAX = "stackMax";
+  static final int[] STACK_STEPS = {0, 250, 500, 999};
+  /** The chosen "Stack items" value (0 Standard). */
+  static int stackMax(android.content.SharedPreferences g) {
+    if (g.contains(STACK_MAX)) return STACK_STEPS[CoreMenu.stepOf(STACK_STEPS, g.getInt(STACK_MAX, 0))];
+    return g.getBoolean(STACK_ITEMS, false) ? 999 : 0;
+  }
   /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
   static final String MORE_ENEMIES = "moreEnemiesSeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
@@ -604,8 +611,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       boolean bars = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(HEALTH_BARS, false);
       if (bars) Log.i(TAG, "enemy health bars on");
       CoreBridge.setHealthBars(bars);
-      boolean stack = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(STACK_ITEMS, false);
-      if (stack) Log.i(TAG, "cheats: stack items on");
+      int stack = stackMax(getSharedPreferences(GAME_PREFS, MODE_PRIVATE));
+      if (stack != 0) Log.i(TAG, "cheats: stack items up to " + stack);
       CoreBridge.setStackItems(stack);
     }
     setContentView(root);
@@ -1433,10 +1440,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setMoreEnemies(seed);
     }
 
-    @Override public void stackItemsChanged(boolean on) {
-      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putBoolean(STACK_ITEMS, on).apply();
-      Log.i(TAG, "cheats: stack items " + (on ? "on" : "off"));
-      CoreBridge.setStackItems(on);
+    @Override public void stackItemsChanged(int max) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(STACK_MAX, max).remove(STACK_ITEMS).apply();
+      Log.i(TAG, "cheats: stack items " + (max == 0 ? "Standard" : "up to " + max));
+      CoreBridge.setStackItems(max);
     }
 
     @Override public void healthBarsChanged(boolean on) {

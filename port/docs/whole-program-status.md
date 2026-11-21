@@ -790,6 +790,33 @@ Spielcode, nur der Renderer (OpenGL ES und Vulkan gleich).
   auf langsamen Handys (am PC 4–6 ms je Raum, auf dem Handy grob das 3–6-fache); die Bildzeit (Mipmaps senken die
   Speicherlast der GPU meist, lavapipe misst das nicht); ob der GLES-Treiber `GL_OES_sample_variables` hat.
 
+### 28. Menü-Neugestaltung: Pfeilauswahl, Regler-Flächen, Titel (Projektinhaber, 21.11.2026: „Das neue Screendesign passt sehr gut … Baue das sauber um“)
+
+Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
+
+- **Pfeilauswahl** (`ArrowSelector`, ein `Button`, damit Raster, Fokus-Rahmen, Ausgrauen und die Tests wie bei den
+  Knöpfen bleiben): ‹ links und › rechts hinter dünnen Linien, oben klein der Name, darunter groß der Wert, Punkte für
+  die Stufen. Tippen auf ‹ zurück, auf › oder die Mitte vor, nach der letzten Stufe wieder die erste; mit Controller
+  oder Tastatur das Feld anwählen (goldener Rahmen), Steuerkreuz links/rechts ändert, hoch/runter wechselt die Zeile
+  wie bisher; A/Enter = vor. Wert golden, solange er nicht der Standard ist (`isSelected` meldet das, wie früher das
+  Leuchten; der Hintergrund bleibt). Stufen über der Grenze des Grafikchips (MSAA, Anisotropie) werden übersprungen,
+  ein gesperrtes Feld (Gyro aus) bleibt grau. Gespeicherte Werte und Verhalten unverändert.
+- **Umgestellt** (mehr als zwei Werte): Frame skip (statt vier Knöpfen; jetzt neben 60 FPS, darunter Even frame pacing
+  | Zeichenaufrufe bündeln, Vertex-Ring | Bandbreite sparen), Sichtweite (Weit, Normal, Mittel, Kurz, Keine; Augen-Symbole
+  entfallen), Partikel, Bildformat, Auflösung (statt Klaviertasten, Benchmark daneben), Ausgabe-Auflösung, Upscaler,
+  Kantenglättung, Texturfilter, Tiefenschärfe, Linsenreflexe, Bloom, Echtzeit-Schatten, Schärfen, CRT, Farbe (Stärke
+  bleibt zweistufig), FPS-Anzeige, Touch-Steuerung, Tastenstil, Gyro von, Touch-Zielen, Laserfarbe, Vibration,
+  Spielsprache, Kostüme. Zwei Werte bleiben Knöpfe (Renderer, Gerät, Leistungskerne, HD-Schärfe, Paket/Original).
+- **Gegenstände stapeln** als Pfeilauswahl Standard › 250 › 500 › 999 (`GAME_PREFS` `stackMax`; der alte Schalter
+  `stackItems` an = 999); im Kern Bits 21..22 der Ziel-Bits (`re4_stack_items` liefert das Maximum, 0 = Standard),
+  Patch 0254 nimmt den Wert, wo er über der eigenen Grenze liegt. „Munition auffüllen“ füllt bis zu diesem Wert.
+  Kerntest `stack-items` prüft Standard, 250, 500, 999.
+- **Regler** auf einer halbtransparenten Fläche wie ein Knopf (nicht klickbar), Beschriftung/Regler/Wert wie bisher.
+- **Titel** der Hauptseite: App-Symbol vor „CubeEvil4 Optionen“ (11 Sprachen); Unterseiten behalten ihre Titel.
+- **Geprüft am PC:** App-Tests (229, alte Tests auf die Pfeilauswahl umgestellt), Übersetzungen (535), Bilder
+  `builds/workthread-1.1.0/menu/d1`–`d5` (DE/EN). **Nicht auf einem Gerät geprüft** (Bedienung mit Finger,
+  Controller und Tastatur).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Italian (Italiano): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 · Menu di gioco</string>
+    <string name="ingame_title">Opzioni CubeEvil4</string>
     <string name="ingame_back">Torna al gioco</string>
 
     <string name="ingame_graphics">Grafica</string>
@@ -354,10 +354,11 @@
     <string name="ingame_cheat_case">Valigetta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Impila oggetti</string>
-    <string name="ingame_cheat_stack_help">Impila oggetti: munizioni, granate e oggetti curativi (erbe, spray di pronto soccorso, uova, pesci) si impilano fino a 999 in uno spazio; i tesori si impilano comunque. Disattivato, le pile più grandi restano e si consumano una alla volta; ciò che raccogli dopo occupa uno spazio nuovo.</string>
+    <string name="ingame_cheat_stack_help">Impila oggetti: munizioni, granate e oggetti curativi (erbe, spray di pronto soccorso, uova, pesci) si impilano fino a 250, 500 o 999 in uno spazio (Standard: i limiti del gioco); i tesori si impilano comunque. Se poi scegli meno, le pile più grandi restano e si consumano una alla volta; ciò che raccogli dopo occupa uno spazio nuovo.</string>
+    <string name="ingame_stack_standard">Standard</string>
     <string name="ingame_cheat_refill">Ricarica munizioni</string>
     <string name="ingame_cheat_refill_full">Niente da ricaricare: nessuna munizione nella valigetta, oppure è già tutto pieno.</string>
-    <string name="ingame_cheat_refill_help">Ricarica munizioni: ogni pila di munizioni nella valigetta viene riempita fino al massimo del suo tipo (con «Impila oggetti» attivo, fino a 999); nessuna munizione nuova, i colpi caricati nelle armi restano.</string>
+    <string name="ingame_cheat_refill_help">Ricarica munizioni: ogni pila di munizioni nella valigetta viene riempita fino al valore di «Impila oggetti» (Standard: il massimo normale del suo tipo); nessuna munizione nuova, i colpi caricati nelle armi restano.</string>
     <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; i salvataggi non li conservano. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). Invisibilità: i nemici ti ignorano, i boss e le scene fisse no. Mira stabile: il laser e il mirino telescopico non oscillano. Costumi: Giacca di Leon fa indossare a Leon la giacca marrone per tutto il gioco; Speciale veste Leon e Ashley con i loro costumi speciali. I pulsanti cambiano la partita: le armi, la valigetta e il denaro restano nel prossimo salvataggio. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale.</string>
     <string name="ingame_cheat_done">Fatto: %1$s.</string>
     <string name="ingame_cheat_already">Già presente: %1$s.</string>

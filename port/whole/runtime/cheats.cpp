@@ -1404,7 +1404,7 @@ int re4CheatPerform(int what)
             }
         }
         re4_log("cheat: %s: %d of %d ammo slots filled up, %d rounds (to %s)", actionName(what), filled, slots, rounds,
-                re4_stack_items() ? "999 each, stack items on" : "each type's maximum");
+                re4_stack_items() ? "the Stack items value" : "each type's maximum");
         result = filled ? 1 : 2;
         break;
     }
@@ -1424,15 +1424,20 @@ int re4_invisible(void)
 }
 
 // Patch 0254 (item.cpp itemInfo, ss_item.cpp): the cheat "Stack items" (1.1.0, the project owner, 21.11.2026: "Gegenstaende
-// stapeln"): ammo, grenades and recovery items up to 999 a slot. The app's switch comes as bit 21 of the aim bits
-// (runtime/aim_options.cpp re4_aim_set, not a cheat bit: those are all taken); any thread.
+// stapeln"): ammo, grenades and recovery items up to 250, 500 or 999 a slot (the arrow selector of 21.11.2026: Standard,
+// 250, 500, 999). The app's step comes in bits 21..22 of the aim bits (runtime/aim_options.cpp re4_aim_set, not a cheat
+// bit: those are all taken); any thread. re4_stack_items: the most a slot, 0 for Standard (the game's own limits).
 static std::atomic<int> gStackItems(0);
-void re4_stack_items_set(int on)
+void re4_stack_items_set(int step)
 {
-    on = on ? 1 : 0;
-    if (gStackItems.exchange(on) != on) {
-        re4_log("cheat: stack items %s (ammo, grenades and recovery items %s)", on ? "on" : "off",
-                on ? "up to 999 a slot" : "as the game; larger stacks stay and are used up");
+    static const int kMost[4] = {0, 250, 500, 999};
+    const int most = kMost[step & 3];
+    if (gStackItems.exchange(most) != most) {
+        if (most) {
+            re4_log("cheat: stack items up to %d a slot (ammo, grenades and recovery items)", most);
+        } else {
+            re4_log("cheat: stack items Standard (the game's limits; larger stacks stay and are used up)");
+        }
     }
 }
 

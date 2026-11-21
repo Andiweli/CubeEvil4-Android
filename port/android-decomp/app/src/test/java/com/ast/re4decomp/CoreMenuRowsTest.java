@@ -110,10 +110,9 @@ public class CoreMenuRowsTest {
           show.invoke(menu, 4, false);  // PERFORMANCE
           View root = (View) CoreMenuLayoutTest.field(menu, "root");
           root.setLayoutDirection(config.getLayoutDirection());
-          // (by its value's text: the Arabic one begins with the right-to-left mark)
-          Button view = withLabel(root, activity.getString(R.string.ingame_toggle_value,
-              activity.getString(R.string.ingame_potato_view), activity.getString(R.string.ingame_view_normal)));
-          assertNotNull(language + ": the view distance button", view);
+          // (1.1.0: the arrow selector by its name)
+          ArrowSelector view = CoreMenuLayoutTest.selectorNamed(root, activity.getString(R.string.ingame_potato_view));
+          assertNotNull(language + ": the view distance selector", view);
           float density = activity.getResources().getDisplayMetrics().density;
           // the window's width fixed, the levels clicked through, as in the app (each click lays the button out anew)
           for (int width : new int[] {320, 480, 700, 960}) {
@@ -128,12 +127,9 @@ public class CoreMenuRowsTest {
               assertTrue(where + ": inside the page", view.getLeft() >= 0 && view.getRight() <= row.getWidth());
               CoreMenuLayoutTest.checkBounds(view, where);
               android.text.Layout layout = view.getLayout();
-              int eyes = view.getText().toString().indexOf('\uFFFC');
-              assertTrue(where + ": the eyes after the text", eyes > 0);
-              assertTrue(where + ": the eyes on the text's last line or the next",
-                  layout.getLineForOffset(eyes) == layout.getLineCount() - 1);
+              // the name and the value on a line each (1.1.0), nothing cut
               if (scale == 1f && width >= 700)
-                assertEquals(where + ": on one line", 1, layout.getLineCount());
+                assertEquals(where + ": name and value on a line each", 2, layout.getLineCount());
               checked++;
             }
             view.performClick();  // round to Normal again for the next width

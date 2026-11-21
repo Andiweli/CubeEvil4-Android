@@ -2,7 +2,7 @@
 <!-- Indonesian (Bahasa Indonesia): the texts of values/strings_ingame.xml, same names and placeholders.
      The folder is values-in, the code every Android version uses for Indonesian (locales_config: id). -->
 <resources>
-    <string name="ingame_title">Menu Dalam Game CubeEvil4</string>
+    <string name="ingame_title">Opsi CubeEvil4</string>
     <string name="ingame_back">Kembali ke game</string>
 
     <string name="ingame_graphics">Grafis</string>
@@ -347,10 +347,11 @@
     <string name="ingame_cheat_case">Koper L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Tumpuk item</string>
-    <string name="ingame_cheat_stack_help">Tumpuk item: amunisi, granat, dan item pemulih (herba, semprotan P3K, telur, ikan) bertumpuk hingga 999 dalam satu slot; harta karun memang sudah bertumpuk. Jika dimatikan, tumpukan besar tetap ada dan terpakai satu per satu; barang yang diambil sesudahnya menempati slot baru.</string>
+    <string name="ingame_cheat_stack_help">Tumpuk item: amunisi, granat, dan item pemulih (herba, semprotan P3K, telur, ikan) bertumpuk hingga 250, 500, atau 999 dalam satu slot (Standar: batas permainan); harta karun memang sudah bertumpuk. Jika nanti memilih lebih kecil, tumpukan besar tetap ada dan terpakai satu per satu; barang yang diambil sesudahnya menempati slot baru.</string>
+    <string name="ingame_stack_standard">Standar</string>
     <string name="ingame_cheat_refill">Isi ulang amunisi</string>
     <string name="ingame_cheat_refill_full">Tidak ada yang diisi: tidak ada amunisi di koper, atau semuanya sudah penuh.</string>
-    <string name="ingame_cheat_refill_help">Isi ulang amunisi: setiap tumpukan amunisi di koper diisi sampai batas jenisnya (dengan \"Tumpuk item\" aktif, sampai 999); tidak ada amunisi baru, peluru yang terisi di senjata tetap.</string>
+    <string name="ingame_cheat_refill_help">Isi ulang amunisi: setiap tumpukan amunisi di koper diisi sampai nilai \"Tumpuk item\" (Standar: batas normal jenisnya); tidak ada amunisi baru, peluru yang terisi di senjata tetap.</string>
     <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; simpanan tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tak terlihat: musuh mengabaikan Anda, tetapi bos dan adegan tertentu tidak. Bidikan stabil: laser dan teropong senapan tidak bergoyang. Kostum: Jaket Leon membuat Leon memakai jaket cokelatnya sepanjang permainan; Spesial memakaikan Leon dan Ashley kostum spesial mereka. Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul.</string>
     <string name="ingame_cheat_done">Selesai: %1$s.</string>
     <string name="ingame_cheat_already">Sudah ada: %1$s.</string>

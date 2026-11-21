@@ -202,37 +202,24 @@ public class CoreMenuLayoutTest {
       View root = (View) field(menu, "root");
       measure(root, Math.round(960 * activity.getResources().getDisplayMetrics().density),
           Math.round(300 * activity.getResources().getDisplayMetrics().density));
-      MenuLayout.Keys keys = findKeys(root);
-      assertNotNull(keys);
-      assertEquals(9, keys.getChildCount());  // the levels and the benchmark (05.11.2026)
-      View benchKey = keys.getChildAt(8);
+      // 1.1.0 (the project owner's design of 21.11.2026): one arrow selector by level, Dynamic first, the benchmark
+      // beside it
+      ArrowSelector res = selectorNamed(root, activity.getString(R.string.ingame_resolution));
+      assertNotNull(res);
+      assertEquals(8, res.count());
+      View benchKey = ((ViewGroup) res.getParent()).getChildAt(1);
       assertEquals(activity.getString(R.string.ingame_benchmark), ((Button) benchKey).getText().toString());
-      assertEquals("the benchmark under Dynamic", keys.getChildAt(0).getLeft(), benchKey.getLeft());
-      assertTrue("the benchmark in the second row", benchKey.getTop() >= keys.getChildAt(0).getBottom());
-      String[] labels = {activity.getString(R.string.ingame_dynamic), "1×", "2×", "3×", "4×", "1.5×", "2.5×", "3.5×"};
-      for (int i = 0; i < 8; i++) assertEquals(labels[i], ((Button) keys.getChildAt(i)).getText().toString());
-      assertTrue("3x chosen before stays chosen", keys.getChildAt(3).isSelected());
-      for (int i = 1; i < 8; i++) {
-        Button key = (Button) keys.getChildAt(i), first = (Button) keys.getChildAt(0);
-        assertEquals("the same text size on every key", first.getTextSize(), key.getTextSize(), 0.01f);
-        assertEquals("the same typeface on every key", first.getTypeface(), key.getTypeface());
-      }
-      View[] k = new View[8];
-      for (int i = 0; i < 8; i++) k[i] = keys.getChildAt(i);
-      for (int i = 1; i < 5; i++) assertEquals("the whole levels in one row", k[0].getTop(), k[i].getTop());
-      for (int i = 5; i < 8; i++) {
-        assertTrue("the in-between levels below", k[i].getTop() >= k[0].getBottom());
-        assertEquals("as wide as the others", k[1].getWidth(), k[i].getWidth(), 1);
-        View left = k[i - 4], right = k[i - 3];  // 1.5x between 1x and 2x ...
-        float line = (left.getRight() + right.getLeft()) / 2f, centre = (k[i].getLeft() + k[i].getRight()) / 2f;
-        assertEquals("half a key offset: centred on the line between " + labels[i - 4] + " and " + labels[i - 3],
-            line, centre, 1.5f);
-      }
-      k[5].performClick();
-      assertEquals(3, g.getInt("scaleHalves", -1));
-      assertEquals(3, CoreMenu.scaleHalves(g));
-      assertTrue(k[5].isSelected()); assertFalse(k[3].isSelected());
-      assertEquals(1, changed[0]);
+      assertEquals("3x chosen before stays chosen", "3×", res.valueText());
+      assertTrue("not the default (Dynamic): golden", res.isSelected());
+      res.step(-1);  // 2.5x
+      assertEquals(5, g.getInt("scaleHalves", -1));
+      res.step(1); res.step(1);  // 3.5x
+      assertEquals(7, CoreMenu.scaleHalves(g));
+      for (int i = 0; i < 3; i++) res.step(1);  // 4x, round to Dynamic, 1x
+      assertEquals(2, CoreMenu.scaleHalves(g));
+      res.step(-1);
+      assertEquals(0, CoreMenu.scaleHalves(g)); assertFalse(res.isSelected());
+      assertEquals(7, changed[0]);
     }
   }
 
@@ -243,6 +230,19 @@ public class CoreMenuLayoutTest {
   }
 
   /** The first button whose text holds `part` (Arabic's "name · value" starts with a right-to-left mark). */
+  /** The arrow selector named `name` (1.1.0). */
+  static ArrowSelector selectorNamed(View view, String name) {
+    if (view instanceof ArrowSelector && ((ArrowSelector) view).nameText().equals(name)) return (ArrowSelector) view;
+    if (view instanceof ViewGroup) {
+      ViewGroup g = (ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        ArrowSelector a = selectorNamed(g.getChildAt(i), name);
+        if (a != null) return a;
+      }
+    }
+    return null;
+  }
+
   static Button findButtonWith(View view, String part) {
     if (view instanceof Button && ((Button) view).getText().toString().contains(part)) return (Button) view;
     if (view instanceof ViewGroup) {
@@ -379,22 +379,18 @@ public class CoreMenuLayoutTest {
       // 05.11.2026: TOUCH CONTROLS first, a third of the row each; TOUCH AIMING after the comfort controls, PLAYER VIEW
       // (far camera | field of view) above the LASER SIGHT (a quarter of the row each)
       assertEquals("touch controls first", 0, touch);
+      // 1.1.0: the touch choice an arrow selector without a name (the heading names it), Auto
       Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
+      assertTrue(auto instanceof ArrowSelector);
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
-      assertEquals(3, ((ViewGroup) auto.getParent()).getChildCount());
-      // "Button style" (09.11.2026; four looks since 17.11.2026): RE, GC, PS2 and XBOX side by side under the touch
-      // choices and their help, RE chosen without a host (a new player's look, TouchStyle.DEFAULT_LOOK)
-      Button icons = findButton(body, activity.getString(R.string.ingame_button_icons));
-      Button labels = findButton(body, activity.getString(R.string.ingame_button_labels));
-      Button ps2 = findButton(body, activity.getString(R.string.ingame_button_ps2));
-      Button xbox = findButton(body, activity.getString(R.string.ingame_button_xbox));
-      assertNotNull(icons); assertNotNull(labels); assertNotNull(ps2); assertNotNull(xbox);
+      assertEquals(3, ((ArrowSelector) auto).count());
+      // "Button style" (09.11.2026; four looks since 17.11.2026): RE, GC, PS2 and XBOX in one arrow selector (1.1.0)
+      // under the touch choices and their help, RE without a host (a new player's look, TouchStyle.DEFAULT_LOOK)
+      ArrowSelector icons = selectorNamed(body, activity.getString(R.string.ingame_button_style));
+      assertNotNull(icons);
+      assertEquals(4, icons.count());
       assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
-      assertEquals("RE and GC side by side", icons.getParent(), labels.getParent());
-      assertEquals("PS2 and XBOX with them", icons.getParent(), ps2.getParent());
-      assertEquals(icons.getParent(), xbox.getParent());
-      assertEquals(4, ((ViewGroup) icons.getParent()).getChildCount());
-      assertTrue(icons.isSelected()); assertFalse(labels.isSelected()); assertFalse(ps2.isSelected()); assertFalse(xbox.isSelected());
+      assertEquals(activity.getString(R.string.ingame_button_icons), icons.valueText()); assertFalse(icons.isSelected());
       assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
@@ -403,18 +399,17 @@ public class CoreMenuLayoutTest {
       assertTrue("the laser after player view", laser > view && devices > laser);
       Button red = findButton(body, activity.getString(R.string.ingame_laser_red));
       assertEquals("the colours under their heading", laser + 1, rowIndex(red, body));
-      assertEquals(4, ((ViewGroup) red.getParent()).getChildCount());
-      assertEquals("the colours side by side", red.getTop(), findButton(body, activity.getString(R.string.ingame_laser_yellow)).getTop());
+      assertEquals("the four colours in one arrow selector", 4, ((ArrowSelector) red).count());
       // motion controls first (wish of the project owner, 30.10.2026): the gyro switch with its slider, its directions
       assertTrue("the motion heading", motion >= 0);
       assertEquals("the gyro row right under the motion heading", motion + 1, rowIndex(gyro, body));
       assertEquals("the gyro's directions under it", rowIndex(gyro, body) + 1, rowIndex(gyroInvert, body));
       // "Gyro from" (1.1.0): Auto, Device, Controller under the directions, Auto chosen
-      Button gyroDevice = findButton((ViewGroup) body.getChildAt(rowIndex(gyroInvert, body) + 1),
-          activity.getString(R.string.ingame_vibration_device));
-      assertNotNull("gyro from under the directions", gyroDevice);
-      assertEquals(3, ((ViewGroup) gyroDevice.getParent()).getChildCount());
-      assertTrue("gyro from Auto", ((Button) ((ViewGroup) gyroDevice.getParent()).getChildAt(0)).isSelected());
+      ArrowSelector gyroFrom = selectorNamed((ViewGroup) body.getChildAt(rowIndex(gyroInvert, body) + 1),
+          activity.getString(R.string.ingame_gyro_source));
+      assertNotNull("gyro from under the directions", gyroFrom);
+      assertEquals(3, gyroFrom.count());
+      assertEquals("gyro from Auto", activity.getString(R.string.ingame_touch_auto), gyroFrom.valueText());
       // then the comfort controls: under the latches "Auto aim" with "Always run", then "Invert vertical" with
       // "Aim speed", then touch aiming
       assertTrue("the comfort heading after the motion controls", comfort > rowIndex(gyroInvert, body));
@@ -435,15 +430,10 @@ public class CoreMenuLayoutTest {
       assertEquals(10, ((android.widget.SeekBar) range).getMax());
       assertEquals(10, ((android.widget.SeekBar) range).getProgress());
       // the vibration's "Device" below the controller heading ("Gyro from" above has one too, 1.1.0)
-      Button device = null;
-      for (int i = devices + 1; device == null && i < body.getChildCount(); i++) {
-        if (body.getChildAt(i) instanceof ViewGroup) {
-          device = findButton((ViewGroup) body.getChildAt(i), activity.getString(R.string.ingame_vibration_device));
-        }
-      }
+      ArrowSelector device = selectorNamed(body, activity.getString(R.string.ingame_vibration));
       assertNotNull(device);
-      assertEquals(4, ((ViewGroup) device.getParent()).getChildCount());
-      assertTrue("Auto chosen", ((Button) ((ViewGroup) device.getParent()).getChildAt(0)).isSelected());
+      assertEquals(4, device.count());
+      assertEquals("Auto chosen", activity.getString(R.string.ingame_touch_auto), device.valueText());
       assertTrue("the vibration after the sticks", rowIndex(device, body) > rowIndex(range, body));
       assertTrue("the button mapping after the vibration", rowIndex(mapping, body) > rowIndex(device, body));
       // one gap between all rows of buttons, the rows with a slider too (wish of the project owner, 30.10.2026)
@@ -456,7 +446,9 @@ public class CoreMenuLayoutTest {
         ViewGroup row = (ViewGroup) rowOf(b, body), box = (ViewGroup) row.getChildAt(1);
         int title = box.getChildAt(0).getHeight(), slider = box.getChildAt(1).getHeight();
         int buttons = b.getHeight() + Math.round(2 * MenuLayout.GAP * density);
-        int expected = Math.max(buttons, title + Math.max(Math.round(32 * density), slider));
+        // (the slider on its card since 1.1.0: the card's padding inside)
+        int expected = Math.max(buttons, title + Math.max(Math.round(32 * density), slider) + box.getPaddingTop()
+            + box.getPaddingBottom());
         assertEquals("the slider row's height", expected, row.getHeight(), 1);
         assertEquals("the slider fills what the title leaves", Math.max(Math.round(32 * density), buttons - title),
             ((ViewGroup) box.getChildAt(1)).getChildAt(0).getHeight(), 1);
@@ -651,14 +643,17 @@ public class CoreMenuLayoutTest {
       assertTrue(((Button) goods.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_money)));
       assertTrue(((Button) ammo.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_refill)));
       assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_refill_help)));
-      Button stack = (Button) ammo.getChildAt(0);
+      // "Stack items" an arrow selector since the design of 21.11.2026: Standard > 250 > 500 > 999 > Standard
+      ArrowSelector stack = (ArrowSelector) ammo.getChildAt(0);
       assertTrue(stack.getText().toString().contains(activity.getString(R.string.ingame_cheat_stack)));
-      assertFalse(stack.isSelected());
+      assertEquals(activity.getString(R.string.ingame_stack_standard), stack.valueText()); assertFalse(stack.isSelected());
       stack.performClick();
-      assertTrue(stack.isSelected());
+      assertEquals("250", stack.valueText()); assertTrue(stack.isSelected());
       assertEquals("the cheat switches unchanged", 4, sent[0]);
+      stack.performClick(); stack.performClick();
+      assertEquals("999", stack.valueText());
       stack.performClick();
-      assertFalse(stack.isSelected());
+      assertEquals(activity.getString(R.string.ingame_stack_standard), stack.valueText()); assertFalse(stack.isSelected());
       assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_stack_help)));
       // "Random items" (0.99.2): on with a seed in bits 11..30, off without one; since 21.11.2026 with "Random enemies"
       // the first row of ENEMIES AND WORLD
@@ -767,17 +762,14 @@ public class CoreMenuLayoutTest {
       assertSame(inventory, costume.getParent());
       assertEquals(2, inventory.indexOfChild(costume));
       final String name = activity.getString(R.string.ingame_cheat_costume);
-      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
-          activity.getString(R.string.ingame_cheat_costume_normal)), costume.getText().toString());
+      assertEquals(name + "\n" + activity.getString(R.string.ingame_cheat_costume_normal), costume.getText().toString());
       assertFalse(costume.isSelected());
       costume.performClick();
       assertEquals(Boolean.TRUE, jacket[0]); assertEquals(5, sent[0]); assertTrue(costume.isSelected());
-      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
-          activity.getString(R.string.ingame_cheat_costume_jacket)), costume.getText().toString());
+      assertEquals(name + "\n" + activity.getString(R.string.ingame_cheat_costume_jacket), costume.getText().toString());
       costume.performClick();
       assertEquals(Boolean.FALSE, jacket[0]); assertEquals(5 | 256, sent[0]); assertTrue(costume.isSelected());
-      assertEquals(activity.getString(R.string.ingame_toggle_value, name,
-          activity.getString(R.string.ingame_cheat_costume_special)), costume.getText().toString());
+      assertEquals(name + "\n" + activity.getString(R.string.ingame_cheat_costume_special), costume.getText().toString());
       hunk.performClick(); ok(warning(activity, "HUNK")); assertEquals(5 | 256 | 3 << 5, sent[0]);
       jacket[0] = null;
       costume.performClick(); assertEquals(5 | 3 << 5, sent[0]); assertFalse(costume.isSelected());
@@ -878,7 +870,7 @@ public class CoreMenuLayoutTest {
       show.invoke(menu, 4, false);
       ViewGroup body = (ViewGroup) field(menu, "body");
       // found by their labels (the page's rows moved with the Potato mode, 30.10.2026)
-      Button skip = findButton(body, controller.get().getString(R.string.ingame_fs_auto));  // (1.1.0: four choices)
+      Button skip = findButton(body, controller.get().getString(R.string.ingame_frame_skip));  // (1.1.0: an arrow selector)
       Button smooth = findButton(body, controller.get().getString(R.string.ingame_smooth60));
       assertNotNull(skip); assertNotNull(smooth);
       assertTrue(skip.isEnabled()); assertTrue(skip.hasOnClickListeners());
@@ -893,21 +885,22 @@ public class CoreMenuLayoutTest {
       assertNotNull(particles); assertNotNull(shadows);
       assertNotSame(weather.getParent(), particles.getParent()); assertSame(particles.getParent(), shadows.getParent());
       String normal = controller.get().getString(R.string.ingame_particles_normal);
-      assertTrue(particles.getText().toString().endsWith(normal)); assertTrue(particles.isSelected());
+      // (1.1.0, an arrow selector: golden, "selected", while not the default Normal)
+      assertTrue(particles.getText().toString().endsWith(normal)); assertFalse(particles.isSelected());
       assertTrue(shadows.isSelected());
       particles.performClick();
       // lit at "Less" too, off only at "None" (wish of the project owner, 09.11.2026)
       assertEquals(4, Bridge.potato); assertTrue(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_less)));
       particles.performClick();
-      assertEquals(8, Bridge.potato); assertFalse(particles.isSelected());
+      assertEquals(8, Bridge.potato); assertTrue(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_none)));
       shadows.performClick();
       assertEquals(8 | 16, Bridge.potato); assertFalse(shadows.isSelected());
       weather.performClick();
       assertEquals(1 | 8 | 16, Bridge.potato);
       particles.performClick();
-      assertEquals(1 | 16, Bridge.potato); assertTrue(particles.isSelected());
+      assertEquals(1 | 16, Bridge.potato); assertFalse(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(normal));
       shadows.performClick(); weather.performClick();
       assertEquals(0, Bridge.potato);
@@ -1208,21 +1201,18 @@ public class CoreMenuLayoutTest {
       int[] levels = {0, 1, 2, 3, 4, 0};
       int[] labels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short,
           R.string.ingame_view_very_short, R.string.ingame_view_far, R.string.ingame_view_normal};
-      int[] eyes = {3, 2, 1, 1, 4, 3};
-      boolean[] lit = {true, true, true, false, true, true};
+      // 1.1.0: an arrow selector (Far, Normal, Medium, Short, None from the left), golden while not Normal
+      boolean[] lit = {false, true, true, true, true, false};
+      assertTrue(view instanceof ArrowSelector);
+      assertEquals(5, ((ArrowSelector) view).count());
       for (int i = 0; i < levels.length; i++) {
         if (i > 0) view.performClick();
         String where = "step " + i;
         assertEquals(where, levels[i], CoreBridge.viewDistance(g));
-        assertEquals(where + ": lit", lit[i], view.isSelected());
-        CharSequence text = view.getText();
-        String words = activity.getString(R.string.ingame_toggle_value, activity.getString(R.string.ingame_potato_view),
-            activity.getString(labels[i]));
-        assertEquals(where + ": the text, a space, the eyes", words + " \uFFFC", text.toString());
-        assertEquals(where + ": TalkBack reads the text", words, view.getContentDescription().toString());
-        CoreMenu.Eyes[] spans = ((android.text.Spanned) text).getSpans(0, text.length(), CoreMenu.Eyes.class);
-        assertEquals(where + ": one piece of eyes", 1, spans.length);
-        assertEquals(where + ": eyes", eyes[i], spans[0].count);
+        assertEquals(where + ": golden", lit[i], view.isSelected());
+        String name = activity.getString(R.string.ingame_potato_view), value = activity.getString(labels[i]);
+        assertEquals(where + ": the name over the value", name + "\n" + value, view.getText().toString());
+        assertEquals(where + ": TalkBack reads both", name + ", " + value, view.getContentDescription().toString());
       }
       assertEquals(35, CoreBridge.VIEW_PERCENT[3]);
       assertTrue(CoreBridge.VIEW_PERCENT[4] > 100);
