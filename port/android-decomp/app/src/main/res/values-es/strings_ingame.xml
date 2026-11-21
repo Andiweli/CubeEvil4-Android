@@ -255,7 +255,7 @@
     <string name="ingame_controls_page">Controles</string>
     <string name="ingame_performance">Rendimiento</string>
     <string name="ingame_management">Gestión</string>
-    <string name="ingame_navigation">Cruceta: Navegar  ·  A: Elegir  ·  B: Atrás  ·  SELECT / START: Volver al juego</string>
+    <string name="ingame_navigation">Cruceta: Navegar  ·  A: Elegir / siguiente  ·  L1/R1 (Q/E): Cambiar valor  ·  B: Atrás  ·  SELECT / START: Volver al juego</string>
     <string name="ingame_instant">Guardado instantáneo</string>
     <string name="ingame_slot">Ranura de guardado</string>
     <string name="ingame_slot_details">Capítulo %1$s  ·  %2$s  ·  Tiempo %3$s</string>

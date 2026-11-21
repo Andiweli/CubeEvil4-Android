@@ -250,7 +250,7 @@
     <string name="ingame_controls_page">控制</string>
     <string name="ingame_performance">性能</string>
     <string name="ingame_management">管理</string>
-    <string name="ingame_navigation">方向键：导航  ·  A：选择  ·  B：返回  ·  SELECT / START：回到游戏</string>
+    <string name="ingame_navigation">方向键：导航  ·  A：选择 / 下一个  ·  L1/R1（Q/E）：更改数值  ·  B：返回  ·  SELECT / START：回到游戏</string>
     <string name="ingame_instant">即时存档</string>
     <string name="ingame_slot">存档槽</string>
     <string name="ingame_slot_details">章节 %1$s  ·  %2$s  ·  游戏时间 %3$s</string>

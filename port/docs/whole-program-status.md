@@ -817,6 +817,28 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `builds/workthread-1.1.0/menu/d1`–`d5` (DE/EN). **Nicht auf einem Gerät geprüft** (Bedienung mit Finger,
   Controller und Tastatur).
 
+### 29. Rückmeldung zur Menü-Neugestaltung (Projektinhaber, 21.11.2026)
+
+- **Spielsprache bestätigen:** ‹ / › und L1 / R1 zeigen die nächste Sprache nur als Vorschau („→ Sprache“, kursiv);
+  erst die Mitte oder A übernimmt sie (und startet neu). Verlässt der Fokus das Feld oder die Seite ohne Bestätigen,
+  steht wieder die gültige Sprache da (`ArrowSelector.setConfirm`, `take`, `onFocusChanged`).
+- **Aktiv-Aussehen:** jede Pfeilauswahl ist golden („an“, `isSelected`), solange ihr Wert nicht Aus / Keine / Standard
+  (Kostüm: Normal, Stapeln: Standard, Sichtweite: Keine) ist (`setOffIndex`); ersetzt „golden, wenn nicht der Standard“.
+- **Controller und Tastatur:** das Steuerkreuz (Pfeiltasten) wechselt immer das Feld, in alle vier Richtungen; A / Enter
+  schaltet die Pfeilauswahl weiter (Sprache: bestätigt); L1 / R1 zurück / vor, auf der Tastatur Q / E und Bild auf /
+  Bild ab (`ArrowSelector.keys`). Die Fußzeile sagt das (11 Sprachen). Touch unverändert.
+- **Regler als Felder** (`SliderCell`): so hoch wie die Pfeilauswahl, halbe Breite im Raster, oben klein der Name,
+  groß der Wert, der Regler darin; ‹ / › je ein Schritt, Ziehen geht weiter; L1 / R1 (Q / E) schalten; ein gesperrter
+  Regler (Gyro aus) graut die Pfeile aus. Die alten Regler-Flächen sind entfernt. Stick-Totzone und Stick-Reichweite
+  in einer Zeile, Musik und Soundeffekte (Lautstärke) ebenso.
+- **Schalter** (An/Aus): so hoch wie die Pfeilauswahl, oben klein der Name, darunter groß An / Aus (golden bei An);
+  Aktionsknöpfe gleich hoch mit einer Beschriftung.
+- Gespeicherte Werte, Verhalten, Ausgrauen und Sperren unverändert. Profil „Low“ für bestehende Nutzer unverändert
+  (Frage beim Projektinhaber offen).
+- **Geprüft am PC:** App-Tests (232, neu `ArrowSelectorTest`; Pfeil-, Regler- und Leucht-Prüfungen angepasst),
+  Übersetzungen (535), 11-Sprachen-Breitentest, Bilder `builds/workthread-1.1.0/menu/d1`–`d6` (DE/EN).
+  **Nicht auf einem Gerät geprüft** (Finger, Controller, Tastatur).
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

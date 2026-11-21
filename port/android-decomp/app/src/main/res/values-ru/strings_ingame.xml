@@ -258,7 +258,7 @@
     <string name="ingame_controls_page">Управление</string>
     <string name="ingame_performance">Производительность</string>
     <string name="ingame_management">Управление данными</string>
-    <string name="ingame_navigation">Крестовина: Навигация  ·  A: Выбор  ·  B: Назад  ·  SELECT / START: В игру</string>
+    <string name="ingame_navigation">Крестовина: Навигация  ·  A: Выбор / дальше  ·  L1/R1 (Q/E): Изменить значение  ·  B: Назад  ·  SELECT / START: В игру</string>
     <string name="ingame_instant">Мгновенное сохранение</string>
     <string name="ingame_slot">Слот сохранения</string>
     <string name="ingame_slot_details">Глава %1$s  ·  %2$s  ·  Время игры %3$s</string>

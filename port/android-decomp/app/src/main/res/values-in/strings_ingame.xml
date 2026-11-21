@@ -249,7 +249,7 @@
     <string name="ingame_controls_page">Kontrol</string>
     <string name="ingame_performance">Performa</string>
     <string name="ingame_management">Pengelolaan</string>
-    <string name="ingame_navigation">D-pad: Navigasi  ·  A: Pilih  ·  B: Kembali  ·  SELECT / START: Kembali ke game</string>
+    <string name="ingame_navigation">D-pad: Navigasi  ·  A: Pilih / berikutnya  ·  L1/R1 (Q/E): Ubah nilai  ·  B: Kembali  ·  SELECT / START: Kembali ke game</string>
     <string name="ingame_instant">Simpan cepat</string>
     <string name="ingame_slot">Slot simpanan</string>
     <string name="ingame_slot_details">Bab %1$s  ·  %2$s  ·  Waktu bermain %3$s</string>

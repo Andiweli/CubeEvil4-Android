@@ -252,7 +252,7 @@
     <string name="ingame_controls_page">नियंत्रण</string>
     <string name="ingame_performance">प्रदर्शन</string>
     <string name="ingame_management">प्रबंधन</string>
-    <string name="ingame_navigation">डी-पैड: नेविगेट  ·  A: चुनें  ·  B: वापस  ·  SELECT / START: गेम में लौटें</string>
+    <string name="ingame_navigation">डी-पैड: नेविगेट  ·  A: चुनें / अगला  ·  L1/R1 (Q/E): मान बदलें  ·  B: वापस  ·  SELECT / START: गेम में लौटें</string>
     <string name="ingame_instant">तुरंत सेव</string>
     <string name="ingame_slot">सेव स्लॉट</string>
     <string name="ingame_slot_details">अध्याय %1$s  ·  %2$s  ·  खेलने का समय %3$s</string>

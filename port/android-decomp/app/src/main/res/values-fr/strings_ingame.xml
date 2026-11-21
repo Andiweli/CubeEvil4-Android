@@ -257,7 +257,7 @@
     <string name="ingame_controls_page">Commandes</string>
     <string name="ingame_performance">Performances</string>
     <string name="ingame_management">Gestion</string>
-    <string name="ingame_navigation">Croix : Naviguer  ·  A : Choisir  ·  B : Retour  ·  SELECT / START : Reprendre</string>
+    <string name="ingame_navigation">Croix : Naviguer  ·  A : Choisir / suivant  ·  L1/R1 (Q/E) : Changer la valeur  ·  B : Retour  ·  SELECT / START : Reprendre</string>
     <string name="ingame_instant">Sauvegarde instantanée</string>
     <string name="ingame_slot">Emplacement de sauvegarde</string>
     <string name="ingame_slot_details">Chapitre %1$s  ·  %2$s  ·  Temps de jeu %3$s</string>

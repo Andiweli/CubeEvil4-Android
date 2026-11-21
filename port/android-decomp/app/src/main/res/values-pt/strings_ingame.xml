@@ -256,7 +256,7 @@
     <string name="ingame_controls_page">Controles</string>
     <string name="ingame_performance">Desempenho</string>
     <string name="ingame_management">Gerenciamento</string>
-    <string name="ingame_navigation">Direcional: Navegar  ·  A: Selecionar  ·  B: Voltar  ·  SELECT / START: Retomar</string>
+    <string name="ingame_navigation">Direcional: Navegar  ·  A: Selecionar / próximo  ·  L1/R1 (Q/E): Mudar valor  ·  B: Voltar  ·  SELECT / START: Retomar</string>
     <string name="ingame_instant">Salvamento instantâneo</string>
     <string name="ingame_slot">Slot de salvamento</string>
     <string name="ingame_slot_details">Capítulo %1$s  ·  %2$s  ·  Tempo de jogo %3$s</string>

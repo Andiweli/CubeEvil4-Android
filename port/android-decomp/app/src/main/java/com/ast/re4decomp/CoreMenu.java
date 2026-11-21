@@ -424,7 +424,10 @@ final class CoreMenu extends Dialog {
     parent.addView(buttons, new LinearLayout.LayoutParams(-1, -2)); return buttons;
   }
   private Button cellAction(MenuLayout.Buttons parent, String label, View.OnClickListener click) {
-    Button b = button(label, click); parent.addButton(b); return b;
+    Button b = button(label, click);
+    // (1.1.0, the project owner's feedback of 21.11.2026) every cell of the grids as high as the arrow cells
+    b.setMinHeight(dp(64)); b.setMinimumHeight(dp(64));
+    parent.addButton(b); return b;
   }
   /** An arrow selector (ArrowSelector, 1.1.0, the project owner's design of 21.11.2026) in `parent`'s grid: its name
    *  (0: none, a choice under a heading of its own), the values' labels, the step shown, the default step (golden
@@ -433,21 +436,33 @@ final class CoreMenu extends Dialog {
                                  ArrowSelector.Listener changed) {
     ArrowSelector a = new ArrowSelector(getContext(), name == 0 ? null : s(name), labels, index, def);
     style(a); a.finishLook(); a.setListener(changed);
+    // lit as an "On" switch while the value is not the off one (the project owner, 21.11.2026: Off, None; Standard of
+    // "Stack items" and Normal of the costumes, the cheats' off)
+    String[] off = {s(R.string.ingame_off), s(R.string.ingame_view_very_short), s(R.string.ingame_particles_none),
+        s(R.string.ingame_stack_standard), s(R.string.ingame_cheat_costume_normal)};
+    for (int i = 0; i < labels.length; i++) for (String o : off) if (labels[i].equals(o)) a.setOffIndex(i);
     parent.addButton(a);
     return a;
   }
   /** A slider's row on a card (1.1.0, the project owner's design of 21.11.2026): a faint, half-transparent surface like a
    *  button's (not a button: it takes no focus and no press), so the row and its slider read as one; the margins of
    *  the buttons' grid. */
-  private void addSliderCard(LinearLayout line) {
-    line.setBackground(sliderCard());
-    line.setPaddingRelative(0, dp(2), dp(4), dp(2));
-    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT);
-    lp.setMargins(dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP), dp(MenuLayout.GAP));
-    body.addView(line, lp);
+  /** A slider cell (SliderCell, 1.1.0, the project owner's feedback of 21.11.2026) in `parent`'s grid: its name, the steps
+   *  0 .. `steps`, the one shown, the value's text and what a move by the player does. */
+  private SliderCell sliderCell(MenuLayout.Buttons parent, int name, int steps, int progress,
+                                java.util.function.IntFunction<String> text, java.util.function.IntConsumer moved) {
+    SliderCell cell = new SliderCell(getContext(), s(name), cellLook());
+    cell.setUp(steps, progress, text, moved);
+    parent.addButton(cell);
+    return cell;
   }
-  private GradientDrawable sliderCard() { return shape(0x80222a25, 0x70414b41, 6); }
+  /** A cell's look as the buttons': the focus's golden frame, else the surface with its border. */
+  private StateListDrawable cellLook() {
+    StateListDrawable state = new StateListDrawable();
+    state.addState(new int[] {android.R.attr.state_focused}, focused());
+    state.addState(new int[0], shape(SURFACE, BORDER, 6));
+    return state;
+  }
   /** The labels of string resources. */
   private String[] texts(int[] ids) {
     String[] t = new String[ids.length];
@@ -644,7 +659,8 @@ final class CoreMenu extends Dialog {
   /** "Name · value" on a button that moves through its values with each press, lit while not off. */
   private void valueLabel(Button b, int name, int value, boolean on) {
     b.setSelected(on);
-    b.setText(getContext().getString(R.string.ingame_toggle_value, s(name), s(value)));
+    b.setText(twoLines(s(name), s(value)));
+    b.setContentDescription(getContext().getString(R.string.ingame_toggle_value, s(name), s(value)));
   }
   /** "View distance · Normal" and its eyes after the text (the project owner, 15.11.2026): 4 Far, 3 Normal, 2 Medium,
    *  1 Short, a crossed-out eye None; lit but at None. The eyes are one piece after a space: a narrow button puts them
@@ -779,7 +795,21 @@ final class CoreMenu extends Dialog {
   }
   private void toggleLabel(Button b, int label, boolean on) {
     b.setSelected(on);
-    b.setText(getContext().getString(R.string.ingame_toggle_value, s(label), s(on ? R.string.ingame_on : R.string.ingame_off)));
+    b.setText(twoLines(s(label), s(on ? R.string.ingame_on : R.string.ingame_off)));
+    b.setContentDescription(getContext().getString(R.string.ingame_toggle_value, s(label),
+        s(on ? R.string.ingame_on : R.string.ingame_off)));
+  }
+  /** A switch's text since 1.1.0 (the project owner's feedback of 21.11.2026), as the arrow cells': the name small on
+   *  top, the value big below. */
+  private CharSequence twoLines(String name, String value) {
+    SpannableStringBuilder t = new SpannableStringBuilder(name);
+    t.setSpan(new RelativeSizeSpan(.78f), 0, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    t.setSpan(new StyleSpan(Typeface.NORMAL), 0, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    t.append('\n');
+    int from = t.length();
+    t.append(value);
+    t.setSpan(new StyleSpan(Typeface.BOLD), from, t.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    return t;
   }
 
   private void showPage(int next, boolean focus) {
@@ -974,6 +1004,7 @@ final class CoreMenu extends Dialog {
         .getInt(CoreActivity.GAME_LANGUAGE, 0)};
     final Button[][] buttons = new Button[1][];
     // without a row label under its heading, a third of the row each (wish of the project owner, 05.11.2026)
+    // (1.1.0, the project owner, 21.11.2026) ‹ / › and L1 / R1 only show a language, the middle or A takes it (a restart)
     buttons[0] = rowChoices(labels, values, current[0], 3, value -> {
       if (value == current[0]) return;
       if (host.gameLanguageOf(value) == host.gameLanguageOf(current[0])) {
@@ -991,6 +1022,7 @@ final class CoreMenu extends Dialog {
       dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
       Immersive.show(dialog);
     });
+    if (buttons[0].length == 1 && buttons[0][0] instanceof ArrowSelector) ((ArrowSelector) buttons[0][0]).setConfirm(true);
     help(R.string.ingame_language_help);
   }
   private Button nav(MenuLayout.Buttons parent, int title, int summary, int target) {
@@ -1331,10 +1363,12 @@ final class CoreMenu extends Dialog {
     // motors instead of the phone's)
     final int[] shape = {CoreInput.clampDeadZone(input.getInt(CoreActivity.STICK_DEAD_ZONE, 0)),
         CoreInput.clampRange(input.getInt(CoreActivity.STICK_RANGE, 100))};
-    percentSlider(R.string.ingame_stick_dead_zone, 0, CoreInput.DEAD_ZONE_MAX, shape[0], value -> {
+    // the dead zone and the range side by side (the project owner, 21.11.2026)
+    MenuLayout.Buttons sticks = buttonsRow(body);
+    percentSlider(sticks, R.string.ingame_stick_dead_zone, 0, CoreInput.DEAD_ZONE_MAX, shape[0], value -> {
       shape[0] = value; host.stickShapeChanged(shape[0], shape[1]);
     });
-    percentSlider(R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
+    percentSlider(sticks, R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
       shape[1] = value; host.stickShapeChanged(shape[0], shape[1]);
     });
     help(R.string.ingame_stick_help);
@@ -1366,46 +1400,12 @@ final class CoreMenu extends Dialog {
   }
   private View[] switchWithSlider(int label, boolean on, Changed<Boolean> toggled, int title, float min, float max,
       float step, float stored, Changed<Float> moved, Format format) {
-    LinearLayout line = new MenuLayout.Columns(getContext(), 0, 540, false);
-    line.setGravity(Gravity.CENTER_VERTICAL);
-    body.addView(line);
-    Button toggle = toggle(buttonsRow(line), label, on, toggled);
-    TextView heading = text(s(title), 15, false);
-    heading.setGravity(Gravity.CENTER_HORIZONTAL);
-    SeekBar bar = new SeekBar(getContext()); TextView value = text("", 15, false);
-    LinearLayout.LayoutParams barSize = new LinearLayout.LayoutParams(0, dp(48), 1);
-    LinearLayout box = new LinearLayout(getContext()) {
-      @Override protected void onMeasure(int widthSpec, int heightSpec) {
-        heading.measure(widthSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-        int row = Math.max(dp(48), toggle.getMeasuredHeight()) + dp(2 * MenuLayout.GAP);
-        // (the card's padding inside the row's height: the same gap as the rows of buttons)
-        barSize.height = Math.max(dp(32), row - heading.getMeasuredHeight() - getPaddingTop() - getPaddingBottom());
-        super.onMeasure(widthSpec, heightSpec);
-      }
-    };
-    box.setOrientation(LinearLayout.VERTICAL);
-    // the slider on its card (1.1.0), the switch beside it as it was
-    box.setBackground(sliderCard());
-    box.setPadding(dp(8), dp(2), dp(4), dp(2));
-    box.addView(heading, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT));
-    LinearLayout slider = row();
-    slider.addView(bar, barSize); slider.addView(value); slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);
-    box.addView(slider);
-    line.addView(box);
-    bar.setMax(Math.round((max - min) / step)); bar.setProgress(Math.round((stored - min) / step));
-    bar.setContentDescription(s(title));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
-    value.setText(format.of(stored));
-    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
-        float now = min + progress * step;
-        value.setText(format.of(now)); if (fromUser) moved.accept(now);
-      }
-      @Override public void onStartTrackingTouch(SeekBar b) {}
-      @Override public void onStopTrackingTouch(SeekBar b) {}
-    });
-    return new View[] {toggle, bar, value};
+    // (1.1.0, the project owner's feedback of 21.11.2026) the switch and the slider as two cells of a row
+    MenuLayout.Buttons row = buttonsRow(body);
+    Button toggle = toggle(row, label, on, toggled);
+    SliderCell cell = sliderCell(row, title, Math.round((max - min) / step), Math.round((stored - min) / step),
+        p -> format.of(min + p * step), p -> moved.accept(min + p * step));
+    return new View[] {toggle, cell.bar, cell.value};
   }
 
   /** The actions' names, in ActionMap's order. */
@@ -1544,33 +1544,11 @@ final class CoreMenu extends Dialog {
    *  von 'Maus-Empfindlichkeit' beginnt zu weit links. Dadurch bricht 'Maus-Empfindlichkeit' um."). */
   private void mouseSlider() {
     float min = CoreActivity.MOUSE_MIN, step = CoreActivity.MOUSE_STEP;
-    MenuLayout.Columns line = new MenuLayout.Columns(getContext(), 0, 520, false);
-    line.setWeights(1, 3);
-    line.setStartFitsContent(true);
-    line.addView(rowLabel(s(R.string.ingame_mouse_sensitivity)));
-    LinearLayout slider = row();
-    SeekBar bar = new SeekBar(getContext());
-    TextView value = text("", 15, false);
-    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
-    slider.addView(value);
-    slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);  // the value ends where the buttons end
-    line.addView(slider);
     float now = host == null ? 1f : host.mouseSensitivity();
-    bar.setMax(Math.round((CoreActivity.MOUSE_MAX - min) / step));
-    bar.setProgress(Math.round((now - min) / step));
-    bar.setContentDescription(s(R.string.ingame_mouse_sensitivity));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
-    value.setText(times(now));
-    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
-        float v = min + progress * step;
-        value.setText(times(v));
-        if (fromUser && host != null) host.mouseSensitivityChanged(v);
-      }
-      @Override public void onStartTrackingTouch(SeekBar b) {}
-      @Override public void onStopTrackingTouch(SeekBar b) {}
-    });
-    addSliderCard(line);
+    sliderCell(buttonsRow(body), R.string.ingame_mouse_sensitivity, Math.round((CoreActivity.MOUSE_MAX - min) / step),
+        Math.round((now - min) / step), p -> times(min + p * step), p -> {
+          if (host != null) host.mouseSensitivityChanged(min + p * step);
+        });
     help(R.string.ingame_mouse_help);
     help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
   }
@@ -1722,8 +1700,9 @@ final class CoreMenu extends Dialog {
    */
   private void audio() {
     heading(R.string.ingame_volume);
-    volumeSlider(R.string.ingame_music_volume, "musicVolume");
-    volumeSlider(R.string.ingame_effects_volume, "effectsVolume");
+    MenuLayout.Buttons volumes = buttonsRow(body);
+    volumeSlider(volumes, R.string.ingame_music_volume, "musicVolume");
+    volumeSlider(volumes, R.string.ingame_effects_volume, "effectsVolume");
     MenuLayout.Buttons sound = buttonsRow(body);
     toggle(sound, R.string.ingame_music_volume, graphics.getBoolean("musicOn", true), on -> {
       graphics.edit().putBoolean("musicOn", on).apply(); CoreBridge.sendSoundVolume(graphics);
@@ -1734,58 +1713,16 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_volume_help);
   }
   /** A percentage as the volumes' sliders: `min` .. `max` in steps of 5 from `now`, each move to `moved`. */
-  private void percentSlider(int label, int min, int max, int now, Changed<Integer> moved) {
-    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
-    line.addView(rowLabel(s(label)));
-    LinearLayout slider = row();
-    SeekBar bar = new SeekBar(getContext());
-    TextView value = text("", 15, false);
-    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
-    slider.addView(value);
-    slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);  // the value ends where the buttons end
-    line.addView(slider);
-    bar.setMax((max - min) / 5);
-    bar.setProgress(Math.round((Math.max(min, Math.min(max, now)) - min) / 5f));
-    bar.setContentDescription(s(label));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
-    value.setText(now + " %");
-    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
-        int v = min + progress * 5;
-        value.setText(v + " %");
-        if (fromUser && host != null) moved.accept(v);
-      }
-      @Override public void onStartTrackingTouch(SeekBar b) {}
-      @Override public void onStopTrackingTouch(SeekBar b) {}
-    });
-    addSliderCard(line);
+  private void percentSlider(MenuLayout.Buttons row, int label, int min, int max, int now, Changed<Integer> moved) {
+    sliderCell(row, label, (max - min) / 5, Math.round((Math.max(min, Math.min(max, now)) - min) / 5f),
+        p -> (min + p * 5) + " %", p -> { if (host != null) moved.accept(min + p * 5); });
   }
   /** A volume of the AUDIO page as the mouse's slider: 0 .. 100 % in steps of 5, kept in `key`. */
-  private void volumeSlider(int label, String key) {
-    LinearLayout line = new MenuLayout.Columns(getContext(), 170, 520, false);
-    line.addView(rowLabel(s(label)));
-    LinearLayout slider = row();
-    SeekBar bar = new SeekBar(getContext());
-    TextView value = text("", 15, false);
-    slider.addView(bar, new LinearLayout.LayoutParams(0, dp(48), 1));
-    slider.addView(value);
-    slider.setPaddingRelative(0, 0, dp(MenuLayout.GAP), 0);  // the value ends where the buttons end
-    line.addView(slider);
+  private void volumeSlider(MenuLayout.Buttons row, int label, String key) {
     int now = Math.max(0, Math.min(100, graphics.getInt(key, 100)));
-    bar.setMax(20);
-    bar.setProgress(Math.round(now / 5f));
-    bar.setContentDescription(s(label));
-    bar.setProgressTintList(ColorStateList.valueOf(GOLD)); bar.setThumbTintList(ColorStateList.valueOf(GOLD)); focusBox(bar);
-    value.setText(now + " %");
-    bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-      @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
-        value.setText(progress * 5 + " %");
-        if (fromUser) { graphics.edit().putInt(key, progress * 5).apply(); CoreBridge.sendSoundVolume(graphics); }
-      }
-      @Override public void onStartTrackingTouch(SeekBar b) {}
-      @Override public void onStopTrackingTouch(SeekBar b) {}
+    sliderCell(row, label, 20, Math.round(now / 5f), p -> p * 5 + " %", p -> {
+      graphics.edit().putInt(key, p * 5).apply(); CoreBridge.sendSoundVolume(graphics);
     });
-    addSliderCard(line);
   }
 
   private void performance() {

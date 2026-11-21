@@ -252,7 +252,7 @@
     <string name="ingame_controls_page">Steuerung</string>
     <string name="ingame_performance">Performance</string>
     <string name="ingame_management">Management</string>
-    <string name="ingame_navigation">D-Pad: Navigieren  ·  A: Auswählen  ·  B: Zurück  ·  SELECT / START: Zum Spiel</string>
+    <string name="ingame_navigation">D-Pad: Navigieren  ·  A: Auswählen / weiter  ·  L1/R1 (Q/E): Wert ändern  ·  B: Zurück  ·  SELECT / START: Zum Spiel</string>
     <string name="ingame_instant">Instant-Spielstand</string>
     <string name="ingame_slot">Speicherslot</string>
     <string name="ingame_slot_details">Kapitel %1$s  ·  %2$s  ·  Spielzeit %3$s</string>

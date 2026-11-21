@@ -322,9 +322,8 @@ public class CoreMenuRowsTest {
             View deviceBox = (View) device.getParent();
             assertEquals(where + ": reload as far in as the device's buttons", leftIn(deviceBox, page),
                 leftIn((View) quick.getParent(), page));
-            View slider = ((android.view.ViewGroup) mouse.getParent()).getChildAt(1);
-            assertTrue(where + ": the slider not left of the device's buttons",
-                leftIn(slider, page) >= leftIn(deviceBox, page) - 1);
+            // (1.1.0) the mouse's sensitivity a slider cell of the grid, as the other cells
+            assertTrue(where + ": a slider cell", mouse.getParent() instanceof SliderCell);
           }
           checked++;
         }

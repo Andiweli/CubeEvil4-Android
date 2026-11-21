@@ -269,7 +269,7 @@
     <string name="ingame_controls_page">‏التحكم</string>
     <string name="ingame_performance">‏الأداء</string>
     <string name="ingame_management">‏الإدارة</string>
-    <string name="ingame_navigation">‏لوحة الاتجاهات: تنقّل  ·  A: اختيار  ·  B: رجوع  ·  SELECT / START: العودة للعبة</string>
+    <string name="ingame_navigation">‏لوحة الاتجاهات: تنقّل  ·  A: اختيار / التالي  ·  L1/R1 (Q/E): تغيير القيمة  ·  B: رجوع  ·  SELECT / START: العودة للعبة</string>
     <string name="ingame_instant">‏حفظ فوري</string>
     <string name="ingame_slot">‏خانة الحفظ</string>
     <string name="ingame_slot_details">‏الفصل %1$s  ·  %2$s  ·  وقت اللعب %3$s</string>

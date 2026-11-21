@@ -270,7 +270,7 @@
     <string name="ingame_controls_page">Controls</string>
     <string name="ingame_performance">Performance</string>
     <string name="ingame_management">Management</string>
-    <string name="ingame_navigation">D-pad: Navigate  ·  A: Select  ·  B: Back  ·  SELECT / START: Back to game</string>
+    <string name="ingame_navigation">D-pad: Navigate  ·  A: Select / next  ·  L1/R1 (Q/E): Change value  ·  B: Back  ·  SELECT / START: Back to game</string>
     <string name="ingame_instant">Instant save</string>
     <string name="ingame_slot">Save slot</string>
     <string name="ingame_slot_details">Chapter %1$s  ·  %2$s  ·  Play time %3$s</string>

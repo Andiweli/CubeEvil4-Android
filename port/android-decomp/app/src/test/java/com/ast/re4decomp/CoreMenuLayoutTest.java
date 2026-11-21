@@ -210,7 +210,7 @@ public class CoreMenuLayoutTest {
       View benchKey = ((ViewGroup) res.getParent()).getChildAt(1);
       assertEquals(activity.getString(R.string.ingame_benchmark), ((Button) benchKey).getText().toString());
       assertEquals("3x chosen before stays chosen", "3×", res.valueText());
-      assertTrue("not the default (Dynamic): golden", res.isSelected());
+      assertTrue("lit: no level is Off", res.isSelected());
       res.step(-1);  // 2.5x
       assertEquals(5, g.getInt("scaleHalves", -1));
       res.step(1); res.step(1);  // 3.5x
@@ -218,7 +218,7 @@ public class CoreMenuLayoutTest {
       for (int i = 0; i < 3; i++) res.step(1);  // 4x, round to Dynamic, 1x
       assertEquals(2, CoreMenu.scaleHalves(g));
       res.step(-1);
-      assertEquals(0, CoreMenu.scaleHalves(g)); assertFalse(res.isSelected());
+      assertEquals(0, CoreMenu.scaleHalves(g)); assertTrue(res.isSelected());
       assertEquals(7, changed[0]);
     }
   }
@@ -390,7 +390,8 @@ public class CoreMenuLayoutTest {
       assertNotNull(icons);
       assertEquals(4, icons.count());
       assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
-      assertEquals(activity.getString(R.string.ingame_button_icons), icons.valueText()); assertFalse(icons.isSelected());
+      // (lit: every look counts as on, none is "Off")
+      assertEquals(activity.getString(R.string.ingame_button_icons), icons.valueText()); assertTrue(icons.isSelected());
       assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
@@ -423,8 +424,10 @@ public class CoreMenuLayoutTest {
       View deadZone = byDescription(body, activity.getString(R.string.ingame_stick_dead_zone));
       View range = byDescription(body, activity.getString(R.string.ingame_stick_range));
       assertTrue(deadZone instanceof android.widget.SeekBar && range instanceof android.widget.SeekBar);
+      // (1.1.0, the project owner, 21.11.2026) the two side by side, slider cells under the heading
       assertEquals("the dead zone right under the heading", devices + 1, rowIndex(deadZone, body));
-      assertEquals("the range under it", devices + 2, rowIndex(range, body));
+      assertEquals("the range beside it", devices + 1, rowIndex(range, body));
+      assertTrue(deadZone.getParent() instanceof SliderCell);
       assertEquals(6, ((android.widget.SeekBar) deadZone).getMax());
       assertEquals(0, ((android.widget.SeekBar) deadZone).getProgress());
       assertEquals(10, ((android.widget.SeekBar) range).getMax());
@@ -442,18 +445,13 @@ public class CoreMenuLayoutTest {
       // the rows with a slider: as tall as a row of buttons where the title leaves the slider 32 dp or more (on
       // the devices; this test's fonts are about twice as tall), the switch in the middle: the same gap
       float density = activity.getResources().getDisplayMetrics().density;
+      // (1.1.0, the project owner, 21.11.2026) the switch and its slider as two cells of one row, alike in height
       for (Button b : new Button[] {aimInvert, gyro}) {
-        ViewGroup row = (ViewGroup) rowOf(b, body), box = (ViewGroup) row.getChildAt(1);
-        int title = box.getChildAt(0).getHeight(), slider = box.getChildAt(1).getHeight();
-        int buttons = b.getHeight() + Math.round(2 * MenuLayout.GAP * density);
-        // (the slider on its card since 1.1.0: the card's padding inside)
-        int expected = Math.max(buttons, title + Math.max(Math.round(32 * density), slider) + box.getPaddingTop()
-            + box.getPaddingBottom());
-        assertEquals("the slider row's height", expected, row.getHeight(), 1);
-        assertEquals("the slider fills what the title leaves", Math.max(Math.round(32 * density), buttons - title),
-            ((ViewGroup) box.getChildAt(1)).getChildAt(0).getHeight(), 1);
-        int above = top(b, body) - top(row, body), below = top(row, body) + row.getHeight() - top(b, body) - b.getHeight();
-        assertEquals("the switch in the middle of its row", below, above, 2);
+        ViewGroup row = (ViewGroup) b.getParent();
+        View cell = row.getChildAt(1);
+        assertTrue("the slider a cell beside the switch", cell instanceof SliderCell);
+        assertEquals("as high as the switch", b.getHeight(), cell.getHeight(), 1);
+        assertEquals("side by side", b.getTop(), cell.getTop());
       }
     }
   }
@@ -885,22 +883,22 @@ public class CoreMenuLayoutTest {
       assertNotNull(particles); assertNotNull(shadows);
       assertNotSame(weather.getParent(), particles.getParent()); assertSame(particles.getParent(), shadows.getParent());
       String normal = controller.get().getString(R.string.ingame_particles_normal);
-      // (1.1.0, an arrow selector: golden, "selected", while not the default Normal)
-      assertTrue(particles.getText().toString().endsWith(normal)); assertFalse(particles.isSelected());
+      // (1.1.0, an arrow selector: lit while not "None")
+      assertTrue(particles.getText().toString().endsWith(normal)); assertTrue(particles.isSelected());
       assertTrue(shadows.isSelected());
       particles.performClick();
       // lit at "Less" too, off only at "None" (wish of the project owner, 09.11.2026)
       assertEquals(4, Bridge.potato); assertTrue(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_less)));
       particles.performClick();
-      assertEquals(8, Bridge.potato); assertTrue(particles.isSelected());
+      assertEquals(8, Bridge.potato); assertFalse(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(controller.get().getString(R.string.ingame_particles_none)));
       shadows.performClick();
       assertEquals(8 | 16, Bridge.potato); assertFalse(shadows.isSelected());
       weather.performClick();
       assertEquals(1 | 8 | 16, Bridge.potato);
       particles.performClick();
-      assertEquals(1 | 16, Bridge.potato); assertFalse(particles.isSelected());
+      assertEquals(1 | 16, Bridge.potato); assertTrue(particles.isSelected());
       assertTrue(particles.getText().toString().endsWith(normal));
       shadows.performClick(); weather.performClick();
       assertEquals(0, Bridge.potato);
@@ -1201,15 +1199,15 @@ public class CoreMenuLayoutTest {
       int[] levels = {0, 1, 2, 3, 4, 0};
       int[] labels = {R.string.ingame_view_normal, R.string.ingame_view_medium, R.string.ingame_view_short,
           R.string.ingame_view_very_short, R.string.ingame_view_far, R.string.ingame_view_normal};
-      // 1.1.0: an arrow selector (Far, Normal, Medium, Short, None from the left), golden while not Normal
-      boolean[] lit = {false, true, true, true, true, false};
+      // 1.1.0: an arrow selector (Far, Normal, Medium, Short, None from the left), lit while not None
+      boolean[] lit = {true, true, true, false, true, true};
       assertTrue(view instanceof ArrowSelector);
       assertEquals(5, ((ArrowSelector) view).count());
       for (int i = 0; i < levels.length; i++) {
         if (i > 0) view.performClick();
         String where = "step " + i;
         assertEquals(where, levels[i], CoreBridge.viewDistance(g));
-        assertEquals(where + ": golden", lit[i], view.isSelected());
+        assertEquals(where + ": lit", lit[i], view.isSelected());
         String name = activity.getString(R.string.ingame_potato_view), value = activity.getString(labels[i]);
         assertEquals(where + ": the name over the value", name + "\n" + value, view.getText().toString());
         assertEquals(where + ": TalkBack reads both", name + ", " + value, view.getContentDescription().toString());
