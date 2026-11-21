@@ -2,12 +2,13 @@
 # page, GENERAL AND INVENTORY, after "+1,000,000 PTAS", Standard by default; since the arrow selector of 21.11.2026 Standard,
 # 250, 500, 999): while runtime/cheats.cpp re4_stack_items gives a value (bits 21..22 of the app's aim bits,
 # runtime/aim_options.cpp) above a slot's own limit, itemInfo gives the ammo (type 2: handgun 50, magnum 10,
-# shotgun 15, rifle 10, TMP/machine gun 100 ...), the grenades (type 3: hand, incendiary, flash; one a slot) and the
-# recovery items (type 6: herbs and their mixes, first aid spray, eggs, fish; one a slot) up to that value a slot; treasures
-# stack to 999 anyway, weapons, keys and the rest stay. The slots hold a 16-bit count (cItem::num, ItemSaveWork::num),
+# shotgun 15, rifle 10, TMP/machine gun 100 ...) up to that value a slot; only the ammo (the project owner, 21.11.2026:
+# "Nur Munition soll gestapelt werden können"): grenades (type 3), recovery items (type 6), treasures (as the game: 999),
+# weapons, keys and the rest stay as in the game. The slots hold a 16-bit count (cItem::num, ItemSaveWork::num),
 # so saves keep a stack as it is. Switched off, a larger stack stays as it is and is used up one by one (the game takes
 # one at a time and frees the slot at 0, cItemMgr::use/dump); a pick-up then goes to a new slot. The inventory shows
-# the count of such a stack too (ss_item.cpp: before only where more than one fits a slot). Off: as the game.
+# the count of such a stack too (ss_item.cpp: before only where more than one fits a slot; so a stack of grenades or herbs
+# from a test build of before shows its count until one is left). Off: as the game.
 --- a/src/game/item.cpp
 +++ b/src/game/item.cpp
 @@ -1300,6 +1300,8 @@
@@ -23,8 +24,8 @@
          info->maxNum = 1;
          break;
      }
-+    /* port (patch 0254): "Stack items": ammo (2), grenades (3) and recovery items (6) up to its value a slot */
-+    if (re4_stack_items() > info->maxNum && (info->type == 2 || info->type == 3 || info->type == 6)) {
++    /* port (patch 0254): "Stack items": only the ammo (type 2) up to its value a slot, the rest as the game */
++    if (re4_stack_items() > info->maxNum && info->type == 2) {
 +        info->maxNum = (u16) re4_stack_items();
 +    }
  }

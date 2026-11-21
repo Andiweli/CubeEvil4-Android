@@ -356,7 +356,7 @@
     <string name="ingame_cheat_case">Valigetta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Impila oggetti</string>
-    <string name="ingame_cheat_stack_help">Impila oggetti: munizioni, granate e oggetti curativi (erbe, spray di pronto soccorso, uova, pesci) si impilano fino a 250, 500 o 999 in uno spazio (Standard: i limiti del gioco); i tesori si impilano comunque. Se poi scegli meno, le pile più grandi restano e si consumano una alla volta; ciò che raccogli dopo occupa uno spazio nuovo.</string>
+    <string name="ingame_cheat_stack_help">Impila oggetti: le munizioni si impilano fino a 250, 500 o 999 in uno spazio (Standard: i limiti del gioco). Granate, oggetti curativi e tesori restano come nel gioco. Se poi scegli meno, le pile più grandi restano e si consumano una alla volta; ciò che raccogli dopo occupa uno spazio nuovo.</string>
     <string name="ingame_stack_standard">Standard</string>
     <string name="ingame_cheat_refill">Ricarica munizioni</string>
     <string name="ingame_cheat_refill_full">Niente da ricaricare: nessuna munizione nella valigetta, oppure è già tutto pieno.</string>

@@ -357,7 +357,7 @@
     <string name="ingame_cheat_case">Maleta L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Empilhar itens</string>
-    <string name="ingame_cheat_stack_help">Empilhar itens: munição, granadas e itens de cura (ervas, spray de primeiros socorros, ovos, peixes) se empilham até 250, 500 ou 999 em um espaço (Padrão: os limites do jogo); tesouros se empilham de qualquer forma. Se depois você escolher menos, pilhas maiores continuam e são usadas uma a uma; o que você pegar depois ocupa um espaço novo.</string>
+    <string name="ingame_cheat_stack_help">Empilhar itens: a munição se empilha até 250, 500 ou 999 em um espaço (Padrão: os limites do jogo). Granadas, itens de cura e tesouros ficam como no jogo. Se depois você escolher menos, pilhas maiores continuam e são usadas uma a uma; o que você pegar depois ocupa um espaço novo.</string>
     <string name="ingame_stack_standard">Padrão</string>
     <string name="ingame_cheat_refill">Reabastecer munição</string>
     <string name="ingame_cheat_refill_full">Nada para reabastecer: não há munição na maleta, ou tudo já está cheio.</string>

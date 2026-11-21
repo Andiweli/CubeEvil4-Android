@@ -351,7 +351,7 @@
     <string name="ingame_cheat_case">手提箱 L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
     <string name="ingame_cheat_stack">物品堆叠</string>
-    <string name="ingame_cheat_stack_help">物品堆叠：弹药、手榴弹和回复道具（草药、急救喷雾、鸡蛋、鱼）在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）；宝物本来就能堆叠。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
+    <string name="ingame_cheat_stack_help">物品堆叠：弹药在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）。手榴弹、回复道具和宝物保持游戏原样。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
     <string name="ingame_stack_standard">标准</string>
     <string name="ingame_cheat_refill">补满弹药</string>
     <string name="ingame_cheat_refill_full">没有可补充的：箱子里没有弹药，或已全部补满。</string>

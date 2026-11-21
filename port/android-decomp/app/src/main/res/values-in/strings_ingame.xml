@@ -349,7 +349,7 @@
     <string name="ingame_cheat_case">Koper L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Tumpuk item</string>
-    <string name="ingame_cheat_stack_help">Tumpuk item: amunisi, granat, dan item pemulih (herba, semprotan P3K, telur, ikan) bertumpuk hingga 250, 500, atau 999 dalam satu slot (Standar: batas permainan); harta karun memang sudah bertumpuk. Jika nanti memilih lebih kecil, tumpukan besar tetap ada dan terpakai satu per satu; barang yang diambil sesudahnya menempati slot baru.</string>
+    <string name="ingame_cheat_stack_help">Tumpuk item: amunisi bertumpuk hingga 250, 500, atau 999 dalam satu slot (Standar: batas permainan). Granat, item pemulih, dan harta karun tetap seperti di permainan. Jika nanti memilih lebih kecil, tumpukan besar tetap ada dan terpakai satu per satu; barang yang diambil sesudahnya menempati slot baru.</string>
     <string name="ingame_stack_standard">Standar</string>
     <string name="ingame_cheat_refill">Isi ulang amunisi</string>
     <string name="ingame_cheat_refill_full">Tidak ada yang diisi: tidak ada amunisi di koper, atau semuanya sudah penuh.</string>

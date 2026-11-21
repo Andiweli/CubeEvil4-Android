@@ -858,6 +858,17 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 - **Geprüft am PC:** App-Tests (233), Übersetzungen (537), Bilder `builds/workthread-1.1.0/menu/d1`–`d8` (DE/EN).
   **Nicht auf einem Gerät geprüft.**
 
+### 31. „Gegenstände stapeln“ nur für Munition (Projektinhaber, 21.11.2026: „Nur Munition soll gestapelt werden können. Keine Granaten, Wertgegenstände, Gesundheitssprays, Pflanzen und so weiter. Bei denen soll auch nicht '1' stehen.“)
+
+- **Patch 0254:** `itemInfo` hebt die Grenze je Platz nur noch für Munition (Typ 2); Granaten (Typ 3), Heilmittel
+  (Typ 6, Kräuter, Spray, Eier, Fische), Schätze (wie im Spiel: 999) und alles andere bleiben wie im Spiel. Damit steht
+  bei Granaten und Heilmitteln wieder keine Zahl (die „1“ kam von der angehobenen Grenze; `ss_item.cpp` zeigt die Zahl
+  nur, wo mehr als eins auf den Platz passt oder ein Platz mehr als eins hält).
+- **Alte Stapel aus Testversionen** (Granaten/Heilmittel > 1 auf einem Platz): bleiben, zeigen ihre Anzahl, bis nur
+  noch eins übrig ist (dann ohne Zahl), werden eins nach dem anderen verbraucht; Neues kommt auf einen neuen Platz.
+- Kerntest `stack-items`: Munition 250/500/999, Granate, Kraut und Spray bei jedem Wert 1, Schatz 999, Waffe 0.
+  Hilfetext in 11 Sprachen. **Nicht auf einem Gerät geprüft.**
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

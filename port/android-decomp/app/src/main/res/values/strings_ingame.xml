@@ -371,7 +371,7 @@
     <string name="ingame_cheat_case">Attaché case L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
     <string name="ingame_cheat_stack">Stack items</string>
-    <string name="ingame_cheat_stack_help">Stack items: ammo, grenades and recovery items (herbs, first aid spray, eggs, fish) stack up to 250, 500 or 999 in one slot (Standard: the game\'s own limits); treasures stack anyway. A smaller choice later keeps larger stacks, they are used up one by one; new pick-ups then take a new slot.</string>
+    <string name="ingame_cheat_stack_help">Stack items: ammo stacks up to 250, 500 or 999 in one slot (Standard: the game\'s own limits). Grenades, recovery items and treasures stay as in the game. A smaller choice later keeps larger stacks, they are used up one by one; new pick-ups then take a new slot.</string>
     <string name="ingame_stack_standard">Standard</string>
     <string name="ingame_cheat_refill">Refill ammo</string>
     <string name="ingame_cheat_refill_full">Nothing to refill: no ammo in the case, or all of it is full.</string>

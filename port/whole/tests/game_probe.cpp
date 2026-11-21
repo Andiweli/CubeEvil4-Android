@@ -2093,15 +2093,16 @@ extern "C" int re4probe_stack_items(void)
     bad |= itemMaxNum(0x06) != 1 ? 0x8 : 0;     // green herb
     bad |= itemMaxNum(0x05) != 1 ? 0x10 : 0;    // first aid spray
     re4_stack_items_set(1);  // 250
-    bad |= itemMaxNum(0x04) != 250 || itemMaxNum(0x20) != 250 || itemMaxNum(0x01) != 250 ? 0x2000 : 0;
+    // (only the ammo since the project owner's "Nur Munition", 21.11.2026: grenades and herbs one a slot as the game)
+    bad |= itemMaxNum(0x04) != 250 || itemMaxNum(0x20) != 250 || itemMaxNum(0x01) != 1 ? 0x2000 : 0;
     re4_stack_items_set(2);  // 500
-    bad |= itemMaxNum(0x18) != 500 || itemMaxNum(0x06) != 500 ? 0x4000 : 0;
+    bad |= itemMaxNum(0x18) != 500 || itemMaxNum(0x06) != 1 ? 0x4000 : 0;
     re4_stack_items_set(3);  // 999
     bad |= itemMaxNum(0x04) != 999 ? 0x20 : 0;
     bad |= itemMaxNum(0x18) != 999 ? 0x40 : 0;
-    bad |= itemMaxNum(0x01) != 999 ? 0x80 : 0;
-    bad |= itemMaxNum(0x06) != 999 ? 0x100 : 0;
-    bad |= itemMaxNum(0x05) != 999 ? 0x200 : 0;
+    bad |= itemMaxNum(0x01) != 1 ? 0x80 : 0;    // hand grenade: as the game
+    bad |= itemMaxNum(0x06) != 1 ? 0x100 : 0;   // green herb: as the game
+    bad |= itemMaxNum(0x05) != 1 ? 0x200 : 0;   // first aid spray: as the game
     bad |= itemMaxNum(0x03) != 0 ? 0x400 : 0;   // a weapon (type 1) stays
     bad |= itemMaxNum(0x56) != 999 ? 0x800 : 0; // a treasure (type 12) as before
     bad |= itemType(0x04) != 2 || itemType(0x01) != 3 || itemType(0x06) != 6 ? 0x1000 : 0;

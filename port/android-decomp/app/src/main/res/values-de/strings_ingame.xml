@@ -353,7 +353,7 @@
     <string name="ingame_cheat_case">Aktenkoffer L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Gegenstände stapeln</string>
-    <string name="ingame_cheat_stack_help">Gegenstände stapeln: Munition, Granaten und Heilmittel (Kräuter, Erste-Hilfe-Spray, Eier, Fische) stapeln sich bis 250, 500 oder 999 auf einem Platz (Standard: die Grenzen des Spiels); Schätze stapeln sich ohnehin. Wählt man später weniger, bleiben größere Stapel erhalten und werden Stück für Stück verbraucht; Neues kommt dann auf einen neuen Platz.</string>
+    <string name="ingame_cheat_stack_help">Gegenstände stapeln: Munition stapelt sich bis 250, 500 oder 999 auf einem Platz (Standard: die Grenzen des Spiels). Granaten, Heilmittel und Schätze bleiben wie im Spiel. Wählt man später weniger, bleiben größere Stapel erhalten und werden Stück für Stück verbraucht; Neues kommt dann auf einen neuen Platz.</string>
     <string name="ingame_stack_standard">Standard</string>
     <string name="ingame_cheat_refill">Munition auffüllen</string>
     <string name="ingame_cheat_refill_full">Nichts aufzufüllen: keine Munition im Koffer, oder alles ist voll.</string>

@@ -358,7 +358,7 @@
     <string name="ingame_cheat_case">Mallette L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
     <string name="ingame_cheat_stack">Empiler les objets</string>
-    <string name="ingame_cheat_stack_help">Empiler les objets : munitions, grenades et objets de soin (herbes, spray de premiers soins, œufs, poissons) s’empilent jusqu’à 250, 500 ou 999 dans une case (Standard : les limites du jeu) ; les trésors s’empilent de toute façon. Si vous choisissez moins ensuite, les piles plus grandes restent et s’utilisent une par une ; ce que vous ramassez ensuite prend une nouvelle case.</string>
+    <string name="ingame_cheat_stack_help">Empiler les objets : les munitions s’empilent jusqu’à 250, 500 ou 999 dans une case (Standard : les limites du jeu). Les grenades, les objets de soin et les trésors restent comme dans le jeu. Si vous choisissez moins ensuite, les piles plus grandes restent et s’utilisent une par une ; ce que vous ramassez ensuite prend une nouvelle case.</string>
     <string name="ingame_stack_standard">Standard</string>
     <string name="ingame_cheat_refill">Recharger les munitions</string>
     <string name="ingame_cheat_refill_full">Rien à remplir : pas de munitions dans la mallette, ou tout est plein.</string>
