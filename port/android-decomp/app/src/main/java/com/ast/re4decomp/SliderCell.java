@@ -41,7 +41,9 @@ final class SliderCell extends LinearLayout {
     setFocusable(true);
     setClickable(true);
     int arrows = arrowWidth();
-    setPadding(arrows, dp(5), arrows, dp(4));
+    // (the project owner's third menu round, 21.11.2026: exactly as high as the other cells, 64dp) the texts without
+    // the font's extra padding, the bar 22dp: name 15 + value 19 + bar 22 + padding 6 stay under 64
+    setPadding(arrows, dp(4), arrows, dp(2));
     setMinimumHeight(dp(64));
     name = new TextView(context);
     name.setText(label);
@@ -50,12 +52,14 @@ final class SliderCell extends LinearLayout {
     name.setTextColor(CoreMenu.MUTED);
     name.setMaxLines(1);
     name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    name.setIncludeFontPadding(false);
     value = new TextView(context);
     value.setTextSize(16);
     value.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
     value.setTextColor(CoreMenu.INK);
     value.setGravity(Gravity.CENTER);
     value.setMaxLines(1);
+    value.setIncludeFontPadding(false);
     bar = new SeekBar(context);
     bar.setFocusable(false);
     bar.setContentDescription(label);
@@ -63,7 +67,7 @@ final class SliderCell extends LinearLayout {
     bar.setThumbTintList(ColorStateList.valueOf(CoreMenu.GOLD));
     addView(name, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     addView(value, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-    addView(bar, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(26)));
+    addView(bar, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(22)));
     bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override public void onProgressChanged(SeekBar b, int progress, boolean fromUser) {
         value.setText(format.apply(progress));

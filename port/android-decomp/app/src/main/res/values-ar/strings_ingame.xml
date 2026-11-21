@@ -311,7 +311,9 @@
     <string name="ingame_skip_aggressive">‏قوي</string>
     <string name="ingame_vk_bandwidth">‏توفير عرض النطاق (Vulkan)</string>
     <string name="ingame_fxaa">‏FXAA</string>
-    <string name="ingame_tv_filter">مرشّح تلفاز GameCube الأصلي</string>
+    <string name="ingame_aa_msaa">تنعيم الحواف MSAA</string>
+    <string name="ingame_aa_fxaa">تنعيم الحواف FXAA</string>
+    <string name="ingame_tv_filter">مرشّح تلفاز GameCube</string>
     <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
     <string name="ingame_sharper_text">نص قوائم أوضح</string>
     <string name="ingame_sharper_text_help">نص قوائم أوضح يرسم كلمات قوائم اللعبة الأصلية بحواف واضحة في الدقة العالية، بكل اللغات.</string>

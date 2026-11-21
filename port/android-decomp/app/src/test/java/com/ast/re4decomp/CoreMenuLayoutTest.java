@@ -379,17 +379,21 @@ public class CoreMenuLayoutTest {
       // 05.11.2026: TOUCH CONTROLS first, a third of the row each; TOUCH AIMING after the comfort controls, PLAYER VIEW
       // (far camera | field of view) above the LASER SIGHT (a quarter of the row each)
       assertEquals("touch controls first", 0, touch);
-      // 1.1.0: the touch choice an arrow selector without a name (the heading names it), Auto
-      Button auto = findButton(body, activity.getString(R.string.ingame_touch_auto));
-      assertTrue(auto instanceof ArrowSelector);
+      // 1.1.0: the touch choice an arrow selector with its name (the project owner's third menu round: beside the button
+      // style), Auto
+      ArrowSelector auto = selectorNamed(body, activity.getString(R.string.ingame_touch_controls));
+      assertNotNull(auto);
+      assertEquals(activity.getString(R.string.ingame_touch_auto), auto.valueText());
       assertEquals("the touch choices under their heading", touch + 1, rowIndex(auto, body));
-      assertEquals(3, ((ArrowSelector) auto).count());
+      assertEquals(3, auto.count());
       // "Button style" (09.11.2026; four looks since 17.11.2026): RE, GC, PS2 and XBOX in one arrow selector (1.1.0)
       // under the touch choices and their help, RE without a host (a new player's look, TouchStyle.DEFAULT_LOOK)
       ArrowSelector icons = selectorNamed(body, activity.getString(R.string.ingame_button_style));
       assertNotNull(icons);
       assertEquals(4, icons.count());
-      assertEquals("the button style two rows under the touch choices", rowIndex(auto, body) + 2, rowIndex(icons, body));
+      assertEquals("the button style beside the touch choices", rowIndex(auto, body), rowIndex(icons, body));
+      assertEquals("in the same row", auto.getParent(), icons.getParent());
+      assertEquals("side by side", auto.getTop(), icons.getTop());
       // (lit: every look counts as on, none is "Off")
       assertEquals(activity.getString(R.string.ingame_button_icons), icons.valueText()); assertTrue(icons.isSelected());
       assertTrue("touch aiming after the button style", aiming > rowIndex(icons, body));

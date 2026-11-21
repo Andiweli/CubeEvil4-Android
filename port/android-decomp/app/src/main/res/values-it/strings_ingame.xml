@@ -297,7 +297,9 @@
     <string name="ingame_skip_aggressive">Aggressivo</string>
     <string name="ingame_vk_bandwidth">Risparmia banda (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Filtro TV GameCube originale</string>
+    <string name="ingame_aa_msaa">Antialiasing MSAA</string>
+    <string name="ingame_aa_fxaa">Antialiasing FXAA</string>
+    <string name="ingame_tv_filter">Filtro TV GameCube</string>
     <string name="ingame_fxaa_help">Attenua i bordi seghettati in un passaggio finale. Funziona con o senza MSAA; l’immagine diventa un po’ più morbida.</string>
     <string name="ingame_sharper_text">Testo dei menu più nitido</string>
     <string name="ingame_sharper_text_help">Testo dei menu più nitido disegna le parole dei menu del gioco con bordi netti alle alte risoluzioni, in ogni lingua.</string>

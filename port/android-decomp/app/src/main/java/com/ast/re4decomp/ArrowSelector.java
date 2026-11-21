@@ -139,7 +139,6 @@ final class ArrowSelector extends Button {
       t.append('\n');
     }
     int from = t.length();
-    if (index != committed) t.append("→ ");  // a preview (confirm): taken with the middle or A
     t.append(values[index]);
     t.setSpan(new StyleSpan(index != committed ? Typeface.BOLD_ITALIC : Typeface.BOLD), from, t.length(),
         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);

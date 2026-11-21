@@ -292,7 +292,9 @@
     <string name="ingame_skip_aggressive">激进</string>
     <string name="ingame_vk_bandwidth">节省带宽（Vulkan）</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">原版 GameCube 电视滤镜</string>
+    <string name="ingame_aa_msaa">MSAA 抗锯齿</string>
+    <string name="ingame_aa_fxaa">FXAA 抗锯齿</string>
+    <string name="ingame_tv_filter">GameCube 电视滤镜</string>
     <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
     <string name="ingame_sharper_text">更清晰的菜单文字</string>
     <string name="ingame_sharper_text_help">更清晰的菜单文字：在高分辨率下以清晰的边缘绘制游戏自带的菜单文字，适用于所有语言。</string>

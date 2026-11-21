@@ -477,6 +477,9 @@ final class CoreMenu extends Dialog {
   private void choices(int label, String[] labels, int[] values, int selected, int limit, Changed<Integer> changed) {
     choices(label, labels, values, selected, limit, labels.length, changed);
   }
+  /** The row the next arrow selector of choices() goes into (1.1.0, the project owner's third menu round, 21.11.2026:
+   *  two cells side by side), null: a row of its own. */
+  private MenuLayout.Buttons into;
   /** At most `columns` buttons a row (fewer when narrow); further rows line up under the first. */
   private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
                            Changed<Integer> changed) {
@@ -496,7 +499,8 @@ final class CoreMenu extends Dialog {
   private Button[] choices(int label, String[] labels, int[] values, int selected, int limit, int columns,
                            boolean quarters, int def, Changed<Integer> changed) {
     if (labels.length > 2) {
-      MenuLayout.Buttons row = page == DISPLAY ? buttonsRow(labelledOptions(0)) : buttonsRow(body);
+      MenuLayout.Buttons row = into != null ? into : page == DISPLAY ? buttonsRow(labelledOptions(0)) : buttonsRow(body);
+      into = null;
       ArrowSelector a = selector(row, label, labels, stepOf(values, selected), stepOf(values, def),
           i -> changed.accept(values[i]));
       for (int i = 0; i < values.length; i++) a.setAllowed(i, limit >= values[i]);
@@ -620,6 +624,13 @@ final class CoreMenu extends Dialog {
   }
   private String scaleLabel(int halves) {
     return scaleNumber(halves, Locale.getDefault()) + "×";
+  }
+  /** graphicChoices() as a cell of `row` (beside another one). */
+  private void graphicChoices(MenuLayout.Buttons row, int label, String key, String[] labels, int[] values, int fallback,
+                              int limit) {
+    into = row;
+    graphicChoices(label, key, labels, values, fallback, limit);
+    into = null;
   }
   private void graphicChoices(int label, String key, String[] labels, int[] values, int fallback, int limit) {
     choices(label, labels, values, graphics.getInt(key, fallback), limit, labels.length, false, fallback, value -> {
@@ -1053,24 +1064,29 @@ final class CoreMenu extends Dialog {
     resolutionChoices();
     graphicsLine = indentedHelp(""); graphicsLine.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(10)); showGraphics();
     // "Display resolution" (1.1.0): the size sent to the screen, the display's scaler stretches it (CoreActivity)
-    graphicChoices(R.string.ingame_output_res, CoreActivity.OUTPUT_RES, new String[] {s(R.string.ingame_native), "1080p",
-        "900p", "720p"}, new int[] {0, 1080, 900, 720}, 0, Integer.MAX_VALUE);
-    indentedHelp(s(R.string.ingame_output_res_help));
+    // (1.1.0, the project owner's third menu round, 21.11.2026) side by side: display resolution | upscaler, MSAA | FXAA,
+    // texture filter | sharper menu text
+    MenuLayout.Buttons outputRow = buttonsRow(labelledOptions(0));
+    graphicChoices(outputRow, R.string.ingame_output_res, CoreActivity.OUTPUT_RES, new String[] {s(R.string.ingame_native),
+        "1080p", "900p", "720p"}, new int[] {0, 1080, 900, 720}, 0, Integer.MAX_VALUE);
     // "Upscaler" (1.1.0): SGSR or FSR instead of the plain stretch when the picture is smaller than its box
-    graphicChoices(R.string.ingame_upscaler, UPSCALER, new String[] {s(R.string.ingame_off), "SGSR", "FSR"},
+    graphicChoices(outputRow, R.string.ingame_upscaler, UPSCALER, new String[] {s(R.string.ingame_off), "SGSR", "FSR"},
         new int[] {0, 1, 2}, 0, Integer.MAX_VALUE);
+    indentedHelp(s(R.string.ingame_output_res_help));
     indentedHelp(s(R.string.ingame_upscaler_help));
-    graphicChoices(R.string.ingame_antialiasing, "samples", new String[] {s(R.string.ingame_off), "2× MSAA", "4× MSAA"},
+    MenuLayout.Buttons aaRow = buttonsRow(labelledOptions(0));
+    graphicChoices(aaRow, R.string.ingame_aa_msaa, "samples", new String[] {s(R.string.ingame_off), "2×", "4×"},
         new int[] {1, 2, 4}, 1, samples);
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_fxaa, graphics.getBoolean("fxaa", false), on -> {
+    toggle(aaRow, R.string.ingame_aa_fxaa, graphics.getBoolean("fxaa", false), on -> {
       graphics.edit().putBoolean("fxaa", on).apply(); CoreBridge.setFxaa(on);
     });
     indentedHelp(s(R.string.ingame_fxaa_help));
-    graphicChoices(R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×", "8×", "16×"},
-        new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
+    MenuLayout.Buttons textureRow = buttonsRow(labelledOptions(0));
+    graphicChoices(textureRow, R.string.ingame_texture_filter, "anisotropy", new String[] {s(R.string.ingame_off), "2×", "4×",
+        "8×", "16×"}, new int[] {1, 2, 4, 8, 16}, 1, anisotropy);
     // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026: "Bitte baue den Schärfefilter für die
     // Schrift auch in 1.0.0 ein."): the game's own menu words drawn sharper at high resolutions; on by default
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_sharper_text, sharperText(graphics), on -> {
+    toggle(textureRow, R.string.ingame_sharper_text, sharperText(graphics), on -> {
       graphics.edit().putBoolean(SHARPER_TEXT, on).apply(); CoreBridge.setSharperText(on);
     });
     indentedHelp(s(R.string.ingame_sharper_text_help));
@@ -1123,11 +1139,13 @@ final class CoreMenu extends Dialog {
     // the picture filters one under the other, one general line under both (wish of the project owner, 02.11.2026)
     LinearLayout filters = labelledOptions(R.string.ingame_filter);
     // the GameCube's own softening for the TV (wish of the project owner, 01.11.2026)
-    toggle(buttonsRow(filters), R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
+    // (1.1.0, the project owner's third menu round) the two side by side
+    MenuLayout.Buttons tvRow = buttonsRow(filters);
+    toggle(tvRow, R.string.ingame_tv_filter, graphics.getBoolean("tvFilter", false), on -> {
       graphics.edit().putBoolean("tvFilter", on).apply(); CoreBridge.setTvFilter(on);
     });
     // the 3D as a PlayStation would have drawn it (wish of the project owner, 02.11.2026)
-    toggle(buttonsRow(filters), R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
+    toggle(tvRow, R.string.ingame_psx, graphics.getBoolean("psx", false), on -> {
       graphics.edit().putBoolean("psx", on).apply(); CoreBridge.setPsx(on);
     });
     // a sharpening for the 16:9 formats, whose 336 rows are enlarged to the screen's height (wish of the project
@@ -1165,9 +1183,16 @@ final class CoreMenu extends Dialog {
     indentedHelp(s(R.string.ingame_colour_help));
     heading(R.string.ingame_optional_features);
     // the current room's outline at the bottom left, turning with the player (wish of the project owner, 04.11.2026)
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
+    // (1.1.0, the project owner's third menu round, 21.11.2026) minimap | photo mode on top, the Information HUD under
+    // them with "Skip intro" beside it
+    MenuLayout.Buttons topRow = buttonsRow(labelledOptions(0));
+    toggle(topRow, R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
     });
+    // "Photo mode" (1.1.0, wish of the project owner, 19.11.2026): L3, the keyboard's P or this menu's button freeze the
+    // game and free the camera (PhotoMode)
+    toggle(topRow, R.string.ingame_photo_mode,
+        graphics.getBoolean(CoreActivity.PHOTO_MODE, false), on -> graphics.edit().putBoolean(CoreActivity.PHOTO_MODE, on).apply());
     // the Information HUD (0.99.11, wish of the project owner, 12.11.2026; before the FPS display, here since
     // 04.11.2026): each press moves it on (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom
     // left, bottom centre, top left, top centre, off again; while it is on, check boxes under it choose what it shows
@@ -1186,6 +1211,10 @@ final class CoreMenu extends Dialog {
       hudHelp.setVisibility(next != 0 ? View.VISIBLE : View.GONE);
       host.fpsChanged(next);
     });
+    // "Skip intro" (1.1.0, wish of the project owner, 19.11.2026: "Beim Start sollen die Introscreens gar nicht gezeigt
+    // werden sondern sofort das Menu"): the game's logos before the title menu, from the next start (RE4_SKIP_INTRO)
+    toggle(hudRow, R.string.ingame_skip_intro,
+        graphics.getBoolean(CoreActivity.SKIP_INTRO, false), on -> graphics.edit().putBoolean(CoreActivity.SKIP_INTRO, on).apply());
     hud.addView(parts, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     hudBox(parts, R.string.ingame_hud_fps, InfoHud.FPS);
     hudBox(parts, R.string.ingame_hud_hz, InfoHud.HZ);
@@ -1194,15 +1223,6 @@ final class CoreMenu extends Dialog {
     hud.addView(hudHelp);
     parts.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
     hudHelp.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
-    // "Skip intro" (1.1.0, wish of the project owner, 19.11.2026: "Beim Start sollen die Introscreens gar nicht gezeigt
-    // werden sondern sofort das Menu"): the game's logos before the title menu, from the next start (RE4_SKIP_INTRO)
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_skip_intro,
-        graphics.getBoolean(CoreActivity.SKIP_INTRO, false), on -> graphics.edit().putBoolean(CoreActivity.SKIP_INTRO, on).apply());
-    // "Photo mode" (1.1.0, wish of the project owner, 19.11.2026): L3, the keyboard's P or this menu's button freeze the
-    // game and free the camera (PhotoMode); right under "Skip intro", the help texts of both below them (the owner's
-    // second device test: "direkt unter dem darüberliegenden Button, ohne Zwischentext")
-    toggle(buttonsRow(labelledOptions(0)), R.string.ingame_photo_mode,
-        graphics.getBoolean(CoreActivity.PHOTO_MODE, false), on -> graphics.edit().putBoolean(CoreActivity.PHOTO_MODE, on).apply());
     help(R.string.ingame_skip_intro_help);
     help(R.string.ingame_photo_mode_help);
   }
@@ -1256,16 +1276,21 @@ final class CoreMenu extends Dialog {
   private void controls() {
     // the touch controls under a heading of their own, a third of the row each (wish of the project owner, 05.11.2026)
     heading(R.string.ingame_touch_controls);
-    rowChoices(new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)},
-        new int[] {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS}, CoreActivity.touchMode(input), 3,
-        mode -> host.touchModeChanged(mode));
-    help(R.string.ingame_touch_help);
+    // (1.1.0, the project owner's third menu round, 21.11.2026) the touch controls and the button style side by side,
+    // both with their names, the helps under them
+    MenuLayout.Buttons touchRow = buttonsRow(body);
+    final int[] touchModes = {TouchShowRule.AUTO, TouchShowRule.FORCE, TouchShowRule.SUPPRESS};
+    selector(touchRow, R.string.ingame_touch_controls, new String[] {s(R.string.ingame_touch_auto),
+        s(R.string.ingame_touch_force), s(R.string.ingame_touch_suppress)}, stepOf(touchModes, CoreActivity.touchMode(input)),
+        0, i -> host.touchModeChanged(touchModes[i]));
     // the touch buttons' look (wishes of the project owner, 09.11.2026 and 17.11.2026): RE, GC, PS2 and XBOX, the same
     // choice as the editor's style button, read each time the page opens
+    into = touchRow;
     choices(R.string.ingame_button_style, new String[] {s(R.string.ingame_button_icons), s(R.string.ingame_button_labels),
         s(R.string.ingame_button_ps2), s(R.string.ingame_button_xbox)},
         new int[] {TouchStyle.RE, TouchStyle.GC, TouchStyle.PS2, TouchStyle.XBOX},
         host == null ? TouchStyle.DEFAULT_LOOK : host.touchLook(), Integer.MAX_VALUE, look -> host.touchLookChanged(look));
+    help(R.string.ingame_touch_help);
     help(R.string.ingame_button_style_help);
     // the gyro in a section of its own, above the comfort controls (wishes of the project owner, 30.10.2026)
     heading(R.string.ingame_motion);
@@ -1314,13 +1339,14 @@ final class CoreMenu extends Dialog {
         on -> host.aimInvertChanged(on), R.string.ingame_aim_speed, CoreActivity.AIM_SPEED_MIN,
         CoreActivity.AIM_SPEED_MAX, CoreActivity.AIM_SPEED_STEP,
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
-    // "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026): off by default, the
-    // whole row, under aiming
-    toggle(buttonsRow(body), R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
+    // "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026): off by default, under
+    // aiming; since the project owner's third menu round (1.1.0) beside "Gentler QTEs"
+    MenuLayout.Buttons lastRow = buttonsRow(body);
+    toggle(lastRow, R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
         on -> host.bodyTurnChanged(on));
     // "Gentler QTEs" (wish of the project owner, 14.11.2026: Professional's quick-time events "not to be done by touch,
-    // just about with a controller"): on by default, the whole row, at the comfort controls' end
-    toggle(buttonsRow(body), R.string.ingame_gentle_qte,
+    // just about with a controller"): on by default, at the comfort controls' end
+    toggle(lastRow, R.string.ingame_gentle_qte,
         input.getBoolean(CoreActivity.GENTLE_QTE, CoreActivity.GENTLE_QTE_DEFAULT), on -> host.gentleQteChanged(on));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
     help(R.string.ingame_always_run_help); help(R.string.ingame_gentle_qte_help); help(R.string.ingame_aim_help);
@@ -2150,11 +2176,12 @@ final class CoreMenu extends Dialog {
     Button sharpness = cellAction(second, "", v -> {
       boolean next = !graphics.getBoolean(TexturePacks.HALF, false);
       graphics.edit().putBoolean(TexturePacks.HALF, next).apply();
-      valueLabel((Button) v, R.string.ingame_hd_sharpness, next ? R.string.ingame_hd_half : R.string.ingame_hd_full, next);
+      // (1.1.0, the project owner's third menu round) "Full" lit, "Half" not
+      valueLabel((Button) v, R.string.ingame_hd_sharpness, next ? R.string.ingame_hd_half : R.string.ingame_hd_full, !next);
       if (host != null) host.graphicsChanged();
       main.postDelayed(this::refreshHd, 500);
     });
-    valueLabel(sharpness, R.string.ingame_hd_sharpness, half ? R.string.ingame_hd_half : R.string.ingame_hd_full, half);
+    valueLabel(sharpness, R.string.ingame_hd_sharpness, half ? R.string.ingame_hd_half : R.string.ingame_hd_full, !half);
     // "Costumes" and "Weapons" (1.0.0, wish of the project owner, 17.11.2026): each press moves it between "Texture
     // pack" (the default) and "Original", the playable characters' (or the weapons') own textures with a pack on
     Button costumes = groupSwitch(second, R.string.ingame_hd_costumes, TexturePacks.COSTUMES);

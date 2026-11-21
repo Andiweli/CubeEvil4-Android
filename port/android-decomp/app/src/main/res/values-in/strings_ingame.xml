@@ -291,7 +291,9 @@
     <string name="ingame_skip_aggressive">Agresif</string>
     <string name="ingame_vk_bandwidth">Hemat bandwidth (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Filter TV GameCube asli</string>
+    <string name="ingame_aa_msaa">Anti-aliasing MSAA</string>
+    <string name="ingame_aa_fxaa">Anti-aliasing FXAA</string>
+    <string name="ingame_tv_filter">Filter TV GameCube</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
     <string name="ingame_sharper_text">Teks menu lebih tajam</string>
     <string name="ingame_sharper_text_help">Teks menu lebih tajam menggambar kata-kata menu bawaan game dengan tepi yang tajam pada resolusi tinggi, dalam semua bahasa.</string>

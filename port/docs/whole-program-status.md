@@ -843,6 +843,21 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   Übersetzungen (535), 11-Sprachen-Breitentest, Bilder `builds/workthread-1.1.0/menu/d1`–`d6` (DE/EN).
   **Nicht auf einem Gerät geprüft** (Finger, Controller, Tastatur).
 
+### 30. Dritte Menü-Runde (Projektinhaber, 21.11.2026)
+
+- **Paare nebeneinander** (D-Pad links/rechts wechselt zwischen den beiden): Ausgabeauflösung | Hochskalierer,
+  „Kantenglättung MSAA“ | „Anti-Aliasing FXAA“ (neue Texte `ingame_aa_msaa` / `ingame_aa_fxaa`; die alten bleiben für
+  die Benchmark-Texte; Werte jetzt „2×“/„4×“), Texturfilter | Schärfere Menüschrift, „GameCube-TV-Filter“ (vorher
+  „Original …“) | Retro-Pixel-Filter, Minikarte | Fotomodus oben, darunter Information HUD | Intro überspringen,
+  Touch-Steuerung (jetzt mit Namen) | Tastenstil, „Leon mit Maus / Blickfeld drehen“ | Sanftere QTEs. Hilfetexte unter
+  dem Paar. Neue Namen in allen 11 Sprachen (z. B. EN „MSAA anti-aliasing“, „FXAA anti-aliasing“, „GameCube TV filter“).
+- **Schärfe** (HD-Texturen): golden bei „Voll“, nicht bei „Halb“.
+- **Spielsprache:** kein Pfeil „→“ mehr vor der Vorschau, immer der reine Name (die Vorschau bleibt kursiv).
+- **Regler-Felder genau 64dp** wie die anderen Felder (Texte ohne Schrift-Zusatzabstand, Regler 22dp); Test mit echter
+  Schriftgröße (`ArrowSelectorTest.sliderCellSteps`, Robolectric NATIVE).
+- **Geprüft am PC:** App-Tests (233), Übersetzungen (537), Bilder `builds/workthread-1.1.0/menu/d1`–`d8` (DE/EN).
+  **Nicht auf einem Gerät geprüft.**
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen

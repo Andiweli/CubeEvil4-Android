@@ -52,7 +52,8 @@ public class ArrowSelectorTest {
       assertTrue("no Off: always lit", lang.isSelected());
       lang.onKeyDown(KeyEvent.KEYCODE_BUTTON_R1, down(KeyEvent.KEYCODE_BUTTON_R1));
       assertEquals(1, lang.index()); assertTrue(lang.isPending()); assertEquals("only a preview", -1, taken[0]);
-      assertTrue(lang.getText().toString().contains("→ English"));
+      // (the project owner's third menu round: the plain name, no arrow before it)
+      assertTrue(lang.getText().toString().endsWith("English")); assertFalse(lang.getText().toString().contains("→"));
       lang.performClick();  // the middle / A: taken
       assertEquals(1, taken[0]); assertFalse(lang.isPending());
       lang.onKeyDown(KeyEvent.KEYCODE_BUTTON_R1, down(KeyEvent.KEYCODE_BUTTON_R1));
@@ -68,6 +69,8 @@ public class ArrowSelectorTest {
   }
 
   /** The slider cell: L1 / R1 step it (each a move of the player), not past its ends, not while its bar is off. */
+  // (real font sizes for the heights)
+  @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
   @Test public void sliderCellSteps() {
     try (var controller = Robolectric.buildActivity(Activity.class).create()) {
       Activity activity = controller.get();
@@ -85,6 +88,16 @@ public class ArrowSelectorTest {
       assertEquals(3, c.bar.getProgress());
       assertFalse("the bar takes no focus", c.bar.isFocusable());
       assertTrue("the cell does", c.isFocusable());
+      // (the project owner's third menu round) exactly as high as an arrow cell: 64dp
+      int width = android.view.View.MeasureSpec.makeMeasureSpec(600, android.view.View.MeasureSpec.EXACTLY);
+      int free = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED);
+      ArrowSelector a = new ArrowSelector(activity, "Name", new String[] {"Off", "On", "More"}, 0, 0);
+      a.setTextSize(16);
+      a.finishLook();
+      c.measure(width, free); a.measure(width, free);
+      int dp64 = Math.round(64 * activity.getResources().getDisplayMetrics().density);
+      assertEquals("the slider cell 64dp", dp64, c.getMeasuredHeight());
+      assertEquals("as the arrow cell", a.getMeasuredHeight(), c.getMeasuredHeight());
     }
   }
 }
