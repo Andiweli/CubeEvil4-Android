@@ -642,13 +642,16 @@ public class CoreMenuLayoutTest {
       assertTrue(extras.getText().toString().contains(activity.getString(R.string.ingame_cheat_extras)));
       qte.performClick(); assertEquals(12, sent[0]);
       qte.performClick(); assertEquals(4, sent[0]);
-      // the case, the money and "Stack items" under them (16.11.2026; 21.11.2026: "Stack items" after the money,
-      // a switch of its own kept in core_game stackItems, the cheat switches untouched)
-      ViewGroup goods = (ViewGroup) body.getChildAt(8);
-      assertEquals(3, goods.getChildCount());
+      // the case and the money under them (16.11.2026), then "Stack items" and "Refill ammo" (21.11.2026; "Stack items"
+      // a switch of its own kept in core_game stackItems, the cheat switches untouched; "Refill ammo" action 10)
+      ViewGroup goods = (ViewGroup) body.getChildAt(8), ammo = (ViewGroup) body.getChildAt(9);
+      assertEquals(2, goods.getChildCount());
+      assertEquals(2, ammo.getChildCount());
       assertTrue(((Button) goods.getChildAt(0)).getText().toString().contains(activity.getString(R.string.ingame_cheat_case)));
       assertTrue(((Button) goods.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_money)));
-      Button stack = (Button) goods.getChildAt(2);
+      assertTrue(((Button) ammo.getChildAt(1)).getText().toString().contains(activity.getString(R.string.ingame_cheat_refill)));
+      assertNotNull(findText(body, activity.getString(R.string.ingame_cheat_refill_help)));
+      Button stack = (Button) ammo.getChildAt(0);
       assertTrue(stack.getText().toString().contains(activity.getString(R.string.ingame_cheat_stack)));
       assertFalse(stack.isSelected());
       stack.performClick();
@@ -660,7 +663,7 @@ public class CoreMenuLayoutTest {
       // "Random items" (0.99.2): on with a seed in bits 11..30, off without one; since 21.11.2026 with "Random enemies"
       // the first row of ENEMIES AND WORLD
       int world = heading(body, activity, R.string.ingame_cheat_section_world);
-      assertTrue(world > 8);
+      assertTrue(world > 9);
       ViewGroup items = (ViewGroup) body.getChildAt(world + 1);
       Button random = (Button) items.getChildAt(0);
       assertTrue(random.getText().toString().contains(activity.getString(R.string.ingame_cheat_random_items)));

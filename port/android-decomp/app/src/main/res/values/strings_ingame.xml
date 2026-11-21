@@ -370,6 +370,9 @@
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
     <string name="ingame_cheat_stack">Stack items</string>
     <string name="ingame_cheat_stack_help">Stack items: ammo, grenades and recovery items (herbs, first aid spray, eggs, fish) stack up to 999 in one slot; treasures stack anyway. Switched off, larger stacks stay and are used up one by one; new pick-ups take a new slot.</string>
+    <string name="ingame_cheat_refill">Refill ammo</string>
+    <string name="ingame_cheat_refill_full">Nothing to refill: no ammo in the case, or all of it is full.</string>
+    <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to its type\'s maximum (with \"Stack items\" on, to 999); no new ammo, the weapons\' loaded rounds stay.</string>
     <string name="ingame_cheats_help">The switches stay on until you switch them off; saves do not keep them. Some attacks still kill Leon at once (chainsaw, grab, boulder). Invisibility: enemies ignore you, bosses and scripted scenes do not. Steady aim: the laser and the scope do not sway. Costumes: Leon\'s jacket keeps Leon in his brown jacket for the whole game; Special dresses Leon and Ashley in their special outfits. The buttons change your game: weapons, the case and the money stay in your next save. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>

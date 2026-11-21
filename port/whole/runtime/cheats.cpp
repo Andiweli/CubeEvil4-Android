@@ -36,6 +36,10 @@
 //   3 +1 000 000 pesetas (addMoney: at most 99 999 999; decision 2)
 //   5..9 more weapons at their highest levels (wish of the project owner, 01.11.2026; kGifts): Handcannon,
 //     Chicago Typewriter, the endless rocket launcher, the Mine Thrower with its scope, Matilda
+//   10 refill ammo (1.1.0, the project owner, 21.11.2026: "Aktuelle Slots mit Munition im Koffer sollen bis zu deren
+//     aktuellem Maximum pro Munitionsart gefuellt werden. Nutzt man den 999 Stack Cheat wird bis 999 aufgefuellt."):
+//     every ammo slot (item type 2) in the case to itemMaxNum (999 with "Stack items", patch 0254); no new slots, the
+//     weapons' loaded rounds stay; 2 when there was nothing to fill
 // One button anywhere (pSys only; wish of the project owner, 29.10.2026), the app restarts the game after
 // a question so the title menu shows it:
 //   4 unlock the extra games: what clearing the game sets (r333.cpp, the end of the last room) for
@@ -91,6 +95,7 @@
 #include <string.h>
 
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" int re4_stack_items(void);  // below (patch 0254)
 extern "C" int re4_bench_freeze(void);  // runtime/benchmark.cpp: 1 while the benchmark goes to or is at its place
 extern "C" void re4_formats_part_loaded(const char* name, int nest, int index, const void* part, unsigned addr);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
@@ -163,6 +168,8 @@ const char* actionName(int what)
         return "+1000000 pesetas";
     case 4:
         return "extra games";
+    case 10:
+        return "refill ammo";
     }
     return "?";
 }
@@ -1381,6 +1388,26 @@ int re4CheatPerform(int what)
         addMoney(1000000);
         re4_log("cheat: %s: %u pesetas", actionName(what), (unsigned) pG->peseta);
         break;
+    case 10: {
+        int slots = 0, filled = 0, rounds = 0;
+        cItem* p = ItemMgr.m_pItem;
+        for (int i = 0; p && i < ItemMgr.m_array_num; i++, p++) {
+            if (!(p->flags & 1) || itemType(p->id) != 2) {
+                continue;
+            }
+            slots++;
+            const u16 max = itemMaxNum(p->id);
+            if (p->num < max) {
+                rounds += max - p->num;
+                p->num = max;
+                filled++;
+            }
+        }
+        re4_log("cheat: %s: %d of %d ammo slots filled up, %d rounds (to %s)", actionName(what), filled, slots, rounds,
+                re4_stack_items() ? "999 each, stack items on" : "each type's maximum");
+        result = filled ? 1 : 2;
+        break;
+    }
     default:
         return 0;
     }

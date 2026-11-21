@@ -2106,12 +2106,16 @@ final class CoreMenu extends Dialog {
     // the case and the money under them (the project owner, 16.11.2026), then "Stack items" (1.1.0, the project owner,
     // 21.11.2026: "nach +1,000,000 PTAS"; patch 0254)
     final SharedPreferences game = getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE);
-    MenuLayout.Buttons inventory = cheatRow(3);
+    MenuLayout.Buttons inventory = cheatRow(2);
     cheatButton(inventory, 2, R.string.ingame_cheat_case);
     cheatButton(inventory, 3, R.string.ingame_cheat_money);
-    toggle(inventory, R.string.ingame_cheat_stack, game.getBoolean(CoreActivity.STACK_ITEMS, false),
+    // "Refill ammo" beside it (1.1.0, the project owner, 21.11.2026: "Munition auffüllen", runtime/cheats.cpp action 10)
+    MenuLayout.Buttons ammo = cheatRow(2);
+    toggle(ammo, R.string.ingame_cheat_stack, game.getBoolean(CoreActivity.STACK_ITEMS, false),
         on -> host.stackItemsChanged(on));
+    cheatButton(ammo, 10, R.string.ingame_cheat_refill);
     help(R.string.ingame_cheat_stack_help);
+    help(R.string.ingame_cheat_refill_help);
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     body.addView(cheatStatus);
@@ -2441,7 +2445,8 @@ final class CoreMenu extends Dialog {
         }
         String text;
         if (done == 1) text = getContext().getString(R.string.ingame_cheat_done, s(label));
-        else if (done == 2 && (what == 1 || what >= 5)) text = getContext().getString(R.string.ingame_cheat_raised, s(label));
+        else if (done == 2 && what == 10) text = s(R.string.ingame_cheat_refill_full);
+        else if (done == 2 && (what == 1 || (what >= 5 && what <= 9))) text = getContext().getString(R.string.ingame_cheat_raised, s(label));
         else if (done == 2) text = getContext().getString(R.string.ingame_cheat_already, s(label));
         else if (done == 0) text = s(R.string.ingame_cheat_not_now);
         else if (done == -1) text = s(R.string.ingame_cheat_no_room);

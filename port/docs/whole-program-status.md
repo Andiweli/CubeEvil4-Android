@@ -722,6 +722,15 @@ kam aus r11e).
   wird bei 0 frei), Neues kommt auf einen neuen Platz; das Inventar zeigt die Anzahl solcher Stapel weiter
   (`ss_item.cpp`: vorher nur, wo mehr als eins auf einen Platz passt). Texte in 11 Sprachen (531).
 - **Reihenfolge:** „Zufällige Gegenstände“ und „Zufällige Gegner“ sind die erste Reihe von „Gegner und Umgebung“.
+- **Munition auffüllen** (Projektinhaber, 21.11.2026: „Aktuelle Slots mit Munition im Koffer sollen bis zu deren
+  aktuellem Maximum pro Munitionsart gefüllt werden. Nutzt man den 999 Stack Cheat wird bis 999 aufgefüllt.“): ein
+  Knopf neben „Gegenstände stapeln“ (Reihe darunter: Koffer und Geld wie bisher, dann Stapeln und Auffüllen).
+  `cheats.cpp` Aktion 10 (`core_api.cpp` nimmt 1..10): jeder Platz im Koffer mit Munition (Typ 2) auf `itemMaxNum`
+  (mit „Gegenstände stapeln“ 999); keine neuen Plätze, die geladenen Patronen der Waffen bleiben (der Inhaber sprach
+  von den Plätzen im Koffer). Nur mit Leon (oder einem Stellvertreter) im Raum, nicht im Koffer/Karte/Film (wie
+  „+1,000,000 PTAS“, sonst „Not now“); nichts aufzufüllen: eigene Meldung. Geprüft am PC (Debug-Disc r100,
+  `RE4_TEST_ITEM_GET` + `RE4_TEST_CHEATS`): ohne Stapeln 3 von 3 Plätzen, 75 Schuss; mit Stapeln 3 von 3, 2957 Schuss
+  (3 × 999 − 40); ein zweiter Druck füllt nichts. Texte in 11 Sprachen (534). **Nicht auf einem Gerät geprüft.**
 - **Geprüft am PC:** Kern i686 0 Fehler, Laufzeit- und Kerntests bestanden (neu: `core-test stack-items`, die
   Grenzen der Tabelle aus und an); App-Tests 229 (4 übersprungen) bestanden; Bilder
   `builds/workthread-1.1.0/menu/c1`–`c3` (DE/EN). **Nicht geprüft:** ein Spiellauf mit Aufheben und Benutzen

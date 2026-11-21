@@ -352,6 +352,9 @@
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Gegenstände stapeln</string>
     <string name="ingame_cheat_stack_help">Gegenstände stapeln: Munition, Granaten und Heilmittel (Kräuter, Erste-Hilfe-Spray, Eier, Fische) stapeln sich bis 999 auf einem Platz; Schätze stapeln sich ohnehin. Ausgeschaltet bleiben größere Stapel erhalten und werden Stück für Stück verbraucht; Neues kommt dann auf einen neuen Platz.</string>
+    <string name="ingame_cheat_refill">Munition auffüllen</string>
+    <string name="ingame_cheat_refill_full">Nichts aufzufüllen: keine Munition im Koffer, oder alles ist voll.</string>
+    <string name="ingame_cheat_refill_help">Munition auffüllen: Jeder Munitionsstapel im Koffer wird bis zum Maximum seiner Sorte gefüllt (mit „Gegenstände stapeln“ bis 999); keine neue Munition, die geladenen Patronen der Waffen bleiben.</string>
     <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; Spielstände merken sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Unsichtbarkeit: Gegner beachten dich nicht, Bosse und feste Szenen schon. Atemstopp beim Zielen: Laser und Zielfernrohr wackeln nicht. Kostüme: Leons Jacke lässt Leon das ganze Spiel über seine braune Jacke tragen; Spezial zieht Leon und Ashley ihre Spezialkostüme an. Die Knöpfe ändern dein Spiel: Waffen, Koffer und Geld bleiben im nächsten Spielstand. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü.</string>
     <string name="ingame_cheat_done">Erledigt: %1$s.</string>
     <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>

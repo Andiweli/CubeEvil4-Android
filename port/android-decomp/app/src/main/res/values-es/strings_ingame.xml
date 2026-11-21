@@ -355,6 +355,9 @@
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Apilar objetos</string>
     <string name="ingame_cheat_stack_help">Apilar objetos: la munición, las granadas y los objetos curativos (hierbas, spray de primeros auxilios, huevos, peces) se apilan hasta 999 en una casilla; los tesoros se apilan de todos modos. Al desactivarlo, las pilas mayores se conservan y se gastan una a una; lo que recojas después ocupa una casilla nueva.</string>
+    <string name="ingame_cheat_refill">Rellenar munición</string>
+    <string name="ingame_cheat_refill_full">Nada que rellenar: no hay munición en el maletín, o ya está llena.</string>
+    <string name="ingame_cheat_refill_help">Rellenar munición: cada pila de munición del maletín se llena hasta el máximo de su tipo (con «Apilar objetos» activado, hasta 999); no se añade munición nueva y las balas cargadas en las armas no cambian.</string>
     <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; las partidas guardadas no los conservan. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Invisibilidad: los enemigos te ignoran; los jefes y las escenas fijas, no. Puntería estable: el láser y la mira telescópica no oscilan. Trajes: Chaqueta de Leon mantiene a Leon con su chaqueta marrón todo el juego; Especial viste a Leon y Ashley con sus trajes especiales. Los botones cambian tu partida: las armas, el maletín y el dinero quedan en tu próxima partida guardada. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal.</string>
     <string name="ingame_cheat_done">Hecho: %1$s.</string>
     <string name="ingame_cheat_already">Ya lo tienes: %1$s.</string>
