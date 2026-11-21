@@ -1,0 +1,15 @@
+# Port patch: control code 0x0A shows the number setNumber gave the message window; a message that shows it before
+# any setNumber divided by digit 0. The GameCube's divide does not stop the game there (its result is undefined);
+# x86 traps (SIGFPE) and ARM's run-time divide may too. Reachable since patch 0246: the shooting gallery's set bonus (message
+# 0xE of the debug disc's r22c has a number) when no cap was won in that visit. The digit shows as 0 now.
+--- a/src/game/mes.cpp
++++ b/src/game/mes.cpp
+@@ -1439,7 +1439,7 @@
+     if (m_pMque >= m_queue + 0x100) {
+         return 2;
+     }
+-    d = m_number / digit;
++    d = digit != 0 ? m_number / digit : 0;  /* port (patch 0248): no number set (digit 0) traps on the PC */
+     if (d > 9) {
+         d = 0;
+     }

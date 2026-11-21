@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0246 (0245 größerer Raum-Heap, 0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+Nächste freie Patch-Nummer: 0255 (0254 Cheat „Gegenstände stapeln“, 0248 Meldungszahl nicht gesetzt, 0247 Kappen-Vitrine ohne Debug-Taste, 0246 Schießstand wie das fertige Spiel; 0249–0253 frei; 0245 größerer Raum-Heap, 0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -591,6 +591,53 @@ Vulkan liegen Schatten und Streifen auf Krausers Körper, mit OpenGL ES nicht; d
 - Fehlerprotokoll: zuerst als „immer an“ gebaut, auf Rückmeldung des Projektinhabers (21.11.: „soll per default aktiv
   sein, nicht nicht mehr verfügbar sein“) wieder der Schalter wie bisher, standardmäßig an (unverändert seit jeher).
 - Bilder `builds/workthread-1.1.0/menu/b1`–`b5` (DE/EN); App-Tests bestanden. **Nicht auf einem Gerät geprüft.**
+
+### 23. Schießstand (r22c): Fehler des Prototyps behoben (Spielerbericht, 20.11.2026)
+
+Spielerbericht (ohne Log): „the order of the enemies does not change. It does not progress beyond 5 targets, even if
+you achieve a score of 4500“ und „B on an empty slot … immediately unlocks the Bottle Caps character“. Ursache: der
+Code des Schießstands im Prototyp (Debug-Disc, trifft die SHA1) war noch nicht fertig. Verglichen mit der
+Verkaufsversion (US-Disc, `Rel/st2_4.rel` und `Rel/Sscrn.rel`, Befehl für Befehl mit einem kleinen
+PowerPC-Disassembler, `checkBottleCap`, `getCap`, `r22c_checkGame`, `getBonus`, `R22cHitMark`, `R22cInit`,
+`CapSelect::move`). Entscheidung des Projektinhabers vom 22.10.2026: Fehler des Prototyps, die das fertige Spiel nicht
+hat, werden behoben.
+
+**Patch 0246** (`src/st2/r22c.cpp`, „a bug of the prototype“):
+- Zweites Spiel (Typ B, andere Ziele und Reihenfolge): kam nur in Level A und B, und nur mit Kappen anderer Level
+  (A: Kappen 9 und 10, B: 14 und 17), in C und D nie. Jetzt wie im fertigen Spiel: in jedem Level, sobald drei der fünf
+  Kappen dieses Levels da sind.
+- Sechste (Sonder-)Kappe: Der Prototyp nahm die Gegenstandsnummer 0xF0..0xF3 als Kappennummer (schrieb `cap[0xEF]`
+  hinter die Arbeitsdaten, gab Gegenstand 0x1CB: kam nie an) und nur im zweiten Spiel. Jetzt wie im fertigen Spiel:
+  Kappe 21..24 (Gegenstände 0xF0..0xF3), wenn noch nicht vorhanden, für 4000 Punkte oder mehr, oder mehr als 24 Treffer
+  ohne die Ashley-Scheibe zu treffen, in beiden Spielen (Treffer auf die Ashley-Scheibe gezählt, wie dort bei 0x48).
+- Set-Bonus (sechs Kappen): Der Prototyp zählte sechs Kappen am Stück (für A brauchte man eine von B); jetzt die fünf
+  Kappen eines Levels und seine Sonderkappe, die Zeile der Vitrine, wie im fertigen Spiel.
+- Debug-Reste, die das fertige Spiel nicht hat, entfernt: „GIVE UP: (X) button“ (X beendete das Spiel sofort, bevor
+  seine Ziele kamen), X beim Start (Levelwahl), L+R+Y (alle 24 Kappen), L oder ein Sprungpunkt beim Betreten (Level
+  D/B/C). Punkte zählen nur, solange das Spiel läuft (Schritt 2), wie dort.
+- Burg-Eingang aus r31d: bot nur Spiel A an; jetzt alle vier wie aus r305 (die Rauminitialisierung kannte r31d schon).
+
+**Patch 0247** (`src/Sscrn/ss_cap.cpp`): In der Kronkorken-Vitrine gab X auf einem leeren Fach sofort dessen Kappe
+(Debug-Taste des Prototyps; die Verkaufsversion prüft diese Taste nicht mehr). Entfernt.
+
+**Patch 0248** (`src/game/mes.cpp`, Port-Patch): Steuercode 0x0A (Zahl im Text) teilte durch 0, wenn vorher keine Zahl
+gesetzt war; der GameCube hält dabei nicht an, x86 bricht ab (SIGFPE), ARMs Laufzeit-Division vielleicht auch. Seit 0246
+erreichbar: Set-Bonus-Meldung 0xE der Debug-Disc, wenn bei diesem Besuch keine Kappe gewonnen wurde. Die Ziffer zeigt
+jetzt 0.
+
+Testhilfen (`runtime/state_trace.cpp`): `RE4_TEST_ITEM_GET="free+N:ID[,ID...]"` (Gegenstände geben, danach eine Zeile bei
+jeder Änderung des Szenario-Flag-Worts 1) und `RE4_TEST_AT_EXEC="free+N:NO[,…]"` (den Ablauf eines Auslösebereichs
+starten, wie `SceAtExecute`; der A-Knopf am Tresen griff nach dem Hinsetzen nicht).
+
+- **Geprüft am PC** (i686, eigener Baum): Kern 0 Fehler, Stubs wie erwartet, Laufzeit- und Kerntests bestanden.
+  Schießstand per Debug-Start, Spiel über den Tresen (Bereich 0) gestartet, Handfeuerwaffe gewählt: ohne Kappen
+  Spiel A (25 Ziele, erstes bei x 0 z −22000), Debug- und EU-Disc; mit den Kappen 1–3 Spiel B (22 Ziele, erstes bei
+  x −2500 z −26000), Debug- und EU-Disc; mit den Kappen 9 und 10 (die alte Bedingung) Spiel A. Set-Bonus über das
+  Spielende beim Händler: Zeile A (0xDC–0xE0 + 0xF0) setzt Bit 8, Zeile D (0xEB–0xEF + 0xF3, EU) Bit 1, sechs Kappen am
+  Stück (0xDC–0xE1) nichts; Debug-Disc vor Patch 0248 Absturz in `Message::code0a`, danach keiner. Raumrundgang r22c,
+  r204, r211, r220, r305, r31d mit Debug- und EU-Discs: je 6 von 6 ohne Fehler (ALLES OK).
+- **Nicht am PC geprüft:** die Sonderkappe (dafür müssten 4000 Punkte erschossen werden), die Vitrine ohne X-Kappe, der
+  Eingang aus r31d (der Debug-Start setzt keinen Vorraum). **Nicht auf einem Gerät geprüft.**
 
 ### 24. Seilbahn (r10f) auf einem Snapdragon 460: ~20 FPS mit Blick in Fahrtrichtung (Spielerbericht vom 21.11.2026)
 

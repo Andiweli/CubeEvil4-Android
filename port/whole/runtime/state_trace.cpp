@@ -170,6 +170,13 @@
 //   RE4_TEST_FILL_CASE="free+N:ID[,ID...]"  N frames after the player is free, item ID (0x.., up to four kinds) put into the case as a found
 //                          item goes in (PutInCase) again and again until there is no room: a full case (the
 //                          app's own items into the case only where there is room, 0.99.10)
+//   RE4_TEST_ITEM_GET="free+N:ID[,ID...]"  N frames after the player is free, the items ID (0x.., up to eight) are
+//                          got as the game gives a prize (cItemMgr::get(id, 0): key items and treasures too, the
+//                          shooting gallery's bottle caps 0xDC..0xF3; patch 0246, 21.11.2026); from then on a
+//                          line whenever the scenario flag word 1 changes (the caps' set bonuses: bits 8/4/2/1)
+//   RE4_TEST_AT_EXEC="free+N:NO[,free+M:NO]..."  N frames after the player is free, trigger area NO's handler runs
+//                          as the game's own SceAtExecute starts it (up to four; without walking there and
+//                          the action button: r22c's game at the counter, area 0; patch 0246, 21.11.2026)
 //   RE4_TEST_STA="F[,F...]"  while the first room loads, the status flags F (Status_flg, numbers as
 //                          in global.h) are set before its init runs: STA_SUB_ASHLEY (Ashley with Leon,
 //                          02.11.2026)
@@ -736,6 +743,12 @@ long g_itemUseAfter = -1;    // RE4_TEST_ITEM_USE
 int g_itemUseId;
 long g_itemLoseAfter[8] = {-1, -1, -1, -1, -1, -1, -1, -1};  // RE4_TEST_ITEM_LOSE (up to eight)
 long g_fillAfter = -1;       // RE4_TEST_FILL_CASE
+long g_itemGetAfter = -1;    // RE4_TEST_ITEM_GET
+bool g_itemGetWatch = false;  // (the scenario flag word 1 watched from then on)
+u32 g_itemGetFlags = 0;
+long g_atExecAfter[4] = {-1, -1, -1, -1};  // RE4_TEST_AT_EXEC
+int g_atExecNo[4];
+int g_itemGetId[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
 int g_fillId[4] = {-1, -1, -1, -1};
 unsigned g_rsfRoom;          // RE4_TEST_RSF
 int g_sta[8], g_staCount;    // RE4_TEST_STA
@@ -2368,6 +2381,29 @@ void frame(unsigned n)
         re4_log("run: the player's head comes off at frame %u (RE4_TEST_HEAD_LOST), player type %u", n,
                 (unsigned) pG->pl_type);
     }
+    for (int k = 0; k < 4; k++) {
+        if (g_atExecAfter[k] < 0 || g_freeAt < 0 || (long) n < g_freeAt + g_atExecAfter[k]) {
+            continue;
+        }
+        g_atExecAfter[k] = -1;
+        SceAtExecute(g_atExecNo[k]);
+        re4_log("run: area %d's handler started (RE4_TEST_AT_EXEC) at frame %u", g_atExecNo[k], n);
+    }
+    if (g_itemGetWatch && pG->Scenario_flg[1] != g_itemGetFlags) {
+        re4_log("run: scenario flag word 1 0x%08x -> 0x%08x at frame %u (RE4_TEST_ITEM_GET)", g_itemGetFlags,
+                pG->Scenario_flg[1], n);
+        g_itemGetFlags = pG->Scenario_flg[1];
+    }
+    if (g_itemGetAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_itemGetAfter) {
+        g_itemGetAfter = -1;
+        g_itemGetWatch = true;
+        g_itemGetFlags = pG->Scenario_flg[1];
+        for (int k = 0; k < 8 && g_itemGetId[k] >= 0; k++) {
+            ItemMgr.get((ITEM_ID) g_itemGetId[k], 0);
+            re4_log("run: item 0x%02x got (RE4_TEST_ITEM_GET) at frame %u, now %u", g_itemGetId[k], n,
+                    (unsigned) ItemMgr.num(g_itemGetId[k]));
+        }
+    }
     if (g_fillAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_fillAfter) {
         g_fillAfter = -1;
         for (int k = 0; k < 4 && g_fillId[k] >= 0; k++) {
@@ -3021,6 +3057,29 @@ void configure()
             if (end == at) {
                 g_rsfCount--;
                 break;
+            }
+        }
+    }
+    const char* atExec = getenv("RE4_TEST_AT_EXEC");
+    for (int k = 0; k < 4 && atExec && strncmp(atExec, "free+", 5) == 0; k++) {
+        char* end = 0;
+        g_atExecAfter[k] = strtol(atExec + 5, &end, 10);
+        g_atExecNo[k] = end && *end == ':' ? (int) strtol(end + 1, &end, 0) : -1;
+        if (g_atExecNo[k] < 0) {
+            g_atExecAfter[k] = -1;
+            break;
+        }
+        atExec = end && *end == ',' ? end + 1 : 0;
+    }
+    if (const char* get = getenv("RE4_TEST_ITEM_GET")) {
+        if (strncmp(get, "free+", 5) == 0) {
+            char* end = 0;
+            g_itemGetAfter = strtol(get + 5, &end, 10);
+            for (int k = 0; k < 8 && end && (*end == ':' || *end == ','); k++) {
+                g_itemGetId[k] = (int) strtol(end + 1, &end, 0);
+            }
+            if (g_itemGetId[0] < 0) {
+                g_itemGetAfter = -1;
             }
         }
     }
