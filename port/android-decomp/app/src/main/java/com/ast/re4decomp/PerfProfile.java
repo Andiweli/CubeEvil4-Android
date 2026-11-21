@@ -211,10 +211,14 @@ final class PerfProfile {
     v[CORES] = 1;
     // the processor busy or near its end: the game's own frame skip (Aggressive, patch 0227) keeps the game's pace
     // where a picture takes too long; Normal only helps a graphics chip that is behind (0.99.12)
+    // Low (1.1.0, the project owner after a user's cable car on a Snapdragon 460, 21.11.2026: "Nimm bei Low Auto Frame
+    // Skip dazu und die Sichtweite etwas runter aber nicht auf None"): frame skip "Auto" (3: both frame skips only while
+    // the game is under 30) and the view distance "Short" (2, 50 %; before Medium 65 %, Short only for a weak processor;
+    // never "None")
     if (profile == LOW) {
-      v[SKIP] = cpu || tight ? 2 : 1;
+      v[SKIP] = 3;
       v[WEATHER] = 0; v[SPECIAL] = 0; v[PARTICLES] = 1; v[SHADOWS] = 0;
-      v[VIEW] = cpu ? 2 : 1;
+      v[VIEW] = CoreBridge.VIEW_SHORT;
     } else {
       v[SKIP] = smooth ? 0 : cpu || tight ? 2 : 1;
       v[WEATHER] = 1; v[SPECIAL] = 1; v[PARTICLES] = 0; v[SHADOWS] = 1;

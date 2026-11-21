@@ -683,6 +683,16 @@ kam aus r11e).
   `gx_chunk_render`. **Nicht auf einem Gerät geprüft**, ob sein Kernel `cpu_capacity` lesen lässt (Android-Kernel mit
   EAS haben es; sonst bleibt es beim Takt).
 
+- **Profil „Low“ angepasst** (Projektinhaber, 21.11.2026: „Nimm bei Low Auto Frame Skip dazu und die Sichtweite etwas
+  runter aber nicht auf None.“; `PerfProfile.values`): Frame skip jetzt „Auto“ (vorher „Normal“, bei schwachem oder
+  knappem Prozessor „Aggressive“); Sichtweite jetzt immer „Short“ (50 %; vorher „Medium“ 65 %, „Short“ nur bei
+  schwachem Prozessor, der also schon auf der kürzesten Stufe vor „None“ war). Gemessen am PC (Debug-Disc r10f, Leon
+  an der Startstelle, sieben Blickrichtungen, Zeichenaufträge je Bild): Blick in Fahrtrichtung 100 % 747, 65 % (altes
+  Low) 747, 50 % (neues Low) 626 (−16 %); die anderen Richtungen unverändert. Was „Auto“ bringt (das Spiel läuft in
+  voller Geschwindigkeit weiter, statt langsamer zu werden, wenn es unter 30 fällt), zeigt erst das Gerät. Wer „Low“
+  schon gewählt hat, behält seine Werte, bis er „Low“ erneut wählt (der Profil-Abgleich vergleicht mit den beim Wählen
+  gesetzten Werten). Kein Text im Menü geändert (die Hilfe nennt keine Einzelwerte). App-Tests 229 bestanden.
+
 ### 25. Lebensbalken: nur in der Nähe, weich ein- und ausblenden (Projektinhaber, 21.11.2026: „erst ab einer gewissen Entfernung einblenden und einfaden. Nicht hart einblenden.“)
 
 `runtime/health_bars.cpp`, kein neuer Patch, kein Schalter.

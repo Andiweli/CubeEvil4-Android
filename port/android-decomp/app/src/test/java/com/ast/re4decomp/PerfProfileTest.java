@@ -85,7 +85,7 @@ public class PerfProfileTest {
     assertTrue(PerfProfile.cpuWeak(a13, NONE));
     assertEquals(PerfProfile.LOW, PerfProfile.recommend(a13, bench(4, 2)));
     int[] low = PerfProfile.values(PerfProfile.LOW, a13, bench(4, 2));
-    assertEquals(2, low[PerfProfile.SKIP]);
+    assertEquals("Low: frame skip Auto (1.1.0)", 3, low[PerfProfile.SKIP]);
     assertEquals(2, low[PerfProfile.VIEW]);
     assertEquals(1, low[PerfProfile.CORES]);
     assertEquals(0, low[PerfProfile.WEATHER]);
@@ -111,7 +111,7 @@ public class PerfProfileTest {
     assertFalse(PerfProfile.cpuTight(dew, busy));
     assertEquals(PerfProfile.LOW, PerfProfile.recommend(dew, busy));
     int[] low = PerfProfile.values(PerfProfile.LOW, dew, busy);
-    assertEquals(2, low[PerfProfile.SKIP]);
+    assertEquals(3, low[PerfProfile.SKIP]);
     assertEquals(2, low[PerfProfile.VIEW]);
     assertEquals(R.string.ingame_limit_cpu, BenchmarkFlow.limitText(dew, busy));
     // Medium chosen by hand on that phone: Aggressive frame skip, a medium view, no 60 FPS
@@ -124,8 +124,15 @@ public class PerfProfileTest {
     assertFalse(PerfProfile.cpuWeak(dew, tight));
     assertTrue(PerfProfile.cpuTight(dew, tight));
     assertEquals(PerfProfile.LOW, PerfProfile.recommend(dew, tight));
-    assertEquals(2, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.SKIP]);
-    assertEquals("Low keeps the medium view when only tight", 1, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.VIEW]);
+    assertEquals(3, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.SKIP]);
+    // 1.1.0 (the project owner, 21.11.2026): Low always "Short" (50 %), never "None"; Auto frame skip
+    assertEquals("Low: Short also when only tight", 2, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.VIEW]);
+    for (PerfProfile.Bench any : new PerfProfile.Bench[] {old, busy, tight, bench(8, 8)}) {
+      int[] l = PerfProfile.values(PerfProfile.LOW, dew, any);
+      assertEquals(3, l[PerfProfile.SKIP]);
+      assertEquals(CoreBridge.VIEW_SHORT, l[PerfProfile.VIEW]);
+      assertNotEquals(CoreBridge.VIEW_VERY_SHORT, l[PerfProfile.VIEW]);
+    }
     assertEquals(R.string.ingame_limit_both, BenchmarkFlow.limitText(dew, tight));
     // a phone whose graphics chip allows High, the processor near its end: Medium, without 60 FPS, Aggressive skip
     PerfProfile.Device mid = dev("Mali-G57 MC2", 8, 2, 2200, 5673, 60, 720);
