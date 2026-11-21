@@ -370,6 +370,31 @@ final class PerfProfile {
     e.apply();
   }
 
+  /** GRAPHICS_PREFS: the 1.1.0 values of Low were given once (updateLow). */
+  static final String LOW_UPDATED = "perfLowUpdated110";
+
+  /**
+   * An update from before 1.1.0 (the project owner, 21.11.2026: "Ja automatisch"): a player whose "Low" is still active
+   * as it was set (no setting changed by hand since) gets Low's new values once: frame skip "Auto" and the view
+   * distance "Short" (values(), LOW); the other settings stay as they are. A player who changed a setting after Low
+   * (Custom active, or values other than the ones Low set) keeps their own. Returns whether Low was updated.
+   */
+  static boolean updateLow(SharedPreferences g) {
+    if (g.getBoolean(LOW_UPDATED, false)) return false;
+    SharedPreferences.Editor e = g.edit().putBoolean(LOW_UPDATED, true);
+    int[] applied = read(g, APPLIED_PREFIX);
+    int[] now = current(g);
+    boolean low = active(g) == LOW && applied != null && Arrays.equals(applied, now);
+    if (low) {
+      now[SKIP] = 3;
+      now[VIEW] = CoreBridge.VIEW_SHORT;
+      write(e, "", now);
+      write(e, APPLIED_PREFIX, now);
+    }
+    e.apply();
+    return low;
+  }
+
   /** A hand change of a profile's setting: Custom active, with the values as they are (returns the active one). */
   static int sync(SharedPreferences g) {
     int a = active(g);

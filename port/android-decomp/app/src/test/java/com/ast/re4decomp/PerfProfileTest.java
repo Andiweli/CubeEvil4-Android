@@ -278,6 +278,58 @@ public class PerfProfileTest {
     assertEquals(PerfProfile.LOW, PerfProfile.sync(g));
   }
 
+  /** 1.1.0 (the project owner, 21.11.2026: "Ja automatisch"): an unchanged Low of before takes Low's new frame skip
+   *  (Auto) and view distance (Short) once; Low changed by hand, Custom and the other profiles keep their values. */
+  @Test public void anUnchangedLowTakesTheNewValuesOnce() {
+    android.app.Application app = RuntimeEnvironment.getApplication();
+    // Low as 1.0.0 set it (frame skip Normal, view distance Medium), unchanged since
+    SharedPreferences g = app.getSharedPreferences("perf-low-1", Context.MODE_PRIVATE);
+    g.edit().clear().commit();
+    int[] old = PerfProfile.values(PerfProfile.LOW, dev("OpenGL ES 3.2, Mali-G52", 8, 2, 2000, 3800, 60), bench(3, 1));
+    old[PerfProfile.SKIP] = 1;
+    old[PerfProfile.VIEW] = 1;
+    PerfProfile.choose(g, PerfProfile.LOW, old);
+    assertTrue(PerfProfile.updateLow(g));
+    int[] now = PerfProfile.current(g);
+    assertEquals("frame skip Auto", 3, now[PerfProfile.SKIP]);
+    assertEquals(3, CoreMenu.frameSkipMode(g));
+    assertEquals("view distance Short", CoreBridge.VIEW_SHORT, now[PerfProfile.VIEW]);
+    for (int i = 0; i < old.length; i++) {
+      if (i != PerfProfile.SKIP && i != PerfProfile.VIEW) assertEquals("the rest unchanged: " + i, old[i], now[i]);
+    }
+    assertEquals("Low still active", PerfProfile.LOW, PerfProfile.active(g));
+    assertEquals("and not taken for a hand change", PerfProfile.LOW, PerfProfile.sync(g));
+    // once: a later change by hand is not undone at the next start
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, 0).commit();
+    assertFalse(PerfProfile.updateLow(g));
+    assertEquals(0, PerfProfile.current(g)[PerfProfile.VIEW]);
+
+    // Low, then a setting changed by hand (the menu made it Custom): kept
+    SharedPreferences h = app.getSharedPreferences("perf-low-2", Context.MODE_PRIVATE);
+    h.edit().clear().commit();
+    PerfProfile.choose(h, PerfProfile.LOW, old.clone());
+    h.edit().putBoolean("weatherEffects", true).commit();
+    assertEquals(PerfProfile.CUSTOM, PerfProfile.sync(h));
+    int[] mine = PerfProfile.current(h);
+    assertFalse(PerfProfile.updateLow(h));
+    assertArrayEquals(mine, PerfProfile.current(h));
+    // Low still marked active, but a value differs from what Low set (no sync yet): kept too
+    SharedPreferences k = app.getSharedPreferences("perf-low-3", Context.MODE_PRIVATE);
+    k.edit().clear().commit();
+    PerfProfile.choose(k, PerfProfile.LOW, old.clone());
+    k.edit().putInt("samples", 2).commit();
+    assertFalse(PerfProfile.updateLow(k));
+    assertEquals(1, PerfProfile.current(k)[PerfProfile.SKIP]);
+    // Medium: untouched
+    SharedPreferences m = app.getSharedPreferences("perf-low-4", Context.MODE_PRIVATE);
+    m.edit().clear().commit();
+    int[] medium = old.clone();
+    medium[PerfProfile.WEATHER] = 1;
+    PerfProfile.choose(m, PerfProfile.MEDIUM, medium);
+    assertFalse(PerfProfile.updateLow(m));
+    assertArrayEquals(medium, PerfProfile.current(m));
+  }
+
   @Test public void theChipsNameFromTheRenderersText() {
     assertEquals("Mali-G57 MC2", PerfProfile.gpuName(
         "Device and driver: Vulkan 1.3.303 (used as 1.1), Mali-G57 MC2 (vendor 0x13b5, device 0x90930010)"));

@@ -2833,6 +2833,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         Log.i(TAG, "performance profiles: a benchmark of before 0.99.14 (no reserve for the GPU): measured again once "
             + "the title's menu waits");
       }
+      // 1.1.0: an unchanged "Low" takes Low's new values once (frame skip Auto, view distance Short)
+      if (PerfProfile.updateLow(g)) {
+        Log.i(TAG, "performance profiles: Low unchanged since chosen, its 1.1.0 values set (frame skip Auto, view Short)");
+      }
       return;
     }
     String[] mine = {"scaleHalves", "scale", "aspect", "samples", "anisotropy", "smooth60", "fxaa", "fastCores",
@@ -2841,7 +2845,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     boolean fresh = true;
     for (String k : mine) if (g.contains(k)) { fresh = false; break; }
     g.edit().putInt(PerfProfile.FIRST, fresh ? PerfProfile.FIRST_PENDING : PerfProfile.FIRST_ASK)
-        .putInt(PerfProfile.ACTIVE, PerfProfile.CUSTOM).apply();
+        .putInt(PerfProfile.ACTIVE, PerfProfile.CUSTOM).putBoolean(PerfProfile.LOW_UPDATED, true).apply();
     Log.i(TAG, "performance profiles: " + (fresh ? "a new installation, the benchmark comes once the title's menu waits"
         : "an update, the menu asks once"));
   }

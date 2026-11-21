@@ -833,9 +833,13 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   in einer Zeile, Musik und Soundeffekte (Lautstärke) ebenso.
 - **Schalter** (An/Aus): so hoch wie die Pfeilauswahl, oben klein der Name, darunter groß An / Aus (golden bei An);
   Aktionsknöpfe gleich hoch mit einer Beschriftung.
-- Gespeicherte Werte, Verhalten, Ausgrauen und Sperren unverändert. Profil „Low“ für bestehende Nutzer unverändert
-  (Frage beim Projektinhaber offen).
-- **Geprüft am PC:** App-Tests (232, neu `ArrowSelectorTest`; Pfeil-, Regler- und Leucht-Prüfungen angepasst),
+- Gespeicherte Werte, Verhalten, Ausgrauen und Sperren unverändert.
+- **Profil „Low“ nach dem Update** (Projektinhaber, 21.11.2026: „Ja automatisch“): wer „Low“ aktiv und seitdem nichts
+  von Hand geändert hat, bekommt beim ersten Start nach dem Update einmal die neuen Low-Werte (Frame-Skip Auto,
+  Sichtweite Kurz; `PerfProfile.updateLow`, Merker `perfLowUpdated110` in den Grafik-Einstellungen; „unverändert“ =
+  Low aktiv und die Werte gleich denen, die Low gesetzt hat). Alles andere bleibt; wer nach Low etwas geändert hat
+  (Custom oder abweichende Werte), behält seine Werte. Test `PerfProfileTest.anUnchangedLowTakesTheNewValuesOnce`.
+- **Geprüft am PC:** App-Tests (233, neu `ArrowSelectorTest` und der Low-Test; Pfeil-, Regler- und Leucht-Prüfungen angepasst),
   Übersetzungen (535), 11-Sprachen-Breitentest, Bilder `builds/workthread-1.1.0/menu/d1`–`d6` (DE/EN).
   **Nicht auf einem Gerät geprüft** (Finger, Controller, Tastatur).
 
