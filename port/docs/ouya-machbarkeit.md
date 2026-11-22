@@ -829,3 +829,27 @@ Echtzeit-Schatten (Grafik der Haupt-App), Zielen mit dem Mauszeiger, freie Taste
   Grafik übersetzt für Android 4.1; `re4_host --runtime-test` 0 Fehler; `compare_frames.sh` (r100 und r101 mit dem
   neuen Kompaktformat 0x40) direkt, genau und wie auf dem Tegra 3 je 0 abweichende Bilder. Auf der OUYA, mit Tastatur
   und Maus und auf einem Touch-Gerät noch nicht getestet.
+
+### 1.1.0 der Haupt-App übernommen (22.11.2026, nur lokal bis zum 1.1.0-Release)
+
+Wunsch des Projektinhabers (22.11.2026): die Gruppen 1 bis 3 aus 1.1.0 schon jetzt, aber nicht online vor dem
+Release von 1.1.0. Der lokale `master` von RE4-Fixed (f0cd8d0e) ist zusammengeführt (51255e67); die Commits von
+`ouya-potatomode` bleiben bis dahin auf dem PC.
+
+- Konflikte: `kSetDrawless 90` neben den neuen Nachrichten 49–53; `RE4_GX_CHUNK_DRAWLESS` von `1u << 8` (jetzt
+  `RE4_GX_CHUNK_PHOTO`) auf `1u << 16`; die Bildschirm-Bits mit `NOHUD` und dem eigenen Bit 0x100 der OUYA; der
+  CMake-Block für Android 4.x neben PGO; `port/LICENSE` aus master.
+- **Gruppe 1, Fehler des Spiels** (kommt mit dem Kern): Schießstand wie im fertigen Spiel (Patches 0246–0248), r333 mit
+  EU-Discs. Ebenso Heap 4 größer (Patch 0245; die 48 MB MEM1 sind ohnehin reserviert, belegt wird nur, was ein Raum
+  braucht).
+- **Gruppe 2:** „Intro überspringen“ neben „Vertikal umkehren“ (`RE4_SKIP_INTRO` beim Start, Patch 0242); Ashley
+  aufholen (zweimal schnell drücken oder 2 s halten, `ashley_catchup.cpp`, ohne Schalter) mit Hilfetext; die Cheats
+  „Munition stapeln“ (Standard/250/500/999, Bits 21..22 der Ziel-Einstellung, Patch 0254) und „Munition auffüllen“
+  (Aktion 10) unter Koffer und Geld.
+- **Gruppe 3:** „Nachladen ohne Zielen“ (Tastatur-R ohne rechte Maustaste, `re4ipc_quick_reload`, Patch 0241) unter
+  „Tastatur und Maus“; die Maus in Titel-, Schwierigkeits- und Optionsmenü (Patch 0239): Android zeigt auf der OUYA
+  seinen eigenen Mauszeiger, seine Stelle über der 16:9-Fläche geht an `re4ipc_mouse_menu`, ein Linksklick wählt; nur
+  solange der Kern „Menü“ meldet (Bit 4 seines Rumble-Worts), damit ein Klick beim Schießen kein Menü auslöst.
+- Nicht übernommen (Entscheidung des Projektinhabers): Lebensbalken, Fotomodus, „Mehr Gegner“, Hochskalierer, Vulkan,
+  120 Hz, Gyro, Shader beim Start, das neue Menü-Design. Sie sind im Kern aus und werden von der OUYA-App nie
+  eingeschaltet.
