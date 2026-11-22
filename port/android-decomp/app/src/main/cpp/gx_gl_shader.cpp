@@ -479,6 +479,12 @@ ShaderKey CanonicalShaderKey(const ShaderKey &key) {
   return k;
 }
 
+namespace {
+std::atomic<bool> gSoftAlpha{true};  // GxSetSoftAlpha
+}  // namespace
+
+void GxSetSoftAlpha(bool on) { gSoftAlpha.store(on); }
+
 std::string GxFragmentShader(const ShaderKey &k) {
   std::string out = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
   out += kPixelBlock;
@@ -717,7 +723,7 @@ std::string GxFragmentShader(const ShaderKey &k) {
       }
       return b;
     };
-    if (!always && (k.centroid & 1) && !softOff && logic <= 1 && softOk(f0) && softOk(f1)) {
+    if (!always && (k.centroid & 1) && !softOff && gSoftAlpha.load() && logic <= 1 && softOk(f0) && softOk(f1)) {
       out.insert(out.find('\n') + 1, "#extension GL_OES_sample_variables : enable\n");
       out += "#if defined(GL_OES_sample_variables) || __VERSION__ >= 320\n";
       out += "  if (alphaRef.w > 1) {\n"

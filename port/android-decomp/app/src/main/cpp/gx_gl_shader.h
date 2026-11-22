@@ -43,6 +43,10 @@ struct ShaderKey {
 
 std::string GxVertexShader(const ShaderKey &key);
 std::string GxFragmentShader(const ShaderKey &key);
+// The soft alpha test of MSAA (the sample mask, 1.1.0) in the fragment shaders made from now on: Vulkan's renderer on,
+// OpenGL ES's off (1.1.1: a user's Adreno 730 with MSAA lost every alpha-tested draw, grass, hair, fire, the HUD; the
+// sample mask on GLES's tiled MSAA, EXT_multisampled_render_to_texture, is not to be trusted). Default on.
+void GxSetSoftAlpha(bool on);
 // The key with the fields its shaders do not use set to 0 (0.99.5): a stage's KONST selection (colour, alpha) when none
 // of its inputs takes KONST, the swap tables no stage selects, the fog's projection without fog. MakeKey takes them as
 // the registers hold them, and what earlier draws left there made the same shader under many keys (the project

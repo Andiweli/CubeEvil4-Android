@@ -411,7 +411,7 @@ const char kDepthResolveFs[] = "#version 450\n"
 } // namespace
 
 struct VkRenderer final : GxCore {
-  VkRenderer() : GxCore(GxApi::kVulkan), shared(TheDevice()), vk(shared->vk), heap(shared->heap) {}
+  VkRenderer() : GxCore(GxApi::kVulkan), shared(TheDevice()), vk(shared->vk), heap(shared->heap) { GxSetSoftAlpha(true); }
   ~VkRenderer() override { Release(); }
 
   std::shared_ptr<SharedDevice> shared;

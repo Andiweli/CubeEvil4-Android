@@ -2191,6 +2191,7 @@ void TestSoftAlpha(re4gx::GxApi api, const char *tag) {
   re4gx::ShaderKey k{};
   k.numStages = 1;
   k.alphaTest = 6u | 7u << 3;  // >= ref0 AND always
+  re4gx::GxSetSoftAlpha(true);  // (the texts as Vulkan's renderer makes them; OpenGL ES's has it off since 1.1.1)
   const std::string one = re4gx::GxFragmentShader(k);
   k.centroid = 1;
   const std::string four = re4gx::GxFragmentShader(k);
@@ -2204,6 +2205,11 @@ void TestSoftAlpha(re4gx::GxApi api, const char *tag) {
             game.find("gl_SampleMask") != std::string::npos && game.find("max(") != std::string::npos &&
             equal.find("gl_SampleMask") == std::string::npos && exclusive.find("gl_SampleMask") == std::string::npos,
         "soft alpha test: only in MSAA's programs, for the ordering compares with AND / OR");
+  re4gx::GxSetSoftAlpha(false);
+  k.alphaTest = 4u | 4u << 3 | 1u << 6;
+  Check(re4gx::GxFragmentShader(k).find("gl_SampleMask") == std::string::npos,
+        "soft alpha test: off, the hard test in MSAA's programs too (OpenGL ES since 1.1.1)");
+  re4gx::GxSetSoftAlpha(true);
   for (int samples : {1, 4}) {
     re4gx::GxRenderer r(api);
     re4gx::GxOptions o;
@@ -2252,7 +2258,8 @@ void TestSoftAlpha(re4gx::GxApi api, const char *tag) {
         if (g > 0 && g < 240)
           partial++;
       }
-    const bool msaa = r.Samples() > 1;
+    // (1.1.1) the soft edges with Vulkan only: OpenGL ES keeps the hard test with MSAA (GxSetSoftAlpha)
+    const bool msaa = r.Samples() > 1 && api == re4gx::GxApi::kVulkan;
     std::fprintf(stderr, "  soft alpha test (%s, %d samples): the edge at x %d, %d pixels partly covered\n", tag,
                  r.Samples(), firstLit, partial);
     if (msaa)
@@ -2260,7 +2267,7 @@ void TestSoftAlpha(re4gx::GxApi api, const char *tag) {
             (std::string("soft alpha test (") + tag + "): with MSAA the edge's pixels partly covered, in place").c_str());
     else
       Check(partial == 0 && firstLit > 220 && firstLit < 240,
-            (std::string("soft alpha test (") + tag + "): with 1 sample the hard edge as before").c_str());
+            (std::string("soft alpha test (") + tag + "): with 1 sample (and OpenGL ES) the hard edge").c_str());
     r.Release();
   }
 }

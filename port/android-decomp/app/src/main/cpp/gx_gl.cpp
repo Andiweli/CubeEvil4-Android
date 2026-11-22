@@ -298,7 +298,8 @@ std::atomic<int> gWarming{0};  // WarmProgramCache runs
 } // namespace
 
 struct GlRenderer final : GxCore {
-  GlRenderer() : GxCore(GxApi::kGl) {}
+  // (1.1.1) the hard alpha test with MSAA too (GxSetSoftAlpha: a user's Adreno 730 lost every alpha-tested draw)
+  GlRenderer() : GxCore(GxApi::kGl) { GxSetSoftAlpha(false); }
   static constexpr int kDepthWidth = GxRenderer::kDepthWidth, kDepthHeight = GxRenderer::kDepthHeight;
   using DepthSink = GxRenderer::DepthSink;
 

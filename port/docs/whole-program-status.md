@@ -901,6 +901,17 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 
 ## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
 
+### 37. MSAA mit OpenGL ES: Alpha-getestete Teile fehlen (nubia NX709S, Adreno 730; Nutzerbericht 22.11.2026)
+
+- **Bericht:** `reports/workthread-1.1.1/user-msaa-broken` (1.1.0, GLES, 60 FPS, Dynamisch): mit MSAA 2×/4× fehlen
+  Gras, Haare (dunkel), Rockmuster, Fackelfeuer und das HUD; aus: normal. Im Log keine Shader-Fehler.
+- **Ursache (sehr wahrscheinlich):** der weiche Alpha-Test von 1.1.0 (0f0a13fb) setzt mit MSAA `gl_SampleMask` in jedem
+  Programm mit Alpha-Test; auf Adrenos gekacheltem MSAA (`EXT_multisampled_render_to_texture`) verwirft der Treiber
+  damit offenbar die ganzen Fragmente. Am PC (Mesa) nicht nachstellbar: dort alles da.
+- **Änderung:** `GxSetSoftAlpha` (gx_gl_shader): der OpenGL-ES-Renderer schaltet den weichen Test aus (harter Test wie
+  1.0.0), Vulkan an. Test `TestSoftAlpha` (GL mit 4 Proben harte Kante, Vulkan weiche), Bild
+  `builds/workthread-1.1.1-msaa-gles-pc.png` (GLES 1 / GLES 4 / Vulkan 4, Wald). **Nicht auf dem Gerät geprüft.**
+
 ### 36. Ruckeln bei 60 FPS auf vivo V2426 (Dimensity 9200, Mali-G715, GLES; Nutzerbericht 22.11.2026)
 
 - **Bericht:** `reports/workthread-1.1.1/user-stutter-20261122` (1.1.0, 60 FPS, Stufe 4, Gleichmäßige Bildfolge an,
