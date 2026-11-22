@@ -853,3 +853,11 @@ Release von 1.1.0. Der lokale `master` von RE4-Fixed (f0cd8d0e) ist zusammengef�
 - Nicht übernommen (Entscheidung des Projektinhabers): Lebensbalken, Fotomodus, „Mehr Gegner“, Hochskalierer, Vulkan,
   120 Hz, Gyro, Shader beim Start, das neue Menü-Design. Sie sind im Kern aus und werden von der OUYA-App nie
   eingeschaltet.
+
+- **Geprüft (22.11.2026, PC):** Kern für Android 4.1 ohne Fehler (47 Stubs wie erwartet); App mit Gradle gebaut, Lint
+  ohne Fehler und ohne `NewApi`; `re4_host --runtime-test` 0 Fehler; `check.sh` alle Szenen bestanden, die Grafik
+  übersetzt für Android 4.1; `compare_frames.sh` r100 und r101 direkt, genau und wie auf dem Tegra 3 je 0 abweichende
+  Bilder. Dafür vergleicht `compare_frames.sh` jetzt mit `RE4_GX_MAKE_MIPS=0`: Die Grafik der Haupt-App macht seit 1.1.0
+  Mipmaps für Raumtexturen ohne eigene, die OUYA-Grafik nicht (mit ihnen 28 von 30 Bildern anders). Die Referenz-Grafik
+  am PC braucht seit 1.1.0 `gx_upscale.cpp`. Menütexte: `check_translations.py` ohne Befund. Auf der OUYA und mit
+  echter Tastatur und Maus noch nicht getestet.
