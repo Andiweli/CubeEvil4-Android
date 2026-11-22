@@ -553,6 +553,8 @@
     <string name="ingame_output_res">输出分辨率</string>
     <string name="ingame_output_res_help">输出分辨率：发送到屏幕的画面尺寸，屏幕会将其拉伸到自身像素。在屏幕非常精细（高于 1080p）的手机上，较低的值更快，尤其是开启 CRT、泛光、FXAA 或锐化时，画面会略柔和。原生：屏幕自身尺寸。上方的分辨率（游戏的 3D）保持不变。</string>
     <string name="ingame_upscaler">放大算法</string>
+    <string name="ingame_upscaler_sgsr">SGSR（轻）</string>
+    <string name="ingame_upscaler_fsr">FSR（强）</string>
     <string name="ingame_upscaler_help">放大算法：当游戏画面小于它在屏幕上的位置时（上面的分辨率低于屏幕的分辨率），画面如何放大。关：普通的柔和拉伸。SGSR（Qualcomm Snapdragon Game Super Resolution）：边缘更清晰，手机负担小；推荐。FSR（AMD FidelityFX Super Resolution 1）：最清晰，工作量约为 SGSR 的两倍。画面与其位置一样大时，或开启 CRT 滤镜时，没有变化。</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">模组</string>

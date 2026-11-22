@@ -1104,7 +1104,8 @@ final class CoreMenu extends Dialog {
     graphicChoices(outputRow, R.string.ingame_output_res, CoreActivity.OUTPUT_RES, new String[] {s(R.string.ingame_native),
         "1080p", "900p", "720p"}, new int[] {0, 1080, 900, 720}, 0, Integer.MAX_VALUE);
     // "Upscaler" (1.1.0): SGSR or FSR instead of the plain stretch when the picture is smaller than its box
-    graphicChoices(outputRow, R.string.ingame_upscaler, UPSCALER, new String[] {s(R.string.ingame_off), "SGSR", "FSR"},
+    graphicChoices(outputRow, R.string.ingame_upscaler, UPSCALER, new String[] {s(R.string.ingame_off),
+        s(R.string.ingame_upscaler_sgsr), s(R.string.ingame_upscaler_fsr)},  // (the order as cost: light, strong)
         new int[] {0, 1, 2}, 0, Integer.MAX_VALUE);
     indentedHelp(s(R.string.ingame_output_res_help));
     indentedHelp(s(R.string.ingame_upscaler_help));

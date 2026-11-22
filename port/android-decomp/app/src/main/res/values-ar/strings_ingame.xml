@@ -572,6 +572,8 @@
     <string name="ingame_output_res">&#x200F;دقة العرض</string>
     <string name="ingame_output_res_help">&#x200F;دقة العرض: حجم الصورة المرسلة إلى الشاشة؛ تمدّها الشاشة إلى بكسلاتها. الأدنى أسرع في الهواتف ذات الشاشات الحادة جدًا (فوق 1080p)، خاصةً مع CRT أو التوهج أو FXAA أو التوضيح، وأنعم قليلًا. أصلي: حجم الشاشة نفسه. تبقى الدقة أعلاه (ثلاثي الأبعاد في اللعبة) كما هي.</string>
     <string name="ingame_upscaler">أداة التكبير</string>
+    <string name="ingame_upscaler_sgsr">&#x200F;SGSR (خفيف)</string>
+    <string name="ingame_upscaler_fsr">&#x200F;FSR (قوي)</string>
     <string name="ingame_upscaler_help">أداة التكبير: كيف تُكبَّر صورة اللعبة عندما تكون أصغر من مكانها على الشاشة (دقة أعلاه أقل من دقة الشاشة). إيقاف: التمديد البسيط الناعم. SGSR (Qualcomm Snapdragon Game Super Resolution): حواف أوضح، وعمل قليل على الهاتف؛ موصى به. FSR (AMD FidelityFX Super Resolution 1): الأوضح، ونحو ضعف عمل SGSR. لا يتغير شيء عندما تكون الصورة بحجم مكانها، ولا مع مرشح CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">التعديلات</string>

@@ -120,6 +120,8 @@ public class CoreMenuLayoutTest {
         activity.getApplicationInfo().flags |= android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE;
         activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, 0).edit().putInt(CoreMenu.DYN_CAP_30, 6)
             .putInt(CoreMenu.DYN_CAP_60, 5).putInt(PerfProfile.BENCH_CPU_LOAD, 27).putInt(RealtimeShadows.KEY, 2)
+            // (the upscaler's longer values of 1.1.0, "SGSR (light)" / "FSR (strong)", in their half-width cell)
+            .putInt(CoreMenu.UPSCALER, scale == 2f ? 2 : 1)
             .apply();
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         // the update button beside "Back to the game": both of its labels

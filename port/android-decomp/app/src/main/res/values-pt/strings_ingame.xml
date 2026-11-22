@@ -559,6 +559,8 @@
     <string name="ingame_output_res">Resolução de saída</string>
     <string name="ingame_output_res_help">Resolução de saída: o tamanho da imagem enviada à tela; a tela a estica para os próprios pixels. Mais baixa é mais rápida em celulares com telas muito nítidas (acima de 1080p), sobretudo com CRT, bloom, FXAA ou nitidez, e um pouco mais suave. Nativa: o tamanho próprio da tela. A resolução acima (o 3D do jogo) não muda.</string>
     <string name="ingame_upscaler">Upscaler</string>
+    <string name="ingame_upscaler_sgsr">SGSR (leve)</string>
+    <string name="ingame_upscaler_fsr">FSR (forte)</string>
     <string name="ingame_upscaler_help">Upscaler: como a imagem do jogo é ampliada quando é menor que o seu lugar na tela (uma resolução acima menor que a da tela). Não: o esticamento simples e suave. SGSR (Qualcomm Snapdragon Game Super Resolution): bordas mais nítidas, pouco trabalho para o celular; recomendado. FSR (AMD FidelityFX Super Resolution 1): o mais nítido, cerca do dobro do trabalho do SGSR. Nada muda quando a imagem é tão grande quanto o seu lugar, nem com o filtro CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>

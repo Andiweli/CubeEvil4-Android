@@ -573,6 +573,8 @@
     <string name="ingame_output_res">Display resolution</string>
     <string name="ingame_output_res_help">Display resolution: the size of the picture sent to the screen; the screen stretches it to its own pixels. Lower is faster on phones with very sharp screens (above 1080p), above all with CRT, bloom, FXAA or Sharpen, and a little softer. Native: the screen\'s own size. The resolution above (the game\'s 3D) stays as it is.</string>
     <string name="ingame_upscaler">Upscaler</string>
+    <string name="ingame_upscaler_sgsr">SGSR (light)</string>
+    <string name="ingame_upscaler_fsr">FSR (strong)</string>
     <string name="ingame_upscaler_help">Upscaler: how the game\'s picture is enlarged when it is smaller than its place on the screen (when the resolution above is lower than the screen\'s). Off: the plain, soft stretch. SGSR (Qualcomm Snapdragon Game Super Resolution): sharper edges, light work for the phone; recommended. FSR (AMD FidelityFX Super Resolution 1): the sharpest, about twice the work of SGSR. Nothing changes when the picture is as large as its place, nor with the CRT filter.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
