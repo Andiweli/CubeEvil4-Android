@@ -901,6 +901,21 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 
 ## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
 
+### 36. Ruckeln bei 60 FPS auf vivo V2426 (Dimensity 9200, Mali-G715, GLES; Nutzerbericht 22.11.2026)
+
+- **Bericht:** `reports/workthread-1.1.1/user-stutter-20261122` (1.1.0, 60 FPS, Stufe 4, Gleichmäßige Bildfolge an,
+  Leistungskerne „Standard“, HD-Paket). Frühere Berichte desselben Geräts (0.98.3/0.98.5, Lichtfehler) ohne Ruckeln.
+- **Log:** kein Drosseln (Wärme „none“); Render-Thread 10–11 ms Prozessorzeit je Bild, 86–94 % auf den mittleren
+  Kernen bei 900–1500 MHz (von 3000), nie verlegt (Leistungskerne aus); „screen pacing“: 15–25 % der Bilder mehr als
+  2 ms daneben, je 10 s 75–340 Bilder 2 Vsyncs und 8–18 Bilder 3 Vsyncs lang (bei 60 FPS sollte jedes 1 sein).
+- **Einordnung:** Die 1.1.0-Änderungen am Render-Thread (Kernwechsel, Hint 16,7 ms) gelten nur mit „Leistungskerne“;
+  „Gleichmäßige Bildfolge“ gab es schon (0.99.12/0.99.13), 1.1.0 brachte nur den Schalter; der 60-Hz-Wunsch an den
+  Bildschirm besteht seit 0.9x (1.1.0 wiederholt ihn). Neu für ihn in 1.1.0: die erzeugten Mipmaps (mit Anisotropie 16
+  bei Stufe 4 mehr Arbeit für den Grafikchip) – im Log nicht messbar (GPU nicht gemessen).
+- **Änderung:** Leistungs-Hinweis (ADPF) für den Render-Thread auch bei „Standard“ (Kerne bleiben Androids Wahl;
+  `core_mode.cpp`). Für eine Messung braucht es einen längeren Log des Nutzers (Schritte im Bericht).
+  **Nicht auf einem Gerät geprüft.**
+
 ### 35. Touch-Steuerung „Unterdrücken“ auf dem Chromebook (Projektinhaber, 22.11.2026: „Auf einem Chromebook mit Touchscreen wird die Touchsteuerung nicht mit 'Unterdrücken' ausgeblendet“)
 
 - **Ursache:** „Unterdrücken“ blendet nur aus, solange ein **Gamepad** verbunden ist (`TouchShowRule`; ohne Gamepad

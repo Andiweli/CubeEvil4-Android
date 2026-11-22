@@ -2875,7 +2875,16 @@ bool drawGx() {
       } else {
         renderHint.Close();
         if (!first) re4cpu::ReleaseCores();
-        LOG("cores: the render thread left to Android (Force Performance: Default)");
+        // (1.1.1, a user's vivo with a Dimensity 9200, 60 FPS, "Standard": "jitter and stuttering", the render thread
+        // on the middle cores at 900-1500 MHz of their 3000, 11 ms of processor time a picture, 20-60 % of the pictures
+        // two or three vsyncs long, no heat) the cores stay Android's, but Android hears the picture's deadline and how
+        // long each took (the performance hint, as with "Performance cores"): it may then raise the clock it chose
+        const int tid = re4cpu::ThreadId();
+        const char *why = "";
+        renderHintTarget = renderTargetFor(smoothOn);
+        renderHint.Open(&tid, 1, renderHintTarget, &why);
+        LOG("cores: the render thread left to Android (Force Performance: Default); performance hint: %s (%.1f ms a "
+            "picture)", why, renderHintTarget / 1e6);
       }
     }
     // about once a second: back on the fast cores if Android moved the thread off them, and (1.1.0) on other cores
