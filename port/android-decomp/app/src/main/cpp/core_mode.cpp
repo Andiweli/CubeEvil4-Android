@@ -2889,7 +2889,10 @@ bool drawGx() {
     }
     // about once a second: back on the fast cores if Android moved the thread off them, and (1.1.0) on other cores
     // when the maker holds its cores back far below others (re4_cpu_info.h RenderPick)
-    static unsigned coreChecks, coreMoves;
+    static unsigned coreChecks, coreMoves, coreKept;
+    // (1.1.1) every picture: back on its cores at once when the system gave it others (KeepOnWantedCores)
+    if (fast && re4cpu::KeepOnWantedCores())
+      coreKept++;
     if (fast && ++coreChecks % 30 == 0) {
       const unsigned picks = re4cpu::TheRenderPick().moves;
       const bool moved = re4cpu::KeepOnFastCores();
@@ -2914,8 +2917,9 @@ bool drawGx() {
         char clocks[512], cores[96];
         re4cpu::DescribeAllClocks(re4cpu::GetLayout(), clocks, sizeof(clocks));
         re4cpu::AffinityText(cores, sizeof(cores));
-        LOG("cores: %s; the render thread on %s, now on core %d (moved for the clocks %u times)", clocks, cores,
-            sched_getcpu(), re4cpu::TheRenderPick().moves);
+        LOG("cores: %s; the render thread on %s, now on core %d (moved for the clocks %u times; put back on its cores "
+            "%u times in the last minute)", clocks, cores, sched_getcpu(), re4cpu::TheRenderPick().moves, coreKept);
+        coreKept = 0;
       }
     }
     gxRunMs += ms;

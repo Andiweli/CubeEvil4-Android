@@ -499,6 +499,24 @@ inline bool KeepOnFastCores()
     return false;
 }
 
+// Every picture (1.1.1, a user's vivo V2426 with a Dimensity 9200 and "Performance cores": the render thread placed on
+// core 7, but at five of six minute lines on all cores again and 80-90 % on the middle ones; the check once a second
+// came too late): only whether the calling thread's cores are still the wanted ones (one system call), back on them
+// when not. The cores' choice by the clocks (RenderCoresNow) stays with KeepOnFastCores' second. true when it had to.
+inline bool KeepOnWantedCores()
+{
+    WantedCores& w = Wanted();
+    if (!w.on) {
+        return false;
+    }
+    cpu_set_t now;
+    CPU_ZERO(&now);
+    if (sched_getaffinity(0, sizeof(now), &now) != 0 || CPU_EQUAL(&now, &w.set)) {
+        return false;
+    }
+    return sched_setaffinity(0, sizeof(w.set), &w.set) == 0;
+}
+
 // "cores 4 5 6": the cores the calling thread may use now (what Android and KeepOffSlowCores left it)
 inline void AffinityText(char* out, size_t size)
 {

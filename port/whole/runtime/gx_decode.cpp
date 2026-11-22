@@ -613,10 +613,12 @@ void hintChunk()
             re4_log("cores: the vertex threads still %s after %u tries; left so", cores, gSlowTries);
         }
     }
-    // about once a second: back on the fast cores if Android moved the thread off them
+    // about once a second: back on the fast cores if Android moved the thread off them; (1.1.1) the game thread itself
+    // every chunk (re4cpu::KeepOnWantedCores: a user's vivo gave it all the cores again within a second)
     static unsigned checks, moves;
+    const bool kept = fast && re4cpu::KeepOnWantedCores();
     if (fast && ++checks % 30 == 0) {
-        bool moved = re4cpu::KeepOnFastCores();
+        bool moved = re4cpu::KeepOnFastCores() || kept;
         for (int i = 1; i <= gSlowHelpers; i++) {
             moved |= re4cpu::KeepThreadOn(gHintTids[i], gSlowSet);
         }
@@ -624,6 +626,8 @@ void hintChunk()
             re4_log("cores: the game thread and the vertex threads put back on their cores (Android had moved "
                     "them, %u times so far)", moves);
         }
+    } else if (kept && (++moves <= 4 || moves % 100 == 0)) {
+        re4_log("cores: the game thread put back on its cores (Android had moved it, %u times so far)", moves);
     }
     gHintFrom = now;
     gHintIdle = idle;

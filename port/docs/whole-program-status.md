@@ -901,6 +901,24 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 
 ## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
 
+### 38. Ruckeln vivo V2426, zweiter Log: Kerne alle paar Sekunden zurückgesetzt (Nutzerbericht 23.11.2026)
+
+- **Bericht:** `reports/workthread-1.1.1/user-stutter-20261122/x-1899b51c` (1.1.0, 60 FPS, Leistungskerne an,
+  Texturfilter aus, Gleichmäßige Bildfolge aus, HD-Paket, 6 Minuten). Nutzer: „smoother … helped a lot but not
+  completely“.
+- **Log:** Bildfolge viel besser als im ersten Log (je 10 s im Mittel 2,5 % der Bilder mehr als 2 ms daneben statt
+  15–25 %; die meisten Fenster 0–2 %, beim Spielen schlimmstens 8 % mit 44 Bildern zu 2 Vsyncs; 17 % kurz nach dem
+  Start, 22 % im Pausenmenü). Render-Lauf 12,6 ms je Bild
+  (max 33), 922 von 992 Programmen aus dem Cache, keine Wärme, HD-Texturen ohne Aussetzer, Mipmaps 1000 Texturen in
+  531 ms (bei Raumwechseln). **Aber:** der Render-Thread kam auf Kern 7, stand bei 5 von 6 Minutenzeilen wieder auf
+  allen Kernen (meist Kern 4); „put back“ in den ersten 6 s schon 4-mal (Render) und 4-mal (Spiel), danach nicht mehr
+  geloggt (Grenze 4). Android/vivo setzt die Kerne der Threads alle 0,5–3 s zurück, wir prüften nur einmal je Sekunde.
+- **Änderung:** `re4cpu::KeepOnWantedCores` (nur `sched_getaffinity`-Vergleich, bei Abweichung zurück): Render-Thread
+  jedes Bild (`core_mode.cpp`), Spiel-Thread jeden Chunk (`gx_decode.cpp`); die Wahl nach Takt (RenderCoresNow) und
+  die Vertex-Threads bleiben beim Sekunden-Takt. Die Minutenzeile zählt jetzt „put back on its cores N times in the
+  last minute“, der Spiel-Thread loggt jedes 100. Zurücksetzen. e1ea7ec2 (Hint bei „Standard“) bleibt für Nutzer
+  ohne Leistungskerne. **Nicht auf dem Gerät geprüft** (am PC nur gebaut und die Kern-Tests).
+
 ### 37. MSAA mit OpenGL ES: Alpha-getestete Teile fehlen (nubia NX709S, Adreno 730; Nutzerbericht 22.11.2026)
 
 - **Bericht:** `reports/workthread-1.1.1/user-msaa-broken` (1.1.0, GLES, 60 FPS, Dynamisch): mit MSAA 2×/4× fehlen
