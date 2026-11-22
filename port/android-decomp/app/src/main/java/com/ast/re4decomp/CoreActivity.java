@@ -937,6 +937,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       double seconds = (now - fpsSince) / 1000.0;
       long game = Math.round((frames - fpsFrames) / seconds), shown = Math.round((pictures - fpsPictures) / seconds);
       boolean smooth = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("smooth60", false);
+      // (1.1.0) with a frame skip leaving pictures out the pictures shown too (a user's Snapdragon 460 with Auto: "the
+      // counter shows 30 FPS, but the gameplay still feels choppy": the game ran at 30, its pictures at about 15)
+      smooth = smooth || shown < game - 1;
       hudFps = smooth ? String.format(Locale.ROOT, getString(R.string.ingame_fps_smooth), game, shown)
           : String.format(Locale.ROOT, getString(R.string.ingame_fps), game);
       showHud();  // with the screen's rate, the resolution and the play time of now
@@ -1665,11 +1668,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         }
         importNext(new StringBuilder());
       } else if (request == REQUEST_REPORT && data.getData() != null) {
-        try (OutputStream out = getContentResolver().openOutputStream(data.getData())) {
-          if (out == null) throw new IOException("no stream");
-          CoreLog.writeReport(this, out, settings, reportExtras());
-        }
-        Toast.makeText(this, R.string.ingame_report_saved, Toast.LENGTH_SHORT).show();
+        final Uri target = data.getData();
+        makeReport("saved", () -> {
+          try (OutputStream out = getContentResolver().openOutputStream(target)) {
+            if (out == null) throw new IOException("no stream");
+            CoreLog.writeReport(this, out, settings, reportExtras());
+          }
+          return null;
+        }, made -> Toast.makeText(this, R.string.ingame_report_saved, Toast.LENGTH_SHORT).show(),
+            e -> message(getString(R.string.ingame_failed, e.getMessage())));
       }
     } catch (IOException | RuntimeException e) {
       Log.w(TAG, "menu: " + e);
@@ -2261,24 +2268,66 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** The error report to an app of the tester's choice (mail, messenger, cloud). */
   private void shareReport() {
-    try {
+    final String name = reportName();
+    makeReport("sent", () -> {
       File dir = ReportProvider.folder(this);
       File[] old = dir.listFiles();
       if (old != null) for (File f : old) f.delete();
-      File zip = new File(dir, reportName());
+      File zip = new File(dir, name);
       try (OutputStream out = new FileOutputStream(zip)) {
         CoreLog.writeReport(this, out, settings, reportExtras());
       }
+      return zip;
+    }, zip -> {
       Uri uri = ReportProvider.uri(this, zip);
       Intent send = new Intent(Intent.ACTION_SEND).setType("application/zip").putExtra(Intent.EXTRA_STREAM, uri)
           .putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_label) + ": " + zip.getName()).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
       send.setClipData(ClipData.newRawUri(zip.getName(), uri));
       startActivity(Intent.createChooser(send, getString(R.string.ingame_report_chooser)));
-    } catch (IOException | RuntimeException e) {
-      Log.w(TAG, "report: " + e);
-      message(getString(R.string.ingame_report_failed, e.getMessage()));
-    }
+    }, e -> message(getString(R.string.ingame_report_failed, e.getMessage())));
   }
+
+  /** A part of making the report that may fail (on the report's thread). */
+  private interface ReportWork { File run() throws IOException; }
+
+  /**
+   * The report made on a thread of its own (1.1.0; a user's OPPO A53 with a Snapdragon 460 after an update over 1.0.0
+   * without clearing its data: "force close" at Save / Send report, fine with the data cleared). On the main thread the
+   * report read every key file of the shader cache (two versions' programs side by side after an update, thousands of
+   * small files), the logs and the zip, longer than Android lets the main thread wait before it offers to close the
+   * app. `made` (with the zip of a send) or `failed` (any Throwable, also an OutOfMemoryError) then on the main thread;
+   * a second press while one is made is dropped. The time it took goes into the log.
+   */
+  private void makeReport(String what, ReportWork work, java.util.function.Consumer<File> made,
+                          java.util.function.Consumer<Throwable> failed) {
+    if (reportBusy) {
+      Log.i(TAG, "report: one is being made, this press dropped");
+      return;
+    }
+    reportBusy = true;
+    final long start = SystemClock.elapsedRealtime();
+    Thread t = new Thread(() -> {
+      File result = null;
+      Throwable error = null;
+      try {
+        result = work.run();
+      } catch (Throwable e) {
+        error = e;
+      }
+      final long ms = SystemClock.elapsedRealtime() - start;
+      final File done = result;
+      final Throwable problem = error;
+      Log.i(TAG, "report " + what + ": " + (problem == null ? "made" : "failed (" + problem + ")") + " in " + ms + " ms");
+      main.post(() -> {
+        reportBusy = false;
+        if (isFinishing() || isDestroyed()) return;
+        if (problem == null) made.accept(done);
+        else failed.accept(problem);
+      });
+    }, "Report");
+    t.start();
+  }
+  private volatile boolean reportBusy;
 
   @Override
   @SuppressWarnings("deprecation")

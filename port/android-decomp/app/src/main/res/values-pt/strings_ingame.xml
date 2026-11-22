@@ -349,7 +349,7 @@
     <string name="ingame_fs_auto">Salto de quadros auto</string>
     <string name="ingame_fs_normal">Salto de quadros normal</string>
     <string name="ingame_fs_aggressive">Salto de quadros agressivo</string>
-    <string name="ingame_skip_auto_help">Salto de quadros Auto: enquanto o jogo roda em velocidade total, nada é pulado; só quando fica abaixo de 30 imagens por segundo por cerca de meio segundo os dois tipos de salto ajudam (como no Agressivo), até ele rodar de novo dois segundos em velocidade total.</string>
+    <string name="ingame_skip_auto_help">Salto de quadros Auto: enquanto o jogo roda em velocidade total, nada é pulado; só quando fica abaixo de 30 imagens por segundo por cerca de meio segundo os dois tipos de salto ajudam (primeiro o do renderizador; o do jogo só se ficar dois segundos abaixo de 24, e mais suave que no Agressivo), até ele rodar de novo dois segundos em velocidade total.</string>
     <string name="ingame_even_pacing">Ritmo de imagens uniforme</string>
     <string name="ingame_even_pacing_help">Ritmo de imagens uniforme: Sim (padrão) segura uma imagem quando preciso para que cada imagem fique na tela pelo mesmo tempo (30 constantes, e 60 em telas acima de 60 Hz). Não mostra cada imagem assim que fica pronta, como nas versões antigas: um pouco mais direto, mas menos uniforme.</string>
     <string name="ingame_vk_bandwidth_help">Só Vulkan: economiza largura de banda de memória em chips Mali e Adreno; a imagem continua igual.</string>

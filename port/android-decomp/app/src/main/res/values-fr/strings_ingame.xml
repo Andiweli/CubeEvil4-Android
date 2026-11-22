@@ -350,7 +350,7 @@
     <string name="ingame_fs_auto">Saut d’images auto</string>
     <string name="ingame_fs_normal">Saut d’images normal</string>
     <string name="ingame_fs_aggressive">Saut d’images agressif</string>
-    <string name="ingame_skip_auto_help">Saut d’images Auto : tant que le jeu tourne à pleine vitesse, rien n’est sauté ; seulement s’il reste sous 30 images par seconde pendant environ une demi-seconde, les deux sortes de saut aident (comme en Agressif), jusqu’à ce qu’il ait de nouveau tourné deux secondes à pleine vitesse.</string>
+    <string name="ingame_skip_auto_help">Saut d’images Auto : tant que le jeu tourne à pleine vitesse, rien n’est sauté ; seulement s’il reste sous 30 images par seconde pendant environ une demi-seconde, les deux sortes de saut aident (d’abord celui du rendu ; celui du jeu seulement s’il reste deux secondes sous 24, et plus doux qu’en Agressif), jusqu’à ce qu’il ait de nouveau tourné deux secondes à pleine vitesse.</string>
     <string name="ingame_even_pacing">Rythme d’images régulier</string>
     <string name="ingame_even_pacing_help">Rythme d’images régulier : Oui (par défaut) retient une image si besoin pour que chaque image reste affichée aussi longtemps (30 réguliers, et 60 sur les écrans de plus de 60 Hz). Non affiche chaque image dès qu’elle est prête, comme dans les versions plus anciennes : un peu plus direct, mais moins régulier.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan uniquement\u00A0: économise de la bande passante mémoire sur les puces Mali et Adreno\u00A0; l’image reste identique.</string>

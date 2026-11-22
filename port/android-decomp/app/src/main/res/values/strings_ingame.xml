@@ -363,7 +363,7 @@
     <string name="ingame_fs_auto">Auto frame skip</string>
     <string name="ingame_fs_normal">Normal frame skip</string>
     <string name="ingame_fs_aggressive">Aggressive frame skip</string>
-    <string name="ingame_skip_auto_help">Frame skip Auto: nothing is left out while the game runs at full speed; only when it stays under 30 pictures a second for about half a second do both kinds of frame skip help (as with Aggressive), until it has run at full speed for two seconds again.</string>
+    <string name="ingame_skip_auto_help">Frame skip Auto: nothing is left out while the game runs at full speed; only when it stays under 30 pictures a second for about half a second do both kinds of frame skip help (first the renderer\'s; the game\'s own only if it stays under 24 for two seconds, and more gently than Aggressive), until it has run at full speed for two seconds again.</string>
     <string name="ingame_even_pacing">Even frame pacing</string>
     <string name="ingame_even_pacing_help">Even frame pacing: On (the default) holds a picture back where needed so that every picture stays on the screen equally long (a steady 30, and 60 on screens faster than 60 Hz). Off shows each picture as soon as it is ready, as in older versions: a little more direct, but less even.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan only: saves memory bandwidth on Mali and Adreno chips; the picture stays the same.</string>

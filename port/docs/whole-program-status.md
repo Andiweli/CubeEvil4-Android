@@ -899,6 +899,32 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
   Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
+### 34. Update über 1.0.0, Frame-Skip „Auto“ in Stufen, Hochskalierer mit OpenGL ES (Nutzerberichte, 22.11.2026)
+
+- **Bericht nach Update (OPPO A53, Snapdragon 460):** „Force close“ bei Bericht speichern/senden nach Update von 1.0.0
+  ohne Datenlöschen. Alle Einstellungen von 1.0.0 (Schlüssel und Typen aus b37a9cf4) laufen durch alle Menüseiten, den
+  Geräte-Text des Berichts, die Profil-Umstellung (Test `UpdateFrom100Test`): keine Typ-Fehler. Ursache sehr
+  wahrscheinlich ein Hänger (ANR): der Bericht wurde auf dem Haupt-Thread gebaut und liest jede Schlüsseldatei des
+  Shader-Speichers (nach einem Update die Programme zweier Versionen, viele tausend kleine Dateien), Logs und Zip. Jetzt
+  auf einem eigenen Thread (`CoreActivity.makeReport`, fängt jeden Throwable, die Dauer ins Log: „report sent/saved:
+  made in N ms“); `CoreLog.deviceText` prüft die Länge von `graphicsInfo`. Nicht auf dem Gerät geprüft.
+- **Frame-Skip „Auto“ (gleicher Nutzer: „counter shows 30 FPS, but the gameplay still feels choppy“):** Auto schaltete
+  bei unter 27 den Skip des Spiels ein; der lässt nach jedem verspäteten Bild eines aus (bei 26 je Sekunde fast jedes
+  zweite: 30 Spielbilder, 15 gezeigte). Messung PC, Seilbahn r10f, Zeichnen künstlich verteuert
+  (`RE4_CPU_SKIP_SLOW_DRAW=36`, neu `RE4_CPU_SKIP_STATS=1`): Aus 24–26 Spiel/Bilder, Abstand ~39 ms gleichmäßig;
+  Aggressiv 30/15, 67 ms; neu „nach Bedarf“ (Modus 2) 29,3/18–20, 39/67 ms gemischt. Bei `SLOW_DRAW=50` Aggressiv und
+  Modus 2 gleich (24/12). **Neu:** `runtime/cpu_skip.cpp` Modus 2 (ein Bild erst, wenn die Verspätung zusammen ein ganzes
+  Spielbild ist); `AutoSkip` (picture_cadence.h) in zwei Stufen: unter 27 der Skip des Renderers, der des Spiels (Modus
+  2) erst, wenn das Spiel zwei Sekunden unter 24 bleibt; wieder aus, wenn er zwei Sekunden lang weniger als jedes zehnte
+  Bild auslässt. Test `TestAutoSkip` erweitert. FPS-Anzeige: bei Frame-Skip auch die gezeigten Bilder. Hilfetext in 11
+  Sprachen.
+- **Hochskalierer mit OpenGL ES (Infinix X6882, Mali-G57: „Bild schlechter“ mit FSR/SGSR):** Der GL-Weg rechnete mit der
+  Bildgröße in GameCube-Pixeln (`xfbWidth`), die Textur ist aber in der Skalierung (`Hi`): SGSR/FSR tasteten falsch ab
+  (grob, verrauscht) und liefen auch, wo nichts zu vergrößern war (Ausgabeauflösung 720p bei 1600×840). Vulkan war
+  richtig. Jetzt die Texturgröße; Bild `builds/workthread-1.1.0/upscaler-gles-before-after.png` (oben vorher GLES aus /
+  SGSR / FSR, unten Vulkan FSR / GLES SGSR / GLES FSR nachher). Neu in 1.1.0, nie veröffentlicht: keine eigene
+  Changelog-Zeile.
+
 ### 33. Vierte Menü-Runde: Beschriftungen links auf allen Unterseiten (Projektinhaber, 21.11.2026)
 
 - Wie ANZEIGE haben jetzt AUDIO, STEUERUNG, LEISTUNG und CHEATS & MODS links Gruppen-Beschriftungen, die Felder und

@@ -1806,6 +1806,37 @@ void TestAutoSkip() {
   for (int i = 0; i < 60; i++, seq++)
     a.Note(t += 1.0 / 30, seq);
   Check(!a.on && a.ons + a.offs == changes, "auto frame skip: a load pause switches nothing");
+  // (1.1.0, two steps) the game at 26 a second (a processor a little too slow): the renderer's only, for good
+  for (int i = 0; i < 26 * 5; i++, seq++)
+    a.Note(t += 1.0 / 26, seq);
+  Check(a.on && !a.cpu, "auto frame skip: 26 a second: the renderer's frame skip, not the game's");
+  // at 21 a second: the game's own after about two seconds more
+  const double deepFrom = t;
+  double cpuAt = -1.0;
+  for (int i = 0; i < 21 * 4; i++, seq++)
+    if (a.Note(t += 1.0 / 21, seq) && a.cpu && cpuAt < 0)
+      cpuAt = t;
+  std::fprintf(stderr, "  auto frame skip: the game's own %.2f s after the game fell to 21 a second\n", cpuAt - deepFrom);
+  Check(a.cpu && cpuAt - deepFrom >= 2.0 && cpuAt - deepFrom <= 3.0, "auto frame skip: 21 a second: the game's own in 2-3 s");
+  // it works (the game at 30, one picture in three left out: 20 chunks a second, numbers 30): it stays
+  for (int i = 0; i < 20 * 4; i++) {
+    seq += i % 2 ? 1 : 2;
+    a.Note(t += 1.0 / 20, seq);
+  }
+  Check(a.on && a.cpu, "auto frame skip: the game's own stays while it leaves out a third");
+  // the place gets lighter (29 of 30 pictures shown): the game's own goes after about two seconds, the renderer's later
+  double cpuOffAt = -1.0;
+  const double lightFrom = t;
+  for (int i = 0; i < 30 * 3; i++) {
+    seq += i % 30 == 29 ? 2 : 1;
+    if (a.Note(t += 1.0 / 30, seq) && !a.cpu && cpuOffAt < 0)
+      cpuOffAt = t;
+  }
+  Check(!a.cpu && cpuOffAt - lightFrom >= 2.0 && cpuOffAt - lightFrom <= 3.0,
+        "auto frame skip: few left out: the game's own off after 2-3 s");
+  for (int i = 0; i < 30 * 3; i++, seq++)
+    a.Note(t += 1.0 / 30, seq);
+  Check(!a.on && !a.cpu, "auto frame skip: then at full pace: off");
 }
 
 void TestPictureHold() {

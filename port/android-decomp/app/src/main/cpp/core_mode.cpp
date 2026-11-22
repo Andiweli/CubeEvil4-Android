@@ -1092,9 +1092,11 @@ void autoNote(const Re4GxChunk *c, bool smoothOn) {
   if (autoSkip.Note(t, c->sequence)) {
     const unsigned n = autoSkip.ons + autoSkip.offs;
     if (n <= 20 || n % 50 == 0)
-      LOG("auto frame skip: %s (%.1f game pictures a second; %u times on so far)",
-          autoSkip.on ? "on, the game under 30 for half a second" : "off, two seconds at full pace", autoSkip.rate,
-          autoSkip.ons);
+      LOG("auto frame skip: %s (%.1f game pictures a second, %.0f %% of them left out; %u times on so far, %u with the "
+          "game's own)",
+          autoSkip.cpu ? "the game's own frame skip too (as needed), the game under 24 for two seconds"
+          : autoSkip.on ? "on (the renderer's), the game under 30 for half a second" : "off, two seconds at full pace",
+          autoSkip.rate, autoSkip.leftOut * 100.0, autoSkip.ons, autoSkip.cpuOns);
   }
 }
 re4gx::SmoothPacer smoothPacer;
@@ -2830,9 +2832,11 @@ bool drawGx() {
           : viewDistance >= 50 ? "Short" : "Very short", viewDistance);
     }
     // (60 FPS and the game's frame skip exclude each other: the in-between pictures need every picture)
-    // (Auto: while the game is under 30, as "Aggressive"; its own line says when, so no line here for it)
+    // (Auto: while the game is under 30, the game's frame skip "as needed" (2, runtime/cpu_skip.cpp: a picture left out
+    // only once the game is a whole frame behind, not after every late frame as "Aggressive"; 1.1.0, a user's
+    // Snapdragon 460: Auto felt as choppy as Aggressive); its own line says when, so no line here for it)
     const bool autoOn = optSkipAuto.load() != 0 && autoSkip.on;
-    const int cpuSkip = (optCpuSkip.load() != 0 || autoOn) && !smoothOn ? 1 : 0;
+    const int cpuSkip = smoothOn ? 0 : optCpuSkip.load() != 0 ? 1 : autoOn && autoSkip.cpu ? 2 : 0;
     if (api.setCpuSkip && cpuSkip != cpuSkipSent) {
       api.setCpuSkip(cpuSkip);
       cpuSkipSent = cpuSkip;

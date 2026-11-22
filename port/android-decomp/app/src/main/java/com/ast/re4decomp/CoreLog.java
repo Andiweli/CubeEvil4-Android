@@ -217,7 +217,7 @@ final class CoreLog {
     SharedPreferences g = c.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, Context.MODE_PRIVATE);
     b.append("Graphics: ").append(g.getAll()).append('\n');
     int[] info = CoreBridge.graphicsInfo();
-    if (info != null) {
+    if (info != null && info.length >= 5) {  // (a core of before may give fewer)
       b.append(String.format(Locale.ROOT, "Graphics in use: level %s, %d samples (up to %d), anisotropy %d (up to %d)\n",
           CoreMenu.scaleNumber(info[2], Locale.ROOT), info[3], info[0], info[4], info[1]));
     }

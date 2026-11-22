@@ -345,7 +345,7 @@
     <string name="ingame_fs_auto">Auto-Frame-Skip</string>
     <string name="ingame_fs_normal">Normaler Frame-Skip</string>
     <string name="ingame_fs_aggressive">Aggressiver Frame-Skip</string>
-    <string name="ingame_skip_auto_help">Frame-Skip Auto: Solange das Spiel mit voller Geschwindigkeit läuft, wird nichts ausgelassen; erst wenn es etwa eine halbe Sekunde unter 30 Bildern pro Sekunde bleibt, helfen beide Arten des Frame-Skips (wie bei Aggressiv), bis es wieder zwei Sekunden mit voller Geschwindigkeit gelaufen ist.</string>
+    <string name="ingame_skip_auto_help">Frame-Skip Auto: Solange das Spiel mit voller Geschwindigkeit läuft, wird nichts ausgelassen; erst wenn es etwa eine halbe Sekunde unter 30 Bildern pro Sekunde bleibt, helfen beide Arten des Frame-Skips (zuerst der des Renderers; der des Spiels nur, wenn es zwei Sekunden unter 24 bleibt, und sanfter als bei Aggressiv), bis es wieder zwei Sekunden mit voller Geschwindigkeit gelaufen ist.</string>
     <string name="ingame_even_pacing">Gleichmäßige Bildfolge</string>
     <string name="ingame_even_pacing_help">Gleichmäßige Bildfolge: Ein (Standard) hält ein Bild wenn nötig kurz zurück, damit jedes Bild gleich lang zu sehen ist (gleichmäßige 30, und 60 auf Bildschirmen schneller als 60 Hz). Aus zeigt jedes Bild, sobald es fertig ist, wie in älteren Versionen: etwas direkter, aber weniger gleichmäßig.</string>
     <string name="ingame_vk_bandwidth_help">Nur Vulkan: spart Speicherbandbreite auf Mali- und Adreno-Chips; das Bild bleibt gleich.</string>

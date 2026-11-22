@@ -1821,7 +1821,12 @@ struct GlRenderer final : GxCore {
   GLuint Upscale(GLuint src, float r0, float r1, int w, int h) {
     if (upscaler == kUpscaleOff || !src || w < 16 || h < 16 || xfbWidth < 16 || xfbHeight < 16)
       return 0;
-    const float inW = static_cast<float>(xfbWidth), inH = r1 * static_cast<float>(xfbHeight);
+    // the shown picture's texels: xfbWidth / xfbHeight are GameCube pixels, the texture is at the scale (DisplayTarget;
+    // 1.1.0, a user's Mali-G57 with OpenGL ES: the GameCube's size here made SGSR and FSR sample the wrong texels, a
+    // coarse, noisy picture, and run where nothing was to be enlarged, as with Display resolution 720p)
+    const float texW = static_cast<float>(Hi(static_cast<int>(xfbWidth))),
+                texH = static_cast<float>(Hi(static_cast<int>(xfbHeight)));
+    const float inW = texW, inH = r1 * texH;
     if (static_cast<float>(w) <= inW * 1.02f && static_cast<float>(h) <= inH * 1.02f)
       return 0;  // not larger: the plain (shrinking) stretch
     const bool fsr = upscaler == kUpscaleFsr;
@@ -1857,13 +1862,11 @@ struct GlRenderer final : GxCore {
     glUseProgram(upProgram[first]);
     glUniform2f(upRows[first], r0, r1);
     if (!fsr) {
-      const float info[4] = {1.0f / static_cast<float>(xfbWidth), 1.0f / static_cast<float>(xfbHeight),
-                             static_cast<float>(xfbWidth), static_cast<float>(xfbHeight)};
+      const float info[4] = {1.0f / texW, 1.0f / texH, texW, texH};
       glUniform4fv(upCon[0], 1, info);
     } else {
       std::uint32_t con[16];
-      EasuConstants(con, inW, inH, static_cast<float>(xfbWidth), static_cast<float>(xfbHeight), static_cast<float>(w),
-                    static_cast<float>(h), r0 * static_cast<float>(xfbHeight));
+      EasuConstants(con, inW, inH, texW, texH, static_cast<float>(w), static_cast<float>(h), r0 * texH);
       glUniform4uiv(upCon[1], 1, con);
       glUniform4uiv(upCon2[1], 1, con + 4);
       glUniform4uiv(upCon3[1], 1, con + 8);

@@ -343,7 +343,7 @@
     <string name="ingame_fs_auto">自动跳帧</string>
     <string name="ingame_fs_normal">普通跳帧</string>
     <string name="ingame_fs_aggressive">激进跳帧</string>
-    <string name="ingame_skip_auto_help">跳帧“自动”：游戏全速运行时不跳过任何画面；只有当它约半秒保持在每秒 30 帧以下时，两种跳帧才会帮忙（如“激进”），直到它再次全速运行两秒。</string>
+    <string name="ingame_skip_auto_help">跳帧“自动”：游戏全速运行时不跳过任何画面；只有当它约半秒保持在每秒 30 帧以下时，两种跳帧才会帮忙（先是渲染器的；只有游戏两秒内保持在 24 以下时才用游戏自身的，并且比“激进”更温和），直到它再次全速运行两秒。</string>
     <string name="ingame_even_pacing">均匀帧节奏</string>
     <string name="ingame_even_pacing_help">均匀帧节奏：开（默认）在需要时稍微保留一帧，使每一帧在屏幕上停留同样长的时间（稳定 30 帧，以及高于 60 Hz 的屏幕上的 60 帧）。关：每帧准备好就立即显示，与旧版本相同：稍微更跟手，但不够均匀。</string>
     <string name="ingame_vk_bandwidth_help">仅限 Vulkan：在 Mali 和 Adreno 芯片上节省显存带宽；画面保持不变。</string>
