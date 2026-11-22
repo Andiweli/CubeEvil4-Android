@@ -139,7 +139,7 @@
     <string name="ingame_comfort">Kontrol Nyaman</string>
     <string name="ingame_gyro">Bidik Giroskop</string>
     <string name="ingame_gyro_none">Bidik Giroskop (tanpa giroskop)</string>
-    <string name="ingame_touch_help">Otomatis: tampil tanpa controller, ketukan menampilkannya, tombol menyembunyikannya. Selalu: selalu tampil. Sembunyikan: tersembunyi selama controller terhubung. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Otomatis: tampil tanpa controller, ketukan menampilkannya, tombol menyembunyikannya. Selalu: selalu tampil. Sembunyikan: tersembunyi selama controller, keyboard, atau mouse terhubung (di Chromebook selalu). MENU = SELECT.</string>
     <string name="ingame_alternate">Kontrol Alternatif</string>
     <string name="ingame_latch">Kunci L dan R</string>
     <string name="ingame_latch_b">Kunci B</string>

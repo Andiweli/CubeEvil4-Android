@@ -138,7 +138,7 @@
     <string name="ingame_comfort">Удобное управление</string>
     <string name="ingame_gyro">Прицеливание гироскопом</string>
     <string name="ingame_gyro_none">Прицеливание гироскопом (нет гироскопа)</string>
-    <string name="ingame_touch_help">Авто: кнопки видны без контроллера, касание экрана показывает их, нажатие кнопки скрывает. Всегда: кнопки видны всегда. Скрывать: кнопки скрыты, пока подключён контроллер. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Авто: кнопки видны без контроллера, касание экрана показывает их, нажатие кнопки скрывает. Всегда: кнопки видны всегда. Скрывать: кнопки скрыты, пока подключены контроллер, клавиатура или мышь (на Chromebook всегда). MENU = SELECT.</string>
     <string name="ingame_alternate">Альтернативное управление</string>
     <string name="ingame_latch">Фиксация L и R</string>
     <string name="ingame_latch_b">Фиксация B</string>

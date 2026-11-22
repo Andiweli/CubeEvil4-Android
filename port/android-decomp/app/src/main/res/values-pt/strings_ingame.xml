@@ -139,7 +139,7 @@
     <string name="ingame_comfort">Controles de conforto</string>
     <string name="ingame_gyro">Mirar com giroscópio</string>
     <string name="ingame_gyro_none">Mirar com giroscópio (sem giroscópio)</string>
-    <string name="ingame_touch_help">Auto: visíveis sem controle, um toque os mostra, um botão os oculta. Forçar: sempre visíveis. Ocultar: ocultos enquanto um controle estiver conectado. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Auto: visíveis sem controle, um toque os mostra, um botão os oculta. Forçar: sempre visíveis. Ocultar: ocultos enquanto um controle, um teclado ou um mouse estiver conectado (em um Chromebook sempre). MENU = SELECT.</string>
     <string name="ingame_alternate">Controles alternativos</string>
     <string name="ingame_latch">Travar L e R</string>
     <string name="ingame_latch_b">Travar B</string>

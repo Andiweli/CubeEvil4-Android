@@ -899,6 +899,20 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
   Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
+## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
+
+### 35. Touch-Steuerung „Unterdrücken“ auf dem Chromebook (Projektinhaber, 22.11.2026: „Auf einem Chromebook mit Touchscreen wird die Touchsteuerung nicht mit 'Unterdrücken' ausgeblendet“)
+
+- **Ursache:** „Unterdrücken“ blendet nur aus, solange ein **Gamepad** verbunden ist (`TouchShowRule`; ohne Gamepad
+  bleiben die Knöpfe als Absicherung sichtbar). Ein Chromebook hat Tastatur und Touchpad, meist kein Gamepad.
+- **Änderung:** Mit „Unterdrücken“ zählen auch eine Tastatur (mit Buchstaben), eine Maus oder ein Touchpad und ein
+  PC/Chromebook (`android.hardware.type.pc`, `org.chromium.arc`) als Controller (`TouchShowRule.counts`,
+  `TouchControls.keyboardMouseDevices`, `TouchControls.pcDevice`). Ein Tippen zeigt die Knöpfe weiter, bis die erste
+  Taste benutzt wurde (Tastatur-Tasten zählen schon als Benutzung). „Auto“ und „Erzwingen“ unverändert (Handys mit
+  Bluetooth-Tastatur wie bisher). Hilfetext in 11 Sprachen.
+- **Geprüft am PC:** `tests/TouchShowRuleTests.java` (64 Prüfungen, neu: was zählt, Chromebook-Ablauf),
+  `TouchChromebookTest` (Erkennung über Android-Features), App-Tests 235. **Nicht auf einem Chromebook geprüft.**
+
 ### 34. Update über 1.0.0, Frame-Skip „Auto“ in Stufen, Hochskalierer mit OpenGL ES (Nutzerberichte, 22.11.2026)
 
 - **Bericht nach Update (OPPO A53, Snapdragon 460):** „Force close“ bei Bericht speichern/senden nach Update von 1.0.0

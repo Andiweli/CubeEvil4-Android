@@ -17,6 +17,25 @@ public final class TouchShowRuleTests {
   }
 
   public static void main(String[] args) {
+    // (1.1.1) what counts as a controller: a gamepad always; a keyboard, a mouse or a PC / Chromebook with Suppress only
+    check(TouchShowRule.counts(TouchShowRule.AUTO, true, false, false));
+    check(!TouchShowRule.counts(TouchShowRule.AUTO, false, true, true));     // Auto: a phone with a keyboard as before
+    check(!TouchShowRule.counts(TouchShowRule.FORCE, false, true, true));
+    check(TouchShowRule.counts(TouchShowRule.SUPPRESS, false, true, false)); // Suppress: a keyboard or a mouse
+    check(TouchShowRule.counts(TouchShowRule.SUPPRESS, false, false, true)); // Suppress: a Chromebook
+    check(!TouchShowRule.counts(TouchShowRule.SUPPRESS, false, false, false));
+    // a Chromebook with Suppress: hidden from the start; a tap shows them until a key is used, then no more
+    TouchShowRule book = new TouchShowRule();
+    book.setMode(TouchShowRule.SUPPRESS);
+    final boolean counted = TouchShowRule.counts(book.mode(), false, true, true);
+    check(!book.shown(counted));
+    check(book.touch());
+    check(book.shown(counted));
+    check(book.controller());     // a key of its keyboard (CoreActivity: keyboard keys count as the controller's use)
+    check(!book.shown(counted));
+    check(!book.touch());
+    check(!book.shown(counted));
+
     // Auto (the default)
     TouchShowRule rule = new TouchShowRule();
     check(rule.mode() == TouchShowRule.AUTO);

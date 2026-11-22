@@ -140,7 +140,7 @@
     <string name="ingame_comfort">Commandes de confort</string>
     <string name="ingame_gyro">Visée gyroscopique</string>
     <string name="ingame_gyro_none">Visée gyroscopique (pas de gyroscope)</string>
-    <string name="ingame_touch_help">Auto\u00A0: visibles sans manette, un appui sur l’écran les affiche, un bouton les masque. Forcer\u00A0: toujours visibles. Masquer\u00A0: masquées tant qu’une manette est connectée. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Auto\u00A0: visibles sans manette, un appui sur l’écran les affiche, un bouton les masque. Forcer\u00A0: toujours visibles. Masquer\u00A0: masquées tant qu’une manette, un clavier ou une souris est connecté (sur un Chromebook toujours). MENU = SELECT.</string>
     <string name="ingame_alternate">Commandes alternatives</string>
     <string name="ingame_latch">Verrouiller L et R</string>
     <string name="ingame_latch_b">Verrouiller B</string>

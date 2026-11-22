@@ -138,7 +138,7 @@
     <string name="ingame_comfort">Controles de comodidad</string>
     <string name="ingame_gyro">Apuntar con giroscopio</string>
     <string name="ingame_gyro_none">Apuntar con giroscopio (sin giroscopio)</string>
-    <string name="ingame_touch_help">Auto: visibles sin mando; un toque los muestra y un botón los oculta. Forzar: siempre visibles. Ocultar: ocultos mientras haya un mando conectado. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Auto: visibles sin mando; un toque los muestra y un botón los oculta. Forzar: siempre visibles. Ocultar: ocultos mientras haya un mando, un teclado o un ratón conectado (en un Chromebook siempre). MENU = SELECT.</string>
     <string name="ingame_alternate">Controles alternativos</string>
     <string name="ingame_latch">Fijar L y R</string>
     <string name="ingame_latch_b">Fijar B</string>

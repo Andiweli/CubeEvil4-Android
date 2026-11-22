@@ -142,7 +142,7 @@
     <string name="ingame_comfort">تحكم مريح</string>
     <string name="ingame_gyro">التصويب بالجيروسكوب</string>
     <string name="ingame_gyro_none">التصويب بالجيروسكوب (لا يوجد جيروسكوب)</string>
-    <string name="ingame_touch_help">تلقائي: تظهر الأزرار دون يد تحكم، وتُظهرها لمسة على الشاشة، ويُخفيها الضغط على أي زر. دائمًا: تظهر دائمًا. إخفاء: مخفية ما دامت يد التحكم متصلة. MENU = SELECT.</string>
+    <string name="ingame_touch_help">تلقائي: تظهر الأزرار دون يد تحكم، وتُظهرها لمسة على الشاشة، ويُخفيها الضغط على أي زر. دائمًا: تظهر دائمًا. إخفاء: مخفية ما دامت يد تحكم أو لوحة مفاتيح أو فأرة متصلة (على Chromebook دائمًا). MENU = SELECT.</string>
     <string name="ingame_alternate">تحكم بديل</string>
     <string name="ingame_latch">تثبيت L و R</string>
     <string name="ingame_latch_b">تثبيت B</string>

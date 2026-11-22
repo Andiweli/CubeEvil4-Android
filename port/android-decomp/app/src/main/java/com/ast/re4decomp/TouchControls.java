@@ -70,9 +70,13 @@ final class TouchControls implements CoreTouch.Host {
   // the devices counted as controllers at the last update, for the log
   private String devices = "";
 
+  // a PC or a Chromebook (ChromeOS runs Android apps in ARC): "Suppress" hides the controls there (TouchShowRule.counts)
+  private final boolean pc;
+
   /** mode: the menu's setting (TouchShowRule.AUTO, FORCE, SUPPRESS). */
   TouchControls(Context context, CoreInput input, int mode, Host host) {
     this.host = host;
+    pc = pcDevice(context);
     rule.setMode(mode);
     touch = new CoreTouch(input, this);
     view = new RetroTouchView(context);
@@ -307,6 +311,32 @@ final class TouchControls implements CoreTouch.Host {
     Log.i(CoreActivity.TAG, "touch controls: the saved layout read again (" + (shown ? "shown" : "hidden") + ")");
   }
 
+  /** A PC or a Chromebook: Android's "android.hardware.type.pc" (ChromeOS, desktop modes) or ChromeOS's ARC. */
+  static boolean pcDevice(Context c) {
+    try {
+      android.content.pm.PackageManager pm = c.getPackageManager();
+      return pm != null && (pm.hasSystemFeature("android.hardware.type.pc") || pm.hasSystemFeature("org.chromium.arc")
+          || pm.hasSystemFeature("org.chromium.arc.device_management"));
+    } catch (RuntimeException e) {
+      return false;
+    }
+  }
+
+  /** The keyboards (with letters) and mice or touchpads connected, one description each; "" when there is none. */
+  static String keyboardMouseDevices() {
+    StringBuilder out = new StringBuilder();
+    for (int id : InputDevice.getDeviceIds()) {
+      InputDevice d = InputDevice.getDevice(id);
+      if (d == null) continue;
+      final boolean touchpad = !d.isVirtual()
+          && (d.getSources() & InputDevice.SOURCE_TOUCHPAD) == InputDevice.SOURCE_TOUCHPAD;
+      if (!CoreActivity.keyboardDevice(d) && !CoreActivity.mouseDevice(d) && !touchpad) continue;
+      if (out.length() > 0) out.append(", ");
+      out.append(String.format(Locale.ROOT, "device %d \"%s\" sources 0x%x", id, d.getName(), d.getSources()));
+    }
+    return out.toString();
+  }
+
   View view() { return view; }
 
   boolean shown() { return shown; }
@@ -349,8 +379,11 @@ final class TouchControls implements CoreTouch.Host {
    * when a device changes, after a touch or a controller's use).
    */
   void update() {
-    String now = controllerDevices();
-    boolean controller = !now.isEmpty();
+    String pads = controllerDevices();
+    // (1.1.1) with "Suppress" a keyboard, a mouse or a Chromebook count too (TouchShowRule.counts)
+    String others = rule.mode() == TouchShowRule.SUPPRESS ? keyboardMouseDevices() : "";
+    String now = pads + (others.isEmpty() ? "" : (pads.isEmpty() ? "" : ", ") + others) + (pc ? " (a PC / Chromebook)" : "");
+    boolean controller = TouchShowRule.counts(rule.mode(), !pads.isEmpty(), !others.isEmpty(), pc);
     boolean want = rule.shown(controller);
     boolean change = want != shown || first;
     if (!change && now.equals(devices)) return;
@@ -362,7 +395,8 @@ final class TouchControls implements CoreTouch.Host {
       touch.reset();
     }
     String why = TouchShowRule.name(rule.mode()) + ", " + (!controller ? "no controller"
-        : "a controller is connected" + (rule.touched() && want ? ", the screen was touched" : "") + ": " + now);
+        : (pads.isEmpty() ? "a keyboard, a mouse or a PC (Suppress)" : "a controller is connected")
+            + (rule.touched() && want ? ", the screen was touched" : "") + ": " + now);
     Log.i(CoreActivity.TAG, "touch controls " + (want ? "shown" : "hidden") + " (" + why + ")");
     if (change) host.send();
   }

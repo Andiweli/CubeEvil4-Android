@@ -138,7 +138,7 @@
     <string name="ingame_comfort">Comandi comfort</string>
     <string name="ingame_gyro">Mira con il giroscopio</string>
     <string name="ingame_gyro_none">Mira con il giroscopio (nessun giroscopio)</string>
-    <string name="ingame_touch_help">Auto: visibili senza controller, un tocco li mostra, un tasto li nasconde. Forza: sempre visibili. Nascondi: nascosti finché è collegato un controller. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Auto: visibili senza controller, un tocco li mostra, un tasto li nasconde. Forza: sempre visibili. Nascondi: nascosti finché è collegato un controller, una tastiera o un mouse (su un Chromebook sempre). MENU = SELECT.</string>
     <string name="ingame_alternate">Comandi alternativi</string>
     <string name="ingame_latch">Blocca L e R</string>
     <string name="ingame_latch_b">Blocca B</string>

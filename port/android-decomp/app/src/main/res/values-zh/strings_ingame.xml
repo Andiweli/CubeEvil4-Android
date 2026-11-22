@@ -139,7 +139,7 @@
     <string name="ingame_comfort">便捷操作</string>
     <string name="ingame_gyro">陀螺仪瞄准</string>
     <string name="ingame_gyro_none">陀螺仪瞄准（无陀螺仪）</string>
-    <string name="ingame_touch_help">自动：未连接手柄时显示，轻触屏幕即显示，按下任意按键即隐藏。始终显示：一直显示。隐藏：连接手柄时隐藏。MENU = SELECT。</string>
+    <string name="ingame_touch_help">自动：未连接手柄时显示，轻触屏幕即显示，按下任意按键即隐藏。始终显示：一直显示。隐藏：连接手柄、键盘或鼠标时隐藏（在 Chromebook 上始终隐藏）。MENU = SELECT。</string>
     <string name="ingame_alternate">替代操作</string>
     <string name="ingame_latch">锁定 L 和 R</string>
     <string name="ingame_latch_b">锁定 B</string>

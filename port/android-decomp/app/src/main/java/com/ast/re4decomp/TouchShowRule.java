@@ -13,6 +13,10 @@ package com.ast.re4decomp;
  * them as long as no controller was used since the app started: a device that only reports a
  * controller must not leave the player without any way to play or to open the menu.</li>
  * </ul>
+ * For SUPPRESS a keyboard or a mouse counts as a controller too, and so does a PC or a Chromebook (1.1.1, the project
+ * owner: "Auf einem Chromebook mit Touchscreen wird die Touchsteuerung nicht mit 'Unterdrücken' ausgeblendet": a
+ * Chromebook has its keyboard and touchpad but rarely a gamepad, so the controls stayed). AUTO keeps counting gamepads
+ * only (a phone with a Bluetooth keyboard as before).
  * Pure Java (tests/TouchShowRuleTests.java).
  */
 final class TouchShowRule {
@@ -31,6 +35,12 @@ final class TouchShowRule {
   }
 
   int mode() { return mode; }
+
+  /** What counts as a connected controller for shown(): a gamepad; with SUPPRESS also a keyboard or a mouse
+   *  (`keyboardOrMouse`) or a PC / Chromebook (`pc`, ChromeOS: its built-in keyboard and touchpad). */
+  static boolean counts(int mode, boolean gamepad, boolean keyboardOrMouse, boolean pc) {
+    return gamepad || (mode == SUPPRESS && (keyboardOrMouse || pc));
+  }
 
   /** Shown now, with a controller connected or not. */
   boolean shown(boolean controller) {

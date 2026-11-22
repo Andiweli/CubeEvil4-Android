@@ -138,7 +138,7 @@
     <string name="ingame_comfort">Komfortsteuerung</string>
     <string name="ingame_gyro">Gyro-Zielen</string>
     <string name="ingame_gyro_none">Gyro-Zielen (kein Gyroskop)</string>
-    <string name="ingame_touch_help">Auto: ohne Controller sichtbar, Antippen zeigt sie, eine Taste blendet sie aus. Erzwingen: immer sichtbar. Unterdrücken: aus, solange ein Controller verbunden ist. MENU = SELECT.</string>
+    <string name="ingame_touch_help">Auto: ohne Controller sichtbar, Antippen zeigt sie, eine Taste blendet sie aus. Erzwingen: immer sichtbar. Unterdrücken: aus, solange ein Controller, eine Tastatur oder eine Maus verbunden ist (auf einem Chromebook immer). MENU = SELECT.</string>
     <string name="ingame_alternate">Alternative Steuerung</string>
     <string name="ingame_latch">L und R einrasten</string>
     <string name="ingame_latch_b">B einrasten</string>
