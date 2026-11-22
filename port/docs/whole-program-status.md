@@ -901,6 +901,9 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 
 ## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
 
+Version 1.1.1 (versionCode 125) auf Wunsch des Projektinhabers (23.11.2026: „mach bitte gleich 1.1.1 draus“): Punkte
+35–38, Releasetext `port/android-decomp/docs/releases/v1.1.1.md`. Release und Tag macht der Projektinhaber auf GitHub.
+
 ### 38. Ruckeln vivo V2426, zweiter Log: Kerne alle paar Sekunden zurückgesetzt (Nutzerbericht 23.11.2026)
 
 - **Bericht:** `reports/workthread-1.1.1/user-stutter-20261122/x-1899b51c` (1.1.0, 60 FPS, Leistungskerne an,
