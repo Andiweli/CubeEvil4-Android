@@ -51,10 +51,33 @@ else()
     find_library(RE4_GLES_LIBRARY NAMES GLESv2 libGLESv2.so.2 REQUIRED)
     # the main app's GLES 3 renderer, contexts, pictures (tools/gx_test_common.h)
     # (master 0.99.x split it: gx_core.cpp, gx_renderer.cpp beside gx_gl.cpp; 1.0.0 added word_sharpen.cpp)
+    # the main app's upscalers (1.1.0, gx_upscale.cpp, which gx_gl.cpp calls): their shader text embedded as the main
+    # app's CMakeLists does (the third-party files unchanged, as raw string literals in embed/*.inc)
+    foreach(embed "ffx_a=third_party/fidelityfx-fsr/ffx_a.h" "ffx_fsr1=third_party/fidelityfx-fsr/ffx_fsr1.h"
+            "sgsr1=third_party/snapdragon-gsr/sgsr1_shader_mobile.frag")
+        string(FIND "${embed}" "=" at)
+        string(SUBSTRING "${embed}" 0 ${at} embed_name)
+        math(EXPR at "${at} + 1")
+        string(SUBSTRING "${embed}" ${at} -1 embed_file)
+        file(READ "${RE4_MAIN_APP_CPP}/${embed_file}" embed_text)
+        set(embed_out "${CMAKE_CURRENT_BINARY_DIR}/embed/${embed_name}.inc")
+        set(embed_new "R\"EMBED(${embed_text})EMBED\"")
+        if(EXISTS "${embed_out}")
+            file(READ "${embed_out}" embed_old)
+        else()
+            set(embed_old "")
+        endif()
+        if(NOT embed_old STREQUAL embed_new)
+            file(WRITE "${embed_out}" "${embed_new}")
+        endif()
+    endforeach()
     add_library(re4_gx_reference STATIC "${RE4_OUYA_TOOLS}/gx_test_common.cpp" "${RE4_MAIN_APP_CPP}/gx_gl.cpp"
         "${RE4_MAIN_APP_CPP}/gx_core.cpp" "${RE4_MAIN_APP_CPP}/gx_renderer.cpp" "${RE4_MAIN_APP_CPP}/gx_gl_shader.cpp"
-        "${RE4_MAIN_APP_CPP}/word_sharpen.cpp"
+        "${RE4_MAIN_APP_CPP}/word_sharpen.cpp" "${RE4_MAIN_APP_CPP}/gx_upscale.cpp"
         "${RE4_MAIN_APP_CPP}/tex_pack.cpp" "${RE4_OUYA_TOOLS}/../../tools/texpack/etc2.cpp")
+    target_include_directories(re4_gx_reference PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/embed")
+    # (the third-party FSR header has helpers gx_upscale.cpp does not use: no error from them here)
+    set_source_files_properties("${RE4_MAIN_APP_CPP}/gx_upscale.cpp" PROPERTIES COMPILE_OPTIONS "-Wno-error")
     target_include_directories(re4_gx_reference PUBLIC "${RE4_OUYA_TOOLS}" "${RE4_MAIN_APP_CPP}" "${RE4_CORE_INCLUDE}"
         "${RE4_OUYA_TOOLS}/../../tools/texpack"
         ${RE4_GLES_INCLUDE_DIR})

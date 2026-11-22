@@ -73,7 +73,9 @@ for mode in direct exact tegra3; do
     esac
     mkdir -p "$out/compare-$mode"
     rm -f "$out/compare-$mode"/*
-    env "${env[@]}" "$tools/gx_gl2_compare" "$out/compare-$mode" $(ls "$frameDir"/gx-*.bin | sort) 2> /dev/null \
+    # RE4_GX_MAKE_MIPS=0: the main app's renderer without the mipmaps it makes since 1.1.0 for textures the game gives
+    # none (gx_mips.h); the GLES 2 renderer makes none for them (with them 28 of 30 frames were off, 22.11.2026)
+    env RE4_GX_MAKE_MIPS=0 "${env[@]}" "$tools/gx_gl2_compare" "$out/compare-$mode" $(ls "$frameDir"/gx-*.bin | sort) 2> /dev/null \
         > "$out/compare-$mode.txt"
     code=$?
     [ "$code" -ne 0 ] && status=1
