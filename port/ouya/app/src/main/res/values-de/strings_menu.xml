@@ -166,7 +166,7 @@
     <string name="ouya_no_browser">Kein Webbrowser auf diesem Gerät. Die Adresse: %1$s</string>
     <string name="ouya_light_detail">Detailliertes Licht</string>
     <string name="ouya_light_help">Detailliertes Licht: aus beleuchtet die Umgebung einmal je Objekt statt an jedem Punkt (Figuren behalten ihres); auf der OUYA deutlich schneller, Boden und Bäume wirken etwas flacher. Wirkt sofort.</string>
-    <string name="ouya_source_only">Diese Version und auch die Android-Vollversion zu CubeEvil4 ist nur hier verfügbar.\nVermeide den Download von Fremdseiten oder Spieleplattformen.</string>
+    <string name="ouya_source_only">Diese Version und auch die Android-Vollversion zu CubeEvil4 sind nur hier verfügbar.\nVermeide den Download von Fremdseiten oder Spieleplattformen.</string>
     <string name="ouya_invert_help">Vertikal umkehren: Zielen nach oben und unten andersherum, mit Controller, Tastatur und Touch-Steuerung (die Option des Spiels selbst).</string>
     <string name="ouya_keyboard_help">Tastatur und Maus: W A S D laufen (und zielen), Umschalt rennt, E für Aktionen, die rechte Maustaste zielt, die linke schießt, R lädt beim Zielen nach, C zückt das Messer, Q ruft Ashley, Tab öffnet den Koffer, M die Karte, Esc die Optionen, F1 dieses Menü. I J K L drehen die Kamera, das Mausrad zoomt das Zielfernrohr. Pfeiltasten, Enter und Rücktaste gehen in den Menüs des Spiels. Der Mauszeiger zielt nicht. Im Titel- und Optionsmenü des Spiels wählt der Mauszeiger einen Eintrag, ein Linksklick bestätigt ihn.</string>
     <string name="ouya_gentle_qte_help">Sanftere QTEs: In Professional lassen die Tastenaufforderungen so viel Zeit und brauchen so viele Drücke wie in Normal; Schaden und Gegner bleiben wie in Professional.</string>

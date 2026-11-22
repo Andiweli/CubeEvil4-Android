@@ -181,6 +181,15 @@ final class OuyaMenu extends Dialog {
         LinearLayout header = row();
         TextView title = text(s(R.string.ingame_title), 22, true);
         title.setPadding(dp(GAP), 0, dp(8), 0);
+        // the app's icon before "CubeEvil4 Potato Options" (the project owner, 22.11.2026, as the main app's 1.1.0
+        // title; Android 4.1 lays no language out right to left, so always on the left)
+        android.graphics.drawable.Drawable icon = context.getResources().getDrawable(R.drawable.icon);
+        if (icon != null) {
+            icon.setBounds(0, 0, dp(30), dp(30));
+            title.setCompoundDrawables(icon, null, null, null);
+            title.setCompoundDrawablePadding(dp(12));
+        }
+        title.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         resume = button(s(R.string.ingame_back), new View.OnClickListener() {
             @Override
