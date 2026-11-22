@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">更宽松的 QTE（Professional）</string>
     <string name="ingame_cheat_section_player">玩家</string>
     <string name="ingame_cheat_section_weapons">武器</string>
-    <string name="ingame_cheat_section_game">通用与物品栏</string>
     <string name="ingame_cheat_health">无限生命</string>
     <string name="ingame_cheat_ammo">无限弹药</string>
     <string name="ingame_cheat_invisible">隐身</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">用当前进度替换原有即时存档？</string>
     <string name="ingame_instant_load_warning">未保存的进度将丢失。是否读取即时存档？</string>
     <string name="ingame_replace">替换</string>
-    <string name="ingame_cheat_random_items">随机物品</string>
-    <string name="ingame_cheat_random_items_help">随机物品：剧情房间里放置的弹药、草药、手雷、比塞塔和宝物会重新分配；同一个房间会保留它的物品，直到你关闭后再重新打开此开关。钥匙、武器和其他剧情物品保持不变，因此游戏始终可以通关。不适用于 Assignment Ada 和 The Mercenaries。</string>
     <string name="ingame_cheat_extras">解锁额外游戏</string>
     <string name="ingame_cheat_steady">稳定瞄准</string>
     <string name="ingame_cheat_costume">服装</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">补满弹药：箱子里的每一堆弹药都会补到“弹药堆叠”的数值（标准：该种类的正常上限）；不会添加新弹药，武器中已装填的子弹不变。</string>
     <string name="ingame_quick_reload">无需瞄准即可装弹</string>
     <string name="ingame_quick_reload_help">无需瞄准即可装弹（键盘）：单按装弹键（默认 R）即可装弹，无需先举起武器。</string>
+    <string name="ingame_effects">效果</string>
+    <string name="ingame_side_control_type">操作方式</string>
+    <string name="ingame_side_assists">辅助</string>
+    <string name="ingame_side_profile">性能配置</string>
+    <string name="ingame_side_unlocks">解锁</string>
     <string name="ingame_cheat_extras_text">Assignment Ada 和 The Mercenaries 已解锁（还有 Professional，与通关后相同）。重新启动后，标题菜单会显示它们。自上次存档以来的进度将会丢失。</string>
     <string name="ingame_cheat_extras_later">已解锁：下次重新启动后，Assignment Ada 和 The Mercenaries 会出现在标题菜单中。</string>
     <string name="ingame_cheat_extras_already">已经解锁：Assignment Ada 和 The Mercenaries 已在标题菜单中。</string>

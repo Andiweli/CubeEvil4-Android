@@ -16,7 +16,7 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_skip_normal_help', 'ingame_skip_aggressive_help', 'ingame_gentle_qte',
         # the cheats (wish of the project owner, 07.11.2026: the basic ones and the weapons, not the
         # characters and the extra games)
-        'ingame_cheat_section_player', 'ingame_cheat_section_weapons', 'ingame_cheat_section_game',
+        'ingame_cheat_section_player', 'ingame_cheat_section_weapons',
         'ingame_cheat_health', 'ingame_cheat_ammo', 'ingame_cheat_invisible', 'ingame_cheat_onehit',
         'ingame_cheat_case', 'ingame_cheat_money', 'ingame_cheat_handcannon', 'ingame_cheat_killer7',
         'ingame_cheat_matilda', 'ingame_cheat_chicago', 'ingame_cheat_mine', 'ingame_cheat_rocket', 'ingame_cheat_qte',
@@ -31,7 +31,7 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_instant_empty', 'ingame_instant_unavailable', 'ingame_instant_no_save', 'ingame_instant_unsupported',
         'ingame_instant_damaged', 'ingame_instant_failed', 'ingame_instant_saved', 'ingame_instant_overwrite_title',
         'ingame_instant_load_title', 'ingame_instant_overwrite', 'ingame_instant_load_warning', 'ingame_replace',
-        'ingame_cheat_random_items', 'ingame_cheat_random_items_help', 'ingame_cheat_extras',
+        'ingame_cheat_extras',
         # 1.0.0 (wish of the project owner, 17.11.2026): steady aim and the costumes
         'ingame_cheat_steady', 'ingame_cheat_costume', 'ingame_cheat_costume_normal', 'ingame_cheat_costume_jacket',
         'ingame_cheat_costume_special',
@@ -42,6 +42,8 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_skip_intro', 'ingame_skip_intro_help', 'ingame_ashley_hold_help', 'ingame_cheat_stack',
         'ingame_cheat_stack_help', 'ingame_stack_standard', 'ingame_cheat_refill', 'ingame_cheat_refill_full',
         'ingame_cheat_refill_help', 'ingame_quick_reload', 'ingame_quick_reload_help',
+        # the side labels of the menu (the project owner, 22.11.2026; the main app's 1.1.0 menu)
+        'ingame_effects', 'ingame_side_control_type', 'ingame_side_assists', 'ingame_side_profile', 'ingame_side_unlocks',
         'ingame_cheat_extras_text', 'ingame_cheat_extras_later', 'ingame_cheat_extras_already',
         'ingame_language_restart_title', 'ingame_restart', 'ingame_later',
         'ingame_management', 'ingame_card_busy', 'ingame_card_none', 'ingame_export', 'ingame_export_zip',

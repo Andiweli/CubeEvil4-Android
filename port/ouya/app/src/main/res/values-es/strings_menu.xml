@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">QTE más suaves (Professional)</string>
     <string name="ingame_cheat_section_player">Jugador</string>
     <string name="ingame_cheat_section_weapons">Armas</string>
-    <string name="ingame_cheat_section_game">General e inventario</string>
     <string name="ingame_cheat_health">Salud infinita</string>
     <string name="ingame_cheat_ammo">Munición infinita</string>
     <string name="ingame_cheat_invisible">Invisibilidad</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">¿Sustituir el guardado instantáneo anterior por tu progreso actual?</string>
     <string name="ingame_instant_load_warning">Se perderá el progreso sin guardar. ¿Cargar el guardado instantáneo?</string>
     <string name="ingame_replace">Reemplazar</string>
-    <string name="ingame_cheat_random_items">Objetos aleatorios</string>
-    <string name="ingame_cheat_random_items_help">Objetos aleatorios: la munición, las hierbas, las granadas, las pesetas y los tesoros de las salas de la historia se reparten de nuevo; una sala conserva sus objetos hasta que lo desactives y lo vuelvas a activar. Las llaves, las armas y demás objetos de la historia se quedan, así que siempre se puede terminar el juego. No en Assignment Ada ni en The Mercenaries.</string>
     <string name="ingame_cheat_extras">Desbloquear juegos extra</string>
     <string name="ingame_cheat_steady">Puntería estable</string>
     <string name="ingame_cheat_costume">Trajes</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">Rellenar munición: cada pila de munición del maletín se llena hasta el valor de «Apilar munición» (Estándar: el máximo normal de su tipo); no se añade munición nueva y las balas cargadas en las armas no cambian.</string>
     <string name="ingame_quick_reload">Recargar sin apuntar</string>
     <string name="ingame_quick_reload_help">Recargar sin apuntar (teclado): la tecla de recarga sola (R por defecto) recarga sin levantar antes el arma.</string>
+    <string name="ingame_effects">Efectos</string>
+    <string name="ingame_side_control_type">Tipo de control</string>
+    <string name="ingame_side_assists">Ayudas</string>
+    <string name="ingame_side_profile">Perfil</string>
+    <string name="ingame_side_unlocks">Desbloqueos</string>
     <string name="ingame_cheat_extras_text">Assignment Ada y The Mercenaries están desbloqueados (también Professional, como al terminar el juego). El menú principal los muestra tras reiniciar. Se pierde el progreso desde tu última partida guardada.</string>
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada y The Mercenaries aparecerán en el menú principal tras el próximo reinicio.</string>
     <string name="ingame_cheat_extras_already">Ya desbloqueados: Assignment Ada y The Mercenaries están en el menú principal.</string>

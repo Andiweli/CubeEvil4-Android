@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">Sanftere QTEs (Professional)</string>
     <string name="ingame_cheat_section_player">Spieler</string>
     <string name="ingame_cheat_section_weapons">Waffen</string>
-    <string name="ingame_cheat_section_game">Allgemein und Inventar</string>
     <string name="ingame_cheat_health">Unendlich Gesundheit</string>
     <string name="ingame_cheat_ammo">Unendlich Munition</string>
     <string name="ingame_cheat_invisible">Unsichtbarkeit</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">Den bisherigen Instant-Spielstand durch Deinen aktuellen Fortschritt ersetzen?</string>
     <string name="ingame_instant_load_warning">Nicht gespeicherter Fortschritt geht verloren. Instant-Spielstand laden?</string>
     <string name="ingame_replace">Ersetzen</string>
-    <string name="ingame_cheat_random_items">Zufällige Gegenstände</string>
-    <string name="ingame_cheat_random_items_help">Zufällige Gegenstände: Munition, Kräuter, Granaten, Peseten und Schätze in den Räumen der Story werden neu verteilt; ein Raum behält seine Gegenstände, bis du den Schalter aus- und wieder einschaltest. Schlüssel, Waffen und andere Story-Gegenstände bleiben, das Spiel ist also immer schaffbar. Nicht in Assignment Ada und The Mercenaries.</string>
     <string name="ingame_cheat_extras">Extra-Spiele freischalten</string>
     <string name="ingame_cheat_steady">Atemstopp beim Zielen</string>
     <string name="ingame_cheat_costume">Kostüme</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">Munition auffüllen: Jeder Munitionsstapel im Koffer wird bis zum Wert von „Munition stapeln“ gefüllt (Standard: das normale Maximum seiner Sorte); keine neue Munition, die geladenen Patronen der Waffen bleiben.</string>
     <string name="ingame_quick_reload">Nachladen ohne Zielen</string>
     <string name="ingame_quick_reload_help">Nachladen ohne Zielen (Tastatur): Die Nachladetaste allein (Standard R) lädt nach, ohne erst die Waffe anzulegen.</string>
+    <string name="ingame_effects">Effekte</string>
+    <string name="ingame_side_control_type">Steuerungsart</string>
+    <string name="ingame_side_assists">Erleichterungen</string>
+    <string name="ingame_side_profile">Leistungsprofil</string>
+    <string name="ingame_side_unlocks">Freischaltungen</string>
     <string name="ingame_cheat_extras_text">Assignment Ada und The Mercenaries sind freigeschaltet (dazu Professional, wie nach dem Durchspielen). Das Titelmenü zeigt sie nach einem Neustart. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
     <string name="ingame_cheat_extras_already">Schon freigeschaltet: Assignment Ada und The Mercenaries stehen im Titelmenü.</string>

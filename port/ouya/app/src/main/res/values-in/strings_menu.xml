@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">QTE Lebih Ringan (Professional)</string>
     <string name="ingame_cheat_section_player">Pemain</string>
     <string name="ingame_cheat_section_weapons">Senjata</string>
-    <string name="ingame_cheat_section_game">Umum &amp; inventaris</string>
     <string name="ingame_cheat_health">Nyawa tak terbatas</string>
     <string name="ingame_cheat_ammo">Amunisi tak terbatas</string>
     <string name="ingame_cheat_invisible">Tak terlihat</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">Ganti simpanan cepat sebelumnya dengan kemajuan Anda saat ini?</string>
     <string name="ingame_instant_load_warning">Kemajuan yang belum disimpan akan hilang. Muat simpanan cepat?</string>
     <string name="ingame_replace">Ganti</string>
-    <string name="ingame_cheat_random_items">Item acak</string>
-    <string name="ingame_cheat_random_items_help">Item acak: amunisi, herba, granat, peseta, dan harta yang tergeletak di ruangan cerita dibagikan ulang; satu ruangan mempertahankan itemnya sampai Anda mematikan lalu menyalakannya lagi. Kunci, senjata, dan item cerita lain tetap, jadi game selalu bisa diselesaikan. Tidak di Assignment Ada dan The Mercenaries.</string>
     <string name="ingame_cheat_extras">Buka game tambahan</string>
     <string name="ingame_cheat_steady">Bidikan stabil</string>
     <string name="ingame_cheat_costume">Kostum</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">Isi ulang amunisi: setiap tumpukan amunisi di koper diisi sampai nilai \"Tumpuk amunisi\" (Standar: batas normal jenisnya); tidak ada amunisi baru, peluru yang terisi di senjata tetap.</string>
     <string name="ingame_quick_reload">Isi ulang tanpa membidik</string>
     <string name="ingame_quick_reload_help">Isi ulang tanpa membidik (keyboard): tombol isi ulang saja (bawaan R) mengisi ulang tanpa mengangkat senjata dulu.</string>
+    <string name="ingame_effects">Efek</string>
+    <string name="ingame_side_control_type">Jenis kontrol</string>
+    <string name="ingame_side_assists">Bantuan</string>
+    <string name="ingame_side_profile">Profil</string>
+    <string name="ingame_side_unlocks">Buka kunci</string>
     <string name="ingame_cheat_extras_text">Assignment Ada dan The Mercenaries telah terbuka (juga Professional, seperti setelah menamatkan game). Menu judul menampilkannya setelah dimulai ulang. Kemajuan sejak penyimpanan terakhir akan hilang.</string>
     <string name="ingame_cheat_extras_later">Terbuka: Assignment Ada dan The Mercenaries ada di menu judul setelah dimulai ulang.</string>
     <string name="ingame_cheat_extras_already">Sudah terbuka: Assignment Ada dan The Mercenaries ada di menu judul.</string>

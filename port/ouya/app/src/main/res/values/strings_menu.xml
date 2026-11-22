@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">Gentler QTEs (Professional)</string>
     <string name="ingame_cheat_section_player">Player</string>
     <string name="ingame_cheat_section_weapons">Weapons</string>
-    <string name="ingame_cheat_section_game">General &amp; inventory</string>
     <string name="ingame_cheat_health">Infinite health</string>
     <string name="ingame_cheat_ammo">Infinite ammo</string>
     <string name="ingame_cheat_invisible">Invisibility</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">Replace the previous instant save with your current progress?</string>
     <string name="ingame_instant_load_warning">Unsaved progress will be lost. Load the instant save?</string>
     <string name="ingame_replace">Replace</string>
-    <string name="ingame_cheat_random_items">Random items</string>
-    <string name="ingame_cheat_random_items_help">Random items: ammo, herbs, grenades, pesetas and treasures lying in the story\'s rooms are dealt anew; a room keeps its items until you switch this off and on again. Keys, weapons and other story items stay, so the game can always be finished. Not in Assignment Ada and The Mercenaries.</string>
     <string name="ingame_cheat_extras">Unlock extra games</string>
     <string name="ingame_cheat_steady">Steady aim</string>
     <string name="ingame_cheat_costume">Costumes</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to the value of \"Stack ammo\" (Standard: its type\'s normal maximum); no new ammo, the weapons\' loaded rounds stay.</string>
     <string name="ingame_quick_reload">Reload without aiming</string>
     <string name="ingame_quick_reload_help">Reload without aiming (keyboard): the reload key alone (R by default) reloads, without raising the weapon first.</string>
+    <string name="ingame_effects">Effects</string>
+    <string name="ingame_side_control_type">Control type</string>
+    <string name="ingame_side_assists">Assists</string>
+    <string name="ingame_side_profile">Profile</string>
+    <string name="ingame_side_unlocks">Unlocks</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
     <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>

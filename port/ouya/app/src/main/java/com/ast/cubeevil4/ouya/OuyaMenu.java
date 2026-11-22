@@ -121,14 +121,12 @@ final class OuyaMenu extends Dialog {
          *  off None (2; fire and explosions stay at half as a warning). */
         static int particles(SharedPreferences p) { return p.getBoolean(PARTICLES_ON, false) ? 0 : 2; }
         /** The cheat switches (runtime/cheats.cpp): 1 health, 2 ammo, 4 one-hit kill, 8 QTEs, 512 invisibility. */
-        static int cheats(SharedPreferences p) { return p.getInt(CHEATS, 0); }
-        /** "Random items" (runtime/cheats.cpp, the main app's CoreMenu.withRandomItems): bit 1024 and a seed in
-         *  bits 11..30, a new one each time it goes on. */
-        static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
-        static int withRandomItems(int bits, boolean on, int seed) {
-            bits &= ~(RANDOM_ITEMS_BIT | SEED_BITS);
-            return on ? bits | RANDOM_ITEMS_BIT | ((seed << SEED_SHIFT) & SEED_BITS) : bits;
+        static int cheats(SharedPreferences p) {
+            // "Random items" is no longer in the menu (the project owner, 22.11.2026): left on before, it is off now
+            return p.getInt(CHEATS, 0) & ~(RANDOM_ITEMS_BIT | SEED_BITS);
         }
+        /** "Random items" (runtime/cheats.cpp): bit 1024 and its seed in bits 11..30; in the menu until 22.11.2026. */
+        static final int RANDOM_ITEMS_BIT = 1024, SEED_SHIFT = 11, SEED_BITS = 0xFFFFF << SEED_SHIFT;
         /** "Steady aim" (1.0.0, patch 0233; the main app's CoreMenu.STEADY_AIM_BIT): the laser and the scope still. */
         static final int STEADY_AIM_BIT = 1 << 31;
         /** The special costumes of Leon and Ashley (runtime/cheats.cpp; the main app's CoreMenu.COSTUME_BIT). */
@@ -264,13 +262,15 @@ final class OuyaMenu extends Dialog {
         help(R.string.ouya_graphics_help);
         // four switches, the particle effects one of them (wish of the project owner, 14.11.2026)
         heading(R.string.ingame_potato);
-        LinearLayout potato = buttonsRow();
+        // with the label "Effects" in the left column, the switches in two columns beside it (the project owner,
+        // 22.11.2026)
+        LinearLayout potato = captionRow(s(R.string.ingame_effects));
         toggle(potato, R.string.ingame_potato_weather, Settings.WEATHER);
         toggle(potato, R.string.ingame_potato_special, Settings.SPECIAL);
-        LinearLayout light = buttonsRow();
+        LinearLayout light = captionRow("");
         toggle(light, R.string.ingame_potato_shadows, Settings.SHADOWS);
         toggle(light, R.string.ingame_potato_particles, Settings.PARTICLES_ON);
-        LinearLayout detail = buttonsRow();
+        LinearLayout detail = captionRow("");
         toggle(detail, R.string.ouya_light_detail, Settings.DETAILED_LIGHT);
         detail.addView(new View(getContext()), cell());
         help(R.string.ingame_potato_help);
@@ -280,38 +280,40 @@ final class OuyaMenu extends Dialog {
                 s(R.string.ingame_skip_aggressive)}, new int[] {0, 1, 2}, Settings.frameSkip(prefs),
                 Settings.FRAME_SKIP_LEVEL);
         // "Use performance cores" (1.0.0, wish of the project owner, 17.11.2026; off by default): one switch under
-        // the frame skip's three, indented by the label column and as wide as the three (the project owner, 18.11.2026)
-        LinearLayout cores = captionRow("");
+        // the frame skip's three, indented by the label column and as wide as the three (the project owner, 18.11.2026),
+        // the label "Profile" beside it (22.11.2026)
+        LinearLayout cores = captionRow(s(R.string.ingame_side_profile));
         toggle(cores, R.string.ingame_perf_cores, Settings.FAST_CORES);
         help(R.string.ingame_skip_normal_help);
         help(R.string.ingame_skip_aggressive_help);
         help(R.string.ingame_perf_help);
         heading(R.string.ingame_comfort);
-        LinearLayout comfort = buttonsRow();
+        // labels in the left column, the switches in two columns (the project owner, 22.11.2026): "Control type"
+        // auto aim, always run, far camera, invert vertical; "Keyboard & mouse" reload without aiming (1.1.0);
+        // "Assists" gentler QTEs, skip intro (1.1.0, from the next start)
+        LinearLayout comfort = captionRow(s(R.string.ingame_side_control_type));
         toggle(comfort, R.string.ingame_auto_aim, Settings.AUTO_AIM);
         toggle(comfort, R.string.ingame_always_run, Settings.ALWAYS_RUN);
-        LinearLayout camera = buttonsRow();
+        LinearLayout camera = captionRow("");
         toggle(camera, R.string.ingame_far_camera, Settings.FAR_CAMERA);
-        toggle(camera, R.string.ingame_gentle_qte, Settings.GENTLE_QTE, true);
-        // beside "Invert vertical": "Skip intro" (1.1.0, from the next start)
-        LinearLayout invert = buttonsRow();
-        toggle(invert, R.string.ingame_aim_invert_v, Settings.INVERT);
-        toggle(invert, R.string.ingame_skip_intro, Settings.SKIP_INTRO);
+        toggle(camera, R.string.ingame_aim_invert_v, Settings.INVERT);
+        LinearLayout reload = captionRow(s(R.string.ingame_map_keyboard));
+        toggle(reload, R.string.ingame_quick_reload, Settings.QUICK_RELOAD);
+        reload.addView(new View(getContext()), cell());
+        LinearLayout assists = captionRow(s(R.string.ingame_side_assists));
+        toggle(assists, R.string.ingame_gentle_qte, Settings.GENTLE_QTE, true);
+        toggle(assists, R.string.ingame_skip_intro, Settings.SKIP_INTRO);
         help(R.string.ingame_auto_aim_help);
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
-        help(R.string.ouya_gentle_qte_help);
         help(R.string.ouya_invert_help);
+        // keyboard and mouse (1.0.0): the main app's default keys (OuyaKeyboard); "Reload without aiming" (1.1.0)
+        help(R.string.ouya_keyboard_help);
+        help(R.string.ingame_quick_reload_help);
+        help(R.string.ouya_gentle_qte_help);
         help(R.string.ingame_skip_intro_help);
         // Ashley's catch-up (1.1.0, runtime/ashley_catchup.cpp): no switch, the game always does it
         help(R.string.ingame_ashley_hold_help);
-        // keyboard and mouse (1.0.0): the main app's default keys (OuyaKeyboard); "Reload without aiming" (1.1.0)
-        subheading(R.string.ingame_map_keyboard);
-        LinearLayout reload = buttonsRow();
-        toggle(reload, R.string.ingame_quick_reload, Settings.QUICK_RELOAD);
-        reload.addView(new View(getContext()), cell());
-        help(R.string.ouya_keyboard_help);
-        help(R.string.ingame_quick_reload_help);
         if (host.touchAvailable())
             touch();
         cheats();
@@ -381,44 +383,28 @@ final class OuyaMenu extends Dialog {
 
     private void cheats() {
         heading(R.string.ouya_cheats);
-        subheading(R.string.ingame_cheat_section_player);
-        LinearLayout player = buttonsRow();
+        // the sections' names in the left column, their buttons in two columns beside them (the project owner,
+        // 22.11.2026): Player, Weapons, Unlocks (before "General and inventory"); "Random items" left out
+        LinearLayout player = captionRow(s(R.string.ingame_cheat_section_player));
         cheatSwitch(player, R.string.ingame_cheat_health, 1);
         cheatSwitch(player, R.string.ingame_cheat_ammo, 2);
-        cheatSwitch(player, R.string.ingame_cheat_invisible, 512);
-        // the second row as in the main app's 1.0.0: one-hit kill, steady aim, the costumes (wish of the project
-        // owner, 17.11.2026)
-        LinearLayout player2 = buttonsRow();
+        LinearLayout player2 = captionRow("");
+        cheatSwitch(player2, R.string.ingame_cheat_invisible, 512);
         cheatSwitch(player2, R.string.ingame_cheat_onehit, 4);
-        cheatSwitch(player2, R.string.ingame_cheat_steady, Settings.STEADY_AIM_BIT);
-        costumeSwitch(player2);
-        subheading(R.string.ingame_cheat_section_weapons);
-        LinearLayout weapons = buttonsRow();
+        LinearLayout player3 = captionRow("");
+        cheatSwitch(player3, R.string.ingame_cheat_steady, Settings.STEADY_AIM_BIT);
+        costumeSwitch(player3);
+        LinearLayout weapons = captionRow(s(R.string.ingame_cheat_section_weapons));
         cheatButton(weapons, 5, R.string.ingame_cheat_handcannon);
         cheatButton(weapons, 1, R.string.ingame_cheat_killer7);
-        cheatButton(weapons, 9, R.string.ingame_cheat_matilda);
-        LinearLayout launchers = buttonsRow();
-        cheatButton(launchers, 6, R.string.ingame_cheat_chicago);
-        cheatButton(launchers, 8, R.string.ingame_cheat_mine);
-        cheatButton(launchers, 7, R.string.ingame_cheat_rocket);
-        subheading(R.string.ingame_cheat_section_game);
-        // beside "Automatic QTEs": "Random items" and "Unlock extra games", as in the main app (wish of the project
-        // owner, 14.11.2026)
-        LinearLayout game = buttonsRow();
-        cheatSwitch(game, R.string.ingame_cheat_qte, 8);
-        final Button items = button("", null);
-        items.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                boolean next = !items.isSelected();
-                toggleLabel(items, R.string.ingame_cheat_random_items, next);
-                prefs.edit().putInt(Settings.CHEATS, Settings.withRandomItems(Settings.cheats(prefs), next,
-                        new java.util.Random().nextInt(1 << 20))).apply();
-                host.settingsChanged();
-            }
-        });
-        toggleLabel(items, R.string.ingame_cheat_random_items, (Settings.cheats(prefs) & Settings.RANDOM_ITEMS_BIT) != 0);
-        game.addView(items, cell());
+        LinearLayout weapons2 = captionRow("");
+        cheatButton(weapons2, 9, R.string.ingame_cheat_matilda);
+        cheatButton(weapons2, 6, R.string.ingame_cheat_chicago);
+        LinearLayout weapons3 = captionRow("");
+        cheatButton(weapons3, 8, R.string.ingame_cheat_mine);
+        cheatButton(weapons3, 7, R.string.ingame_cheat_rocket);
+        LinearLayout unlocks = captionRow(s(R.string.ingame_side_unlocks));
+        cheatSwitch(unlocks, R.string.ingame_cheat_qte, 8);
         final Button extras = button(s(R.string.ingame_cheat_extras), null);
         extras.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -427,13 +413,12 @@ final class OuyaMenu extends Dialog {
                 unlockExtras();
             }
         });
-        game.addView(extras, cell());
-        // the case and the money under them (the main app's GENERAL & INVENTORY)
-        LinearLayout inventory = buttonsRow();
+        unlocks.addView(extras, cell());
+        LinearLayout inventory = captionRow("");
         cheatButton(inventory, 2, R.string.ingame_cheat_case);
         cheatButton(inventory, 3, R.string.ingame_cheat_money);
-        // "Stack ammo" and "Refill ammo" beside it (1.1.0, the main app's GENERAL AND INVENTORY; action 10)
-        LinearLayout ammo = buttonsRow();
+        // "Stack ammo" and "Refill ammo" (1.1.0, the main app's; action 10)
+        LinearLayout ammo = captionRow("");
         stackSwitch(ammo);
         cheatButton(ammo, 10, R.string.ingame_cheat_refill);
         cheatStatus = text("", 15, false);
@@ -442,7 +427,6 @@ final class OuyaMenu extends Dialog {
         cheatStatus.setVisibility(View.GONE);
         body.addView(cheatStatus);
         help(R.string.ingame_cheats_help);
-        help(R.string.ingame_cheat_random_items_help);
         help(R.string.ingame_cheat_stack_help);
         help(R.string.ingame_cheat_refill_help);
     }
@@ -562,14 +546,6 @@ final class OuyaMenu extends Dialog {
                     }
                 }).create();
         showDialog(dialog, true);
-    }
-
-    /** A section's second level: its name in the muted colour, without the line */
-    private void subheading(int id) {
-        TextView v = text(s(id), 15, true);
-        v.setTextColor(MUTED);
-        v.setPadding(dp(GAP), dp(10), dp(GAP), dp(2));
-        body.addView(v);
     }
 
     private void cheatSwitch(LinearLayout parent, final int label, final int bit) {

@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">आसान QTE (Professional)</string>
     <string name="ingame_cheat_section_player">खिलाड़ी</string>
     <string name="ingame_cheat_section_weapons">हथियार</string>
-    <string name="ingame_cheat_section_game">सामान्य और इन्वेंटरी</string>
     <string name="ingame_cheat_health">अनंत हेल्थ</string>
     <string name="ingame_cheat_ammo">अनंत गोला-बारूद</string>
     <string name="ingame_cheat_invisible">अदृश्यता</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">पिछले तुरंत सेव को मौजूदा प्रगति से बदलें?</string>
     <string name="ingame_instant_load_warning">बिना सेव की प्रगति खो जाएगी। तुरंत सेव लोड करें?</string>
     <string name="ingame_replace">बदलें</string>
-    <string name="ingame_cheat_random_items">रैंडम आइटम</string>
-    <string name="ingame_cheat_random_items_help">रैंडम आइटम: कहानी के कमरों में पड़े गोला-बारूद, जड़ी-बूटियाँ, ग्रेनेड, पेसेटा और खज़ाने नए सिरे से बाँटे जाते हैं; एक कमरा अपने आइटम तब तक रखता है जब तक आप इसे बंद करके फिर से चालू न करें। चाबियाँ, हथियार और कहानी के दूसरे आइटम वैसे ही रहते हैं, इसलिए गेम हमेशा पूरा किया जा सकता है। Assignment Ada और The Mercenaries में नहीं।</string>
     <string name="ingame_cheat_extras">एक्स्ट्रा गेम अनलॉक करें</string>
     <string name="ingame_cheat_steady">स्थिर निशाना</string>
     <string name="ingame_cheat_costume">पोशाकें</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">गोला-बारूद भरें: केस का हर गोला-बारूद ढेर \"गोला-बारूद स्टैक करें\" के मान तक भरा जाता है (मानक: अपनी किस्म की सामान्य अधिकतम संख्या); नया गोला-बारूद नहीं मिलता, हथियारों में भरी गोलियाँ वैसी ही रहती हैं।</string>
     <string name="ingame_quick_reload">बिना निशाना लगाए रीलोड</string>
     <string name="ingame_quick_reload_help">बिना निशाना लगाए रीलोड (कीबोर्ड): सिर्फ़ रीलोड कुंजी (डिफ़ॉल्ट R) हथियार उठाए बिना रीलोड करती है।</string>
+    <string name="ingame_effects">इफ़ेक्ट्स</string>
+    <string name="ingame_side_control_type">नियंत्रण प्रकार</string>
+    <string name="ingame_side_assists">सहायता</string>
+    <string name="ingame_side_profile">प्रोफ़ाइल</string>
+    <string name="ingame_side_unlocks">अनलॉक</string>
     <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
     <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
     <string name="ingame_cheat_extras_already">पहले से अनलॉक: Assignment Ada और The Mercenaries टाइटल मेनू में हैं।</string>

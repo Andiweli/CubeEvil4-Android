@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">QTE plus doux (Professional)</string>
     <string name="ingame_cheat_section_player">Joueur</string>
     <string name="ingame_cheat_section_weapons">Armes</string>
-    <string name="ingame_cheat_section_game">Général et inventaire</string>
     <string name="ingame_cheat_health">Santé infinie</string>
     <string name="ingame_cheat_ammo">Munitions infinies</string>
     <string name="ingame_cheat_invisible">Invisibilité</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">Remplacer la sauvegarde instantanée précédente par ta progression actuelle ?</string>
     <string name="ingame_instant_load_warning">La progression non sauvegardée sera perdue. Charger la sauvegarde instantanée ?</string>
     <string name="ingame_replace">Remplacer</string>
-    <string name="ingame_cheat_random_items">Objets aléatoires</string>
-    <string name="ingame_cheat_random_items_help">Objets aléatoires\u00A0: les munitions, herbes, grenades, pesetas et trésors posés dans les salles de l’histoire sont redistribués\u00A0; une salle garde ses objets jusqu’à ce que vous désactiviez puis réactiviez l’option. Les clés, les armes et les autres objets de l’histoire restent\u00A0: le jeu peut toujours être terminé. Pas dans Assignment Ada ni dans The Mercenaries.</string>
     <string name="ingame_cheat_extras">Débloquer les jeux bonus</string>
     <string name="ingame_cheat_steady">Visée stable</string>
     <string name="ingame_cheat_costume">Costumes</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">Recharger les munitions : chaque pile de munitions de la mallette est remplie jusqu’à la valeur de « Empiler les munitions » (Standard : le maximum normal de son type) ; pas de nouvelles munitions, les balles chargées des armes restent.</string>
     <string name="ingame_quick_reload">Recharger sans viser</string>
     <string name="ingame_quick_reload_help">Recharger sans viser (clavier) : la touche de rechargement seule (R par défaut) recharge sans lever l’arme d’abord.</string>
+    <string name="ingame_effects">Effets</string>
+    <string name="ingame_side_control_type">Type de contrôle</string>
+    <string name="ingame_side_assists">Aides</string>
+    <string name="ingame_side_profile">Profil</string>
+    <string name="ingame_side_unlocks">Déblocages</string>
     <string name="ingame_cheat_extras_text">Assignment Ada et The Mercenaries sont débloqués (Professional aussi, comme après avoir fini le jeu). Le menu titre les affiche après un redémarrage. La progression depuis votre dernière sauvegarde est perdue.</string>
     <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
     <string name="ingame_cheat_extras_already">Déjà débloqués : Assignment Ada et The Mercenaries sont dans le menu titre.</string>

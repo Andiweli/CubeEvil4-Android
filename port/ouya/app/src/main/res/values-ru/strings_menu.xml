@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">Мягкие QTE (Professional)</string>
     <string name="ingame_cheat_section_player">Игрок</string>
     <string name="ingame_cheat_section_weapons">Оружие</string>
-    <string name="ingame_cheat_section_game">Общее и инвентарь</string>
     <string name="ingame_cheat_health">Бесконечное здоровье</string>
     <string name="ingame_cheat_ammo">Бесконечные патроны</string>
     <string name="ingame_cheat_invisible">Невидимость</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">Заменить прежнее мгновенное сохранение текущим прогрессом?</string>
     <string name="ingame_instant_load_warning">Несохранённый прогресс будет потерян. Загрузить мгновенное сохранение?</string>
     <string name="ingame_replace">Заменить</string>
-    <string name="ingame_cheat_random_items">Случайные предметы</string>
-    <string name="ingame_cheat_random_items_help">Случайные предметы: патроны, травы, гранаты, песеты и сокровища, лежащие в комнатах сюжета, распределяются заново; комната сохраняет свои предметы, пока вы не выключите и снова не включите эту функцию. Ключи, оружие и другие сюжетные предметы остаются, поэтому игру всегда можно пройти. Не в Assignment Ada и The Mercenaries.</string>
     <string name="ingame_cheat_extras">Открыть доп. игры</string>
     <string name="ingame_cheat_steady">Устойчивый прицел</string>
     <string name="ingame_cheat_costume">Костюмы</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">Пополнить патроны: каждая стопка патронов в кейсе заполняется до значения «Складывать патроны» (Стандарт: обычный максимум своего вида); новых патронов нет, заряженные в оружие патроны не меняются.</string>
     <string name="ingame_quick_reload">Перезарядка без прицеливания</string>
     <string name="ingame_quick_reload_help">Перезарядка без прицеливания (клавиатура): одна клавиша перезарядки (по умолчанию R) перезаряжает, не поднимая сначала оружие.</string>
+    <string name="ingame_effects">Эффекты</string>
+    <string name="ingame_side_control_type">Тип управления</string>
+    <string name="ingame_side_assists">Помощь</string>
+    <string name="ingame_side_profile">Профиль</string>
+    <string name="ingame_side_unlocks">Открытия</string>
     <string name="ingame_cheat_extras_text">Assignment Ada и The Mercenaries открыты (а также Professional, как после прохождения игры). Главное меню покажет их после перезапуска. Прогресс с последнего сохранения будет потерян.</string>
     <string name="ingame_cheat_extras_later">Открыто: Assignment Ada и The Mercenaries появятся в главном меню после следующего перезапуска.</string>
     <string name="ingame_cheat_extras_already">Уже открыто: Assignment Ada и The Mercenaries есть в главном меню.</string>

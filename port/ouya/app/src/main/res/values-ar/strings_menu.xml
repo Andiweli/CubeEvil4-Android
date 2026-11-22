@@ -35,7 +35,6 @@
     <string name="ingame_gentle_qte">أحداث QTE أسهل (Professional)</string>
     <string name="ingame_cheat_section_player">اللاعب</string>
     <string name="ingame_cheat_section_weapons">الأسلحة</string>
-    <string name="ingame_cheat_section_game">عام والمخزون</string>
     <string name="ingame_cheat_health">صحة لا نهائية</string>
     <string name="ingame_cheat_ammo">ذخيرة لا نهائية</string>
     <string name="ingame_cheat_invisible">الاختفاء</string>
@@ -81,8 +80,6 @@
     <string name="ingame_instant_overwrite">‏هل تريد استبدال الحفظ الفوري السابق بتقدمك الحالي؟</string>
     <string name="ingame_instant_load_warning">‏سيُفقد التقدم غير المحفوظ. هل تريد تحميل الحفظ الفوري؟</string>
     <string name="ingame_replace">استبدال</string>
-    <string name="ingame_cheat_random_items">عناصر عشوائية</string>
-    <string name="ingame_cheat_random_items_help">عناصر عشوائية: يُعاد توزيع الذخيرة والأعشاب والقنابل والبيزيتا والكنوز الموجودة في غرف القصة؛ وتحتفظ الغرفة بعناصرها حتى توقف هذا الخيار وتشغّله من جديد. تبقى المفاتيح والأسلحة وعناصر القصة الأخرى، فيمكن دائمًا إنهاء اللعبة. ليس في Assignment Ada وThe Mercenaries.</string>
     <string name="ingame_cheat_extras">فتح الألعاب الإضافية</string>
     <string name="ingame_cheat_steady">تصويب ثابت</string>
     <string name="ingame_cheat_costume">الأزياء</string>
@@ -104,6 +101,11 @@
     <string name="ingame_cheat_refill_help">إعادة ملء الذخيرة: يُملأ كل كوم ذخيرة في الحقيبة حتى قيمة «تكديس الذخيرة» (قياسي: الحد الأقصى العادي لنوعه)؛ لا ذخيرة جديدة، والطلقات المحشوة في الأسلحة تبقى كما هي.</string>
     <string name="ingame_quick_reload">&#x200F;إعادة التلقيم دون تصويب</string>
     <string name="ingame_quick_reload_help">&#x200F;إعادة التلقيم دون تصويب (لوحة المفاتيح): مفتاح إعادة التلقيم وحده (R افتراضيًا) يعيد التلقيم دون رفع السلاح أولًا.</string>
+    <string name="ingame_effects">التأثيرات</string>
+    <string name="ingame_side_control_type">نوع التحكم</string>
+    <string name="ingame_side_assists">المساعدات</string>
+    <string name="ingame_side_profile">الملف</string>
+    <string name="ingame_side_unlocks">فتح المحتوى</string>
     <string name="ingame_cheat_extras_text">تم فتح Assignment Ada و The Mercenaries (وProfessional أيضًا، كما بعد إنهاء اللعبة). تعرضها قائمة العنوان بعد إعادة التشغيل. سيضيع التقدم منذ آخر حفظ.</string>
     <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
     <string name="ingame_cheat_extras_already">مفتوحة بالفعل: Assignment Ada و The Mercenaries في قائمة العنوان.</string>
