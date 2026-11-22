@@ -3,6 +3,946 @@
 Diese Datei ist das Gedächtnis zwischen den Sitzungen. Jede Sitzung liest sie
 zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 
+## Version 1.1.0 (in Arbeit, Branch `workthread`, Basis b37a9cf4 = Release 1.0.0, Tag 1.0.0; versionCode 124)
+
+Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
+GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
+`wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
+Nächste freie Patch-Nummer: 0255 (0254 Cheat „Gegenstände stapeln“, 0248 Meldungszahl nicht gesetzt, 0247 Kappen-Vitrine ohne Debug-Taste, 0246 Schießstand wie das fertige Spiel; 0249–0253 frei; 0245 größerer Raum-Heap, 0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+
+### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
+
+- **Befund** (Berichte `reports\workthread-1.1.0\dualsense\`): Die App wählte richtig („rumble (Auto): the controller
+  "DualSense Wireless Controller" (2 motors, with amplitude control)“), aber das Spiel startete seinen Motor nie
+  (keine Zeile „pad: rumble“). Die Systemdaten hatten `config 0x02000000`: der Schalter **Vibration des Spiels**
+  (`CFG_VIBRATION`, 0x08000000) war aus. Der Prototyp legt neue Systemdaten mit Vibration aus an, und sein Optionsmenü
+  (Controller) übernimmt eine Änderung nur mit A (mit B zurück bleibt der alte Wert, obwohl kurz „Ein“ stand). In den
+  älteren Testerberichten unter `reports\` steht bei rund 100 von 150 Starts Vibration aus.
+- **Korrektur** (ohne Patch, `runtime/aim_options.cpp` wie „Vertikal invertieren“): Bits 4/5 der Ziel-Bits
+  (`re4_core_set_aim`): mit Bit 5 folgt der Schalter des Spiels Bit 4 = „Vibration“ der App nicht Aus
+  (`CoreBridge.setGameVibration`, aus `CoreActivity.chooseRumble`). Gesetzt beim nächsten Spielbild und nach dem Lesen
+  der Systemdaten. Umgekehrt (`re4_aim_options_closed`, Patch 0188): ändert das Optionsmenü des Spiels die Vibration,
+  wird die App auf Aus bzw. (wenn sie Aus war) Auto gestellt (`re4_core_vibration_from_game`,
+  `CoreActivity.keepGameVibration`; nur mit dem Kern im App-Prozess).
+- **Geprüft am PC** (i686 -O2, alle Prüfungen grün; `wt-vib_run.sh`, r103 Debug-Discs, 4000 Bilder): ohne Bits wie
+  beim Nutzer `config 0x00000000`, kein „pad: rumble“; mit 0x30 „pad: the game's vibration on (the app's switch)“,
+  `config 0x08000000`, „pad: rumble from frame 477“; mit 0x20 aus, kein Rumble. App: Java übersetzt
+  (`compileCoreDebugJavaWithJavac`). **Nicht geprüft:** auf einem Gerät, mit einem DualSense.
+
+### 2. Ashley holt auf: ihren Knopf 2 Sekunden halten (Wunsch des Projektinhabers, 19.11.2026)
+
+- Den Cheat „Ashley holt auf“ gibt es in CubeEvil4 nicht (in keinem Branch); die Funktion ist neu, ohne Cheat.
+- `runtime/ashley_catchup.cpp` (libre4_main, Frame-Hook, **kein Patch**): hält der Spieler die Partner-Taste des
+  Spiels (`Key.on` 0x200: X am Controller, Q auf der Tastatur, X der Touch-Steuerung) **60 Spielbilder** (2 s bei 30
+  Bildern/s; Bilder statt Uhr, weil der PC-Test schneller als Echtzeit läuft), stellt sie Ashley hinter Leon. Der
+  kurze Druck bleibt (`cPlLeon::checkXbutton` schaltet beim Drücken Warten/Folgen um); einmal je Halten.
+- Nur wenn sicher, sonst nichts (eine Logzeile „ashley: hold of the partner key: …“): Spiel läuft, kein Ereignis/Film
+  (`STA_EVENT`), kein Untermenü (`STA_SUB_SCRN`); Partner ist Ashley (id 3), lebt, unter Leons Kommando (strenge Hälfte
+  von `SubCharCheckCtrl`: `F_PL_CTRL`, nicht `F_SLEEP`/`F_MOVE_TO`, `r_no_0` 0, ihre Folge-/Warte-Routinen; also nicht
+  getragen, gefangen, versteckt, beim Klettern); Leon steht auf Boden; der Platz hinter ihm (0,9 / 1,3 / 0,6 m, dann
+  schräg hinten, dann seitlich) ist Boden der Raum-Kollision innerhalb 40 cm, nicht steil, kein Absturz/Klippe/Versteck,
+  freie Linie von Leon in Knie- und Brusthöhe; Ashley weiter als 1,5 m weg. Dann `SubCharCtrl(4)` (des Spiels „zum
+  Spieler“, Routinen neu, folgen), Platz hinter Leon, Blick wie Leon, Ruf-Ton 0x37.
+- Hilfe im App-Menü (Steuerung, unter der Tastenbelegung): `ingame_ashley_hold_help` in 11 Sprachen.
+- **Geprüft am PC** (`wt-ashley_run.sh`; `RE4_ASHLEY_CATCHUP_MIN=0` prüft das Hinstellen selbst, `=1.5` wie im Spiel):
+  Ashley bei den Debug-Starts in r203, r208, r210, r212, r219. Ablauf X kurz (wartet), Leon geht 5 s weg (bis 9 m),
+  X halten: mit 1,5 m läuft sie nach dem ersten Druck selbst in unter 2 s heran („already close“); mit 0 steht sie in
+  allen fünf Räumen 0,9 m hinter Leon (178° neben seiner Blickrichtung), keine Wand, folgt; ebenso mit den EU-Discs.
+  Karte offen (Z) beim Halten: „nothing (no free player …)“. 41 Räume ohne Ashley: „no Ashley with Leon“.
+  **Nicht geprüft:** auf einem Gerät; die Fälle getragen/gefangen/versteckt (am PC nicht nachgestellt, die Bedingungen
+  sind die des Spiels selbst).
+
+### 3. Gyro-Zielen mit dem Gyrosensor des Controllers (Wahl des Projektinhabers „Gyro A“, 19.11.2026)
+
+- Anlass: DualSense-Nutzer (Bericht wie Abschnitt 1). Android meldet beim DualSense die Quelle „Sensor“
+  (sources 0x0510251b enthält 0x04000000). Ab Android 12 liest `InputDevice.getSensorManager()` die Sensoren eines
+  Controllers (wie Dolphin).
+- `GyroAim`: zweite Quelle, der Gyrosensor des zuletzt benutzten Controllers (`setController` aus
+  `CoreActivity.chooseRumble`, also bei Start, Controllerwechsel, Entfernen). Menü „Gyro von“ (Steuerung, unter den
+  Invertier-Schaltern; `ingame_gyro_source` + Hilfe in 11 Sprachen, Knöpfe „Auto/Gerät/Controller“ aus den
+  vorhandenen Texten): Auto = Controller, wenn er einen hat, sonst das Gerät; Einstellung `gyroSource`. Achsen des
+  Controllers ohne Bildschirmdrehung (x = hoch/runter, y = links/rechts, z unbenutzt), sonst alles wie bisher:
+  Empfindlichkeit, Invertieren, Filter, wirkt im Kern nur beim Zielen. „Gyro-Zielen“ ist jetzt auch ohne Gyrosensor im
+  Gerät schaltbar, wenn ein Controller einen hat.
+- Fehlerprotokoll für Tester: „gyro aiming: controller "…" has a gyroscope: …“, „listening to the controller …“,
+  die ersten 5 Messwerte und bis zu 12 deutliche Drehungen („mostly x/y/z, positive/negative“).
+- **Geprüft:** App baut, 228 App-Tests grün (CoreMenuLayoutTest: die Zeile „Gyro von“ unter den Richtungen, drei Knöpfe,
+  Auto gewählt), Übersetzungen ok (483 Texte). **Nicht geprüft:** mit einem echten Controller-Gyro (am PC unmöglich);
+  die Richtungen (Vorzeichen) muss ein DualSense-Tester mit dem Protokoll bestätigen.
+
+### 4. Lebensbalken bei Gegnern (Wunsch des Projektinhabers, 19.11.2026; Vorbild RE4-Remake, Patch 0238)
+
+- Menü: Cheats und Mods, neuer Abschnitt **GEGNER UND UMGEBUNG** direkt nach ALLGEMEIN UND INVENTAR, Schalter
+  „Lebensbalken bei Gegnern“ (aus; `GAME_PREFS` `enemyHealthBars`), Hilfe; 3 Texte in 11 Sprachen (486 Texte).
+  `CoreBridge.setHealthBars` → `core_mode.cpp` Bit 20 der Ziel-Bits → `runtime/aim_options.cpp` →
+  `re4_health_bars_set` (auch mit dem Kern im eigenen Prozess, der die Ziel-Bits weitergibt).
+- **Patch 0238** (`src/game/game.cpp`, nach `Cckpt.move()`): ruft je Spielbild `runtime/health_bars.cpp`. Dort für
+  jeden lebenden Gegner (ids 0x10–0x3F ohne Händler 0x18, Dorfhund 0x21, Krähen 0x23, Fisch 0x27, Hühner 0x28, Fallen
+  0x2A, Lastwagen/Loren 0x3B, Hilfshubschrauber 0x3D, Schießstand-Ziele 0x3E; nie Spieler oder Partner; hp > 0,
+  `isTrans`) ein Balken 25 cm über dem höchsten Teil des Modells, darüber gemittelt; Breite nach Abstand (14–44 von 512),
+  bis 30 m, vor der Kamera, im Bild, freie Linie (Raum-Kollision) von der Kamera; liegt der Kopf über dem Bildrand
+  (Boss direkt davor), am oberen Rand. Gesundheit `hp / hp_max`, ohne `hp_max` das höchste gesehene hp. Grün > 25 %,
+  gelb ≤ 25 %, rot ≤ 10 %. Nicht bei `STA_EVENT`, `STA_SUB_SCRN`, `SYS_TRANS_STOP`, `SYS_DOORDEMO`, Film, `Rno0` ≠ 3.
+- Gezeichnet über einen Eintrag in der HUD-Tabelle 0x13 (die `otType` der Cockpit-Einheiten) an ihrer höchsten Stelle,
+  die die Tabelle zuerst ausführt: nach Welt, Effekten und Bildfiltern (0x12, Tiefenunschärfe), vor dem HUD. GX wie
+  das Spiel selbst (`Draw_tile`-Art: Ortho über den Viewport, Vertexfarben, Mischen, keine Tiefe), also GLES, Vulkan,
+  HD-Pakete gleich. Logzeilen „health bars: …“ (jeder Gegner einmal, alle 300 Bilder: wie viele gezeigt/weggelassen).
+  Testhilfe `RE4_TEST_HB_HP="F:HP,..."` (k-ter nächster Gegner bekommt Leben HP).
+- **Geprüft am PC** (`wt-hb_run.sh`, `wt-hb_shots.sh`; Bilder `builds\workthread-1.1.0\healthbars-*.png`, GLES und
+  Vulkan/lavapipe): r208 Burg (Debug und EU, grün/gelb/rot), r101 Dorf-Belagerung (keine Balken in der Zwischensequenz,
+  im Handbuch-Menü, hinter dem vernagelten Fenster, auf dem Todesbildschirm; Balken über den Köpfen, sobald sie
+  hereinkommen, auch beim Packen), r332 Endboss (hp 8000/8000, Balken im Kampf, keiner in der Szene), Boss-Räume r10b,
+  r119, r11e, r11f, r221, r224, r228, r31b, r31c (Log). i686 und Android-Kern (beide ABIs) bauen, App-Tests grün.
+  **Nicht geprüft:** auf einem Gerät; 60 FPS mit Zwischenbildern (die Balken sind 2D wie das HUD).
+
+### 5. Aus dem Nutzer-Mod „ModernTPS“: Variante B als eigener Code (Wahl des Projektinhabers, 19.11.2026)
+
+Bewertung des Mods: `reports\workthread-1.1.0\modern-tps\bewertung.md`. Der Projektinhaber wählte B: nur die Idee,
+**eigener Code** (keine Zeile des Nutzers übernommen, daher keine Lizenzzustimmung nötig), Nennung im Changelog („idea
+from a user's ModernTPS mod“). Esc bleibt Pause, kein F2, die Maus im Koffer kommt später.
+
+- **Maus in Titel- und Optionsmenü** (`runtime/mouse_menu.cpp`, **Patch 0239** in `title.cpp`/`option.cpp`): Die App
+  fängt die Maus für die Kamera ein, es gibt keinen Zeiger. Zeigt das Spiel ein Menü (Bit 4 des Rumble-Worts), bewegt
+  die eingefangene Maus einen eigenen Zeiger der App (`CoreActivity.menuPointerU/V`, in jedem Menü ab der Mitte,
+  `CoreBridge.mouseMenu`, neue IPC-Nachricht `kMouseMenu` = 49). `re4_mouse_menu_keys` (am Anfang von `titleMenuSelect`,
+  `titleLevelSelect` vor dem EU-Zweig und `top_menu`) gibt das Steuerkreuz hoch/runter dieses Bildes, bis der Cursor
+  des Spiels auf dem Eintrag unter dem Zeiger steht (45 Bilder nach der letzten Bewegung), so bleiben Ton,
+  Umbrechen und übersprungene Einträge des Spiels (Professional versteckt, Optionen-Zeile 0 im Titel). Linksklick: auf
+  dem markierten Eintrag A, auf einem anderen erst hin, dann A (höchstens 20 Bilder); daneben nichts. Treffer über
+  `re4_touch_unit_hit`, auch 1,2 % darüber/darunter (Lücken zwischen den Zeilen). Testhilfe `RE4_TEST_MOUSE_MENU`.
+- **„Nachladen ohne Zielen“** (Steuerung, Tastatur, aus; `INPUT_PREFS` `quickReload`; **Patch 0241** in
+  `cPlayer::keyReload`): Die zweite Taste der Nachlade-Belegung (Standard R) ohne gehaltene Zieltaste →
+  `CoreBridge.quickReload` (IPC `kQuickReload` = 50) → `re4_quick_reload_take` sagt einmal ja (Anfrage höchstens 500 ms
+  alt). Das Spiel lädt auf seinem eigenen Weg nach: `actionSelect` (Stehen, Gehen) `setRno(0,6,4,0)`, ohne Zieltaste
+  `PlReloadDirect` 1 wie seine Steuerungsart 1; nur wenn die Waffe nachladen kann. Testhilfe `RE4_TEST_QUICK_RELOAD`.
+- **Geprüft am PC:** Titel (Debug-Discs, ohne Karte „Continue without saving“): Zeiger von oben nach unten markiert
+  START → LOAD → OPTIONS (Bilder: rot markiert), Klick auf OPTIONS öffnet die Optionen, dort folgt die Markierung
+  (Beschreibung Controller → Audio → Exit). r103: 5 Pistolenschüsse, dann Nachladen ohne Zielen: Magazin wieder 10,
+  Vorrat 20 → 15; bei vollem Magazin nichts. App baut, App-Tests grün, Übersetzungen 488 Texte.
+  **Nicht geprüft:** auf einem Gerät mit echter Maus und Tastatur; die EU-Schwierigkeitswahl mit der Maus.
+
+### 6. „Intro überspringen“ (Wunsch des Projektinhabers, 19.11.2026, Patch 0242)
+
+„Beim Start sollen die Introscreens gar nicht gezeigt werden sondern sofort das Menu.“ Schalter unten in Anzeige →
+Optionale Features (aus; `core_graphics` `skipIntro`), Hilfe in 11 Sprachen (490 Texte). Die App gibt dem Kern beim
+Start `RE4_SKIP_INTRO=1` mit (Wirkung ab dem nächsten Start; ein Testskript-Wert gewinnt).
+- **Patch 0242** (`title.cpp` titleWait, Zustand 1) + `runtime/title_skip.cpp`: an der Stelle, an der das Spiel selbst
+  nach einem Soft-Reset die Logos überspringt (`pRK->logo_skip_enable`), auch beim ersten Start; die Titelmelodie, die
+  sonst `titleLogo` bei `LOGO_CALL_FRAME` startet (`SndCall(6, 4)`), sofort. Geladen ist dort schon alles: titleWait
+  wartet vorher auf die Speicherkarten-Prüfung (`CardCheckDone`, Systemdaten mit Sprache und Optionen), die
+  Titel-Soundbank (`title.snd`) und `title.dat` mit Texturen; der Sprung liegt hinter diesen Wartestellen.
+- **Übersprungen:** „Licensed by Nintendo“ (Zustand 2), der Gesundheitshinweis (3), die Logos Capcom, CRI und Dolby mit
+  dem Einblenden des Titels (4). **Bleibt:** der Startbildschirm der App („By Andiweli“, Import, Datenordner), die
+  Warnung für inoffizielle Builds und die Import-Warnungen, eine Speicherkarten-Meldung des Spiels (z. B. keine Karte),
+  die Demofilme nach 600 Bildern Leerlauf im Titelmenü (wie im Spiel, danach zurück ins Menü).
+- **Geprüft am PC** (`wt-skip_run.sh`, Bilder `builds\workthread-1.1.0\skip-intro-*.png`): Debug-Discs mit Schalter
+  Titelmenü bei Bild 380 statt 1100, Titelmelodie ab dem Menü (gleich lang wie ohne Schalter), EU-, US- und JP-Discs
+  ebenso; 9000 Bilder Leerlauf: demo0 und demo1 laufen abwechselnd zu Ende, dazwischen das Menü. **Nicht geprüft:** auf
+  einem Gerät; KR-Discs.
+
+### 7. Rückmeldung des Projektinhabers zu Ashley, Plaga-Balken und Intro (19.11.2026)
+
+„Funktioniert alles sehr gut. Die Tasten-Updates habe ich noch nicht getestet.“ Drei Wünsche:
+- **Ashley per Doppeldruck mit Einblenden** (`runtime/ashley_catchup.cpp`): zweiter Druck der Partner-Taste innerhalb
+  12 Spielbilder (0,4 s) = holen; danach folgt sie in jedem Fall (auch wenn sie schon nah ist: `SubCharCtrl(1)` falls
+  sie wartet; das Spiel selbst ignoriert einen zweiten Druck innerhalb 8 Bildern). Der Einzeldruck bleibt ohne
+  Verzögerung (das Spiel schaltet beim Drücken um). Das Halten 2 s bleibt als stilles Extra. Einblenden über 15 Bilder
+  (0,5 s) mit `cModel::invisible_factor2` (Ashleys Code fasst ihn nicht an, angehängte Objekte übernehmen ihn), über
+  das GX des Spiels, also GLES und Vulkan. Kein eigener Ruf-Ton beim Doppeldruck (das Spiel ruft schon). Hilfe
+  `ingame_ashley_hold_help` neu in 11 Sprachen.
+- **Plaga-Phase orange** (`runtime/health_bars.cpp`): Ganado mit verlorenem Kopf und Parasit (em10 Kopfverlust:
+  `Parasite_on` 1, hp 3000 statt z. B. 800 – deshalb war der Balken wieder voll) oder mit Parasit (`pParasite`), der
+  Parasit selbst (id 0x25), em3c mit Parasitenkopf (`Be_flg` 0x800). Orange die ganze Zeit, Länge = verbleibendes
+  Leben (Max = höchstes gesehenes hp, also die 3000). `cEm::flag` 0x20 ist kein Zeichen (die Raumlisten setzen es bei
+  Zeloten mit Kopf). Testhilfe `RE4_TEST_HB_PLAGA=F` (nächster Ganado: was der Kopfverlust setzt, dann bricht das
+  Spiel den Parasiten selbst aus).
+- **Intro überspringen: Einblenden** (Patch 0242): `FadeSet` schwarz → durchsichtig über 18 Bilder (0,6 s). Die
+  Farbe als `GXColor` mit Bytes: neue Zeilen bekommen keine `RE4_BE`-Ansicht von `FadeColor.w` (die erste Fassung war
+  darum durchsichtig rot statt schwarz). Schwarze Zeit davor: Mit Speicherkarte ist die Kartenprüfung bei Spielbild 51
+  fertig, der Titel bei 56 (etwa 1,9 s); die Prüfung hat feste Wartezeiten ihrer Meldungen (15/30 Bilder) und liest
+  die Systemdaten (Sprache, Optionen) – nicht gekürzt. Davor liegt der Start der App selbst (Bibliotheken, Disc).
+- **Geprüft am PC:** r210 Doppeldruck (8 Bilder Abstand): Ashley 0,9 m hinter Leon, Einblenden über 5 Bilder sichtbar
+  (`builds\workthread-1.1.0\ashley-double-press-fade-in-r210.png`); r208 Plaga: Ausbruch mit Blut, Balken orange
+  (`healthbars-plaga-orange-*.png`, GLES und Vulkan); Titel: Helligkeit 1 → 12 → 23 → 35 → 50 → 59 über 0,6 s
+  (`skip-intro-fade-in.png`). **Nicht geprüft:** auf einem Gerät; ein echter Kopfschuss mit Plaga (die Testhilfe
+  ersetzt den Schuss, der Ausbruch selbst ist der des Spiels).
+
+### 8. Cheat „Mehr Gegner“ (Wunsch des Projektinhabers, 19.11.2026)
+
+„neben dem neuen Button für die Gegner-Healthbars einen weiteren Button 'Mehr Gegner', der – unabhängig von der
+aktuellen Schwierigkeitsstufe – rund 40% mehr Gegner (gerechnet auf die verfügbaren Gegner im Raum) dazugeneriert.
+Positionen zufällig.“ Schalter neben „Lebensbalken bei Gegnern“ (aus; `GAME_PREFS` `moreEnemiesSeed`, ein neuer Seed bei
+jedem Einschalten), Hilfe in 11 Sprachen (492 Texte), `CoreBridge.setMoreEnemies` (IPC `kSetMoreEnemies` = 51).
+- `runtime/enemy_random.cpp` (Plan von „Zufällige Gegner“, Patch 0231, kein neuer Patch): in einem **offenen** Raum
+  Kopien der gewöhnlichen Ganados, die jetzt kommen (Modelle geladen): 40 % der Ganados beim Raumstart (gerundet,
+  `kMaxCopies` jetzt 16), Platz über die Wege des Raums (Stufe 2: 10 m von Leon, Boden, Wände, Bereiche) oder daneben
+  (Stufe 1.5), Tod auf einem leeren Listeneintrag. Allein bewegt der Schalter niemanden; mit „Zufällige Gegner“
+  zusammen ein Plan (dessen ± zuerst). Nur bei freien Gegner-Arbeitsplätzen (für noch Kommendes + 4 frei).
+- **Entscheidungen (eigene Empfehlung):** nur Geschichte (nicht Ada, Mercenaries, Ashleys Teil, Stufe 4); keine Kopien
+  in Räumen, deren Skript Gegner zählt/fegt/benennt (52 „nur Plätze“, z. B. die Dorf-Belagerung r101, wo die Glocke
+  nach einer Zahl Toter kommt) und in Bossräumen (11); Wellen (`EmSetFromList2`) unverändert; Drops wie im Spiel;
+  Spielstände: Kopien sind beim Wiederbetreten gleich (gleicher Seed), ein Kopien-Tod bleibt über den leeren Eintrag
+  gespeichert.
+- **Geprüft am PC** (`wt-more_tours.sh`, Bilder `builds\workthread-1.1.0\more-enemies-map-*.png`): Rundgang 126 Räume
+  Debug mit „Mehr Gegner“ ALLES OK (34 Räume mit Plan, 45 Kopien geplant, keine gescheitert); Debug mit beiden
+  Schaltern und Listen-Prüfung ALLES OK; EU 125 von 126, r333 stürzt im Prüfprotokoll ab (Altbefund, auch ohne Cheat
+  in diesem Stand bestätigt). Zählung: r111 8 → 11, r11a 11 → 15, r113 8 → 11, r225 12 → 17, r303 2 → 3, r304 3 → 4;
+  r103 bekommt keine (Liste 0 hat keinen leeren Eintrag für den Tod einer Kopie). **Nicht geprüft:** auf einem Gerät;
+  ganze Kapitel.
+
+### 9. Lebensbalken: Gegner auf anderer Höhe (Gerätetest des Projektinhabers, 19.11.2026)
+
+„wenn Leon auf einer Ebene über einem Gegner steht, so wird dessen Lebensbalken nicht angezeigt … auch ob es umgekehrt
+auch auftreten würde“. Ursache: die Sichtprüfung lief über die Lauf-Kollision (`SatMgr.hitCheck`), deren unsichtbare
+Kanten an Balkonen, Stockwerken, Stufen und Beckenrändern die Linie von der Kamera abfingen – in beide Richtungen.
+Jetzt die Sicht- und Schuss-Kollision wie beim Zielen des Spiels (`EatMgr.hitCheck(…, 0x800, 0)`, pl_wep.cpp), zum
+Punkt über dem Kopf oder zum Zielpunkt des Gegners (`lockParts`/`lockOfs`, die Teile-Kette selbst abgelaufen).
+Testschalter `RE4_HB_WALKING_WALLS=1` (alte Prüfung, nur zum Vergleich).
+- **Geprüft am PC:** Rundgang 126 Räume (Debug, Stichproben alle 300 Bilder): Balken 144 → 202, „hinter einer Wand“
+  284 → 226, beide ALLES OK; r208 (Zeloten jenseits des Beckens auf anderer Höhe): 3 → 7 Balken
+  (`builds\workthread-1.1.0\healthbars-height-fix-r208-old-left-new-right.png`); r101 Belagerung: Wände verdecken
+  weiter, Ganados durch Fenster und Brett-Lücken haben Balken (`…-r101-walls-still-hide.png`). **Nicht geprüft:** auf
+  einem Gerät.
+
+### 10. Fotomodus (Wunsch des Projektinhabers, 19.11.2026, Patch 0243)
+
+Schalter „Fotomodus“ unter Anzeige → Optionale Features (aus; `GRAPHICS_PREFS` `photoMode`), Hilfe in 11 Sprachen
+(503 Texte). `PhotoMode.java` (App), `runtime/photo_mode.cpp` (Kern), IPC `kPhotoMode` = 52 und `kPhotoInput` = 53,
+die Bilder sagen der App den Stand (`RE4_GX_CHUNK_PHOTO`, `RE4_GX_CHUNK_PHOTO_REFUSED`).
+- **Starten:** SELECT zweimal schnell (Controller, Touch-MENU, Tastatur F1: alle laufen über `CoreActivity.select`).
+  **Entscheidung (eigene Empfehlung):** nur mit eingeschaltetem Fotomodus wartet ein einzelnes SELECT nach dem Loslassen
+  300 ms auf einen zweiten Druck, dann öffnet sich das App-Menü; SELECT 1 s halten = Debug-Menü bleibt (der Halte-Timer
+  läuft ab dem ersten Druck). Aus: alles wie bisher. Im Fotomodus beenden ihn SELECT, F1, B, Esc, Zurück und das ✕.
+- **Was steht:** wie im Optionsbildschirm des Spiels (`gameOption`): Patch 0243 lässt `gameMainLoop` ganz aus
+  (Spieler, Partner, Gegner, Objekte, Effekte, Lichter, Szenario, Kamerasteuerung, Cockpit), `Stop_flg` alle Bits,
+  Spielzeit angehalten (`SetGameTime`/`InitGameTime`), Geräusche pausiert (`SndSePauseAll`) und alles Übrige (Musik)
+  stumm (`re4_sound_volume_mute`, runtime/sound_volume.cpp). `Trans` zeichnet die Welt weiter, mit der eigenen
+  Sichtprüfung des Spiels für die freie Kamera. Der Patch fügt keine Zeile ein (die Byte-Ansichten von game.cpp werden
+  in ±40 Zeilen gesucht; mit 7 neuen Zeilen fand der Bau `(u32*)&pG->Rno0` in gameOption nicht mehr).
+- **Ausblenden:** HUD (Disp_flg: Cockpit, IdSys-Einheiten, Meldungen, Aktionshinweise; die Lebensbalken mit), Leon
+  (mit seinen Waffen), Partner, Gegner (die Ids der Lebensbalken: ohne Händler, Tiere, Fallen, Fahrzeuge) einzeln,
+  über `setTrans(0)` (das Spiel zeichnet sie dann weder noch ihren Schatten) samt allem, was an ihnen hängt (Eltern-
+  Koordinate des Objekts oder seines ersten Teils; Waffen 0x42, Fackeln 0x47 und Schilde 0x50 über ihren
+  `pEm_oya`/`pParent`). Beim Beenden alles zurück; dazwischen bewegt sich nichts.
+- **Freie Kamera:** startet an der Spielkamera; linker Stick vor/zurück/seitlich, rechter Stick drehen und hoch/runter,
+  Steuerkreuz neigen, L langsam, R schnell, START zurück an den Anfang; Tastatur WASD/Pfeile, Maus umsehen, E/Leertaste
+  hoch, Q/C runter, Shift schnell, Alt langsam, 1–4 die Schalter, R zurück; Touch: linke Hälfte ziehen = bewegen,
+  rechte Hälfte = umsehen, zweiter Finger = hoch/runter, Tippen zeigt die Leiste. 2,2 m/s, höchstens 8 m von Leons
+  Brust (keine Kollision).
+- **Leiste:** oben links Titel und die vier Schalter (antippbar), oben rechts ✕, unten die Steuerung für das zuletzt
+  benutzte Gerät; nach 4 s ohne Knopf blendet sie in 0,5 s aus (Bildschirmfotos ohne Leiste). Die Touch-Steuerung ist
+  im Fotomodus verborgen.
+- **Nicht erlaubt (eigene Entscheidung):** Ereignisse/Zwischensequenzen, Filme, Untermenüs und Gegenstand-Aufnahme,
+  Todesszene, Speicherkarte, Türszene, stehende Spielbilder, Zielfernrohr/Fernglas, Leon gepackt, vom Spiel
+  angehaltener Spieler oder Tasten (Händler, Schreibmaschine), außerhalb des Spiels (Titel, Optionen, Laden). Die App
+  sagt dann „Fotomodus ist hier nicht möglich“.
+- **Renderer:** der Kern zeichnet die Bilder, GLES und Vulkan bekommen dieselben; Tiefenschärfe, Bloom und Filter
+  unverändert.
+- **Geprüft am PC** (Bilder `builds\workthread-1.1.0\photo-*.png`): r103 und r208 mit HUD, alles ausgeblendet,
+  nur Gegner/nur Ashley ausgeblendet, Kamera weggefahren, danach das Spiel wie vorher (GLES und Vulkan); Ton: r208
+  im Fotomodus 10 s still (RMS 0), danach wieder da; r100 während des Ereignisses verweigert. Rundgang 126 Räume mit `RE4_TEST_PHOTO` (an, alles aus, Kamera 1 s bewegt, alles an, aus; `wt-photo_tours.sh`):
+  Debug ALLES OK (108 Räume an und wieder aus, 15 verweigert: 35× Ereignis, 2× Spieler/Tasten angehalten); EU 125 von
+  126, r333 stürzt später ab (Altbefund, Bild 4968, weit nach dem Fotomodus). ARM32/ARM64-Kern und App (Gradle,
+  Unit-Tests, 503 Texte) bauen.
+  **Nicht geprüft:** auf einem Gerät (Leiste, Doppeldruck, Touch-Ziehen, Maus, Bildschirmfoto).
+
+### 11. Fotomodus: fünf Befunde vom Gerätetest des Projektinhabers (19.11.2026)
+
+1. „HUD ausblenden soll auch die Minimap ausblenden“ und 2. „bei Leon ausblenden soll die Minimap bleiben“: die
+   Minimap zeichnet die App (core_mode.cpp `minimapBuild`); sie suchte Leon über be_flag-Bits 1 und 2, „Leon
+   ausblenden“ löscht Bit 1. Jetzt im Fotomodus nur Bit 2, und die HUD-Maske blendet sie aus (`re4mm::MinimapShown`,
+   `re4mm::PlayerModel` in minimap_view.h; Prüfung `minimap_check --photo`, 7 Fälle ok).
+3. „Ein einfacher Druck auf SELECT öffnet den Fotomodus“: `selectReleasedAt` begann bei `Long.MIN_VALUE`, „jetzt
+   minus Loslassen“ lief über und war negativ, also ≤ 300 ms: jeder erste Druck galt als zweiter. Jetzt -1 = keiner
+   (CoreActivity.select; gilt für Controller-SELECT, Touch-MENU und F1, die alle dort ankommen).
+4. „Kamera unter den Boden oder seitlich out-of-bounds“: die freie Kamera prüft jeden Schritt mit der Kollision der
+   Spielkamera (`SatMgr.hitCheck`, Flag 0x8000, Maske 0x1C2810 wie cam_ctrl.cpp) und der Sicht-/Schuss-Kollision
+   (`EatMgr.hitCheck` 0x800), den Weg um 30 cm verlängert, und braucht einen Boden darunter (`EatMgr.getFloor`, 60 m;
+   mindestens 15 cm Abstand, außer beim Steigen). Geht der ganze Schritt nicht, je Achse einzeln (sie gleitet an der
+   Wand entlang).
+5. „Tausche DPAD rauf/runter und Rechten Stick rauf/runter“: rechter Stick hoch/runter neigt jetzt, das Steuerkreuz
+   hebt und senkt die Kamera; Steuerungszeile in 11 Sprachen angepasst.
+- **Geprüft am PC:** r208 abwärts: hält bei y 4329 (Boden 4000); seitlich: hält am Beckenrand; r103 seitlich und
+  rückwärts: hält an Zaun und Hang und gleitet entlang (Bilder `builds\workthread-1.1.0\photo-fix-*.png`);
+  Minimap-Regel mit `minimap_check --photo`; App (Gradle, Unit-Tests, 503 Texte); Rundgang 126 Räume Debug mit Fotomodus, Kamera schräg/abwärts in jedem Raum: ALLES OK; ARM-Kern baut. **Nicht geprüft:** auf einem
+  Gerät (Doppeldruck, Minimap im Bild, Kamera mit echtem Stick).
+
+### 12. Gerätetest des Projektinhabers, zweite Runde (19.11.2026, Patch 0244)
+
+1. **„Mehr Gegner“ wirkte nach r101 nicht.** Zwei Gründe: Liste 0 (Dorf) hat keinen leeren Eintrag, an dem der Tod
+   einer Kopie gespeichert wird (keine Kopie in Liste 0), und als Vorlage zählten nur Ganados, die das Skript nicht
+   steuert (im Dorf fast keine). Jetzt: Vorlage ist jeder gewöhnliche Ganado, der jetzt kommt (eine Kopie steuert kein
+   Skript); ohne leeren Eintrag bekommt die Kopie die Nummer 0xFF des Spiels („nicht aus der Liste“), ihren Tod merkt
+   sich `enemy_random.cpp` (gDead, solange die App läuft; ein Bild-Haken sieht Leben 0); Patch 0244 lässt in
+   EmSetFromList dafür das Todes-Bit 255 aus. Und Kopien auch in „nur Plätze“-Räumen: deren Skripte zählen und räumen
+   über die Gegnerverwaltung (`SceCountEmAlive`, `SceDestroyEm`, `EmMgr`), Kopien zählen also mit. Nur Bosse und r100
+   bleiben. Hilfetext in 11 Sprachen ohne die Tür-Ausnahme. Rundgang 126 Räume Debug: ALLES OK, Kopien geplant 45 →
+   122; Dorf: r101 11 → 15, r103 5 → 7, r106 7 → 10, r107 11 → 15, r108 11 → 15, r10f 5 → 7, r11d 6 → 8 (Räume, deren
+   Ganados erst als Welle kommen, z. B. r102, r10a: keine); Debug mit beiden Cheats und Listen-Prüfung ALLES OK; EU 125
+   von 126 (r333 Altbefund). Karten `builds\workthread-1.1.0\more-enemies-fix-map-r107-village.png`, `…-r101-…`.
+   **Nicht geprüft:** ein Raum zweimal besucht (Kopie ohne Eintrag bleibt tot), auf einem Gerät.
+2. **Keine Balken bei Händler, Luis, Tieren.** Händler (0x18) und Partner (Ashley, Luis: Ids unter 0x10) hatten schon
+   keinen; neu ausgenommen: Schlangen 0x24, Kühe 0x26, Fledermäuse 0x29 (dazu wie bisher Dorfhund 0x21, Krähen 0x23,
+   Barsche 0x27, Hühner 0x28). Plaga-Hunde 0x22, Parasiten 0x25 und Bosse (auch Del Lago 0x2F) behalten ihren. Neue
+   Logzeile einmal je Raum: „health bars: rXXX, figures within 30 m: …“ (Id, „+bar“). Am PC: r112 (Händler 0x18),
+   r103 (Kuh, Hühner), r10e (Fledermäuse), r11c (Luis 0x03 als Partner): kein Balken.
+3. **Minimap nicht in Zwischensequenzen, Filmen, Intro.** Ein gemeinsamer Test für Lebensbalken und Minimap,
+   `re4_hud_off_now` (health_bars.cpp): nicht im Spiel (Titel, Intro- und Demo-Filme, Optionen, Türszene, Laden),
+   Ereignis, Film, Untermenü (auch Händler), Gegenstand-Aufnahme, Speicherkarte (Schreibmaschine), Todesszene,
+   stehende Bilder; das Bild sagt es der App (`RE4_CORE_SCREEN_NOHUD`). Logzeilen „hud: … in rXXX“ beim Wechsel.
+   Am PC: r200 „hud: an event … shown“. Die Minimap selbst zeichnet nur die App (nicht im PC-Bild).
+   **Nicht geprüft:** auf einem Gerät.
+
+### 13. Gerätetest des Projektinhabers, dritte Runde (19./20.11.2026)
+
+1. **Menü:** „Fotomodus“ direkt unter „Intro überspringen“, beide Hilfetexte darunter.
+2. **Grauer Balken über dem Händler (Nachtwald):** dort ist der Händler kein 0x18, sondern die Händler-Form der
+   Ganado-Module 0x13/0x14/0x1E (Typ 6: Händler-Mantel `Em18ClothMove`, inaktiv, Leben 1 von 1000; r104, r10f, r11c,
+   Burg r204/r20f/r211/r214/r225/r227, Insel r301/r305/r315/r31d). Jetzt `traderForm` ausgenommen (wie der
+   Zufallsgenerator `ordinary` sie schon ausnahm). Zusätzlich: Balken nur noch für eine feste Liste echter Gegnertypen
+   (Ganados, Plaga-Hunde, Parasiten, Bosse, Rüstungen …), kein Balken bei Leben > Maximum, nie ein leerer Balken (eine
+   lebende Figur behält 1 px Rot; ein fast leerer wird geloggt: „nearly empty bar: id … type … hp … of …“). Suchlauf
+   126 Räume Debug und EU: einziger Fall r10f 0x13 Typ 6 (der Händler); danach keiner. Figuren mit Balken: 0x11–0x1F,
+   0x25, 0x36, 0x3C; ohne: Händler 0x18, Partner, Krähen, Kühe, Hühner, Fledermäuse, Fallen, Fahrzeuge, Zielscheiben.
+3. **SELECT wieder sofort:** kein Doppeldruck mehr. Fotomodus: **L3** (Controller), **P** (Tastatur), Knopf
+   „Fotomodus“ oben im App-Menü (Touch); bei eingeschaltetem Fotomodus gehören L3 und P ihm (auch wenn sie belegt
+   sind). Im Fotomodus öffnet SELECT/F1 das App-Menü über dem stehenden Bild (Filter, Effekte), danach geht es weiter;
+   L3, P, B, Esc, Zurück, ✕ beenden.
+4. **Kamera:** keine 8-m-Leine mehr (das war das „nicht weit weg“); Kollision wie bisher, Logzeile mit Grund und
+   Abstand zu Leon. **L/R** schalten Effekte (Maus: Rad, Tastatur 5/6, Touch: ◆): Normal, Weitwinkel (×1,6),
+   Tele (×0,45), Dolly-Zoom (Leon behält seine Größe), Schräglage (17°), Umkreisen (12°/s um Leon). Der Bildwinkel
+   wirkt nur auf die Welt (Kameramatrix x/y skaliert; über die Projektion schrumpfte das HUD und die sonst
+   unsichtbaren Kino-Balken kamen ins Bild). Langsam/schnell nur noch auf der Tastatur (Alt/Shift).
+- **Geprüft am PC:** Bilder `builds\workthread-1.1.0\photo-effects-r208.png` (alle sechs Effekte),
+  `photo-r103-far-from-leon.png` (20 m von Leon), `healthbars-r10f-merchant-no-bar.png`; Texte 510 in 11 Sprachen,
+  App (Gradle, Unit-Tests). **Nicht geprüft:** L3/P/Menüknopf, Menü im Fotomodus, Overlay – nur auf dem Gerät.
+
+### 14. „Shader beim Start laden“ und Frage „Auto-Frame-Skip“ (Projektinhaber, 20.11.2026)
+
+- **Bestand:** GLES baut beim Start auf einem eigenen Faden (nice 10) alle Programme der App-Liste und des eigenen
+  Caches als Binärdateien (`WarmProgramCache`, ~9 000–11 000 Schlüssel), Vulkan die App-Pipeline-Liste
+  (`AheadThread`, 2 822–4 999) in den Treiber-Cache; jeder Raum lädt nur seine eigenen (höchstens 3 000). Geräte:
+  erster Lauf GLES 6 154 Programme in 1 606 s (nebenher, während gespielt wurde), Vulkan 1 710–2 848 Pipelines in
+  18–72 s; spätere Starts 1–17 s bzw. < 1 s. Platz: 180–230 MB Shader-Cache. Alles beim Start in den Speicher zu
+  laden (0.96.6, 7 429 Programme) ließ Android die App auf einem 2,7-GB-Gerät beenden: bleibt so.
+- **Neu (Wunsch des Projektinhabers):** Schalter „Shader beim Start laden“ unter Verwaltung neben „Shader-Cache
+  leeren“ (aus; `GRAPHICS_PREFS` `shaderPrepAtStart`). Ein: `ShaderPrepScreen` über allem (Titel, Balken, „n /
+  gesamt“, eine Zeile); sobald das Vorab-Bauen beginnt (mit den ersten Bildern), steht das Spiel (`CoreBridge.pause`),
+  bis es durch ist; ohne Beginn nach 20 s weg. Fortschritt: `re4gx::ShaderPrep()` (gx_core), `CoreBridge.shaderPrep()`.
+  Die Vorbereitung hält nichts im Speicher (jedes Programm wird gebaut, gespeichert, freigegeben); wird die App mitten
+  drin beendet, macht der nächste Start weiter, Gespeichertes bleibt. Texte in 11 Sprachen. Geprüft: `gx_gl_check` 0
+  Fehler mit neuen Prüfungen des Fortschritts (GLES und Vulkan), App (Gradle, Unit-Tests).
+- **Änderung des Projektinhabers (20.11.2026):** „Wenn ‚Shader erzeugen‘ unter Management aktiviert wurde, würde ich
+  den Ladevorgang nicht mit einem Tastendruck oder Touch-Berührung abbrechen lassen. Hat das Gerät weniger als 4 GB
+  kann man die Option nicht aktivieren.“
+  - **Kein Überspringen mehr:** solange der Bildschirm steht, verwirft `CoreActivity` alle Tasten (auch Zurück),
+    Sticks, Maus und Berührungen (`dispatchKeyEvent`, `onGenericMotionEvent`, `dispatchTouchEvent`); die
+    Zurück-Geste (`askExit`, Android 13+) und das App-Menü (`openMenu`) tun nichts. Er geht nur, wenn das Vorab-Bauen
+    durch ist oder nach 20 s nicht begonnen hat. Home und App-Wechsel gehen weiter: im Hintergrund steht das Spiel
+    (`onPause`), beim Zurückkommen hält `prepTick` es nach ≤ 100 ms wieder an; ein getrennter Controller oder ein
+    Fokusverlust ändert nichts.
+  - **RAM-Grenze 4 GB** (ein „4-GB“-Gerät meldet 3,6–3,8 GB, Schwelle 3,5 GB, `CoreActivity.shaderPrepAllowed`):
+    darunter ist der Schalter ausgegraut und zeigt „Aus“, darunter die Zeile „Needs at least 4 GB RAM (this device has
+    n GB)“; ein „Ein“ von früher zählt als aus (Logzeile beim Start), der gespeicherte Wert bleibt. Die Warnung beim
+    Einschalten entfällt. Unbekannte RAM-Größe sperrt nicht.
+  - Hilfe, Zeile auf dem Bildschirm und Hinweis in 11 Sprachen neu (519 Texte). **Nicht geprüft:** der Bildschirm und
+    der ausgegraute Schalter auf einem Gerät.
+- **Auto-Frame-Skip:** nur Analyse (Vorschlag an den Projektinhaber): „Normal“ und „Aggressiv“ lassen schon nur bei
+  Rückstand Bilder aus; nichts gebaut.
+
+### 15. Ideen aus dem RE4Wii-Android-Port: Ausgabeauflösung, Upscaler, PGO (Projektinhaber, 20.11.2026)
+
+Aus der Durchsicht `reports/fork-checks/re4wii-android-2026-11-20.md` (GPL-3.0-only: nur Ideen übernommen, kein Code).
+
+- **A. Ausgabeauflösung** (Anzeige, unter „Auflösung“; `GRAPHICS_PREFS` `outputRes`: 0 Nativ, 1080, 900, 720 = kurze
+  Seite): `SurfaceHolder.setFixedSize` in `CoreActivity.applyOutputSize`, der Bildschirm streckt; Tippen, Overlay,
+  Maus über `outputSize()` umgerechnet; GLES und Vulkan. Texte in 11 Sprachen. **Nicht auf einem Gerät geprüft.**
+- **B. Upscaler** (Anzeige, unter „Ausgabeauflösung“; `upscaler`: 0 Aus, 1 SGSR, 2 FSR; `CoreBridge.setUpscaler`,
+  `GxRenderer::SetUpscaler`, `RE4_GX_UPSCALER` für Tests): ist der Kasten des Bildes auf dem Bildschirm größer als das
+  Bild (> 2 %), bringt `gx_upscale.cpp` es vor der Ausgabe auf die Größe des Kastens, dann 1:1 gezeigt: **SGSR 1**
+  (Qualcomm, BSD-3, `third_party/snapdragon-gsr`, ein Durchgang) oder **FSR 1** (AMD, MIT,
+  `third_party/fidelityfx-fsr`, EASU + RCAS 0,2 Stufen). Reihenfolge: Spielbild → FXAA → Schärfen → PSone → Farbe →
+  Upscaler → Ausgabe (Farbe vor dem Upscaler: rechnet auf dem kleineren Bild); mit CRT und bei Filmen aus. Fremddateien unverändert, per CMake als Text eingebettet; zur Laufzeit
+  angepasst: SGSR `#version 310 es`/`450`, `const int mode`, `highp vec2(` → `vec2(` (Mesa/glslang lehnen Genauigkeit an
+  Konstruktoren ab), Vulkan-Uniforms als Push-Konstanten; aus `ffx_fsr1.h` die Konstanten-Funktionen herausgeschnitten
+  (int→uint in GLSL ES verboten; laufen auf dem Prozessor mit `A_CPU`). Braucht GLSL ES 3.10 (`textureGather`); ein
+  GLES-3.0-Treiber bekommt einmal eine Logzeile und das normale Strecken. Hinweise in `app/THIRD_PARTY_NOTICES.md`
+  (Kopie in der APK: `assets/THIRD_PARTY_NOTICES.md`). Geprüft am PC: alle Shader mit glslangValidator (GLES 3.10,
+  Vulkan SPIR-V) und Mesa; Bilder r208/r103 bei 1× (512×448 → 1920×1080) und 1,5× (768×672) mit Aus/SGSR/FSR,
+  GLES und Vulkan (lavapipe) gleich; `gx_gl_check` 0 Fehler; App (Gradle, Unit-Tests); 519 Texte in 11 Sprachen.
+  **Kosten (Schätzung, nicht gemessen):** bei 1080p auf einer Mali-G57-Klasse SGSR ≈ 0,5–1 ms, FSR ≈ 2,5–4 ms je
+  Bild; Standard Aus, Empfehlung SGSR. **Nicht auf einem Gerät geprüft.**
+- **C. PGO:** gemessen +2,1 % langsamer (`port/docs/pgo.md`), nicht eingebaut; Schalter `RE4_PGO` bleibt.
+
+### 16. Lebensbalken: durch Türen sichtbar, Sprung auf die Waffe (Gerätetest des Projektinhabers, 20.11.2026)
+
+- **Durch geschlossene Türen:** Türen (`cEmDoor`, id 0x41) haben eigene Kollisionsteile im `EatMgr`
+  (`emDoorSatSet`) mit `EAT_ATTR_SMALL_NOHIT` (0x400000, die Tür nimmt die Kugeln selbst); der Sichttest fragt wie der
+  Zieltest des Spiels mit `SAT_TYPE_SMALL` (0x800) und ließ sie aus. Neu `doorBetween` in `runtime/health_bars.cpp`:
+  die Strecke Kamera–Kopf (und Kamera–Zielpunkt) gegen alle Polygone der Türteile (`At_poly_line_ck`); die Teile drehen
+  mit dem Türblatt, eine offene Tür lässt durch, zerbrochene Scheiben fallen weg. Gittertore (`emBarred`) und Regale
+  tragen dasselbe Merkmal und bleiben durchsichtig; Wände blockten schon (`EatMgr`, seit 7d6963d0, Gegner über/unter
+  Leon unverändert). Bilder r111 (Tür vorher/jetzt/offen): `RE4_TEST_HB_DOOR="F[:open][:N]"`, Vergleich alt
+  `RE4_HB_NO_DOORS=1`; Log-Zusammenfassung zählt „sight lines through a door“.
+- **Sprung auf die Waffe:** der Anker war das höchste Teil des Modells; beim Ausholen die Hand (gemessen bis 48 cm über
+  und 62 cm neben dem Kopf; dann war der Balken oft ganz weg). Neu `anchorOf`: bei den Menschen 0x10..0x20 (ohne 0x18,
+  nicht in der Plaga-Phase) das Kopfteil 4 (wie `em10NeckMove` und der Spieler), sonst wie bisher das höchste Teil;
+  kleine Sprünge (< 40 cm) halbiert. Geprüft mit `RE4_TEST_HB_NEAR=F` (Gegner vor Leon) in r106, r107, r111, r202,
+  r208, r303, r30b; Vergleich alt `RE4_HB_OLD_ANCHOR=1`; Zealots 0x11 nie neben dem Kopf. PC-Bilder im Notizordner
+  `111-hb-*.png`. **Nicht auf einem Gerät geprüft.** Nebenbefund: ein Zealot in r202 (Typ 7) hat 1 von 900 Leben und
+  zeigt einen fast leeren Balken (so schon vorher).
+
+### 17. Zwei FPS-Berichte: Hilfsthreads, Bildfolge-Schalter, Frame-Skip „Auto“ (Projektinhaber, 20.11.2026)
+
+Auswertung: `reports/workthread-1.1.0/user-fps/analyse-2026-11-20.md` (nubia NX709S mit 120-Hz-Bildschirm, Xiaomi
+25078RA3EY mit Helio G85-Klasse). Entscheidung des Projektinhabers: „120 FPS brauchen wir nicht“ … „1, 2, 3 und Auto
+Frameskip zu bauen. Bei 3 aber einen Menüschalter unter 'Performance'“.
+
+1. **Hilfsthreads auf die langsamen Kerne, auch beim Start** (`re4_cpu_info.h` `PutOnSlowCores`, `gx_decode.cpp`
+   `hintChunk`/`placeHelpers`): mit nur zwei schnellen Kernen sollen die 3 Eckpunkt-Threads auf die langsamen (Regel
+   vom 29.10.2026). Mit „Leistungskerne“ ab dem Start scheiterte das beim ersten Chunk (~1,5 s nach dem Start):
+   „left to Android (no slow core allowed to the app)“ – und wurde nie wiederholt; dann teilen sich Spiel-, Grafik-
+   und Eckpunkt-Threads die zwei schnellen Kerne. Jetzt: die erlaubten Kerne aus dem Thread **und** dem Hauptthread der
+   App (ein Thread, den ein schon festgelegter Thread startet, erbt nur dessen Kerne); keiner davon langsam (Androids
+   Start-Boost): die langsamen Kerne trotzdem verlangt; lehnt Android ab, alle 90 Chunks (~3 s) neu, höchstens 10
+   Versuche (~30 s), Logzeile beim Erfolg („(try n)“) oder nach dem letzten Versuch. `HelpersGoSlow` (ein oder zwei
+   schnellere Kerne, nicht abgeschaltet) entscheidet, ob es Versuche gibt.
+2. **Leistungshinweis ohne die Hilfsthreads** bei nur zwei schnellen Kernen: die Sitzung von `APerformanceHint` hält
+   dann nur den Spiel-Thread (die Hilfsthreads darin würden auf die schnellen Kerne zurückgeholt). Logzeile
+   „performance hint: on (the game thread alone, …; the 3 vertex threads on the slow cores, not in it)“.
+3. **Schalter „Even frame pacing“** (Leistung, Zeile der zusammengefassten Draw-Calls; `GRAPHICS_PREFS` `evenPacing`,
+   Standard an; `CoreBridge.setEvenPacing`, `optEvenPacing`): an = wie bisher (`PictureHold` bei 30, die Present-Zeiten
+   von `PresentPacer` bei 60 auf Bildschirmen über 60 Hz); aus = jedes Bild zum nächsten freien Bildwechsel wie in
+   0.97.0 (früher zu sehen, bis zwei Bildwechsel, ungleichmäßiger). Name bewusst nicht „V-Sync“: der Bildwechsel-Takt
+   und kein Tearing bleiben. GLES und Vulkan (Vulkan hat nur `PictureHold`). `RE4_GX_PRESENT_TIME=0` bleibt.
+4. **Frame-Skip „Auto“** (Wert 3; Reihenfolge des Knopfs Aus > Auto > Normal > Aggressiv, `CoreMenu.SKIP_ORDER`, die
+   gespeicherten Werte 0/1/2 unverändert; `CoreBridge.setFrameSkipAuto`, `optSkipAuto`): `picture_cadence.h`
+   `AutoSkip` misst das Tempo des Spiels an den Nummern der Chunks (`Re4GxChunk::sequence`, auch ausgelassene zählen):
+   über die letzte halbe Sekunde unter 27/s (mindestens zwei Bilder fehlen; ein einzelnes verspätetes Bild schaltet nichts) → beide Frame-Skips an (der des Renderers und der des Spiels, Patch 0227,
+   wie „Aggressiv“); zwei Sekunden mit mindestens 29/s → aus. Eine Pause über 0,25 s (Laden, Menü) misst neu und lässt
+   den Zustand. Mit 60 FPS aus. Logzeile „auto frame skip: on/off (… game pictures a second; n times on so far)“.
+   Benchmark-Vorschläge und Profile kennen den Wert (Anzeige „Auto“).
+   **Menü nach den Bildern des Projektinhabers (20.11.2026):** „Frame Skip als 4 kleine Buttons nebeneinander in der
+   ersten Buttonreihe und die anderen 4 Buttons als je 2 nebeneinander darunter“: unter EXPERIMENTELL zuerst vier
+   Auswahlknöpfe „No / Auto / Normal / Aggressive frame skip“ (`rowChoices`, Werte `SKIP_ORDER`, Texte `ingame_fs_*`
+   in 11 Sprachen), darunter 60 FPS | Even frame pacing, Merge draw calls | Vertex ring buffer, Save bandwidth (Vulkan);
+   60 FPS an wählt „No frame skip“. „Reload without aiming“ (Tastenbelegung, Tastatur) nur so breit wie die beiden
+   Knöpfe von „Device“ darüber (gleiche Viertel, die Spalte der Beschriftung leer).
+- Texte in 11 Sprachen (523). Geprüft am PC: i686-Kern mit Laufzeit- und Kerntests (cpuinfo: `HelpersGoSlow`, ein
+  Hilfsthread mit nur den zwei schnellen Kernen landet trotzdem auf den langsamen), `gx_gl_check` mit
+  `TestAutoSkip` (gleichmäßige 30, Zittern, ab und zu ein verspätetes Bild: nie an; 24/s: an nach höchstens 0,7 s; zurück bei 30: aus nach 2 s; ausgelassene
+  Nummern zählen; Ladepause schaltet nichts), App (Gradle, Unit-Tests, `FrameSkipModeTest` mit der neuen Reihenfolge).
+  **Nicht auf einem Gerät geprüft**, besonders nicht, ob Android die langsamen Kerne nach dem Start-Boost erlaubt.
+- **Dritter Bericht** (Galaxy S10, Exynos 9820, 0.99.18-rc, `reports/workthread-1.1.0/user-log-20261119`): der
+  Absturz in `logs/last-crash` stammt aus 0.96.8-beta (01.11.2026, r214, nach dem Schließen des Koffers ein
+  Neuladen von st2_2 nicht als „relinked“ erkannt, Sprung in die alte Raumfunktion) und ist seit 0.98.1 behoben
+  (380edc39, `os_link.cpp` `isRelink`). Die Sitzungen vom 19.11. liefen ohne Absturz; nur einige Vulkan-Pipelines beim
+  ersten Betreten der Burgräume (bis 114 ms je Pipeline). Nichts geändert.
+
+### 18. Drei Ideen aus der Fork-Durchsicht (Projektinhaber, 20.11.2026: „1 bis 3 sind gute Ideen. Bitte sauber übernehmen.“)
+
+Durchsicht `reports/fork-checks/summary-2026-11-20.md`; nur Ideen, eigener Code (wie beim Wii-Port).
+
+1. **Größerer Raum-Heap 4** (Idee: Tim-ui-boop 181995fd). Die Heaps des Spiels enden an `RE4_MEM1_HEAP_END`
+   0x826F4000 statt 0x817F4000 (LP64 bisher 0x818F4000 über `lp64_sizes.json`; der Eintrag entfällt), auf ILP32 und
+   LP64 gleich: **Patch 0245** (`SystemMemInit` `Heap_end_addr`). Heap 4 (die Gegner-Module eines Raums) wächst von
+   14,5 MB auf 29,5 MB (LP64 von 15,5 MB). Neue Karte in `runtime/re4_mem1_map.h` (nur Zahlen, auch für die Dateien mit
+   Spiel-Flags; `#error` bei Überlappung): FST 0x826F4000–0x82700000, die Plätze der Cheats 0x82700000–0x82C00000
+   (bisher 0x82000000–0x824E0400 mitten im neuen Heap: Leons Archiv, Krausers Waffenpuffer, Adas Griffe, die
+   Ganado-Einträge der Stellvertreter; `cheats.cpp`, `state_trace.cpp`, `static_assert` für die 5 MB), das größere
+   core.das 0x82C00000–0x82F00000 (bisher 0x81C00000), das größere option.dat 0x82F00000–0x83000000 (bisher 0x81F00000).
+   Alles unter der Zeigergrenze des Spiels 0x82FFFFFF. Der USB-Puffer `file.cpp usb_buf` 0x81800000 des
+   Debug-Builds wird nie benutzt. Sofortspeicher speichern die Schreibmaschinen-Daten, nicht den Speicher: unberührt.
+   Geprüft am PC: i686 und x86_64 mit allen Laufzeit- und Kerntests (Test `tasks`: Heap-Ende = FST); Raumrundgang
+   126 Räume mit „More enemies“ und „Random enemies“ (Seed 4242), alter gegen neuen Kern: Debug-Discs beide
+   ALLES OK, Heap 4 voll (Rückfall über ARAM beim Koffer) alt 2-mal, neu 0-mal, kein Gegner abgelehnt; EU-Discs beide
+   125/126 mit demselben **schon vorhandenen Absturz in r333** (auch ohne die Gegner-Cheats und mit dem alten Kern,
+   gleiche Adresse; Befund für später, nicht durch den Heap); Stellvertreter Ada, Krauser, HUNK in r100/r105 lesen an
+   die neuen Plätze, kein Absturz; Speicherkarte (Speichern in r100, Neustart, Laden, „Retry“) mit altem und neuem Kern,
+   Debug- und EU-Discs: alle OK; der neue Kern lädt die Karten des alten (Debug und EU: Spielstand geladen, r100 läuft,
+   auch nach „Retry“). Hinweis zum Prüfen: `libre4_host.so` findet `libre4_main.so` über einen absoluten RUNPATH
+   in den Build-Ordner; eine kopierte Build-Kopie braucht `LD_LIBRARY_PATH` auf sich selbst, und parallele
+   `whole_r100_check.sh` brauchen eigene `--work`-Ordner (sonst derselbe Lauf-Ordner nach der Sekunde).
+2. **120-Hz-Handys** (Idee: DevJunior 799db53c; nicht abgerufen, die Beschreibung reichte): der Leistungshinweis des
+   Render-Threads (`core_mode.cpp` `renderHint`) zielt bei 60 FPS auf 16,7 ms je Bild statt 33,3 ms und folgt einem
+   Umschalten (`PerfHint::Retarget`, `APerformanceHint_updateTargetWorkDuration`). Die App fragt den 60-Hz-Modus und
+   die 60 Bilder der Oberfläche erneut beim Zurückkommen und wenn sich der Bildschirm ändert, solange er schneller als
+   60 Hz läuft (`CoreActivity.askSixtyAgain`, höchstens alle 5 s). Automatisch, kein Schalter; „Even frame pacing“ und
+   `PresentPacer` bleiben, wie sie sind. Zum Bericht von Spieler A (nubia, 20.11.): dort gab Android **keine**
+   Hinweis-Sitzung („the system gave no session“), der Bildschirm ging nach 0,5 s auf 60 Hz wieder auf 120 Hz; die
+   neue Nachfrage fängt so einen Wechsel, ob das nubia ihr folgt, ist offen. **Nicht auf einem Gerät geprüft.**
+3. **„Force controller detection“** (Idee: xianmod99; Projektinhaber: „Die Position bei 3 passt“): Steuerung →
+   Tastenbelegung, direkt unter „Device“, so breit wie dessen zwei Knöpfe, aus (`INPUT_PREFS` `forceController`).
+   Ein: Tastendrücke jedes externen Geräts (`InputDevice.isExternal`, vor Android 10 eine Hersteller-Kennung) zählen
+   als Controller-Tasten (`CoreActivity.controller`, die Belegung des Controllers, oben zuweisbar). Ausgenommen: die
+   eigenen Tasten des Geräts, Touch, Mausbewegung (nur Tastenereignisse) und Systemtasten (Lautstärke, Ein/Aus, Home,
+   App-Wechsel, Kamera, Medien, Helligkeit). Eine echte externe Tastatur zählt dann auch als Controller (der Hilfetext
+   sagt das: zum Spielen mit Tastatur und Maus ausschalten, die Maus geht weiter). Texte in 11 Sprachen (529).
+   Bild `builds/workthread-1.1.0/menu/9-controls-button-mapping-force-controller-detection.png` vor dem APK-Bau an den
+   Projektinhaber. **Nicht auf einem Gerät geprüft.**
+
+### 19. r333 (Flucht am Ende) stürzt mit den EU-Discs ab (Projektinhaber, 20.11.2026: „Prüfe Raum r333 bitte noch.“)
+
+Der Altbefund der Rundgänge (EU 125/126 seit mindestens 0.99.11, Abschnitt 18 und früher) ist **kein Spielfehler**,
+sondern einer des Port-Protokolls: `state_trace.cpp` `playerLog` prüft jedes Bild „Leons Kopf ab“ (`live(pPL->Body)
+&& pPL->Body->m_pFace == 0`, seit 0.98.6, 3f6b4cbf). In r333 (Jetski-Flucht) läuft im Rundgang der Zeitgeber ab (keine
+Lenk-Tasten), Leon stirbt in der Explosion (4365–4800 Bilder nach dem Start); dabei steht in seinem `Body` Müll, mit
+den EU-Discs 0x8c748a75. `live()` prüfte nur „≥ 0x80000000“ und ließ die Adresse durch: SIGSEGV
+(`libre4_main.so+0x323167`, aus dem PAD-Rückruf). Debug-, US- und JP-Discs lasen zufällig lesbaren Speicher
+(„head is off“ mehrfach, JP einmal „position is not a number“). Das Protokoll läuft auch in der App: ein Spieler mit
+EU-Discs, der am Ende stirbt oder den Zeitgeber ablaufen lässt, konnte so abstürzen (am PC nur im Rundgang gesehen;
+eine Ankunft aus r332 per Spielstand gibt es zum Prüfen nicht).
+
+- **Behoben:** `live()` folgt nur noch Zeigern in MEM1 (bis `RE4_MEM1_END`) oder in Port-Speicher
+  (`re4_valid_port_ptr`: die Spielbibliotheken, Host-Stapel; dieselbe Prüfung wie `VALID_PTR`, Patch 0037). Kein Patch
+  am Spielcode.
+- **Geprüft am PC:** r333 allein mit 9000 Bildern auf Debug-, EU-, US- und JP-Discs: kein Absturz mehr (EU vorher
+  in jedem Lauf); i686-Kern mit Laufzeit- und Kerntests; EU-Rundgang aller 126 Räume: 126 von 126 ohne Fehler (vorher 125). JP meldet beim Tod in r333
+  weiterhin einmal „position is not a number“ (nur eine Protokollzeile, kein Absturz). **Nicht auf einem Gerät
+  geprüft.**
+
+### 20. Vulkan bei 120 Hz und gedrosselte Kerne (Projektinhaber, 20.11.2026: „Bitte unbedingt beide sauber bauen.“)
+
+Aus den Spielerberichten vom 20.11. (`reports/workthread-1.1.0/user-reports-20261120b/analyse-2026-11-20b.md`,
+Xiaomi „onyx“, Snapdragon 8s Gen 4, Vulkan, 120 Hz). Kein Schalter, kein Patch am Spielcode.
+
+1. **Feste Ausgabezeiten auch für Vulkan** (`VK_GOOGLE_display_timing`). Bisher hatte nur OpenGL ES sie
+   (`PresentPacer`, 0.99.13); Vulkan gab jedes Bild an den nächsten freien Takt (`VK_PRESENT_MODE_FIFO_KHR`), im
+   Bericht kamen bei 120 Hz 41 % der Bilder einen Takt zu früh oder zu spät.
+   - `vk_context.cpp`: die Erweiterung wird eingeschaltet, wo das Gerät sie hat (`Context::displayTiming`,
+     `RE4_VK_DISPLAY_TIMING=0`: nie); die beiden Funktionen in `vk_api.h` (optional, sonst aus). Die GPU-Zeile sagt
+     „present times there / not there“.
+   - `gx_vk.cpp` `Present`: vor jedem `vkQueuePresentKHR` die gezeigten Bilder (`vkGetPastPresentationTimingGOOGLE`)
+     und eine Nummer an den Haken des Kerns (`GxRenderer::SetPresentHook`, `GxPresentHook` in `gx_gl.h`), dessen Zeit
+     als `desiredPresentTime` (`VkPresentTimesInfoGOOGLE`); ohne Erweiterung wird der Haken nie gerufen.
+   - `core_mode.cpp` `present::vkHook`: dieselbe Takt-Logik wie OpenGL ES (`PresentPacer::Target`/`Outcome`), unter
+     „Even frame pacing“, mit dem Beiseitetreten für 30 s, wenn der Zeichen-Thread dreimal in 2 s zurückliegt
+     (`noteBehind`, jetzt für beide), und der Zeile „screen pacing (as shown)“ (`noteShown`, für beide); neuer
+     Swapchain: der Takt von vorn. `RE4_GX_PRESENT_TIME=0` schaltet auch hier ab. Logzeilen: „screen pacing (Vulkan):
+     present times there (…)“ bzw. „not there …“, „each picture asked for its vsync … Vulkan“.
+   - Wann das Bild fertig war, sagt Vulkan nicht direkt: `picture_cadence.h` `VkReadyFor` nimmt den Vorsprung vor dem
+     Einlesen des Bildschirms, den Androids Swapchain meldet (`presentMargin` + `actual` − `earliest`, wie in
+     `swapchain.cpp` `TimingInfo::calculate`), als Vorsprung, den `Outcome` bewertet: unabhängig davon, wie früh das
+     Gerät einliest. (Ein erster Ansatz rechnete über „einen Takt vor dem Zeigen“ zurück; die Simulation zeigte, dass er
+     den Vorsprung um einen Takt überschätzt und die Wartezeit dann zu früh senkt: verworfen.)
+   - Nur bei Bildschirmen, deren n-ter Takt eine 60stel Sekunde ist (120, 180, 240 Hz), wie bei OpenGL ES. 90 Hz kann
+     60 Bilder nicht gleichmäßig zeigen (1,5 Takte je Bild).
+2. **Zeichen-Thread weg von gedrosselten Kernen** (`re4_cpu_info.h` `RenderPick`, `RenderCoresNow`). Im Bericht durfte
+   Kern 7 (der des Zeichen-Threads) ab Minute 14 nur noch 633 von 3206 MHz, Android meldete keine Hitze.
+   - Jeder Kern zählt mit dem Takt, den er gerade erreichen darf (`scaling_max_freq`); die kleinste Kernart mit 45 %
+     (weniger als halb so viel Arbeit je Takt), die mittlere und die schnellste gleich (beim Snapdragon 865 sind beide
+     Cortex-A77; wie bisher gewinnt der höchste erlaubte Takt), bei Gleichstand die schnellere Art.
+   - Wechsel nur zur besten Gruppe (eine Kernart, ein erlaubter Takt), wenn sie 15 % besser ist (zurück zu einer
+     schnelleren Art: wenn sie mindestens gleich gut ist) und der letzte Wechsel 5 s her ist; sind alle eigenen Kerne
+     abgeschaltet, sofort. Kein Hin und Her.
+   - Regeln bleiben: nur mit „Performance cores“ (Force Performance) an, er startet auf den Kernen, die
+     `KeepOffSlowCores` ihm gibt (wie bisher); auf die kleinsten Kerne nur, wo die Hilfs-Threads nicht dort sitzen
+     (`HelpersGoSlow`, der Fix für zwei schnelle Kerne aus fd1f1ac6) und `RE4_RENDER_SLOW` nicht 0 ist. Jetzt auch ohne
+     Prime-Kern (zwei Kernarten) für den Zeichen-Thread. Der Spiel-Thread und die Vertex-Threads bleiben, wie sie sind.
+   - Log: „cores: the render thread moved for the clocks from cores 7 (633 MHz allowed) to cores 0 1 (2016 MHz allowed,
+     the slowest kind)“ (die ersten 20, dann jeder 50.) und einmal pro Minute „cores: clocks now/allowed/highest:
+     0 …/…/…, …; the render thread on cores …, now on core …“ (alle Kerne, auch die kleinen). OpenGL ES und Vulkan.
+- **Geprüft am PC:** Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden (neu: `RenderPick` mit den Takten des
+  Berichts: bleibt ohne Drosselung und bei Gleichstand, wechselt bei 2054 MHz auf die mittleren Kerne, wartet die 5 s,
+  kehrt zurück, geht bei 633 MHz auf die kleinen Kerne, nicht wenn `HelpersGoSlow`, kein Pendeln, sofort bei
+  abgeschaltetem Kern); Android-Kern ARM32 und ARM64 0 Fehler; `gx_gl_check` mit GLES und Vulkan (lavapipe) 0 Fehler
+  (neu: Simulation des 120-Hz-Bildschirms mit Androids Swapchain-Meldung: ohne Zeiten 47 % der Bilder im
+  2-Takt-Abstand, mit ihnen 100 %, Wartezeit 3 Takte wie OpenGL ES; bei einem Gerät, das einen Takt früher einliest,
+  98 % mit 4 Takten und ohne Absenken in die Verspätung; schnelle GPU zurück auf 2 Takte; ein zu langsames Gerät tritt
+  beiseite); App-Tests und `assembleCoreDebug` ohne Befund.
+- **Nicht geprüft, nur auf einem Gerät möglich:** ob der Treiber des Spielers `VK_GOOGLE_display_timing` hat und die
+  Zeiten einhält (lavapipe am PC zeigt nichts auf einem Bildschirm, die Erweiterung ist dort nicht da); ob HyperOS
+  die kleinen Kerne wirklich schneller lässt als die gedrosselten großen (das zeigt die neue Minutenzeile).
+
+### 21. Echtzeit-Schatten mit Vulkan: Streifen auf Krauser (Spielerbericht vom 20.11.2026)
+
+Bericht `reports/workthread-1.1.0/user-krauser-shadows/` (Xiaomi „onyx“, Adreno 825, Android 16, 1.0.0, Vulkan,
+Echtzeit-Schatten „Figuren und Objekte“, 60 FPS, Auflösung 4×, HD-Texturen 1024, Krauser als Spielfigur, r100): mit
+Vulkan liegen Schatten und Streifen auf Krausers Körper, mit OpenGL ES nicht; dazu ein „kaputter“ Unterarm in beiden.
+
+- **Ursache (Schatten):** Figuren empfangen keinen Schatten; dafür markiert der Schatten-Durchgang die Pixel, an denen
+  eine Figur die sichtbare Fläche ist (dieselben Dreiecke gegen die EFB-Tiefe, Vorsprung 4 Schritte der 24-Bit-Tiefe).
+  Mit Vulkan zeichnen die GX-Pipelines in GLs Tiefenbereich (`VK_EXT_depth_clip_control`: 2 z − w, dann (z / w + 1) / 2),
+  die Markierungen gingen den kürzeren Weg (z / w sofort, `glz` 0, ohne `negativeOneToOne`). Rechnerisch gleich, aber
+  eine GPU darf die beiden Wege verschieden runden; reicht das über die 4 Schritte, verliert eine Figur ihre Markierung
+  und bekommt ihren eigenen Schatten und den der Objekte: Streifen auf dem Körper (wie in der Studie vor Stufe 2).
+  OpenGL ES rechnet beides auf demselben Weg, daher dort nichts. lavapipe am PC rundet beide Wege gleich: am PC nicht
+  nachzustellen (r100 mit Krauser, Schatten „Figuren und Objekte“, 4×: GLES und Vulkan je Bild höchstens 8 Pixel über
+  3 % auseinander, wie ohne Schatten).
+- **Behoben** (`gx_vk.cpp` `MakeShadowPipe`, `ShadowPass`): Die Markierungen nehmen bei `depthClipControl` denselben Weg
+  wie die GX-Pipelines und wie OpenGL ES (`glz` 1, Pipeline mit `negativeOneToOne`); ohne die Erweiterung bleibt alles
+  (beide rechnen dann z / w). Die Tiefenkarte bleibt im Vulkan-Bereich (nur die Maske liest sie).
+- **Der Unterarm ist kein Fehler:** Krausers linker Unterarm ist in den Spieldaten rot und roh (der mutierte Arm). Am PC
+  ohne HD-Texturen und ohne Schatten mit OpenGL ES genauso (`~/pwt/krauser/r100-aim/gloff`). In Bericht-Bild 2 sieht
+  er von oben aus wie das Laub ringsum.
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan 0 Fehler (`TestShadows` Vulkan mit denselben Werten wie GLES);
+  r100 mit Krauser (stehend und zielend, je 8 Bilder, 4×): Vulkan vor und nach der Änderung Byte für Byte gleich,
+  Validierungsschichten ohne Meldung. **Nur auf dem Gerät prüfbar:** ob die Streifen auf dem Adreno 825 damit weg sind.
+
+### 22. Menü-Wünsche vom 20./21.11.2026 (Projektinhaber)
+
+- „Quelle und Updates“ auch unten auf der Startseite des App-Menüs, unter der Spielsprache (`CoreMenu.sourceSection`,
+  weiter auch unten unter Management).
+- Tastenbelegung: unter „Gerät“ mit „Controller“ nur „Force controller detection“, mit „Tastatur & Maus“ an derselben
+  Stelle „Reload without aiming“ (`underDevice`), je mit seinem Hilfetext.
+- „Maus-Empfindlichkeit“: Regler unter den Gerät-Knöpfen (Viertel-Spalten), die Beschriftung nimmt sich in jeder
+  Sprache mindestens ihre eine Zeile (`MenuLayout.Columns.setStartFitsContent`; Test `CoreMenuRowsTest.menuChanges110`,
+  11 Sprachen, 560–960 dp).
+- Fehlerprotokoll: zuerst als „immer an“ gebaut, auf Rückmeldung des Projektinhabers (21.11.: „soll per default aktiv
+  sein, nicht nicht mehr verfügbar sein“) wieder der Schalter wie bisher, standardmäßig an (unverändert seit jeher).
+- Bilder `builds/workthread-1.1.0/menu/b1`–`b5` (DE/EN); App-Tests bestanden. **Nicht auf einem Gerät geprüft.**
+
+### 23. Schießstand (r22c): Fehler des Prototyps behoben (Spielerbericht, 20.11.2026)
+
+Spielerbericht (ohne Log): „the order of the enemies does not change. It does not progress beyond 5 targets, even if
+you achieve a score of 4500“ und „B on an empty slot … immediately unlocks the Bottle Caps character“. Ursache: der
+Code des Schießstands im Prototyp (Debug-Disc, trifft die SHA1) war noch nicht fertig. Verglichen mit der
+Verkaufsversion (US-Disc, `Rel/st2_4.rel` und `Rel/Sscrn.rel`, Befehl für Befehl mit einem kleinen
+PowerPC-Disassembler, `checkBottleCap`, `getCap`, `r22c_checkGame`, `getBonus`, `R22cHitMark`, `R22cInit`,
+`CapSelect::move`). Entscheidung des Projektinhabers vom 22.10.2026: Fehler des Prototyps, die das fertige Spiel nicht
+hat, werden behoben.
+
+**Patch 0246** (`src/st2/r22c.cpp`, „a bug of the prototype“):
+- Zweites Spiel (Typ B, andere Ziele und Reihenfolge): kam nur in Level A und B, und nur mit Kappen anderer Level
+  (A: Kappen 9 und 10, B: 14 und 17), in C und D nie. Jetzt wie im fertigen Spiel: in jedem Level, sobald drei der fünf
+  Kappen dieses Levels da sind.
+- Sechste (Sonder-)Kappe: Der Prototyp nahm die Gegenstandsnummer 0xF0..0xF3 als Kappennummer (schrieb `cap[0xEF]`
+  hinter die Arbeitsdaten, gab Gegenstand 0x1CB: kam nie an) und nur im zweiten Spiel. Jetzt wie im fertigen Spiel:
+  Kappe 21..24 (Gegenstände 0xF0..0xF3), wenn noch nicht vorhanden, für 4000 Punkte oder mehr, oder mehr als 24 Treffer
+  ohne die Ashley-Scheibe zu treffen, in beiden Spielen (Treffer auf die Ashley-Scheibe gezählt, wie dort bei 0x48).
+- Set-Bonus (sechs Kappen): Der Prototyp zählte sechs Kappen am Stück (für A brauchte man eine von B); jetzt die fünf
+  Kappen eines Levels und seine Sonderkappe, die Zeile der Vitrine, wie im fertigen Spiel.
+- Debug-Reste, die das fertige Spiel nicht hat, entfernt: „GIVE UP: (X) button“ (X beendete das Spiel sofort, bevor
+  seine Ziele kamen), X beim Start (Levelwahl), L+R+Y (alle 24 Kappen), L oder ein Sprungpunkt beim Betreten (Level
+  D/B/C). Punkte zählen nur, solange das Spiel läuft (Schritt 2), wie dort.
+- Burg-Eingang aus r31d: bot nur Spiel A an; jetzt alle vier wie aus r305 (die Rauminitialisierung kannte r31d schon).
+
+**Patch 0247** (`src/Sscrn/ss_cap.cpp`): In der Kronkorken-Vitrine gab X auf einem leeren Fach sofort dessen Kappe
+(Debug-Taste des Prototyps; die Verkaufsversion prüft diese Taste nicht mehr). Entfernt.
+
+**Patch 0248** (`src/game/mes.cpp`, Port-Patch): Steuercode 0x0A (Zahl im Text) teilte durch 0, wenn vorher keine Zahl
+gesetzt war; der GameCube hält dabei nicht an, x86 bricht ab (SIGFPE), ARMs Laufzeit-Division vielleicht auch. Seit 0246
+erreichbar: Set-Bonus-Meldung 0xE der Debug-Disc, wenn bei diesem Besuch keine Kappe gewonnen wurde. Die Ziffer zeigt
+jetzt 0.
+
+Testhilfen (`runtime/state_trace.cpp`): `RE4_TEST_ITEM_GET="free+N:ID[,ID...]"` (Gegenstände geben, danach eine Zeile bei
+jeder Änderung des Szenario-Flag-Worts 1) und `RE4_TEST_AT_EXEC="free+N:NO[,…]"` (den Ablauf eines Auslösebereichs
+starten, wie `SceAtExecute`; der A-Knopf am Tresen griff nach dem Hinsetzen nicht).
+
+- **Geprüft am PC** (i686, eigener Baum): Kern 0 Fehler, Stubs wie erwartet, Laufzeit- und Kerntests bestanden.
+  Schießstand per Debug-Start, Spiel über den Tresen (Bereich 0) gestartet, Handfeuerwaffe gewählt: ohne Kappen
+  Spiel A (25 Ziele, erstes bei x 0 z −22000), Debug- und EU-Disc; mit den Kappen 1–3 Spiel B (22 Ziele, erstes bei
+  x −2500 z −26000), Debug- und EU-Disc; mit den Kappen 9 und 10 (die alte Bedingung) Spiel A. Set-Bonus über das
+  Spielende beim Händler: Zeile A (0xDC–0xE0 + 0xF0) setzt Bit 8, Zeile D (0xEB–0xEF + 0xF3, EU) Bit 1, sechs Kappen am
+  Stück (0xDC–0xE1) nichts; Debug-Disc vor Patch 0248 Absturz in `Message::code0a`, danach keiner. Raumrundgang r22c,
+  r204, r211, r220, r305, r31d mit Debug- und EU-Discs: je 6 von 6 ohne Fehler (ALLES OK).
+- **Nicht am PC geprüft:** die Sonderkappe (dafür müssten 4000 Punkte erschossen werden), die Vitrine ohne X-Kappe, der
+  Eingang aus r31d (der Debug-Start setzt keinen Vorraum). **Nicht auf einem Gerät geprüft.**
+
+### 24. Seilbahn (r10f) auf einem Snapdragon 460: ~20 FPS mit Blick in Fahrtrichtung (Spielerbericht vom 21.11.2026)
+
+Bericht `reports/workthread-1.1.0/user-cablecar-sd460/` (OPPO A53 „CPH2127“, Snapdragon 460, Adreno 610, OpenGL ES,
+3,6 GB, Android 12, 1.0.0; Potato mode und Sichtweite „Short“ erst kurz vor der Seilbahn eingeschaltet, Frame Skip
+„Normal“, „Performance cores“ aus, 60 FPS aus). Der Raum ist **r10f** (Gondeln/Lore laut Objektliste; der Spieler
+kam aus r11e).
+
+- **Was kostet (sein Protokoll, r10f):** mit Blick in Fahrtrichtung 741–782 Zeichenaufträge je Spielbild statt 263,
+  der Grafikchip dabei nur 15,6–19,3 ms von 33,4 (47–58 %, „not the resolution's doing“). Am Ende sind die beiden
+  Prozessor-Threads: der Spiel-Thread 28–30 ms Rechenzeit je Bild (Zeichnen im Spiel 19–21 ms, die Umrechnung von
+  135 000 Eckpunkten mit drei Helfern), der Zeichen-Thread 23–28 ms (Zeichenaufrufe 5,9–6,5 ms, Kopien/Effekte
+  6,5–6,9 ms). Ergebnis 25,7–27,2 Spielbilder/s, auf dem Bildschirm 26–29,5, einzelne Hänger bis 296 ms. Andere Räume
+  dieses Handys liegen ähnlich (Dorf r101 672 Aufträge, 23–30 Bilder/s): die Seilbahn ist die vollste Stelle, kein
+  Sonderfehler.
+- **Warum vorn so viel:** das Spiel zeichnet alles im Blickfeld bis zur fernen Ebene, ohne zu prüfen, ob es verdeckt
+  ist: das ganze Tal, die Seilbahnlinie bis ~175 m (Objekte bis z −175 000) und alle entgegenkommenden Gondeln samt
+  Ganados. Am PC (Debug-Disc, r10f, Leon an der Startstelle, sieben Blickrichtungen): die volle Richtung 747
+  Aufträge / 88 000 Dreiecke, die übrigen 234–418. „Short“ (50 %) senkt die volle Richtung nur auf 626 (−16 %),
+  „None“ (35 %) auf 259 (−65 %); die anderen Richtungen ändern sich kaum. In der gemessenen Stellung lagen die
+  eingesparten Aufträge sogar ganz hinter dem Fels (Bilder bei allen drei Stufen gleich); auf der Fahrt selbst ist
+  das Tal dagegen sichtbar, dort verschwindet bei „None“ die Ferne im Nebel.
+- **„Kirchen-Zeitlupe“ (0.96.7):** im Protokoll ist das die Zeitlupe, wenn das Spiel selbst unter 30 Bilder/s fällt;
+  dafür gibt es seit 0.99.x „Aggressive frame skip“ und seit 1.1.0 „Frame skip Auto“ (beide Bildsprünge nur, solange
+  das Spiel unter 27 Bilder/s fällt). Der Spieler hatte nur „Normal“ an (hilft nur, wenn der Grafikchip zurückliegt,
+  hier nicht).
+- **Behoben (`re4_cpu_info.h`, 1.1.0):** die Kernarten richten sich jetzt zuerst nach der Leistungsangabe des Systems
+  je Kern (`/sys/devices/system/cpu/cpuN/cpu_capacity`), dann nach dem Takt. Beim Snapdragon 460 erreichen die vier
+  kleinen Kerne (Cortex-A53) 1804 MHz, die vier großen (Cortex-A73) nur 1612 MHz; nach dem Takt galten die kleinen als
+  „schnell“, und „Performance cores“ (in **jedem** Leistungsprofil an, `PerfProfile` `v[CORES] = 1`) hätte Spiel-
+  und Zeichen-Thread auf die kleinen Kerne gelegt, sobald der Spieler ein Profil wählt. Rang = Leistung × 4096 + MHz
+  (gleiche Leistung bei Prime- und großen Kernen bleibt durch den Takt getrennt); fehlt einem Kern die Angabe oder ist
+  sie überall gleich, alles wie bisher. `RE4_CPU_CAPACITY=0` schaltet es ab. Die Zeile „processor:“ nennt die Leistungen
+  („kinds by the system's capacity: 0-3 494, 4-7 1024 (the last the fastest)“). Spieler mit „Performance cores“ aus
+  (wie dieser) merken heute nichts davon: Android legte die Threads schon selbst auf die großen Kerne (Protokoll: 98–100 %
+  auf den Kernen 4–7).
+- **Nicht geändert:** kein Abschneiden ohne sichtbaren Verlust möglich (das Spiel kennt keine Verdeckung; eine eigene
+  Verdeckungsprüfung wäre ein großer Umbau). „Merge draw calls“ fasst in diesem Bild nichts zusammen (0 von 747).
+  Vorschlag für schwache Prozessoren ohne neuen Schalter: in den Profilen „Low“ die Sichtweite „None“ und Frame skip
+  „Auto“ (nur mit OK des Projektinhabers).
+- **Geprüft am PC:** Kern i686 0 Fehler, Laufzeit- und Kerntests (neu: Layout des Snapdragon 460 mit Leistungen,
+  Snapdragon 865 mit gleicher Leistung für Prime- und große Kerne, Kerne ohne Angabe); Messungen r10f mit
+  `gx_chunk_render`. **Nicht auf einem Gerät geprüft**, ob sein Kernel `cpu_capacity` lesen lässt (Android-Kernel mit
+  EAS haben es; sonst bleibt es beim Takt).
+
+- **Profil „Low“ angepasst** (Projektinhaber, 21.11.2026: „Nimm bei Low Auto Frame Skip dazu und die Sichtweite etwas
+  runter aber nicht auf None.“; `PerfProfile.values`): Frame skip jetzt „Auto“ (vorher „Normal“, bei schwachem oder
+  knappem Prozessor „Aggressive“); Sichtweite jetzt immer „Short“ (50 %; vorher „Medium“ 65 %, „Short“ nur bei
+  schwachem Prozessor, der also schon auf der kürzesten Stufe vor „None“ war). Gemessen am PC (Debug-Disc r10f, Leon
+  an der Startstelle, sieben Blickrichtungen, Zeichenaufträge je Bild): Blick in Fahrtrichtung 100 % 747, 65 % (altes
+  Low) 747, 50 % (neues Low) 626 (−16 %); die anderen Richtungen unverändert. Was „Auto“ bringt (das Spiel läuft in
+  voller Geschwindigkeit weiter, statt langsamer zu werden, wenn es unter 30 fällt), zeigt erst das Gerät. Wer „Low“
+  schon gewählt hat, behält seine Werte, bis er „Low“ erneut wählt (der Profil-Abgleich vergleicht mit den beim Wählen
+  gesetzten Werten). Kein Text im Menü geändert (die Hilfe nennt keine Einzelwerte). App-Tests 229 bestanden.
+
+### 25. Lebensbalken: nur in der Nähe, weich ein- und ausblenden (Projektinhaber, 21.11.2026: „erst ab einer gewissen Entfernung einblenden und einfaden. Nicht hart einblenden.“)
+
+`runtime/health_bars.cpp`, kein neuer Patch, kein Schalter.
+
+- **Entfernung:** Balken nur noch bis 15 m von der Kamera (`kShow` 15000 Spieleinheiten; vorher 30 m). Die Kamera steht
+  etwa 2 m hinter Leon, also rund 13 m von Leon. 15 m ist die Entfernung, auf die Ganados losstürmen und Leon gut
+  zielen kann; weiter weg waren die Balken nur noch 14 Einheiten breit und eher Unruhe im Bild.
+- **Einblenden/Ausblenden:** je Gegner eine Deckkraft 0..1 (`gFade`, nach dem Platz in der Gegnerliste wie `gAnchor`),
+  in 12 Spielbildern ganz da oder ganz weg, also 0,4 s (das Spiel rechnet bei 30 und bei 60 FPS mit 30 Bildern je
+  Sekunde; ein Sprung zählt höchstens 3 Bilder). Einblenden, sobald ein Gegner innerhalb von 15 m frei sichtbar ist;
+  ausblenden, wenn er weiter weg geht, hinter eine Wand oder eine geschlossene Tür gerät oder stirbt (dann mit dem
+  letzten roten Streifen). Rahmen, grauer Rest und Farbe bekommen dieselbe Deckkraft.
+- **Sofort weg wie bisher:** außerhalb des Bildes, hinter der Kamera, näher als 30 cm, nicht gezeichnet (`isTrans`),
+  in Zwischensequenzen, Filmen, Untermenüs, Türszenen. Danach beginnt der Balken wieder bei nichts und blendet ein
+  (eine Pause von mehr als 3 Bildern setzt zurück; so auch nach einem Raumwechsel).
+- Die bisherigen Prüfungen bleiben: Sicht ohne Wand (`seen`, `clearLine`), Türen (`doorBetween`), Kopfanker
+  (`anchorOf`), Glättung (`smoothed`), Plaga-Phase, Händler, Liste der Gegnerarten.
+- PC-Vergleich alt: `RE4_HB_NO_FADE=1` (30 m, kein Ausblenden). Laufzeittest `health bar fade` (12 Schritte bis ganz,
+  Sprünge höchstens 3 Bilder, Grenzen 0 und 1).
+- **Geprüft am PC:** i686-Kern 0 Fehler, Laufzeit- und Kerntests bestanden (der Zeittest „vsync“ fiel einmal unter Last
+  durch, die Wiederholung bestand; hat mit den Balken nichts zu tun); r208 (Burg) und r106 alt gegen neu, Bilder jede
+  Sekunde mit GLES und Vulkan/lavapipe: in r208 bei Bild 900 alt 4 Balken, neu 3 (ein Zealot zwischen 15 und 30 m
+  bekommt keinen mehr); Bilder `builds\workthread-1.1.0\health-bars\r208-before-left-after-right-*.png` (links alt,
+  rechts neu). Das Ein- und Ausblenden selbst ist in Standbildern im Sekundenabstand nicht zu sehen; geprüft über den
+  Laufzeittest. **Nicht auf einem Gerät geprüft** (wie weich es mit 60 FPS wirkt).
+
+### 26. Cheat „Gegenstände stapeln“ und Reihenfolge der Zufalls-Cheats (Projektinhaber, 21.11.2026)
+
+- **Gegenstände stapeln** (Cheats & Mods → Allgemein und Inventar, nach „+1,000,000 PTAS“, aus): **Patch 0254**
+  (`item.cpp` `itemInfo`, `ss_item.cpp`). Solange `runtime/cheats.cpp` `re4_stack_items` an ist (Bit 21 der
+  Ziel-Bits der App, `aim_options.cpp`; die Cheat-Bits sind alle belegt; `CoreBridge.setStackItems`, `GAME_PREFS`
+  `stackItems`), dürfen Munition (Typ 2: Pistole 50, Magnum 10, Schrot 15, Gewehr 10, TMP/MG 100 …), Granaten (Typ 3:
+  Hand-, Brand-, Blendgranate; sonst 1 je Platz) und Heilmittel (Typ 6: Kräuter und Mischungen, Erste-Hilfe-Spray,
+  Eier, Fische; sonst 1 je Platz) bis 999 je Platz haben. Schätze stapeln sich ohnehin bis 999; Waffen, Schlüssel,
+  Dateien bleiben. Die Anzahl je Platz ist 16 bit (`cItem::num`, `ItemSaveWork::num`): Spielstände behalten Stapel.
+  Ausgeschaltet bleibt ein größerer Stapel, das Spiel nimmt eins nach dem anderen (`cItemMgr::use`/`dump`, der Platz
+  wird bei 0 frei), Neues kommt auf einen neuen Platz; das Inventar zeigt die Anzahl solcher Stapel weiter
+  (`ss_item.cpp`: vorher nur, wo mehr als eins auf einen Platz passt). Texte in 11 Sprachen (531).
+- **Reihenfolge:** „Zufällige Gegenstände“ und „Zufällige Gegner“ sind die erste Reihe von „Gegner und Umgebung“.
+- **Munition auffüllen** (Projektinhaber, 21.11.2026: „Aktuelle Slots mit Munition im Koffer sollen bis zu deren
+  aktuellem Maximum pro Munitionsart gefüllt werden. Nutzt man den 999 Stack Cheat wird bis 999 aufgefüllt.“): ein
+  Knopf neben „Gegenstände stapeln“ (Reihe darunter: Koffer und Geld wie bisher, dann Stapeln und Auffüllen).
+  `cheats.cpp` Aktion 10 (`core_api.cpp` nimmt 1..10): jeder Platz im Koffer mit Munition (Typ 2) auf `itemMaxNum`
+  (mit „Gegenstände stapeln“ 999); keine neuen Plätze, die geladenen Patronen der Waffen bleiben (der Inhaber sprach
+  von den Plätzen im Koffer). Nur mit Leon (oder einem Stellvertreter) im Raum, nicht im Koffer/Karte/Film (wie
+  „+1,000,000 PTAS“, sonst „Not now“); nichts aufzufüllen: eigene Meldung. Geprüft am PC (Debug-Disc r100,
+  `RE4_TEST_ITEM_GET` + `RE4_TEST_CHEATS`): ohne Stapeln 3 von 3 Plätzen, 75 Schuss; mit Stapeln 3 von 3, 2957 Schuss
+  (3 × 999 − 40); ein zweiter Druck füllt nichts. Texte in 11 Sprachen (534). **Nicht auf einem Gerät geprüft.**
+- **Geprüft am PC:** Kern i686 0 Fehler, Laufzeit- und Kerntests bestanden (neu: `core-test stack-items`, die
+  Grenzen der Tabelle aus und an); App-Tests 229 (4 übersprungen) bestanden; Bilder
+  `builds/workthread-1.1.0/menu/c1`–`c3` (DE/EN). **Nicht geprüft:** ein Spiellauf mit Aufheben und Benutzen
+  gestapelter Granaten und Kräuter (nur auf einem Gerät oder mit einem eigenen Spielskript); nicht auf einem Gerät.
+
+### 27. Mipmaps für Raumtexturen ohne und weicher Alpha-Test mit MSAA (Projektinhaber, 21.11.2026)
+
+Aus der Texturen-Recherche (`reports/textures-research/bericht.md`, Punkte 2 und 3). Kein Schalter, kein Patch am
+Spielcode, nur der Renderer (OpenGL ES und Vulkan gleich).
+
+1. **Mipmaps für Spieltexturen ohne eigene Stufen** (`gx_mips.h`, `GxCore::Upload`). 3.076 Raumtexturen haben keine
+   verkleinerten Stufen und flimmern in der Ferne (auf der GameCube auch).
+   - Welche: die Textur des Spiels hat nur Stufe 0, die längere Seite hat mindestens 64 Texel, die kürzere mindestens 8
+     (`GxWantsMips`; Rampen und Nachschlage-Streifen bleiben). Nicht: HD-Pakete (eigener Weg `UploadHd`, unverändert),
+     EFB-Kopien (eigener Weg), Menüwörter („Schärfere Menüschrift“ hat eigene Stufen), Texturen, an deren Adresse in
+     60 Bildstücken zweimal neue Texel kamen (Filmbilder, `uploadsAt`). `RE4_GX_MAKE_MIPS=0`: keine (Vergleich).
+   - Wie: auf dem Prozessor beim Hochladen, jede Stufe der 2x2-Mittelwert der darüber, in den gespeicherten Werten (wie
+     Capcoms Werkzeug die vorhandenen Stufen gemacht hat: laut Recherche 1.566 von 1.567 Stufen Box-Mittel, nicht im
+     linearen Licht; so sehen gemachte Stufen aus wie die des Spiels). Ausgestanzte Texturen (Alpha nur 0 und 255:
+     Laub, Zäune, Haare) mitteln die Farbe nach Alpha (kein dunkler Rand aus verdeckten Texeln; nicht bei I4/I8, deren
+     Alpha die Helligkeit ist) und behalten ihre Deckung: jede Stufe so skaliert, dass gleich viele Texel die Schwelle
+     128 erreichen wie in Stufe 0 (Bäume dünnen in der Ferne nicht aus; Test: Stufe 3 ohne 16 %, mit 30 % bei 30 %).
+   - Abtasten (`SamplerFor`, Parameter `made`): wo das Spiel linear filtert, trilinear durch die gemachten Stufen
+     (die Stufengrenzen des Spiels gelten für eine Stufe nicht), mit der Anisotropie des Menüs; wo es nearest abtastet
+     (und im PSone-Modus) nur Stufe 0, Aussehen wie bisher. Die Stufenzahl ist im Schlüssel des Samplers.
+   - Kosten (PC, je Raum beim ersten Bild): r10f (Seilbahn) 80 Texturen, +2,4 MB, 5–6 ms; r100 (Waldweg) 68 Texturen,
+     +1,8 MB, 4 ms; etwa 0,07 ms je Textur, einmal beim Laden. Logzeile „mipmaps made …“ (erste und jede 500.),
+     `gx_chunk_render` je Bild „mipmaps: N textures given levels …“.
+2. **Weicher Alpha-Test mit MSAA** (`gx_gl_shader.cpp`, Alpha-to-Coverage über die Sample-Maske). Nur in den Programmen
+   mit MSAA (Bit 0 von `centroid`): jede Ordnungs-Prüfung („<“, „<=“, „>“, „>=“; „nie“ 0, „immer“ 1) bekommt ihren Anteil
+   nach dem Abstand des Alphas von der Kante, gemessen an der Änderung zum Nachbarpixel (`fwidth`); UND das Kleinere,
+   ODER das Größere (das Spiel setzt meist „> ref ODER > ref“ oder „> ref ODER > 255“, `GXSetAlphaCompare(4,…,1,4,…)`);
+   „==“, „!=“ und XOR/XNOR bleiben hart. So viele Samples wie der Anteil × Samples (`alphaRef.w` = Samples des EFB)
+   bekommt der Pixel (`gl_SampleMask`), das geschriebene Alpha bleibt (anders als `GL_SAMPLE_ALPHA_TO_COVERAGE`).
+   OpenGL ES braucht `GL_OES_sample_variables` (oder 3.2; sonst der harte Test), Vulkan hat es (`VulkanGlsl` lässt die
+   `#extension`-Zeile weg). Ohne MSAA ist der Programmtext unverändert: Bilder bytegleich, Shader-Zwischenspeicher
+   gültig; mit MSAA werden die Programme mit Alpha-Test einmal neu übersetzt. `RE4_GX_SOFT_ALPHA=0`: hart (Vergleich).
+- **Geprüft am PC:** `gx_gl_check` GLES und Vulkan (lavapipe) 0 Fehler; neu: `TestMipFunctions` (Stufenzahl, 2x2-Mittel,
+  ungerade Größen, Farbe nach Alpha, Deckung), `TestMadeMips` (Schachbrett 256² auf 37 Pixel: mit Stufen gleichmäßiges
+  Grau 128, Streuung 0; nearest wie vorher), `TestSoftAlpha` (Programmtext nur mit MSAA und Ordnungs-Prüfungen; schräge
+  Kante: mit 4 Samples 26 teilweise bedeckte Pixel, mit 1 Sample 0, Kante an derselben Stelle). Spielszenen (Kern-Dumps,
+  2x, gegen ein Referenzbild 4x ohne Stufen, auf 2x gemittelt): Rauschen der feinsten Details in der Ferne r10f ohne
+  2,20 / mit 1,95 (Referenz 1,82), r100 ohne 6,51 / mit 6,35 (5,52); nah unverändert (mittlere Abweichung 0,15 von 255).
+  Weicher Alpha-Test in denselben Szenen mit 4 Samples: r100 13.500 Pixel je Bild an Kanten ausgestanzter Texturen
+  anders (1 %), r10f 960. Bilder `builds/workthread-1.1.0/mipmaps/`.
+- **Nicht geprüft, nur auf einem Gerät:** wie stark das Flimmern beim Gehen am Handy-Bildschirm abnimmt; die Ladezeit
+  auf langsamen Handys (am PC 4–6 ms je Raum, auf dem Handy grob das 3–6-fache); die Bildzeit (Mipmaps senken die
+  Speicherlast der GPU meist, lavapipe misst das nicht); ob der GLES-Treiber `GL_OES_sample_variables` hat.
+
+### 28. Menü-Neugestaltung: Pfeilauswahl, Regler-Flächen, Titel (Projektinhaber, 21.11.2026: „Das neue Screendesign passt sehr gut … Baue das sauber um“)
+
+Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
+
+- **Pfeilauswahl** (`ArrowSelector`, ein `Button`, damit Raster, Fokus-Rahmen, Ausgrauen und die Tests wie bei den
+  Knöpfen bleiben): ‹ links und › rechts hinter dünnen Linien, oben klein der Name, darunter groß der Wert, Punkte für
+  die Stufen. Tippen auf ‹ zurück, auf › oder die Mitte vor, nach der letzten Stufe wieder die erste; mit Controller
+  oder Tastatur das Feld anwählen (goldener Rahmen), Steuerkreuz links/rechts ändert, hoch/runter wechselt die Zeile
+  wie bisher; A/Enter = vor. Wert golden, solange er nicht der Standard ist (`isSelected` meldet das, wie früher das
+  Leuchten; der Hintergrund bleibt). Stufen über der Grenze des Grafikchips (MSAA, Anisotropie) werden übersprungen,
+  ein gesperrtes Feld (Gyro aus) bleibt grau. Gespeicherte Werte und Verhalten unverändert.
+- **Umgestellt** (mehr als zwei Werte): Frame skip (statt vier Knöpfen; jetzt neben 60 FPS, darunter Even frame pacing
+  | Zeichenaufrufe bündeln, Vertex-Ring | Bandbreite sparen), Sichtweite (Weit, Normal, Mittel, Kurz, Keine; Augen-Symbole
+  entfallen), Partikel, Bildformat, Auflösung (statt Klaviertasten, Benchmark daneben), Ausgabe-Auflösung, Upscaler,
+  Kantenglättung, Texturfilter, Tiefenschärfe, Linsenreflexe, Bloom, Echtzeit-Schatten, Schärfen, CRT, Farbe (Stärke
+  bleibt zweistufig), FPS-Anzeige, Touch-Steuerung, Tastenstil, Gyro von, Touch-Zielen, Laserfarbe, Vibration,
+  Spielsprache, Kostüme. Zwei Werte bleiben Knöpfe (Renderer, Gerät, Leistungskerne, HD-Schärfe, Paket/Original).
+- **Gegenstände stapeln** als Pfeilauswahl Standard › 250 › 500 › 999 (`GAME_PREFS` `stackMax`; der alte Schalter
+  `stackItems` an = 999); im Kern Bits 21..22 der Ziel-Bits (`re4_stack_items` liefert das Maximum, 0 = Standard),
+  Patch 0254 nimmt den Wert, wo er über der eigenen Grenze liegt. „Munition auffüllen“ füllt bis zu diesem Wert.
+  Kerntest `stack-items` prüft Standard, 250, 500, 999.
+- **Regler** auf einer halbtransparenten Fläche wie ein Knopf (nicht klickbar), Beschriftung/Regler/Wert wie bisher.
+- **Titel** der Hauptseite: App-Symbol vor „CubeEvil4 Optionen“ (11 Sprachen); Unterseiten behalten ihre Titel.
+- **Geprüft am PC:** App-Tests (229, alte Tests auf die Pfeilauswahl umgestellt), Übersetzungen (535), Bilder
+  `builds/workthread-1.1.0/menu/d1`–`d5` (DE/EN). **Nicht auf einem Gerät geprüft** (Bedienung mit Finger,
+  Controller und Tastatur).
+
+### 29. Rückmeldung zur Menü-Neugestaltung (Projektinhaber, 21.11.2026)
+
+- **Spielsprache bestätigen:** ‹ / › und L1 / R1 zeigen die nächste Sprache nur als Vorschau („→ Sprache“, kursiv);
+  erst die Mitte oder A übernimmt sie (und startet neu). Verlässt der Fokus das Feld oder die Seite ohne Bestätigen,
+  steht wieder die gültige Sprache da (`ArrowSelector.setConfirm`, `take`, `onFocusChanged`).
+- **Aktiv-Aussehen:** jede Pfeilauswahl ist golden („an“, `isSelected`), solange ihr Wert nicht Aus / Keine / Standard
+  (Kostüm: Normal, Stapeln: Standard, Sichtweite: Keine) ist (`setOffIndex`); ersetzt „golden, wenn nicht der Standard“.
+- **Controller und Tastatur:** das Steuerkreuz (Pfeiltasten) wechselt immer das Feld, in alle vier Richtungen; A / Enter
+  schaltet die Pfeilauswahl weiter (Sprache: bestätigt); L1 / R1 zurück / vor, auf der Tastatur Q / E und Bild auf /
+  Bild ab (`ArrowSelector.keys`). Die Fußzeile sagt das (11 Sprachen). Touch unverändert.
+- **Regler als Felder** (`SliderCell`): so hoch wie die Pfeilauswahl, halbe Breite im Raster, oben klein der Name,
+  groß der Wert, der Regler darin; ‹ / › je ein Schritt, Ziehen geht weiter; L1 / R1 (Q / E) schalten; ein gesperrter
+  Regler (Gyro aus) graut die Pfeile aus. Die alten Regler-Flächen sind entfernt. Stick-Totzone und Stick-Reichweite
+  in einer Zeile, Musik und Soundeffekte (Lautstärke) ebenso.
+- **Schalter** (An/Aus): so hoch wie die Pfeilauswahl, oben klein der Name, darunter groß An / Aus (golden bei An);
+  Aktionsknöpfe gleich hoch mit einer Beschriftung.
+- Gespeicherte Werte, Verhalten, Ausgrauen und Sperren unverändert.
+- **Profil „Low“ nach dem Update** (Projektinhaber, 21.11.2026: „Ja automatisch“): wer „Low“ aktiv und seitdem nichts
+  von Hand geändert hat, bekommt beim ersten Start nach dem Update einmal die neuen Low-Werte (Frame-Skip Auto,
+  Sichtweite Kurz; `PerfProfile.updateLow`, Merker `perfLowUpdated110` in den Grafik-Einstellungen; „unverändert“ =
+  Low aktiv und die Werte gleich denen, die Low gesetzt hat). Alles andere bleibt; wer nach Low etwas geändert hat
+  (Custom oder abweichende Werte), behält seine Werte. Test `PerfProfileTest.anUnchangedLowTakesTheNewValuesOnce`.
+- **Geprüft am PC:** App-Tests (233, neu `ArrowSelectorTest` und der Low-Test; Pfeil-, Regler- und Leucht-Prüfungen angepasst),
+  Übersetzungen (535), 11-Sprachen-Breitentest, Bilder `builds/workthread-1.1.0/menu/d1`–`d6` (DE/EN).
+  **Nicht auf einem Gerät geprüft** (Finger, Controller, Tastatur).
+
+### 30. Dritte Menü-Runde (Projektinhaber, 21.11.2026)
+
+- **Paare nebeneinander** (D-Pad links/rechts wechselt zwischen den beiden): Ausgabeauflösung | Hochskalierer,
+  „Kantenglättung MSAA“ | „Anti-Aliasing FXAA“ (neue Texte `ingame_aa_msaa` / `ingame_aa_fxaa`; die alten bleiben für
+  die Benchmark-Texte; Werte jetzt „2×“/„4×“), Texturfilter | Schärfere Menüschrift, „GameCube-TV-Filter“ (vorher
+  „Original …“) | Retro-Pixel-Filter, Minikarte | Fotomodus oben, darunter Information HUD | Intro überspringen,
+  Touch-Steuerung (jetzt mit Namen) | Tastenstil, „Leon mit Maus / Blickfeld drehen“ | Sanftere QTEs. Hilfetexte unter
+  dem Paar. Neue Namen in allen 11 Sprachen (z. B. EN „MSAA anti-aliasing“, „FXAA anti-aliasing“, „GameCube TV filter“).
+- **Schärfe** (HD-Texturen): golden bei „Voll“, nicht bei „Halb“.
+- **Spielsprache:** kein Pfeil „→“ mehr vor der Vorschau, immer der reine Name (die Vorschau bleibt kursiv).
+- **Regler-Felder genau 64dp** wie die anderen Felder (Texte ohne Schrift-Zusatzabstand, Regler 22dp); Test mit echter
+  Schriftgröße (`ArrowSelectorTest.sliderCellSteps`, Robolectric NATIVE).
+- **Geprüft am PC:** App-Tests (233), Übersetzungen (537), Bilder `builds/workthread-1.1.0/menu/d1`–`d8` (DE/EN).
+  **Nicht auf einem Gerät geprüft.**
+
+### 31. „Gegenstände stapeln“ nur für Munition (Projektinhaber, 21.11.2026: „Nur Munition soll gestapelt werden können. Keine Granaten, Wertgegenstände, Gesundheitssprays, Pflanzen und so weiter. Bei denen soll auch nicht '1' stehen.“)
+
+- **Patch 0254:** `itemInfo` hebt die Grenze je Platz nur noch für Munition (Typ 2); Granaten (Typ 3), Heilmittel
+  (Typ 6, Kräuter, Spray, Eier, Fische), Schätze (wie im Spiel: 999) und alles andere bleiben wie im Spiel. Damit steht
+  bei Granaten und Heilmitteln wieder keine Zahl (die „1“ kam von der angehobenen Grenze; `ss_item.cpp` zeigt die Zahl
+  nur, wo mehr als eins auf den Platz passt oder ein Platz mehr als eins hält).
+- **Alte Stapel aus Testversionen** (Granaten/Heilmittel > 1 auf einem Platz): bleiben, zeigen ihre Anzahl, bis nur
+  noch eins übrig ist (dann ohne Zahl), werden eins nach dem anderen verbraucht; Neues kommt auf einen neuen Platz.
+- Kerntest `stack-items`: Munition 250/500/999, Granate, Kraut und Spray bei jedem Wert 1, Schatz 999, Waffe 0.
+  Hilfetext in 11 Sprachen. **Nicht auf einem Gerät geprüft.**
+
+### 32. Koffer: fehlende waagrechte Rasterlinien (Projektinhaber, Retroid Pocket Flip 2, 21.11.2026)
+
+- **Befund:** Bericht `reports/workthread-1.1.0/owner-case-grid` (Vulkan, Adreno 650, 2,5× Dynamisch, Anisotropie 16,
+  CRT 1, FXAA, Schärfen 1, Farbe warm, HD-Paket 512 an). Im Koffer fehlen einige waagrechte Linien, die senkrechten sind da.
+- **Am PC nicht nachstellbar:** Nachbau mit Mitschnitt (r100, Koffer L per Cheat, Y öffnet den Koffer) und
+  `gx_chunk_render` (neu: `RE4_GX_ANISO`), Debug- und EU-Daten (`disc-ri`), HD-Paket 512 (`RE4_TEX_PACK_SYNC=1`: 24 von 60
+  ersetzt, der Kofferboden aus dem Paket wie beim Projektinhaber), Vulkan und GLES, mit und ohne die neuen Mipmaps
+  (0f0a13fb), mit allen Filtern des Projektinhabers: alle Linien da. Die neuen Mipmaps sind beim Kofferboden mit HD-Paket
+  nicht im Spiel (das Paket bringt eigene Stufen); ohne Paket ändern sie dort kaum etwas.
+- **Vermutete Ursache:** die anisotrope Filterung des Adreno-Treibers (16×) auf dem schräg liegenden, feinen Raster
+  (am PC rechnet Mesa sie anders); gab es mit HD-Paket wohl schon in 1.0.0.
+- **Änderung:** auf Menübildschirmen des Spiels (`RE4_GX_CHUNK_STILL`: Koffer/Untermenüs, Optionen, Laden) keine
+  Anisotropie und die vom Renderer gemachten Stufen ausgelassen (Stufe 0 wie in 1.0.0); `GxCore::stillLook`, Teil der
+  Sampler-Schlüssel (GL und Vulkan). Test `TestMadeMips`: dieselbe Textur auf einem Menübildschirm behält Stufe 0.
+- **Nicht auf einem Gerät geprüft** – ob die Linien auf dem Retroid wieder da sind, zeigt erst sein Test.
+- **Nachtrag (Projektinhaber, Retroid: „Die Koffer-Linien hängen an den Texturpaketen“; ohne Paket alle Linien da):**
+  Die Rasterlinien und die orangen Fachecken zeichnet das Spiel als **GX-Linien** (vier Linien-Draws, Breite 6/6 bis 12/6
+  Pixel, halbdurchsichtig, ohne Tiefenschreiben) über den Kofferboden. Der Boden kommt aus der Sammeltextur
+  `tex1_64x64_a16f52f8553a398f_14` (Ordner „Attache-Case“ des Pakets, 1024², Rahmen, Schloss, Boden); das Paket ersetzt
+  nur den Boden (dunkleres Grau, Inhalt des Pakets, nicht vom Packer), die Linien nicht. Ursache: Der Grafikchip des Retroid
+  zeichnet Linien nur **1 Pixel** breit (Vulkan ohne `wideLines` bzw. kleiner Linienbreiten-Bereich), statt 2,5 Pixel bei
+  2,5×; am PC (Mesa) sind sie breit. Nachgestellt mit `RE4_GX_NO_WIDE_LINES=2`: Linien und Fachecken fast weg, auf dem
+  dunkleren Paket-Boden mit CRT einzelne Zeilen ganz. **Änderung:** Linien, die breiter sein sollen als das Gerät zeichnet,
+  werden zusätzlich um ganze Pixel quer versetzt gezeichnet (`GxCore::WideLineCopies`/`WideLineMove`; die Richtung jedes
+  Linien-Draws aus seinen Segmenten auf dem Bild, `LineAxis`: waagrecht → Kopien nach oben/unten, senkrecht → seitlich,
+  gemischt → beides); GL (`GL_ALIASED_LINE_WIDTH_RANGE`) und Vulkan (`wideLines`, `lineWidthRange`). Wirkt auch auf den
+  Laserstrahl. Test `TestWideLines`; Testschalter `RE4_GX_NO_WIDE_LINES=1` (wie ein Gerät ohne breite Linien, mit Kopien),
+  `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
+  Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
+
+### 34. Update über 1.0.0, Frame-Skip „Auto“ in Stufen, Hochskalierer mit OpenGL ES (Nutzerberichte, 22.11.2026)
+
+- **Bericht nach Update (OPPO A53, Snapdragon 460):** „Force close“ bei Bericht speichern/senden nach Update von 1.0.0
+  ohne Datenlöschen. Alle Einstellungen von 1.0.0 (Schlüssel und Typen aus b37a9cf4) laufen durch alle Menüseiten, den
+  Geräte-Text des Berichts, die Profil-Umstellung (Test `UpdateFrom100Test`): keine Typ-Fehler. Ursache sehr
+  wahrscheinlich ein Hänger (ANR): der Bericht wurde auf dem Haupt-Thread gebaut und liest jede Schlüsseldatei des
+  Shader-Speichers (nach einem Update die Programme zweier Versionen, viele tausend kleine Dateien), Logs und Zip. Jetzt
+  auf einem eigenen Thread (`CoreActivity.makeReport`, fängt jeden Throwable, die Dauer ins Log: „report sent/saved:
+  made in N ms“); `CoreLog.deviceText` prüft die Länge von `graphicsInfo`. Nicht auf dem Gerät geprüft.
+- **Frame-Skip „Auto“ (gleicher Nutzer: „counter shows 30 FPS, but the gameplay still feels choppy“):** Auto schaltete
+  bei unter 27 den Skip des Spiels ein; der lässt nach jedem verspäteten Bild eines aus (bei 26 je Sekunde fast jedes
+  zweite: 30 Spielbilder, 15 gezeigte). Messung PC, Seilbahn r10f, Zeichnen künstlich verteuert
+  (`RE4_CPU_SKIP_SLOW_DRAW=36`, neu `RE4_CPU_SKIP_STATS=1`): Aus 24–26 Spiel/Bilder, Abstand ~39 ms gleichmäßig;
+  Aggressiv 30/15, 67 ms; neu „nach Bedarf“ (Modus 2) 29,3/18–20, 39/67 ms gemischt. Bei `SLOW_DRAW=50` Aggressiv und
+  Modus 2 gleich (24/12). **Neu:** `runtime/cpu_skip.cpp` Modus 2 (ein Bild erst, wenn die Verspätung zusammen ein ganzes
+  Spielbild ist); `AutoSkip` (picture_cadence.h) in zwei Stufen: unter 27 der Skip des Renderers, der des Spiels (Modus
+  2) erst, wenn das Spiel zwei Sekunden unter 24 bleibt; wieder aus, wenn er zwei Sekunden lang weniger als jedes zehnte
+  Bild auslässt. Test `TestAutoSkip` erweitert. FPS-Anzeige: bei Frame-Skip auch die gezeigten Bilder. Hilfetext in 11
+  Sprachen.
+- **Hochskalierer mit OpenGL ES (Infinix X6882, Mali-G57: „Bild schlechter“ mit FSR/SGSR):** Der GL-Weg rechnete mit der
+  Bildgröße in GameCube-Pixeln (`xfbWidth`), die Textur ist aber in der Skalierung (`Hi`): SGSR/FSR tasteten falsch ab
+  (grob, verrauscht) und liefen auch, wo nichts zu vergrößern war (Ausgabeauflösung 720p bei 1600×840). Vulkan war
+  richtig. Jetzt die Texturgröße; Bild `builds/workthread-1.1.0/upscaler-gles-before-after.png` (oben vorher GLES aus /
+  SGSR / FSR, unten Vulkan FSR / GLES SGSR / GLES FSR nachher). Neu in 1.1.0, nie veröffentlicht: keine eigene
+  Changelog-Zeile.
+
+### 33. Vierte Menü-Runde: Beschriftungen links auf allen Unterseiten (Projektinhaber, 21.11.2026)
+
+- Wie ANZEIGE haben jetzt AUDIO, STEUERUNG, LEISTUNG und CHEATS & MODS links Gruppen-Beschriftungen, die Felder und
+  Hilfetexte stehen in der eingerückten Spalte (`CoreMenu.sideLabels`, `plainRow`, `indentedView`, `groupText`; `help()`
+  rückt dort ein; `into` auch für `rowChoices`, `switchWithSlider`, `resolutionChoices`). VERWALTUNG unverändert.
+- ANZEIGE: „Auflösung“ (Bildformat, Auflösung | Benchmark, Ausgabeauflösung | Hochskalierer), „Filterung“ (MSAA | FXAA,
+  Texturfilter | Schärfere Menüschrift), „Features“; Abschnitt „OPTIONAL“. AUDIO: „Pegel“, „Stummschaltung“.
+- STEUERUNG: „Touch-Stil“; „Gyroskop“ (Gyro-Zielen | Empfindlichkeit, „Gyro von“ darunter), „Achsen“; „Steuerungsart“
+  (vier Reihen), „Erleichterungen“; „Zielen mit“; „Ansicht“ und darunter „Laservisier“ (Abschnitt LASERVISIER entfällt);
+  „Stick-Optionen“ (Totzone | Reichweite, Vibration darunter); neuer Abschnitt „BUTTONS UND TASTEN BELEGEN“ mit „Belegen“.
+- LEISTUNG: „Leistungsprofil“; „Effekte“; „Optionen“ (Frame-Skip | 60 FPS, Gleichmäßige Bildfolge | Bandbreite sparen,
+  darunter Zeichenaufrufe bündeln | Vertex-Ringpuffer).
+- CHEATS & MODS: immer zwei Spalten; „Optionen“, „Einfache Waffen“, „Explosive Waffen“, „Freischaltungen“, „Stapelbar“
+  (Zelle „Munition stapeln“), „Zufallssteuerung“, „Erweitert“, „Hauptfigur“ (Leon über die Breite), „Mercenaries“
+  (Ada | HUNK, Krauser | Wesker), „Verwaltung“ (Import | Löschen), „Texturoptionen“ (HD-Texturen | Schärfe, Kostüme | Waffen).
+- 26 neue Texte in 11 Sprachen (563), Tests angepasst (233, Breitentest 11 Sprachen); Bilder `builds/workthread-1.1.0/
+  menu/d2`–`d6` (DE/EN). **Nicht auf einem Gerät geprüft.**
+
 ## Feature-Freeze bis 1.0 (Entscheidung des Projektinhabers, 14.11.2026)
 
 „Alles klar, 0.99.15 wird die letzte Version mit Featurefreeze“: **0.99.15 ist die letzte Version mit neuen
@@ -71,7 +1011,7 @@ Einzelheiten: `port/docs/gegner-randomizer-plan.md` Abschnitt 10; Bericht für d
     für Eintrag 21 (auch ohne Cheat, gleiche Werte; `re-door.sh`): das Prüfprotokoll liest ein Objekt mitten im Laden.
   - **Nicht geprüft:** auf einem Gerät; ganze Kapitel durchgespielt.
 
-## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8, Stufe 7 am 18.11.2026 auf 249dc807)
+## Branch `realtime-shadows`: Echtzeit-Schatten der Figuren und Gegenstände, nur in Debug-Builds bis nach 1.0 (15.11.2026, Basis 9d46444b, release-candidate c2f5dcda hineingemischt; Stufe 4 am 16.11.2026 auf 66e5bc8b, Stufe 5 auf 9f660236, Stufe 6 am 17.11.2026 auf f43d61c8, Stufe 7 am 18.11.2026 auf 249dc807, Stufe 8 am 18.11.2026 auf eddc5cea)
 
 **Entscheidung des Projektinhabers, 15.11.2026** (über die Hauptsitzung), Wortlaut: „Kannst du die Schatten wie von
 dir analysiert umsetzen bitte. Wir bauen sie aktuell ein, sie sind aber nur in der Debug Version die ich nutze
@@ -550,14 +1490,56 @@ Ich habe ein paar GX-Dumps angefügt.“ Dumps: `E:\Development\Android\reports\
   Richtungen); was außerhalb steht, wirft von ihr nichts. Bewegt sich die Kamera, wird die Karte jedes Bild neu
   angepasst (Ränder können um einen Texel flimmern; kein Schatten wandert).
 
+**Stufe 8 (18.11.2026, auf eddc5cea): Kein Schatten mehr von unten an Wände und Leitern.** Fehler für 1.0, gemeldet vom
+Inhaber nach dem Gerätetest, Wortlaut: „Hier wird bei mir in Raum r10e der Schatten seltsam an Wände und beim
+Raufklettern an der Leiter geworfen.“ Dumps: `E:\Development\Android\reports\shadows-r10e-2026-11-18\raw\gx-dumps\`
+(4 Folgen zu je 12 Bildern).
+
+- **Ursache:** In allen vier Folgen werfen zwei parallele Lichter des Spiels, die von unten nach oben scheinen (Weg in
+  Kamera-Koordinaten y +0,54 bis +0,67). Das sind Fülllichter, mit denen das Spiel die Figuren von unten und von der
+  Seite aufhellt, keine Sonne und kein Mond. Als Schattenwerfer projizierten sie Leon nach oben: ein umgedrehter Umriss
+  über ihm an der Holzwand unter der Laterne, sein Körper groß an der Wand neben der Leiter und oben an der Wand des
+  Obergeschosses.
+- **Kern** (`runtime/rt_shadow.cpp`): Ein paralleles Licht wirft nur noch, wenn es von oben kommt: sein Weg in der Welt
+  muss mindestens etwa 14° abwärts gehen (`kFromAbove`, y unter -0,25). Fülllichter von unten oder der Seite leuchten
+  weiter und zählen zum Licht, das überall gleich ist. Das Lichter-Log (`RE4_SHADOW_LIGHTS`) nennt den Weg jedes
+  parallelen Lichts und vermerkt „from below or the side: no shadow“.
+- **Anderswo:** Alle 126 Räume vom Debug-Start aus mit dem Lichter-Log: In r103, r107, r108, r109, r10d, r113, r11c
+  und r304 hätte ein solches Licht geworfen (Wege von y -0,22 bis +0,88; r10d: ein starkes Licht genau von unten, 0,65 m
+  neben Leon; r11c: ein flaches Mondlicht fast von der Seite). Die Lichter, die von oben werfen, gehen bis y -0,26
+  hinab (Sonne in r11d); die Blitze in r118 und r119 kommen von oben (y -0,71 bis -0,83) und werfen weiter.
+- **Geprüft am PC:**
+  - Die vier Dump-Folgen des Inhabers: vorher (der Renderer von eddc5cea, wie auf dem Gerät) Leons Umriss umgedreht
+    über ihm an der Wand unter der Laterne, groß an der Wand neben der Leiter und oben im Obergeschoss; nachher (dieselben
+    Dumps, die Lichter von unten so, wie der neue Kern sie schickt: sie leuchten nur, Schalter
+    `RE4_GX_SHADOW_DEBUG_DROPUP` nur in einer Prüfkopie) ist keiner davon mehr da, die Laterne wirft weiter.
+  - Im Spiel, Kern von Stufe 7 gegen Stufe 8, dieselben Bilder, derselbe Renderer (Pixel mindestens 0,8 % dunkler als
+    ohne Schatten): r103 4690 0 53356 37185 632 0 0 → 4690 0 0 0 632 0 0; r10d 10836 1279 0 0 0 18414 6757 406 → 5982 0 0
+    0 0 9125 4153 0.
+  - `gx_gl_check` GLES und Vulkan 0 Fehler (am Renderer nichts geändert).
+  - Kern i686 -O2 0 Fehler, Laufzeit- und Kerntests bestanden, Stubs wie erwartet; `whole_build_android.sh --abi all`
+    0 Fehler (ARM32 und ARM64, Stubs wie erwartet).
+  - Raum-Rundgang mit eingeschalteten Schatten (`RE4_POTATO=96`, 126 Räume, je 6000 Bilder): **126 von 126 ohne
+    Fehler, ALLES OK**.
+  - Schatten aus wie vor den Schatten: 88 von 88 Bildern Byte für Byte gleich (21 ohne Marke in den Stufen 0, 1, 2, 25
+    mit Marke in Stufe 0, gegen c2f5dcda).
+  - App: `externalNativeBuildCoreDebug` (beide ABIs) gebaut, `testCoreDebugUnitTest` 226 Tests ohne Fehler (zwei übersprungen).
+- **Releasetext v1.0.0:** Die Zeile zu den Echtzeit-Schatten sagt jetzt auch, dass Fülllichter von unten keine
+  Schatten mehr an Wände und Leitern werfen.
+- **Bilder:** `E:\Development\Android\builds\realtime-shadows\stage8\`: `device-00` bis `device-03` (je fünf Bilder
+  einer Folge: oben das Gerät, darunter die Maske, nachher, dessen Maske; dunkel = Schatten; wo nachher kein Licht mehr
+  wirft, zeigt die Maske das Bild ohne Schatten), `game-r103.png` und `game-r10d.png`.
+- **Nicht geprüft:** Gerät (Retroid); die Stelle in r10e selbst im Spiel (der Debug-Start erreicht die Leiter nicht;
+  geprüft an den Dumps des Inhabers).
+
 ## Version 1.0.0 (in Arbeit, Branch `release-candidate`, Basis 9d46444b = Release 0.99.18-rc; bis 16.11.2026 als 0.99.19-rc)
 
-Version **1.0.0** (versionCode 122; bis zur Umbenennung am 16.11.2026 0.99.19-rc, versionCode 121), Releasetext
+Version **1.0.0** (versionCode 123, raised from 122 on 18.11.2026 by the owner for his AAOS build; bis zur Umbenennung am 16.11.2026 0.99.19-rc, versionCode 121), Releasetext
 `port/android-decomp/docs/releases/v1.0.0.md` (bis dahin `v0.99.19-rc.md`; „Changes since v0.99.18.“, Known issues
 aus 0.99.18 übernommen). Release-APKs `CubeEvil4-1.0.0-Android.apk` und `CubeEvil4-1.0.0-Android-sideload.apk`. Die
 Abschnitte unten nennen den Releasetext noch mit seinem alten Namen.
 Alles nach 9d46444b gehört hierher (Hauptsitzung, 15.11.2026), auch Änderungen der Sichtweite, die der Inhaber
-nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0237 (0240 gehört den Echtzeit-Schatten).
+nach der Analyse (Abschnitt 1) freigibt. Nächste freie Patchnummer 0238 (0237: Unsichtbarkeit und Wächter, 18.11.2026; 0240 gehört den Echtzeit-Schatten).
 Am 17.11.2026 `origin/master` 17749902 hineingemischt (der Inhaber hat auf GitHub drei Zeilen in die README
 geschrieben, einen Hinweis auf einen Fork; Zeilen unverändert übernommen), damit `master` beim Release per
 Fast-Forward nachzieht. Am selben Abend `origin/touch-styles` da0e4ff8 hineingemischt (Touch-Stile RE, GC, PS2, XBOX
@@ -565,6 +1547,53 @@ mit RetroTouch 1.0.0-beta.13, Abschnitt 22), danach e6d4e388 (GC-Skin grau, 249d
 Stufe 7 (`origin/realtime-shadows` 4653a5f2, Abschnitt „Stufe 7“ beim Branch `realtime-shadows` oben) per
 Fast-Forward übernommen; die Zeile „Real-time shadows“ im Releasetext um zwei Sätze ergänzt (nicht mehr zu dunkel
 unter Lampen, kein Flackern beim Drehen der Kamera, riesige Schatten einer Lampe direkt neben einer Figur blenden aus).
+Am 18.11.2026 außerdem die 60-FPS-Pausen in Stufen (Ja des Inhabers zu Möglichkeit A aus
+`E:\Development\Android\reports\fps-drops-2026-11-18\proposal.md`, über die Hauptsitzung): Ein Xiaomi-Tester (rodin,
+1.0.0-sideload) wechselte nach 8 Minuten alle 9 s zwischen 60 und 30, 155-mal, weil das Handy den Kern des
+Render-Threads auf 1,0–1,4 GHz bremste (Android meldete keine Hitze). `SmoothPacer` (`gx_auto_level.h`) macht jetzt
+Pausen von 5, 15, 30 und 60 s: eine Stufe höher, wenn 60 FPS binnen 30 s nach dem Wiederkommen erneut scheitert, nach
+30 s 60 FPS ohne Pause wieder 5 s. Ein neuer Raum beendet eine Pause sofort (Stufe bleibt); App-Menü zu und Hänger über
+250 ms beenden nur eine Pause der ersten Stufe; der Benchmark (`Restart`) beginnt bei Stufe 1. Neue Log-Zeilen
+(`core_mode.cpp`): beim Aufgeben Stufe, Laufzeit seit dem Wiederkommen, Bildzeit im Mittel und 90 %; beim Wiederkommen
+der Grund; einmal pro Minute „60 FPS in the last 60 s: … with in-between pictures, … at an even 30, switches to 30: …
+(step N of 4 now); the render thread's core N at up to … MHz, its limit now … of … MHz“ (`scaling_max_freq`, wenn
+lesbar). Leistungshinweis 16,7 ms (Möglichkeit E) und 30er-Takt in der Pause (F) erst nach 1.0. Geprüft:
+`TestSmoothPacer` erweitert (Stufen, Zurücksetzen, Raum/Menü/Hänger, Benchmark, Bildzeiten, 10 Minuten wie beim Tester:
+12 statt 66 Pausen, über 85 % gleichmäßige 30; jetzt auch in `RE4_CHECK_RULES=1`), `gx_gl_check`, `FramePacingTests`,
+App-Tests, Release-Build beider ABIs. Nicht geprüft: auf einem Gerät (Kurztest auf dem Retroid durch den Inhaber).
+Am 18.11.2026 abends Patch 0237 (Bericht eines Spielers über die Hauptsitzung,
+`E:\Development\Android\reports\invisible-zealot-2026-11-18`, 0.99.18-rc, Infinix X6880): Mit dem Cheat
+„Unsichtbarkeit“ blieb der Zealot mit dem Schlüssel in r209 (Gegnerliste 0x7D, s33) unsichtbar; erst ohne den Cheat
+erschien er. Ursache: Er ist ein Wächter (`em10_R1_Keeper`, R1 0x01), der sich nur innerhalb von 50 m zeigt, und Patch
+0204 gibt allen Gegnern den Abstand 1e16. So waren mit dem Cheat alle Wächter in allen Räumen unsichtbar und ohne
+Kollision (in r209 auch s34, s35, s40). Nicht „Random enemies“ (r209 bleibt dabei, wie er ist) und kein Weglaufen. Jetzt
+nimmt nur das Erscheinen eines Wächters mit dem Cheat den echten Abstand; er bemerkt den Spieler weiter nicht und greift
+nicht an. Alle anderen Abfragen von `l_pl` in `src/em*`, `src/game` und den Raumskripten geprüft: keine andere zeigt
+oder versteckt einen Gegner nach dem Abstand. In `lp64_int_casts.json` die fünf Stellen in `em10.cpp` hinter dem Patch
+auf ihre Zeilen nach dem Patch (gleicher Text; sie standen schon 34–38 Zeilen daneben, der Spielraum ist 40).
+Geprüft am PC (WSL `~/re4-rc` auf eddc5cea mit dem Patch, i686 -O2, Debug-Discs): `whole_build.sh` 0 Fehler,
+runtime-/core-test grün; r209 über den Debug-Start ohne Tasten, Spieler per `RE4_TEST_PLACE` 6 m neben den Zealot gesetzt:
+vorher mit `RE4_CHEATS=512` s33, s34, s35, s40 „hidden“ und nie wieder gezeigt, jetzt sichtbar und sie kommen nicht auf
+ihn zu; 53 m vom Wächter s40 entfernt verschwindet s40 wie im Spiel; ohne Cheat Zeile für Zeile wie vorher. Rundgang
+`--rooms set` mit `RE4_CHEATS=513` (Unsichtbarkeit und Leben): 27 von 27 Räumen ohne Fehler. Nicht geprüft: auf einem
+Gerät, die ARM-Kerne (baut der Inhaber mit `whole_build_android.sh`), EU- und US-Discs.
+Am 18.11.2026 spät die Lizenz für 1.0.0 (Entscheidung des Projektinhabers über die Hauptsitzung: „GPL-3.0 mit
+Ausnahme“; nur Text, kein Code): Der eigene Code und die Dokumente des Ports in `port/` stehen ab 1.0.0 unter der
+GPL-3.0-or-later mit einer zusätzlichen Erlaubnis nach Abschnitt 7 (verbinden und weitergeben mit dem Spielcode
+`src/`, `include/` und dem SDK/CRI-Code `src/lib/`, auch gepatcht, ohne dass diese Teile unter die GPL fallen).
+`port/LICENSE`: Kopf (Umfang, Ausnahmen, Copyright „Andiweli“) und der GPL-Text, unverändert von gnu.org
+(gpl-3.0.txt, sha256 3972dc97…6986). Neu im Wurzelordner `LICENSE-GPL`: nur der GPL-Text, damit GitHub die Lizenz
+erkennen kann. Die Wurzel-`LICENSE` behält den CC0-Text für die Teile des Upstream-Projekts (configure.py, tools/,
+config/, docs/), oben eine kurze Übersicht. Nicht unter der GPL: der Spielcode, SDK und CRI, Spieldaten, Code
+anderer in `port/` (third_party, Gradle Wrapper, Lucide) und RetroTouch (MIT, verträgt sich mit der GPL, darum nicht
+in der Ausnahme; die Zeile in `app/build.gradle` unverändert). Was `port/android-decomp/LICENSE-PLATFORM.txt` unter
+MIT gestellt hat, bleibt auch unter MIT, die Datei unverändert. Code, der vor 1.0.0 veröffentlicht wurde, auch in
+früheren Branches auf GitHub (origin/release-candidate bis 0939f61f, mehrere Feature-Branches), bleibt unter den
+Bedingungen, mit denen er veröffentlicht wurde (CC0 für die eigene Arbeit; die README von 0.99.18 nannte die
+App-Hülle CC0); Nachtrag der Hauptsitzung am selben Abend statt „Versionen bis 0.99.18-rc bleiben CC0“. README:
+Abschnitt „License“ mit Tabelle, der Punkt „Our own work“ unter „Legal“ angepasst; Releasetext eine Zeile unter
+Changed. Die App zeigt keinen Lizenztext, darum keine neuen Texte. Der Branch `ouya-discarded` ist unberührt; er
+bekommt die Lizenz, wenn 1.0.0 dort hineingemischt wird.
 
 **Name der nächsten Version (Entscheidung des Projektinhabers, 16.11.2026, über die Hauptsitzung):** 1.0 heißt
 **1.0.0**: versionName `1.0.0`, Tag `1.0.0`, Releasetext `v1.0.0.md`. Nachtrag des Inhabers am selben Tag: „Du kannst
@@ -1014,7 +2043,7 @@ beantwortet die drei Lücken aus Abschnitt 5.
 Wortlaut des Inhabers (über die Hauptsitzung): „Du kannst sie natürlich jetzt schon 1.0.0 nennen, ich veröffentliche
 ja erst Freitag und teste bis dahin lokal.“
 
-- **Version:** versionName `1.0.0`, versionCode 122. Die Varianten hängen ihre Endung an wie bisher: `1.0.0-core`,
+- **Version:** versionName `1.0.0`, versionCode 123 (122 until 18.11.2026: the owner raised it for his AAOS build, an earlier build already had 122). Die Varianten hängen ihre Endung an wie bisher: `1.0.0-core`,
   `1.0.0-sideload`; `car` ebenfalls `1.0.0-core`.
 - **Releasetext:** `v0.99.19-rc.md` per `git mv` zu `v1.0.0.md`.
   - Titel „CubeEvil4 v1.0.0“; der Kopf ohne „Release Candidate“ und ohne „Expect bugs“; der Hinweis zur Sicherung der
@@ -18705,6 +19734,7 @@ die GameCube ließ sie überlaufen (schon vorher so, selten).
 | 0234 `player.cpp` | „Leon mit Maus / Blickfeld drehen“ (1.0, Wunsch eines Spielers, vom Projektinhaber angenommen 16.11.2026): `runtime/gyro.cpp re4_core_body_turn` dreht Leon (`pPL->ang.y`) nur in seinen eigenen Bewegungsroutinen 0/0..4. Steht er still auf der Stelle (Routine 0/0/1, gleiche Lage), gab `cPlayer::move` der Schulterkamera seine Richtung nicht weiter (`moved` 0); ein Bild, in dem die Drehung ihn drehte (`re4_body_turned`), zählt jetzt als bewegt, die Kamera folgt wie beim Gehen. Ohne die Option: wie das Spiel. |
 | 0235 `pl_sub.cpp` | Cheat „Kostüme · Leons Jacke“ (1.0, Projektinhaber 16.11.2026): `PlSetCostume` gibt Leon (und einer Ersatzfigur in seinem Kostüm) Kostüm 0, die braune Jacke aus Kapitel 1, auch wo seine Regel das schwarze Hemd (1, nach dem Ereignis in r106) oder die Weste (2) gäbe, solange `runtime/cheats.cpp re4_cheat_leon_jacket` es sagt (an, Geschichte, nicht am Benchmark-Platz; das Spezialkostüm gewinnt). Der Schutz der Weste hängt im Spiel am Kostüm (`PlIsArmor`: 2 oder 3): mit dem Cheat schützt die Weste selbst (Gegenstand 0xFE), Profi-Modus wie bisher ohne. Separate Ways, The Mercenaries (`PlSetCostume` kehrt vorher zurück) und Ashleys Teil unberührt; ein Spielstand merkt sich nichts davon. Ohne den Cheat: wie das Spiel. |
 | 0236 `r10b.cpp`, `r20b.cpp`, `r227.cpp`, `r317.cpp` | Cheat „Leons Jacke“ in späteren Zwischensequenzen (1.0, Gerätetest des Projektinhabers 17.11.2026): Teil 2 von Leons Körper in Zwischensequenzen („pl0000“) ist bei Kostüm 0 die Jackenvorderseite mit Kragen (`ev000e`), bei Hemd und Weste das kleine `pl000e`. Szenen der Hemd-Zeit blenden Teil 2 in manchen Schnitten aus (r10bs20/s21/s22, r20bs00 Schnitte 0xD/0xE, r227s00/s01/s02, r317s00 Schnitt 0, der Messerkampf); mit dem Cheat fehlten dort Vorderseite und Kragen. Diese 9 Stellen blenden Teil 2 nicht aus, solange `runtime/cheats.cpp re4_cheat_leon_jacket_events` es sagt (Cheat an, Leons Regel gäbe Hemd oder Weste, Leon in Kostüm 0 oder eine Ersatzfigur in seinem Kostüm). Normal, Spezial, vor dem Ereignis in r106, die Extraspiele: wie das Spiel. |
+| 0237 `em10.cpp` | Cheat „Unsichtbarkeit“ und die Wächter (1.0, Bericht eines Spielers 18.11.2026, 0.99.18-rc): Patch 0204 gibt allen Gegnern den Spielerabstand 1e16; `em10_R1_Keeper` (R1 0x01, Ganados, die an ihrem Platz warten) zeigt einen Wächter nur innerhalb von 50000 Einheiten, sonst blendet er aus, verliert die Kollision und hält an (Arbeitsflag 0x400000). Mit dem Cheat blieben alle Wächter unsichtbar (außer Flag 0x40 und r320), auch der Zealot mit dem Schlüssel in r209. Ihr Erscheinen nimmt mit dem Cheat jetzt den echten Abstand (`em10KeeperL`, wie `emMove` ihn rechnet); bemerken und angreifen bleibt aus. Ein Fehler unseres Cheats, nicht des Prototyps. Aus: wie das Spiel. Dazu in `lp64_int_casts.json` die fünf Stellen in `em10.cpp` dahinter auf ihre Zeilen nach dem Patch. |
 | 0240 `trans.cpp`, `foot_shadow.cpp` | Echtzeit-Schatten der Figuren (Entscheidung des Projektinhabers, 15.11.2026: nur in Debug-Builds der App bis nach 1.0; `port/docs/echtzeit-schatten-studie.md`): `Render` fragt am Anfang `re4_rt_shadow_frame` (`runtime/rt_shadow.cpp`: der Schalter der App, Bit 5 der Potato-Maske, „Schatten & Licht“ an, im Spiel ohne Ereignis, Unterbildschirm, Tod/Fortsetzen, Film oder Wärmebild, ein Fußschatten-Licht des Raums erreicht den Spieler) und setzt nach Ordnungstabelle 14 mit `re4_rt_shadow_mark` die Marke `RE4_GX_OP_SHADOW` (Port-Befehl 0x03 im GX-Strom: Richtung des Fußschatten-Lichts in Kamera-Koordinaten, Stärke); `DrawFootShadow` zeichnet in so einem Bild keine Flecken (`re4_rt_shadow_blobs_off`). Aus (jeder Release-Build) ändert sich nichts. Dazu in `lp64_int_casts.json` die sechs Stellen in `trans.cpp` auf ihre Zeilen nach dem Patch (gleicher Text). Port-Merkmal |
 
 Neuen Patch erzeugen: Datei aus `whole_prepare.rewrite()` kopieren, ändern,

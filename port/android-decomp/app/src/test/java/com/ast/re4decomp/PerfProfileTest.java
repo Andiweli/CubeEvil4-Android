@@ -85,7 +85,7 @@ public class PerfProfileTest {
     assertTrue(PerfProfile.cpuWeak(a13, NONE));
     assertEquals(PerfProfile.LOW, PerfProfile.recommend(a13, bench(4, 2)));
     int[] low = PerfProfile.values(PerfProfile.LOW, a13, bench(4, 2));
-    assertEquals(2, low[PerfProfile.SKIP]);
+    assertEquals("Low: frame skip Auto (1.1.0)", 3, low[PerfProfile.SKIP]);
     assertEquals(2, low[PerfProfile.VIEW]);
     assertEquals(1, low[PerfProfile.CORES]);
     assertEquals(0, low[PerfProfile.WEATHER]);
@@ -111,7 +111,7 @@ public class PerfProfileTest {
     assertFalse(PerfProfile.cpuTight(dew, busy));
     assertEquals(PerfProfile.LOW, PerfProfile.recommend(dew, busy));
     int[] low = PerfProfile.values(PerfProfile.LOW, dew, busy);
-    assertEquals(2, low[PerfProfile.SKIP]);
+    assertEquals(3, low[PerfProfile.SKIP]);
     assertEquals(2, low[PerfProfile.VIEW]);
     assertEquals(R.string.ingame_limit_cpu, BenchmarkFlow.limitText(dew, busy));
     // Medium chosen by hand on that phone: Aggressive frame skip, a medium view, no 60 FPS
@@ -124,8 +124,15 @@ public class PerfProfileTest {
     assertFalse(PerfProfile.cpuWeak(dew, tight));
     assertTrue(PerfProfile.cpuTight(dew, tight));
     assertEquals(PerfProfile.LOW, PerfProfile.recommend(dew, tight));
-    assertEquals(2, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.SKIP]);
-    assertEquals("Low keeps the medium view when only tight", 1, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.VIEW]);
+    assertEquals(3, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.SKIP]);
+    // 1.1.0 (the project owner, 21.11.2026): Low always "Short" (50 %), never "None"; Auto frame skip
+    assertEquals("Low: Short also when only tight", 2, PerfProfile.values(PerfProfile.LOW, dew, tight)[PerfProfile.VIEW]);
+    for (PerfProfile.Bench any : new PerfProfile.Bench[] {old, busy, tight, bench(8, 8)}) {
+      int[] l = PerfProfile.values(PerfProfile.LOW, dew, any);
+      assertEquals(3, l[PerfProfile.SKIP]);
+      assertEquals(CoreBridge.VIEW_SHORT, l[PerfProfile.VIEW]);
+      assertNotEquals(CoreBridge.VIEW_VERY_SHORT, l[PerfProfile.VIEW]);
+    }
     assertEquals(R.string.ingame_limit_both, BenchmarkFlow.limitText(dew, tight));
     // a phone whose graphics chip allows High, the processor near its end: Medium, without 60 FPS, Aggressive skip
     PerfProfile.Device mid = dev("Mali-G57 MC2", 8, 2, 2200, 5673, 60, 720);
@@ -269,6 +276,58 @@ public class PerfProfileTest {
     PerfProfile.choose(g, PerfProfile.LOW, low);
     g.edit().putInt("aspect", 5).commit();
     assertEquals(PerfProfile.LOW, PerfProfile.sync(g));
+  }
+
+  /** 1.1.0 (the project owner, 21.11.2026: "Ja automatisch"): an unchanged Low of before takes Low's new frame skip
+   *  (Auto) and view distance (Short) once; Low changed by hand, Custom and the other profiles keep their values. */
+  @Test public void anUnchangedLowTakesTheNewValuesOnce() {
+    android.app.Application app = RuntimeEnvironment.getApplication();
+    // Low as 1.0.0 set it (frame skip Normal, view distance Medium), unchanged since
+    SharedPreferences g = app.getSharedPreferences("perf-low-1", Context.MODE_PRIVATE);
+    g.edit().clear().commit();
+    int[] old = PerfProfile.values(PerfProfile.LOW, dev("OpenGL ES 3.2, Mali-G52", 8, 2, 2000, 3800, 60), bench(3, 1));
+    old[PerfProfile.SKIP] = 1;
+    old[PerfProfile.VIEW] = 1;
+    PerfProfile.choose(g, PerfProfile.LOW, old);
+    assertTrue(PerfProfile.updateLow(g));
+    int[] now = PerfProfile.current(g);
+    assertEquals("frame skip Auto", 3, now[PerfProfile.SKIP]);
+    assertEquals(3, CoreMenu.frameSkipMode(g));
+    assertEquals("view distance Short", CoreBridge.VIEW_SHORT, now[PerfProfile.VIEW]);
+    for (int i = 0; i < old.length; i++) {
+      if (i != PerfProfile.SKIP && i != PerfProfile.VIEW) assertEquals("the rest unchanged: " + i, old[i], now[i]);
+    }
+    assertEquals("Low still active", PerfProfile.LOW, PerfProfile.active(g));
+    assertEquals("and not taken for a hand change", PerfProfile.LOW, PerfProfile.sync(g));
+    // once: a later change by hand is not undone at the next start
+    g.edit().putInt(CoreBridge.VIEW_DISTANCE, 0).commit();
+    assertFalse(PerfProfile.updateLow(g));
+    assertEquals(0, PerfProfile.current(g)[PerfProfile.VIEW]);
+
+    // Low, then a setting changed by hand (the menu made it Custom): kept
+    SharedPreferences h = app.getSharedPreferences("perf-low-2", Context.MODE_PRIVATE);
+    h.edit().clear().commit();
+    PerfProfile.choose(h, PerfProfile.LOW, old.clone());
+    h.edit().putBoolean("weatherEffects", true).commit();
+    assertEquals(PerfProfile.CUSTOM, PerfProfile.sync(h));
+    int[] mine = PerfProfile.current(h);
+    assertFalse(PerfProfile.updateLow(h));
+    assertArrayEquals(mine, PerfProfile.current(h));
+    // Low still marked active, but a value differs from what Low set (no sync yet): kept too
+    SharedPreferences k = app.getSharedPreferences("perf-low-3", Context.MODE_PRIVATE);
+    k.edit().clear().commit();
+    PerfProfile.choose(k, PerfProfile.LOW, old.clone());
+    k.edit().putInt("samples", 2).commit();
+    assertFalse(PerfProfile.updateLow(k));
+    assertEquals(1, PerfProfile.current(k)[PerfProfile.SKIP]);
+    // Medium: untouched
+    SharedPreferences m = app.getSharedPreferences("perf-low-4", Context.MODE_PRIVATE);
+    m.edit().clear().commit();
+    int[] medium = old.clone();
+    medium[PerfProfile.WEATHER] = 1;
+    PerfProfile.choose(m, PerfProfile.MEDIUM, medium);
+    assertFalse(PerfProfile.updateLow(m));
+    assertArrayEquals(medium, PerfProfile.current(m));
   }
 
   @Test public void theChipsNameFromTheRenderersText() {

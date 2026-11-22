@@ -104,4 +104,12 @@ abwechselnd 60 und 30) und meldet das im Fehlerprotokoll.
   Fehlerprotokoll. Test `TestSmoothPacer`.
 - **S4 Nachtrag (28.10.2026):** 60 Chunks/s (Film, Titel) zählen nicht als „hinten“. Die erste Regel (3 binnen 2 s)
   pausierte auf dem Retroid ständig; jetzt: ein Viertel der Chunks über 4 s, 2 s Schonzeit nach einer Pause.
+- **S4 Stufen (1.0.0, 18.11.2026, Entscheidung des Projektinhabers):** Ein Xiaomi-Tester (Bericht
+  `reports/fps-drops-2026-11-18`) wechselte nach 8 Minuten alle 9 s zwischen 60 und 30: Das Handy bremste den Kern
+  des Render-Threads auf 1,0–1,4 GHz. Die Pause wächst jetzt, wenn 60 FPS binnen 30 s nach dem Wiederkommen erneut
+  scheitert: 5, 15, 30, 60 s; nach 30 s 60 FPS ohne Pause wieder 5 s. Ein neuer Raum beendet eine Pause sofort (die
+  Stufe bleibt), App-Menü und Hänger beenden nur eine Pause der ersten Stufe, der Benchmark beginnt bei Stufe 1. Log:
+  Stufe, Laufzeit seit dem Wiederkommen und Bildzeiten (Mittel, 90 %) beim Aufgeben, der Grund beim Wiederkommen,
+  einmal pro Minute die Sekunden bei 60 und 30, die Wechsel und der Takt des Render-Kerns mit seiner Obergrenze.
+  Test `TestSmoothPacer` (auch in `RE4_CHECK_RULES=1`).
 - **S5 Gerät:** 0.94.0 auf dem Retroid (28.10.2026): „wesentlich besser“, START-Menü ohne Aufblitzen; Rest offen.

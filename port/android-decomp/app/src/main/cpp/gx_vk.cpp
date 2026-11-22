@@ -12,6 +12,7 @@
 // running, FXAA, Sharpen, the PSone pass, the lens flares' pass, the autofocus, the pipeline cache on disk.
 #include "gx_core.h"
 #include "gx_fixed_shaders.h"
+#include "gx_upscale.h"
 #include "gx_vk_shader.h"
 #include "vk_context.h"
 #include "vk_memory.h"
@@ -427,6 +428,11 @@ struct VkRenderer final : GxCore {
   Image efbMsColor, efbMsDepth;
   // the display copy's filters (DisplayEffects): their pictures and pipelines
   Image fxaaImg, sharpImg, psxImg, psxPrevImg;
+  // the upscaler (1.1.0, gx_upscale.h): its pictures at the box's size (SGSR or EASU; RCAS) and pipelines (SGSR,
+  // EASU, RCAS), a shader that failed
+  Image upImg[2];
+  Fixed upFx[3];
+  bool upFailed[3] = {false, false, false};
   // Colour and the CRT (0.99.9): the graded picture, the CRT's lines and glow; their pipelines (the CRT's screen: one
   // for the screenshot's pass, one for the swapchain's)
   Image colourImg, crtLineImg, crtGlowImg;
@@ -524,6 +530,14 @@ struct VkRenderer final : GxCore {
   VkExtent2D swapSeenExtent{};
   static constexpr unsigned kSuboptimalLooks = 8;
   unsigned swapMade = 0;          // swapchains made (the timing line)
+  // the present times (1.1.0, VK_GOOGLE_display_timing; GxRenderer::SetPresentHook): the core's hook before each
+  // present, the presents' numbers, the screen's refresh period of this swapchain (0: not asked yet)
+  GxPresentHook presentHook = nullptr;
+  void *presentHookUser = nullptr;
+  std::uint32_t presentId = 0;
+  long long refreshNs = -1;
+  std::vector<VkPastPresentationTimingGOOGLE> pastTimes;
+  std::vector<GxShownPicture> shownPictures;
   std::string swapLogged;         // the screen's line as last logged
   // every recording a number; done: the highest whose fence was seen signalled
   std::uint64_t serial = 0, done = 0;
@@ -1742,6 +1756,7 @@ struct VkRenderer final : GxCore {
     std::uint32_t head[3] = {};
     if (data.size() < 20 || std::memcmp(data.data(), "RE4VKL01", 8) != 0) {
       GXLOG("Vulkan pipelines ahead: no list of the app (%s)", a.list.c_str());
+      ShaderPrep().state = 2;
       return;
     }
     std::memcpy(head, data.data() + 8, sizeof(head));
@@ -1749,6 +1764,7 @@ struct VkRenderer final : GxCore {
     if (head[0] != sizeof(ShaderKey) || head[1] > (data.size() - 20) / recordBytes) {
       GXLOG("Vulkan pipelines ahead: the app's list does not fit this renderer (key of %u bytes, %u pipelines)",
             head[0], head[1]);
+      ShaderPrep().state = 2;
       return;
     }
     // the mark: the list, the driver, what changes the pipelines (samples, centroid, merged draws, PSone demake, the
@@ -1765,6 +1781,9 @@ struct VkRenderer final : GxCore {
     const std::vector<char> was = ReadFileBytes(a.markFile, 1024);
     if (std::string(was.begin(), was.end()) == mark) {
       GXLOG("Vulkan pipelines ahead: the app's list (%u pipelines) was made on this driver before", head[1]);
+      ShaderPrep().total = head[1];
+      ShaderPrep().done = head[1];
+      ShaderPrep().state = 2;
       return;
     }
     const std::uint32_t count = head[1];
@@ -1789,6 +1808,10 @@ struct VkRenderer final : GxCore {
       at += static_cast<std::size_t>(n) * 4;
     }
     std::vector<std::uint8_t> done(count, 0);
+    ShaderPrepProgress &prep = ShaderPrep();
+    prep.total = count;
+    prep.done = 0;
+    prep.state = 1;
     struct Modules {
       VkShaderModule vs = VK_NULL_HANDLE, fs = VK_NULL_HANDLE, merged = VK_NULL_HANDLE;
       bool mergedTried = false;
@@ -1835,6 +1858,7 @@ struct VkRenderer final : GxCore {
         break;
       }
       done[i] = 1;
+      prep.done++;
       PipeRecord r;
       ReadPipeRecord(records + static_cast<std::size_t>(i) * recordBytes, &r);
       // (merged draws without them on: another setting; the list holds no PSone keys)
@@ -1890,6 +1914,7 @@ struct VkRenderer final : GxCore {
     }
     dropModules();
     const bool all = finished;
+    prep.state = 2;
     if (freshSinceSave)
       SaveCacheFile(a.cacheFile);
     if (all)
@@ -2095,15 +2120,17 @@ struct VkRenderer final : GxCore {
     vkUpdateDescriptorSets(dev, n, w, 0, nullptr);
   }
   // lodShift: an HD replacement's (Bound::lodShift), in sixteenths in the key
-  VkSampler SamplerOf(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point, float lodShift = 0.0f) {
+  // made: the levels below level 0 made by the renderer (Bound::made, 1.1.0), with the levels' count in the key
+  VkSampler SamplerOf(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point, float lodShift = 0.0f,
+                      bool made = false) {
     const std::uint64_t shift16 = static_cast<std::uint64_t>(std::lround(std::min(15.0f, lodShift) * 16.0f)) & 0xFF;
     const std::uint64_t k = (static_cast<std::uint64_t>(mode1 & 0xFFFF) << 32) | (mode0 & 0x1FF) |
                             (static_cast<std::uint64_t>(levels > 1) << 48) | (static_cast<std::uint64_t>(point) << 49) |
-                            shift16 << 50;
+                            shift16 << 50 | static_cast<std::uint64_t>(made ? std::min(levels, 15u) : 0u) << 9;
     auto it = samplers.find(k);
     if (it != samplers.end())
       return it->second;
-    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point, static_cast<float>(shift16) / 16.0f);
+    const GxSamplerDesc d = SamplerFor(mode0, mode1, levels, point, static_cast<float>(shift16) / 16.0f, made);
     auto sci = Make<VkSamplerCreateInfo>(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO);
     static const VkSamplerAddressMode wrap[3] = {VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                                  VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT};
@@ -2547,7 +2574,9 @@ struct VkRenderer final : GxCore {
       cba.srcAlphaBlendFactor = cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
       cba.colorBlendOp = cba.alphaBlendOp = VK_BLEND_OP_MAX;
     }
-    f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false);
+    // (1.1.0) the marks in GL's clip range where the GX pipelines draw in it (VK_EXT_depth_clip_control): the same
+    // depth as the EFB's to the last bit, as with OpenGL ES; the map keeps Vulkan's 0..1 (only the mask reads it)
+    f.pipeline = MakeGraphics(stages, vin, ia, rs, ds, cba, f.layout, renderPass, false, !map && vk.depthClipControl);
     vkDestroyShaderModule(dev, v, nullptr);
     vkDestroyShaderModule(dev, m, nullptr);
     if (!f.pipeline)
@@ -2695,7 +2724,13 @@ struct VkRenderer final : GxCore {
     const VkBuffer vb = fr.vertex[blk].buffer;
     const std::uint32_t figCorners = static_cast<std::uint32_t>(figTris * 3);
     const std::uint32_t objCorners = static_cast<std::uint32_t>(objTris * 3);
-    const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs, kShadowMarkVs)
+    const float glz[4] = {0.0f, 0.0f, 0.0f, 0.0f};  // Vulkan's depth 0..1 (kShadowDepthVs)
+    // the marks' depth as the GX pipelines compute the EFB's (1.1.0): with VK_EXT_depth_clip_control GL's clip range
+    // (2 z - w, then the viewport's (z / w + 1) / 2), as OpenGL ES does. Before, the marks went the shorter way (z / w
+    // at once): the same value on paper, but a GPU may round the two ways apart by more than the marks' bias of 4 steps
+    // of the 24-bit depth; then a figure's pixels lost their mark and took its own shadow (stripes on the body; a
+    // user's Adreno 825, 20.11.2026; never on the PC's lavapipe, which rounds both alike)
+    const float markGlz[4] = {vk.depthClipControl ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f};
     // 1. the depth atlas: each casting tile's casters from its light (one pass, a viewport per tile; the pass covers
     // and clears only the casting tiles' rectangle: one light without objects a quarter of it)
     {
@@ -2777,7 +2812,7 @@ struct VkRenderer final : GxCore {
         Put(pc, shadowMarkFx, "vp1", s.markVp1);
         Put(pc, shadowMarkFx, "pr0", s.pr0);
         Put(pc, shadowMarkFx, "pr1", s.pr1);
-        Put(pc, shadowMarkFx, "glz", glz);
+        Put(pc, shadowMarkFx, "glz", markGlz);
         Put(pc, shadowMarkFx, "mark", mark);
         BindFixed(shadowMarkFx, nullptr, nullptr, 0, pc);
         const VkDeviceSize offset = at + (i ? figBytes : 0);
@@ -3222,7 +3257,7 @@ struct VkRenderer final : GxCore {
       scissorValid = true;
     }
     if (vk.enabled.wideLines && (primitive == RE4_GX_LINES)) {
-      const float lw = std::max(1.0f, std::min(state.lineWidth, vk.properties.limits.lineWidthRange[1]));
+      const float lw = std::max(1.0f, std::min(state.lineWidth, LineMax()));
       if (lw != boundLineWidth) {
         vkCmdSetLineWidth(cb, lw);
         boundLineWidth = lw;
@@ -3256,7 +3291,7 @@ struct VkRenderer final : GxCore {
       views[m] = img->view;
       if (k.texMaps & (1u << m)) {
         const std::uint32_t mode0 = bp[(m < 4 ? 0x80 : 0xA0) + (m & 3)], mode1 = bp[(m < 4 ? 0x84 : 0xA4) + (m & 3)];
-        samp[m] = SamplerOf(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0, bound[m].lodShift);
+        samp[m] = SamplerOf(mode0, mode1, bound[m].levels, (k.centroid & 2) != 0, bound[m].lodShift, bound[m].made);
       } else {
         samp[m] = nearestClamp;
       }
@@ -3316,8 +3351,32 @@ struct VkRenderer final : GxCore {
     const std::uint32_t indexCount = merge ? merge->count : d.indexCount;
     Split(GxStats::kSplitBind);
     vkCmdDrawIndexed(cb, indexCount, 1, indexAt, baseVertex, 0);
+    // a line wider than this GPU draws (GxCore::lineAxis): again, the EFB's viewport moved by whole pixels across it
+    if (primitive == RE4_GX_LINES) {
+      const float can = vk.enabled.wideLines ? std::max(1.0f, LineMax()) : 1.0f;
+      const int copies = WideLineCopies(state.lineWidth, can);
+      if (copies > 0) {
+        const float w = float(efbColor.width), h = float(efbColor.height);
+        for (int i = 1; i <= copies; i++) {
+          const float move = WideLineMove(i, can);
+          for (int axis = 0; axis < 2; axis++) {
+            // axis 0: up and down (for lines across), 1: sideways
+            if (lineAxis != 2 && lineAxis != axis)
+              continue;
+            const VkViewport vp{axis == 1 ? move : 0.0f, axis == 0 ? move : 0.0f, w, h, 0.0f, 1.0f};
+            vkCmdSetViewport(cb, 0, 1, &vp);
+            vkCmdDrawIndexed(cb, indexCount, 1, indexAt, baseVertex, 0);
+          }
+        }
+        const VkViewport whole{0.0f, 0.0f, w, h, 0.0f, 1.0f};
+        vkCmdSetViewport(cb, 0, 1, &whole);
+        stats.wideLineCopies += static_cast<unsigned>(copies);
+      }
+    }
     Split(GxStats::kSplitDraw);
   }
+  /** The widest line this device draws (RE4_GX_NO_WIDE_LINES: 1). */
+  float LineMax() const { return NoWideLines() ? 1.0f : vk.properties.limits.lineWidthRange[1]; }
   void InterpBegin(const Re4GxChunk &) override { blendAt = -1; }
   void InterpEnd() override { blendAt = -1; }
 
@@ -3728,6 +3787,87 @@ struct VkRenderer final : GxCore {
     return fs;
   }
   // whether the CRT draws the screen now; its pipeline for `rp` (the screenshot's pass or the swapchain's) made once
+  bool CrtOn() const {
+    return crtLevel > 0 && crtReady && !crtFailed && crtLineImg.image && crtGlowImg.image;
+  }
+  // the upscaler's program 1 SGSR, 2 EASU, 3 RCAS (gx_upscale.h): made once, in the filters' pass
+  bool UpscaleFx(int program) {
+    Fixed &f = upFx[program - 1];
+    if (f.pipeline)
+      return true;
+    if (upFailed[program - 1])
+      return false;
+    const UpscaleSources s = UpscaleShaders(true, program);
+    VkFixedLayout l;
+    l.samplers = {program == 1 ? "ps0" : "src"};
+    if (program == 1) {
+      l.constants = {{"ViewportInfo", 0, 16}, {"rows", 16, 8}};
+      l.bytes = kSgsrPushBytes;
+    } else if (program == 2) {
+      l.constants = {{"con0", 0, 16}, {"con1", 16, 16}, {"con2", 32, 16}, {"con3", 48, 16}, {"rows", 64, 8}};
+      l.bytes = kEasuPushBytes;
+    } else {
+      l.constants = {{"con", 0, 16}, {"rows", 16, 8}};
+      l.bytes = kRcasPushBytes;
+    }
+    const char *what = program == 1 ? "SGSR" : program == 2 ? "FSR EASU" : "FSR RCAS";
+    std::string error;
+    const VkColorComponentFlags all = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                                      VK_COLOR_COMPONENT_A_BIT;
+    if (MakeFixed(f, s.vs, program == 1 ? s.sgsr : program == 2 ? s.easu : s.rcas, copyPass, all, false, &error, true,
+                  &l)) {
+      GXLOG("upscaler: %s ready (Vulkan)", what);
+      return true;
+    }
+    GXLOG("upscaler: the %s shader failed (Vulkan; the plain stretch instead): %s", what, error.c_str());
+    FreeFixed(f);
+    upFailed[program - 1] = true;
+    return false;
+  }
+  // The picture shown (`src`; its rows r0 + r1) at the box's size w x h through the upscaler (GlRenderer::Upscale):
+  // the picture to show 1:1 (rows 0..1), nullptr for the plain stretch (off, not larger, the CRT, a movie, no
+  // shader). Outside a render pass (before the screen's).
+  Image *Upscale(Image *src, float r0, float r1, int w, int h) {
+    if (upscaler == kUpscaleOff || !src || !src->view || chunkMovie || CrtOn() || w < 16 || h < 16 ||
+        src->width < 16 || src->height < 16)
+      return nullptr;
+    const float texW = static_cast<float>(src->width), texH = static_cast<float>(src->height);
+    const float inW = texW, inH = r1 * texH;
+    if (static_cast<float>(w) <= inW * 1.02f && static_cast<float>(h) <= inH * 1.02f)
+      return nullptr;  // not larger: the plain (shrinking) stretch
+    const bool fsr = upscaler == kUpscaleFsr;
+    if (!UpscaleFx(fsr ? 2 : 1) || (fsr && !UpscaleFx(3)))
+      return nullptr;
+    if (!FilterImage(upImg[0], w, h) || (fsr && !FilterImage(upImg[1], w, h)))
+      return nullptr;
+    const Fixed &f = upFx[fsr ? 1 : 0];
+    std::vector<std::uint8_t> pc(f.constants.bytes, 0);
+    const float rows[2] = {r0, r1};
+    Put(pc, f, "rows", rows);
+    if (!fsr) {
+      const float info[4] = {1.0f / texW, 1.0f / texH, texW, texH};
+      Put(pc, f, "ViewportInfo", info);
+    } else {
+      std::uint32_t con[16];
+      EasuConstants(con, inW, inH, texW, texH, static_cast<float>(w), static_cast<float>(h), r0 * texH);
+      std::memcpy(pc.data(), con, sizeof(con));
+    }
+    Image *in[1] = {src};
+    FilterPass(f, upImg[0], in, 1, pc);
+    if (fsr) {
+      // RCAS: the upscaled picture sharpened (AMD's 0.2 stops)
+      std::vector<std::uint8_t> pr(upFx[2].constants.bytes, 0);
+      const float whole[2] = {0.0f, 1.0f};
+      Put(pr, upFx[2], "rows", whole);
+      std::uint32_t con[4];
+      RcasConstants(con, 0.2f);
+      std::memcpy(pr.data(), con, sizeof(con));
+      Image *mid[1] = {&upImg[0]};
+      FilterPass(upFx[2], upImg[1], mid, 1, pr);
+    }
+    upscalePasses++;
+    return &upImg[fsr ? 1 : 0];
+  }
   bool CrtWanted(Fixed &f, const char *vs, VkRenderPass rp) {
     if (crtLevel <= 0 || !crtReady || crtFailed || !crtLineImg.image || !crtGlowImg.image || !rp)
       return false;
@@ -3851,24 +3991,30 @@ struct VkRenderer final : GxCore {
   }
   // the latest display copy into `target` (whose pass is begun), at (x, y, w, h) counted from its top left
   void DrawPresent(Image &target, int x, int y, int w, int h, unsigned top, unsigned rows) {
-    VkCommandBuffer cb = F().draw;
-    BeginTargetPass(screenPass, target);
-    target.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    if (viBlack)
-      return;  // VISetBlack: black, whatever the XFB holds
-    Image *xfb = ShownImage();
-    if (!xfb)
-      return;
-    const VkViewport vp{float(x), float(y), float(w), float(h), 0.0f, 1.0f};
-    const VkRect2D sc{{std::max(0, x), std::max(0, y)}, {target.width, target.height}};
-    vkCmdSetViewport(cb, 0, 1, &vp);
-    vkCmdSetScissor(cb, 0, 1, &sc);
     const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
     float r[2] = {0.0f, 1.0f};
     if (rows && top + rows <= xfbHeight) {
       r[0] = static_cast<float>(top) / lines;
       r[1] = static_cast<float>(rows) / lines;
     }
+    // the upscaler (1.1.0): the picture at the box's size first, then shown 1:1
+    Image *up = viBlack ? nullptr : Upscale(ShownImage(), r[0], r[1], w, h);
+    if (up) {
+      r[0] = 0.0f;
+      r[1] = 1.0f;
+    }
+    VkCommandBuffer cb = F().draw;
+    BeginTargetPass(screenPass, target);
+    target.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    if (viBlack)
+      return;  // VISetBlack: black, whatever the XFB holds
+    Image *xfb = up ? up : ShownImage();
+    if (!xfb)
+      return;
+    const VkViewport vp{float(x), float(y), float(w), float(h), 0.0f, 1.0f};
+    const VkRect2D sc{{std::max(0, x), std::max(0, y)}, {target.width, target.height}};
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
     if (CrtWanted(crtShotFx, fixed::kQuadVs, screenPass)) {
       std::vector<std::uint8_t> pc(crtShotFx.constants.bytes, 0);
       CrtConstants(crtShotFx, pc, w, h, r[0], r[1]);
@@ -3892,6 +4038,11 @@ struct VkRenderer final : GxCore {
   }
   // ---- the overlay (GxOverlay, the minimap): drawn in the screen's pass after the picture ----
   void SetOverlay(const GxOverlay &o) override { overlay = o; }
+  bool PresentTimes() const override { return dev && vk.displayTiming; }
+  void SetPresentHook(GxPresentHook hook, void *user) override {
+    presentHook = hook;
+    presentHookUser = user;
+  }
   // the overlay's pipelines (triangles, lines) for a pass: the swapchain's or the screenshot's
   bool MakeOverlay(VkRenderPass rp, VkPipeline out[2]) {
     std::string log;
@@ -4088,6 +4239,7 @@ struct VkRenderer final : GxCore {
     swapSeenExtent = caps.currentExtent;
     swapCheck = false;
     swapMade++;
+    refreshNs = -1;  // (asked again for this swapchain)
     const bool turned = current & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR | VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR);
     swapTransform = preRotate || !(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
                         ? current
@@ -4255,6 +4407,14 @@ struct VkRenderer final : GxCore {
     }
     if (r == VK_SUBOPTIMAL_KHR)
       swapCheck = true;
+    // the upscaler (1.1.0): the picture at the box's size before the swapchain's pass, then shown 1:1
+    Image *up = nullptr;
+    if (!viBlack && screenW > 0 && screenH > 0) {
+      const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
+      const bool part = rows && top + rows <= xfbHeight;
+      up = Upscale(ShownImage(), part ? static_cast<float>(top) / lines : 0.0f,
+                   part ? static_cast<float>(rows) / lines : 1.0f, w, h);
+    }
     EndPass();
     VkCommandBuffer cb = F().draw;
     auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
@@ -4269,7 +4429,7 @@ struct VkRenderer final : GxCore {
     pass = kOtherPass;
     boundPipeline = VK_NULL_HANDLE;
     scissorValid = false;
-    Image *xfb = ShownImage();
+    Image *xfb = up ? up : ShownImage();
     if (!viBlack && xfb && xfb->view && screenW > 0 && screenH > 0) {
       const VkViewport vp{0.0f, 0.0f, float(swapExtent.width), float(swapExtent.height), 0.0f, 1.0f};
       const VkRect2D sc{{0, 0}, swapExtent};
@@ -4288,7 +4448,7 @@ struct VkRenderer final : GxCore {
         pc[4] = 0.0f, pc[5] = 1.0f, pc[6] = -1.0f, pc[7] = 0.0f;
       }
       const float lines = static_cast<float>(xfbHeight ? xfbHeight : 1);
-      if (rows && top + rows <= xfbHeight) {
+      if (rows && top + rows <= xfbHeight && !up) {
         pc[8] = static_cast<float>(top) / lines;
         pc[9] = static_cast<float>(rows) / lines;
       }
@@ -4316,6 +4476,41 @@ struct VkRenderer final : GxCore {
     pi.swapchainCount = 1;
     pi.pSwapchains = &swapchain;
     pi.pImageIndices = &index;
+    // the present times (1.1.0): the pictures shown since the last present to the core's hook, the time it asks for
+    // this one (0: the next free vsync, as without the extension); a number for each present, so its time on the
+    // screen comes back later
+    VkPresentTimeGOOGLE when{};
+    auto times = Make<VkPresentTimesInfoGOOGLE>(VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE);
+    if (vk.displayTiming && presentHook) {
+      if (refreshNs < 0) {
+        VkRefreshCycleDurationGOOGLE cycle{};
+        refreshNs = vkGetRefreshCycleDurationGOOGLE(dev, swapchain, &cycle) == VK_SUCCESS
+                        ? static_cast<long long>(cycle.refreshDuration)
+                        : 0;
+      }
+      std::uint32_t count = 0;
+      shownPictures.clear();
+      if (vkGetPastPresentationTimingGOOGLE(dev, swapchain, &count, nullptr) == VK_SUCCESS && count > 0) {
+        pastTimes.resize(count);
+        if (vkGetPastPresentationTimingGOOGLE(dev, swapchain, &count, pastTimes.data()) >= VK_SUCCESS) {
+          for (std::uint32_t i = 0; i < count && i < pastTimes.size(); i++) {
+            GxShownPicture s;
+            s.id = pastTimes[i].presentID;
+            s.actual = static_cast<long long>(pastTimes[i].actualPresentTime);
+            s.earliest = static_cast<long long>(pastTimes[i].earliestPresentTime);
+            s.margin = static_cast<long long>(pastTimes[i].presentMargin);
+            shownPictures.push_back(s);
+          }
+        }
+      }
+      when.presentID = ++presentId;
+      const long long at = presentHook(presentHookUser, when.presentID, shownPictures.data(),
+                                       static_cast<int>(shownPictures.size()), refreshNs, swapMade);
+      when.desiredPresentTime = at > 0 ? static_cast<std::uint64_t>(at) : 0;
+      times.swapchainCount = 1;
+      times.pTimes = &when;
+      pi.pNext = &times;
+    }
     const auto presented = std::chrono::steady_clock::now();
     r = vkQueuePresentKHR(vk.queue, &pi);
     timing.presentMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - presented).count();
@@ -4416,8 +4611,9 @@ struct VkRenderer final : GxCore {
       heap.Init(&vk);
     }
     dev = vk.device;
-    GXLOG("GPU (Vulkan): %s; %s; depth %s", vk.Describe().c_str(), CompilerName(),
-          vk.depthClipControl ? "in GL's clip range (VK_EXT_depth_clip_control)" : "mapped to 0..1");
+    GXLOG("GPU (Vulkan): %s; %s; depth %s; present times %s", vk.Describe().c_str(), CompilerName(),
+          vk.depthClipControl ? "in GL's clip range (VK_EXT_depth_clip_control)" : "mapped to 0..1",
+          vk.displayTiming ? "there (VK_GOOGLE_display_timing)" : "not there");
     const VkFormat depths[] = {VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT};
     depthFormat = vk.PickFormat(depths, 3, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
     if (depthFormat == VK_FORMAT_UNDEFINED) {
@@ -4931,8 +5127,11 @@ struct VkRenderer final : GxCore {
       vkDestroyFramebuffer(dev, depthResolveFb, nullptr);
     depthResolveFb = VK_NULL_HANDLE;
     FreeFixed(depthResolve);
-    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg})
+    for (Image *img : {&fxaaImg, &sharpImg, &psxImg, &psxPrevImg, &colourImg, &crtLineImg, &crtGlowImg, &upImg[0],
+                       &upImg[1]})
       Destroy(*img);
+    for (Fixed &f : upFx)
+      FreeFixed(f);
     for (Fixed *f : {&colourFx, &crtLineFx, &crtGlowFx, &crtShotFx, &crtSwapFx})
       FreeFixed(*f);
     colourShown = crtReady = false;

@@ -57,6 +57,13 @@ struct GxStats {
   // for the budget, not readable from the file; the replacements' bytes on the GPU now
   unsigned hdLookups = 0, hdTextures = 0, hdMisses = 0, hdOverBudget = 0, hdReadErrors = 0;
   std::size_t hdBytesNow = 0;
+  // mipmaps for the game's textures without (1.1.0, gx_mips.h): textures given levels, of them cut-outs, the made
+  // levels' bytes, the time it took (microseconds, summed), uploads left without (new texels at the same place soon
+  // again: a movie's frames)
+  unsigned mipTextures = 0, mipCutouts = 0, mipSkippedDynamic = 0;
+  unsigned wideLineCopies = 0;  // lines drawn again for a GPU without wide lines (GxCore::WideLineCopies, 1.1.0)
+  std::size_t mipBytes = 0;
+  std::uint64_t mipUs = 0;
   // time in UploadHd: the key and lookup, reading the file, the GPU upload (microseconds, summed)
   std::uint64_t hdKeyUs = 0, hdReadUs = 0, hdUploadUs = 0;
   // T4 (0.99.18), the reads in the background: asked for, put in place of the game's texture, dropped (the texture or
@@ -238,6 +245,20 @@ struct GxOverlay {
   float lineWidth = 1.0f;
 };
 
+// A picture the screen showed (Vulkan's VK_GOOGLE_display_timing, 1.1.0): the number its present gave it, when it was
+// shown (ns, CLOCK_MONOTONIC as the display's vsyncs), the earliest it could have been, and how much earlier than
+// needed it was ready (the swapchain's estimate; all 0: not known).
+struct GxShownPicture {
+  std::uint32_t id = 0;
+  long long actual = 0, earliest = 0, margin = 0;
+};
+// Called by the Vulkan renderer right before each present to the screen, on the render thread: `id` the number this
+// present gets, `shown` the pictures shown since the last call (`count` of them), `refresh` the screen's refresh
+// period (ns, 0: not known), `swapchain` counts the swapchains made (a new one: the old numbers are gone). Returns
+// the time the picture should be shown at (ns, CLOCK_MONOTONIC), 0: as soon as possible (the next free vsync).
+using GxPresentHook = long long (*)(void *user, std::uint32_t id, const GxShownPicture *shown, int count,
+                                    long long refresh, unsigned swapchain);
+
 class GxRenderer {
 public:
   explicit GxRenderer(GxApi api = GxApi::kGl);
@@ -301,6 +322,8 @@ public:
   // to the screen's height, which blurs the textures. Not for a movie's pictures (RE4_GX_CHUNK_MOVIE). Takes
   // effect with the next display copy; costs one pass over the XFB per picture (the in-between pictures too).
   void SetSharpen(int level);
+  // the upscaler (1.1.0, gx_upscale.h): 0 off, 1 SGSR, 2 FSR (EASU + RCAS)
+  void SetUpscaler(int kind);
   // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026; word_sharpen.h): while on, the menus'
   // word pictures (tex_pack_words.h) are enlarged 2x (small ones 4x from 3x on) with a contour snap on a thread of
   // their own and shown in place of the game's own picture once ready; nothing below 1.5x or in the PSone demake.
@@ -424,6 +447,11 @@ public:
   // The screen of a Vulkan renderer: the Android window (ANativeWindow*, the SurfaceView's; null when it went) and
   // its size in pixels (Present's rectangles count in it). GL draws into the current context's surface: ignored.
   void SetWindow(void *window, int width, int height);
+  // The present times (1.1.0): true when the renderer can ask for each picture's time on the screen (Vulkan with
+  // VK_GOOGLE_display_timing; OpenGL ES does it in the app, core_mode.cpp present::beforeSwap). `hook` is then called
+  // before each present to the screen (null: none, each picture at the next free vsync).
+  bool PresentTimes() const;
+  void SetPresentHook(GxPresentHook hook, void *user);
   // Drawn over the picture at the next Present, once (the Vulkan renderer; GL ignores it, the app draws it itself).
   void SetOverlay(const GxOverlay &overlay);
   // "OpenGL ES 3.2 ..., Adreno (TM) 650" or "Vulkan 1.1.128 ..., driver ...": for the log and the error report.

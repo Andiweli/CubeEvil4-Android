@@ -11,9 +11,31 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 int main(int argc, char **argv) {
+  // minimap_check --photo: the photo mode rule (1.1.0): the minimap goes with the HUD switch, not with Leon's
+  if (argc == 2 && std::string(argv[1]) == "--photo") {
+    struct Case { bool photo; int mask; unsigned beFlag; bool shown, player; const char *what; } cases[] = {
+        {false, 0, 0x27, true, true, "playing, Leon drawn"},
+        {false, 0, 0x25, true, false, "playing, Leon not drawn (the game's own): no pose as before"},
+        {true, 0, 0x27, true, true, "photo mode, nothing hidden"},
+        {true, 1, 0x27, false, true, "photo mode, HUD hidden: no minimap"},
+        {true, 2, 0x25, true, true, "photo mode, Leon hidden (bit 1 cleared): minimap stays"},
+        {true, 3, 0x25, false, true, "photo mode, HUD and Leon hidden: no minimap"},
+        {true, 14, 0x25, true, true, "photo mode, Leon, Ashley, enemies hidden: minimap stays"},
+    };
+    int bad = 0;
+    for (const Case &c : cases) {
+      const bool shown = re4mm::MinimapShown(c.photo, c.mask), player = re4mm::PlayerModel(c.beFlag, c.photo);
+      const bool ok = shown == c.shown && player == c.player;
+      bad += !ok;
+      std::printf("%s %s: minimap %s, player %s\n", ok ? "ok  " : "FAIL", c.what, shown ? "shown" : "hidden",
+                  player ? "found" : "not found");
+    }
+    return bad ? 1 : 0;
+  }
   if (argc < 3) {
     std::fprintf(stderr, "usage: minimap_check DUMP OUT.ppm [radius]\n");
     return 2;

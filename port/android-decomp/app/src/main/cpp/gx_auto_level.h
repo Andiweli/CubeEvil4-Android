@@ -489,29 +489,58 @@ private:
 // pictures a second side by side, which looks like flicker (Xiaomi report 26.10.2026: 21 % left out).
 // The dynamic resolution goes down first (AutoLevel counts the left-out ones); when the renderer is
 // still behind with at least a quarter of the chunks of the last kSpan seconds (at least kMinChunks of
-// them), the in-between pictures stop for kOff seconds: an even 30. Single ones and short bursts (a
+// them), the in-between pictures stop for a while: an even 30. Single ones and short bursts (a
 // room loading, the core a picture ahead right after a pause) do not count: Retroid 28.10.2026, the
 // first rule (3 within 2 s) paused again and again right after each pause and left 30 FPS almost all
 // the time. After a pause the first kGrace seconds are not counted. Each change is a log line.
+//
+// The pause grows when 60 FPS fails again soon after it came back (1.0.0, decision of the project owner, 18.11.2026;
+// a tester's Xiaomi report of that day, reports/fps-drops-2026-11-18: after 8 minutes the phone held the render
+// thread's core at 1.0-1.4 GHz instead of up to 2.4, and 60 FPS failed 155 times, every 9 s, the shortest the rule
+// allowed: 5 s off, 2 s of grace, 2 s to count 60 chunks). The pauses: kOffs, 5, 15, 30 and 60 s. Behind again
+// within kAgain seconds of 60 FPS after it came back: the next step; kAgain seconds of 60 FPS without a pause: the
+// next pause is the first step again. A room's start ends a pause at once (the new room may be lighter), the step
+// stays; the app menu closing or a stall end only a pause of the first step (one of 15 s or more goes on: the
+// inventory closed, 60 FPS failed again right after it). The benchmark (Restart) starts at the first step.
 class SmoothPacer {
 public:
   static constexpr double kSpan = 4.0;    // seconds
-  static constexpr double kOff = 5.0;     // seconds
+  static constexpr int kSteps = 4;
+  static constexpr double kOffs[kSteps] = {5.0, 15.0, 30.0, 60.0};  // seconds at an even 30, by step
+  static constexpr double kOff = kOffs[0];
+  static constexpr double kAgain = 30.0;  // seconds of 60 FPS after a pause: behind within them, the next step
   static constexpr double kGrace = 2.0;   // seconds after a pause
+  static constexpr double kGap = 0.5;     // seconds from chunk to chunk counted (more: a menu, a movie, loading)
   static constexpr unsigned kMinChunks = 60;
   static constexpr unsigned kRing = 256;
+  static constexpr unsigned kPictureRing = 512;  // the pictures' times: 4 s at 60 a second, twice over
+  // a break (core_mode.cpp, with AutoLevel::Restart): a room starts, the app menu closed, a Run over 250 ms
+  enum class BreakKind { kRoom, kMenu, kStall };
 
   // A chunk at `t` (seconds) that could get an in-between picture; `behind`: the renderer is behind
   // with it (its picture is left out anyway). False: no in-between picture now. `why`: a log line
   // when 60 FPS goes off or on again.
   bool Chunk(double t, bool behind, std::string *why) {
+    const double dt = last_ > -1e8 ? t - last_ : 0.0;
+    last_ = t;
+    const bool counted = dt > 0.0 && dt <= kGap;
     if (offUntil_ >= 0.0) {
+      if (counted)
+        evenSeconds_ += dt;
       if (t < offUntil_)
         return false;
-      offUntil_ = -1.0;
-      graceUntil_ = t + kGrace;
-      if (why)
-        *why = "60 FPS: in-between pictures on again";
+      char reason[64];
+      std::snprintf(reason, sizeof(reason), "the %.0f s are over", kOffs[step_]);
+      ComeBack(t, kGrace, reason, why);
+    } else if (counted) {
+      sixtySeconds_ += dt;
+      ran_ += dt;
+      if (back_ && step_ > 0 && ran_ >= kAgain && ran_ - dt < kAgain && why) {
+        char s[160];
+        std::snprintf(s, sizeof(s), "60 FPS: %.0f s without a pause since it came back: the next pause is %.0f s "
+                      "again (step 1 of %d)", kAgain, kOffs[0], kSteps);
+        *why = s;
+      }
     }
     if (t < graceUntil_)
       return !behind;
@@ -526,45 +555,142 @@ public:
       }
     }
     if (chunks >= kMinChunks && drops * 4 >= chunks) {
-      offUntil_ = t + kOff;
+      // behind again soon after it came back: the next step (a phone that slows down when warm)
+      step_ = back_ && ran_ < kAgain ? std::min(step_ + 1, kSteps - 1) : 0;
+      offUntil_ = t + kOffs[step_];
       offs_++;
+      switches_++;
       for (double &d : times_)
         d = -1e9;
       if (why) {
-        char s[200];
+        double mean = 0.0, p90 = 0.0;
+        char pictures[80] = "";
+        if (PictureTimes(t, &mean, &p90))
+          std::snprintf(pictures, sizeof(pictures), "; pictures %.1f ms, 90 %% within %.1f ms", mean, p90);
+        char s[320];
         std::snprintf(s, sizeof(s),
                       "60 FPS: the renderer was behind with %u of %u chunks in %.0f s: no in-between pictures "
-                      "for %.0f s (an even 30, %u times so far)",
-                      drops, chunks, kSpan, kOff, offs_);
+                      "for %.0f s (an even 30, step %d of %d, %u times so far; 60 FPS ran %.0f s since it %s%s)",
+                      drops, chunks, kSpan, kOffs[step_], step_ + 1, kSteps, offs_, ran_,
+                      back_ ? "came back" : "started", pictures);
         *why = s;
       }
       return false;
     }
     return !behind;
   }
+  // A picture drawn at `t` (seconds) in `ms` (the render thread's Run, an in-between picture or a game picture):
+  // the give-up line tells the pictures' times of its span.
+  void Picture(double t, double ms) {
+    pictureAt_[pictureNext_] = t;
+    pictureMs_[pictureNext_] = ms;
+    pictureNext_ = (pictureNext_ + 1) % kPictureRing;
+  }
   bool Off() const { return offUntil_ >= 0.0; }
   unsigned Offs() const { return offs_; }
+  // the step in force (1 to kSteps): a pause's, or the last pause's until kAgain seconds of 60 FPS ended it
+  int Step() const { return offUntil_ >= 0.0 || (back_ && ran_ < kAgain) ? step_ + 1 : 1; }
+  // Since the last TakeMinute (core_mode.cpp: once a minute): the seconds with in-between pictures and at an even 30,
+  // the switches to 30; from 0 again.
+  struct Minute {
+    double sixty = 0.0, even = 0.0;
+    unsigned switches = 0;
+  };
+  Minute TakeMinute() {
+    Minute m;
+    m.sixty = sixtySeconds_;
+    m.even = evenSeconds_;
+    m.switches = switches_;
+    sixtySeconds_ = evenSeconds_ = 0.0;
+    switches_ = 0;
+    return m;
+  }
   // A new start at `t` (the benchmark's next level, gx_bench_steps.h): in-between pictures on at once, with
-  // the grace of kGrace seconds; a pause from the level before does not carry over (the project owner's
-  // log 06.11.2026: the pause from 2x ran 2.5 s into 1.5x, which then failed with 30 shown in those seconds).
-  // Also at a break (a room starts, the app menu closes, a stall: core_mode.cpp, with AutoLevel::Restart) with the
-  // grace `grace`: its span of kSpan seconds no longer reaches back over a room's loading.
+  // the grace of kGrace seconds, at the first step; a pause from the level before does not carry over (the project
+  // owner's log 06.11.2026: the pause from 2x ran 2.5 s into 1.5x, which then failed with 30 shown in those seconds).
   void Restart(double t, double grace = kGrace) {
     offUntil_ = -1.0;
     graceUntil_ = t + grace;
+    step_ = 0;
+    back_ = false;
+    ran_ = 0.0;
     for (double &d : times_)
       d = -1e9;
   }
+  // A break at `t` (core_mode.cpp: a room starts, the app menu closes, a stall) with the grace `grace`: its span of
+  // kSpan seconds no longer reaches back over a room's loading. A pause ends at a room's start, at the others only at
+  // the first step. `why`: a log line when a pause ends.
+  void Break(double t, double grace, BreakKind kind, std::string *why) {
+    if (offUntil_ >= 0.0 && t < offUntil_ && kind != BreakKind::kRoom && step_ > 0) {
+      graceUntil_ = std::max(graceUntil_, t + grace);
+      return;
+    }
+    graceUntil_ = std::max(graceUntil_, t + grace);
+    for (double &d : times_)
+      d = -1e9;
+    if (offUntil_ < 0.0)
+      return;
+    char reason[80];
+    if (t >= offUntil_)
+      std::snprintf(reason, sizeof(reason), "the %.0f s are over", kOffs[step_]);
+    else if (kind == BreakKind::kRoom)
+      std::snprintf(reason, sizeof(reason), "a new room, %.0f s early", offUntil_ - t);
+    else
+      std::snprintf(reason, sizeof(reason), "%s", kind == BreakKind::kMenu ? "the app menu closed" : "after a stall");
+    ComeBack(t, grace, reason, why);
+  }
 
 private:
+  void ComeBack(double t, double grace, const char *reason, std::string *why) {
+    offUntil_ = -1.0;
+    graceUntil_ = std::max(graceUntil_, t + grace);
+    back_ = true;
+    ran_ = 0.0;
+    if (why) {
+      char s[200];
+      std::snprintf(s, sizeof(s), "60 FPS: in-between pictures on again (%s; behind again within %.0f s: %.0f s at an "
+                    "even 30, step %d of %d)", reason, kAgain, kOffs[std::min(step_ + 1, kSteps - 1)],
+                    std::min(step_ + 2, kSteps), kSteps);
+      *why = s;
+    }
+  }
+  // the mean and the 90th percentile of the pictures' times of the last kSpan seconds; false: none
+  bool PictureTimes(double t, double *mean, double *p90) const {
+    double ms[kPictureRing];
+    unsigned n = 0;
+    double sum = 0.0;
+    for (unsigned i = 0; i < kPictureRing; i++) {
+      if (t - pictureAt_[i] <= kSpan) {
+        ms[n++] = pictureMs_[i];
+        sum += pictureMs_[i];
+      }
+    }
+    if (!n)
+      return false;
+    *mean = sum / n;
+    const unsigned k = (9 * n + 9) / 10 - 1;  // ceil(0.9 n), counted from 0
+    std::nth_element(ms, ms + k, ms + n);
+    *p90 = ms[k];
+    return true;
+  }
+
   double times_[kRing] = {};
   bool behind_[kRing] = {};
-  unsigned at_ = 0, offs_ = 0;
+  unsigned at_ = 0, offs_ = 0, switches_ = 0;
   double offUntil_ = -1.0, graceUntil_ = -1.0;
+  int step_ = 0;         // the last pause's step (0: the first, 5 s)
+  bool back_ = false;    // a pause ended since the start (Restart)
+  double ran_ = 0.0;     // seconds of 60 FPS since it came back (or started)
+  double last_ = -1e9;   // the last chunk
+  double sixtySeconds_ = 0.0, evenSeconds_ = 0.0;
+  double pictureAt_[kPictureRing] = {}, pictureMs_[kPictureRing] = {};
+  unsigned pictureNext_ = 0;
 
 public:
   SmoothPacer() {
     for (double &d : times_)
+      d = -1e9;
+    for (double &d : pictureAt_)
       d = -1e9;
   }
 };

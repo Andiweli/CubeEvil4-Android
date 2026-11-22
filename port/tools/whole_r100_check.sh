@@ -324,7 +324,7 @@ fi
 export RE4_OPT="${RE4_OPT-2}"
 opt="${RE4_OPT:+-O$RE4_OPT}"
 # the build folder: whole-<target>-O2, with --sanitize whole-<target>-O2-san
-bsuf="$opt${RE4_SANITIZE:+-san}"
+bsuf="$opt${RE4_SANITIZE:+-san}${RE4_BUILD_SUFFIX:-}"  # (RE4_BUILD_SUFFIX: -pgogen / -pgo, port/docs/pgo.md)
 if [ -n "${RE4_SANITIZE:-}" ]; then
     # as whole_build.sh; the symbolizer turns addresses into file and line
     export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:detect_odr_violation=0:detect_stack_use_after_return=0:handle_segv=0:handle_sigbus=0:handle_sigfpe=0}"

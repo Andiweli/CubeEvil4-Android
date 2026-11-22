@@ -290,6 +290,8 @@ u32 gViNext;        // physical address of the XFB the VI shows next (0: never s
 bool gViBlack;      // the VI outputs black (VISetBlack, from VIFlush on): RE4_GX_CHUNK_BLACK
 std::atomic<bool> gStill(false);  // a menu screen of the game (re4_gx_still): RE4_GX_CHUNK_STILL
 std::atomic<bool> gMovie(false);  // a movie plays (re4_gx_movie): RE4_GX_CHUNK_MOVIE
+std::atomic<bool> gPhoto(false);  // photo mode is on (re4_gx_photo, 1.1.0): RE4_GX_CHUNK_PHOTO
+std::atomic<bool> gPhotoRefused(false);  // a request for it was refused: the next chunk RE4_GX_CHUNK_PHOTO_REFUSED
 // the picture format "Native" (re4_gx_wide): the first load of the camera's projection in this chunk was the wide
 // one (1), the game's 4:3 (0), none yet (-1): RE4_GX_CHUNK_WIDE
 std::atomic<int> gWide(-1);
@@ -581,10 +583,27 @@ int gFastNow = -1;                    // the setting the threads run with (-1: n
 long long gHintFrom, gHintIdle, gHintWait;  // ns: the chunk before, re4_idle_ns() then, the wait since
 int gSlowHelpers;                     // the vertex threads put on the slow cores (gHintTids[1..])
 cpu_set_t gSlowSet;                   // their cores
+unsigned gSlowTries;                  // the placement's tries since the switch went on (at most kSlowTries)
+unsigned gSlowNext;                   // the chunk count at which the next try is due
+constexpr unsigned kSlowTries = 10;   // a try every 90 chunks (about 3 s): about 30 s of tries
+unsigned gHintChunks;                 // hintChunk's calls (the tries' clock)
+
+// The vertex threads gHintTids[gSlowHelpers + 1 ..] on the slow cores (re4_cpu_info.h PutOnSlowCores); `cores` the
+// last answer
+void placeHelpers(char* cores, size_t size)
+{
+    for (int i = gSlowHelpers + 1; i < gHintTidCount; i++) {
+        if (!re4cpu::PutOnSlowCores(re4cpu::GetLayout(), gHintTids[i], &gSlowSet, cores, size)) {
+            break;
+        }
+        gSlowHelpers = i;
+    }
+}
 
 void hintChunk()
 {
     const long long now = nowNs(), idle = re4_idle_ns();
+    gHintChunks++;
     if (gHintState == 0) {
         if (gWorkers < 0) {
             return;
@@ -609,21 +628,29 @@ void hintChunk()
             char cores[160];
             re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kGameThread);
             re4_log("cores: the game thread %s", cores);
-            // with only two fast cores the vertex threads on the slow ones (re4_cpu_info.h)
+            // with only two fast cores the vertex threads on the slow ones (re4_cpu_info.h); refused (Android's start
+            // boost): again every 3 s, up to 10 times (placeHelpers below)
             gSlowHelpers = 0;
-            for (int i = 1; i < gHintTidCount; i++) {
-                if (!re4cpu::PutOnSlowCores(re4cpu::GetLayout(), gHintTids[i], &gSlowSet, cores, sizeof(cores))) {
-                    break;
-                }
-                gSlowHelpers = i;
-            }
+            gSlowTries = 1;
+            gSlowNext = gHintChunks + 90;
+            placeHelpers(cores, sizeof(cores));
+            const bool slow = re4cpu::HelpersGoSlow(re4cpu::GetLayout());
             if (gHintTidCount > 1) {
-                re4_log("cores: the %d vertex threads %s", gHintTidCount - 1, cores);
+                re4_log("cores: the %d vertex threads %s%s", gHintTidCount - 1, cores,
+                        slow && gSlowHelpers < gHintTidCount - 1 ? "; tried again every 3 s" : "");
             }
+            // the hint: with only two fast cores for the game thread alone (the vertex threads in its session would be
+            // pulled back on the fast cores, user report 20.11.2026), else for it and the vertex threads
             const char* why = "";
-            gHint.Open(gHintTids, gHintTidCount, 33333333LL, &why);
-            re4_log("performance hint: %s (the game thread and %d vertex threads, 33.3 ms a picture)", why,
-                    gHintTidCount - 1);
+            const int hinted = slow ? 1 : gHintTidCount;
+            gHint.Open(gHintTids, hinted, 33333333LL, &why);
+            if (hinted == gHintTidCount) {
+                re4_log("performance hint: %s (the game thread and %d vertex threads, 33.3 ms a picture)", why,
+                        gHintTidCount - 1);
+            } else {
+                re4_log("performance hint: %s (the game thread alone, 33.3 ms a picture; the %d vertex threads on "
+                        "the slow cores, not in it)", why, gHintTidCount - 1);
+            }
         } else {
             gHint.Close();
             if (!first) {
@@ -633,11 +660,25 @@ void hintChunk()
                 re4cpu::ReleaseThread(gHintTids[i]);
             }
             gSlowHelpers = 0;
+            gSlowTries = 0;
             re4_log("cores: the game thread and the vertex threads left to Android (Force Performance: Default)");
         }
         gHintFrom = 0;
     } else if (gHint.On() && gHintFrom) {
         gHint.Report(now - gHintFrom - (idle - gHintIdle) - gHintWait);
+    }
+    // the vertex threads not all on the slow cores yet (refused at the start): another try every 3 s, at most 10
+    if (fast && gSlowHelpers < gHintTidCount - 1 && gSlowTries > 0 && gSlowTries < kSlowTries &&
+        (int) (gHintChunks - gSlowNext) >= 0 && re4cpu::HelpersGoSlow(re4cpu::GetLayout())) {
+        char cores[160];
+        gSlowTries++;
+        gSlowNext = gHintChunks + 90;
+        placeHelpers(cores, sizeof(cores));
+        if (gSlowHelpers == gHintTidCount - 1) {
+            re4_log("cores: the %d vertex threads %s (try %u)", gHintTidCount - 1, cores, gSlowTries);
+        } else if (gSlowTries == kSlowTries) {
+            re4_log("cores: the vertex threads still %s after %u tries; left so", cores, gSlowTries);
+        }
     }
     // about once a second: back on the fast cores if Android moved the thread off them
     static unsigned checks, moves;
@@ -734,6 +775,12 @@ void chunkBoundary(u32 xfb, u32 width, u32 height)
         }
         if (gMovie.load()) {
             v.flags |= RE4_GX_CHUNK_MOVIE;
+        }
+        if (gPhoto.load()) {
+            v.flags |= RE4_GX_CHUNK_PHOTO;
+        }
+        if (gPhotoRefused.exchange(false)) {
+            v.flags |= RE4_GX_CHUNK_PHOTO_REFUSED;
         }
         if (wide == 1) {
             v.flags |= RE4_GX_CHUNK_WIDE;
@@ -2858,6 +2905,14 @@ void re4_gx_still(int on)
 void re4_gx_movie(int on)
 {
     gMovie.store(on != 0);
+}
+
+void re4_gx_photo(int on, int refused)
+{
+    gPhoto.store(on != 0);
+    if (refused) {
+        gPhotoRefused.store(true);
+    }
 }
 
 // The picture format "Native" (runtime/picture.cpp re4_view_load, patch 0214): whether the camera's projection

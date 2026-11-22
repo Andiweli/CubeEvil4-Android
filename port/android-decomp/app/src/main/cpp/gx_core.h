@@ -9,8 +9,11 @@
 #include "re4_gx_frame.h"
 
 #include <atomic>
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -55,6 +58,14 @@ struct KeyEqual {
 // A file written under this name first and renamed when complete: one per thread (the render
 // thread and the one of WarmProgramCache may store the same program at once).
 std::string TempName(const std::string &path);
+// "Prepare shaders at start" (1.1.0, the app menu's Management; the project owner, 20.11.2026): how far the programs
+// made ahead (GLES: WarmProgramCache) or the app's pipeline list made ahead (Vulkan: AheadThread) are. state 0 not
+// started, 1 running, 2 through (or nothing to do); done of total entries looked at. Any thread.
+struct ShaderPrepProgress {
+  std::atomic<int> state{0};
+  std::atomic<unsigned> done{0}, total{0};
+};
+ShaderPrepProgress &ShaderPrep();
 // A key list file: "RE4L", the size of a key, the count, the keys (WriteProgramKeyList, the app's
 // asset gx-programs.keys; port/tools/gx_program_list.py). A list of another key size is ignored.
 struct KeyListHead {
@@ -70,6 +81,7 @@ bool WriteKeyList(const std::string &path, const std::vector<ShaderKey> &keys);
 struct Texture {
   unsigned id = 0;
   unsigned width = 0, height = 0, levels = 1;
+  bool made = false;  // its levels below level 0 made by the renderer (gx_mips.h), the game's texture has none
   float lodShift = 0.0f;
   std::uint32_t hdBytes = 0;
   std::uint32_t wordBytes = 0;  // a sharper menu word (word_sharpen.h): its levels' bytes
@@ -194,6 +206,10 @@ struct GxCore {
   // sharpTex, shown instead of it while sharpShown. A movie's pictures stay as they are (RE4_GX_CHUNK_MOVIE)
   int sharpLevel = 0;
   bool sharpShown = false, chunkMovie = false;
+  // the upscaler (GxRenderer::SetUpscaler, 1.1.0, gx_upscale.h): 0 off, 1 SGSR, 2 FSR; the picture shown through it
+  // when its box on the screen is larger than the picture (not with the CRT, not for a movie)
+  int upscaler = 0;
+  unsigned upscalePasses = 0;
   // PSone demake (GxRenderer::SetPsx): the 3D programs' key bit and point-sampled textures, and the last pass
   // over the display copy (a 320-wide grid, 15-bit colour with the PlayStation's 4 x 4 dither) into psxTex,
   // shown instead of it while psxShown
@@ -365,7 +381,44 @@ struct GxCore {
     GLuint id = 0;
     unsigned width = 1, height = 1, levels = 1;
     float lodShift = 0.0f;  // an HD replacement's (Texture::lodShift): its sampler's levels move by it
+    bool made = false;      // Texture::made: the sampler goes through the made levels where the game filters linearly
   } bound[8];
+  // mipmaps for the game's textures without (1.1.0, gx_mips.h): a texture's address and the key it had last, the
+  // chunk of that and how often new texels came there soon after (a movie's frames: no levels for them)
+  struct UploadSeen {
+    std::uint64_t key = 0;
+    unsigned chunk = 0, changes = 0;
+  };
+  std::unordered_map<std::uint32_t, UploadSeen> uploadsAt;
+  bool makeMips = true;  // RE4_GX_MAKE_MIPS=0: none (a test's comparison)
+  // a line draw's direction on the picture (LineAxis, before SubmitDraw): 0 mostly across (its copies moved up and down),
+  // 1 mostly up and down (moved sideways), 2 both. Lines wider than the GPU can draw (1.1.0, the project owner's
+  // Retroid: the attaché case's grid at 1 px instead of 2.5, with an HD pack's darker floor some rows gone) are drawn
+  // again, moved by whole pixels across them (WideLineCopies), as wide as the game asked
+  int lineAxis = 2;
+  bool wideLinesLogged = false;
+  int LineAxis(const Re4GxDraw &d, const Re4GxChunk &chunk) const;
+  // The copies of a line `want` pixels wide where the GPU draws `can` at most (0: none needed), and the i-th copy's move
+  // in pixels (1, -1, 2, -2 ... times the drawn width)
+  static int WideLineCopies(float want, float can) {
+    if (!(can >= 1.0f) || !(want > can + 0.25f) || WideLinesTest() == 2)
+      return 0;
+    return std::max(0, std::min(8, static_cast<int>(std::lround(want / can)) - 1));
+  }
+  static float WideLineMove(int i, float can) {
+    const float step = static_cast<float>((i + 1) / 2) * can;
+    return (i & 1) ? step : -step;
+  }
+  // RE4_GX_NO_WIDE_LINES=1 (tests): as a GPU without wide lines (1 px at most, the copies); =2 the same without the
+  // copies (as before 1.1.0)
+  static int WideLinesTest() {
+    static const int mode = [] {
+      const char *v = std::getenv("RE4_GX_NO_WIDE_LINES");
+      return v && (*v == '1' || *v == '2') ? *v - '0' : 0;
+    }();
+    return mode;
+  }
+  static bool NoWideLines() { return WideLinesTest() != 0; }
   XfBlock xf = {};
   // the XF parts as last sent (UploadXf): a part the game wrote again with the same values is not
   // sent again (about 5 % of the uploads of a village picture, Retroid series r226, 28.10.2026)
@@ -894,9 +947,10 @@ struct GxCore {
   virtual void CompressedLevel(unsigned /*id*/, unsigned /*level*/, unsigned /*width*/, unsigned /*height*/,
                                const std::uint8_t * /*data*/, std::size_t /*bytes*/) {}
   virtual void ClearRect(const GxClearRect &r) = 0;
-  // lodShift: an HD replacement's (Bound::lodShift)
+  // lodShift: an HD replacement's (Bound::lodShift); made: the levels below level 0 made by the renderer
+  // (Bound::made, 1.1.0)
   GxSamplerDesc SamplerFor(std::uint32_t mode0, std::uint32_t mode1, unsigned levels, bool point,
-                           float lodShift = 0.0f) const;
+                           float lodShift = 0.0f, bool made = false) const;
   std::vector<std::uint8_t> decoded;  // Upload's texels of a level
   // ---- end of the part moved from GlRenderer ----
 
@@ -915,6 +969,7 @@ struct GxCore {
   void SetDepthSink(GxRenderer::DepthSink sink);
   void SetFxaa(bool on);
   void SetSharpen(int level);
+  void SetUpscaler(int kind);
   void SetTvFilter(bool on);
   void SetBandwidthSave(bool on);
   void SetPsx(bool on);
@@ -954,6 +1009,9 @@ struct GxCore {
   // the screen to present to (Vulkan: an ANativeWindow; GL draws into the current context's) and its size in pixels
   virtual void SetWindow(void *, int, int) {}
   virtual void SetOverlay(const GxOverlay &) {}
+  // the present times (GxRenderer::PresentTimes; Vulkan only)
+  virtual bool PresentTimes() const { return false; }
+  virtual void SetPresentHook(GxPresentHook, void *) {}
   // the API, the GPU and its driver, for the log and the error report
   virtual std::string ApiInfo() const = 0;
   virtual std::string TimingLine() { return std::string(); }

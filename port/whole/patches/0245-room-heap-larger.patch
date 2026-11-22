@@ -1,0 +1,18 @@
+# Port patch (1.1.0, the project owner, 20.11.2026; the idea from a fork, re-made): the game's heaps end at
+# 0x826F4000 instead of 0x817F4000 (before on LP64 0x818F4000 by lp64_sizes.json), on ILP32 and LP64 alike
+# (runtime/re4_mem1_map.h RE4_MEM1_HEAP_END, the runtime test "tasks" checks both agree). The last heap is the
+# room heap 4 for a room's enemy modules: 15 MB more (LP64 14 MB), so that "More enemies", "Random enemies" and
+# the game's own crowded rooms less often find it full. The port's own places above it moved up (re4_mem1_map.h);
+# everything stays below the game's pointer limit 0x82FFFFFF.
+--- a/src/game/main_mem.cpp
++++ b/src/game/main_mem.cpp
+@@ -84,7 +84,8 @@
+ // tagged "_reset_keep_" that survives soft resets).
+ void SystemMemInit()
+ {
+-    SysMem.Heap_end_addr = 0x817F4000;
++    /* port (patch 0245): the heaps up to RE4_MEM1_HEAP_END (runtime/re4_mem1_map.h), 15 MB more for heap 4 */
++    SysMem.Heap_end_addr = 0x826F4000;
+     SysMem.Dvdread_addr = 0x80350000;
+     SysMem.Sound_addr = 0x80370000;
+     SysMem.Fifo_addr = 0x803F0000;

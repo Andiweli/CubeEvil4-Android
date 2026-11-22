@@ -84,15 +84,73 @@ struct Layout {
     int count = 0;
     unsigned maxKHz[kMax] = {};
     unsigned slowest = 0, fastest = 0;  // highest clocks of the slowest / fastest kind
+    // 1.1.0: the kinds by the system's capacity of each core where it tells it (cpu_capacity: what a core does at its
+    // highest clock, 1024 the strongest), ahead of the clock; 0 everywhere: by the clock as before. A user's OPPO A53
+    // (Snapdragon 460, 21.11.2026): its four small cores (Cortex-A53) reach 1804 MHz, its four big ones (Cortex-A73)
+    // only 1612, so by the clock "Performance cores" (on in every profile) put the game on the small ones.
+    unsigned capacity[kMax] = {};
+    unsigned rank[kMax] = {};
+    unsigned rankSlow = 0, rankFast = 0;  // 0: by the clock
+
+    unsigned Rank(int cpu) const { return rankFast ? rank[cpu] : maxKHz[cpu]; }
+    unsigned RankSlow() const { return rankFast ? rankSlow : slowest; }
+    unsigned RankFast() const { return rankFast ? rankFast : fastest; }
+    // every core alike (or the clocks not readable): no kinds
+    bool Alike() const { return RankSlow() == RankFast(); }
 
     // 0 the slowest kind of core, 2 the fastest, 1 in between; 2 when all are alike or the
     // clocks are not readable
     int Kind(int cpu) const
     {
-        if (cpu < 0 || cpu >= count || !maxKHz[cpu] || slowest == fastest) {
+        if (cpu < 0 || cpu >= count || !maxKHz[cpu] || Alike()) {
             return 2;
         }
-        return maxKHz[cpu] == fastest ? 2 : maxKHz[cpu] == slowest ? 0 : 1;
+        return Rank(cpu) == RankFast() ? 2 : Rank(cpu) == RankSlow() ? 0 : 1;
+    }
+
+    // The kinds by `capacity` (GetLayout; the tests): a core's rank its capacity, then its clock (two kinds of the
+    // same capacity, as some kernels give a prime core and the big ones, stay apart by the clock); slowest / fastest
+    // then the highest clocks of the slowest / fastest kind (for the log lines). Nothing when a core with a clock has
+    // no capacity or all capacities are alike.
+    void RankByCapacity()
+    {
+        unsigned lo = 0, hi = 0;
+        for (int cpu = 0; cpu < count; cpu++) {
+            if (!maxKHz[cpu]) {
+                continue;
+            }
+            if (!capacity[cpu]) {
+                return;
+            }
+            lo = !lo || capacity[cpu] < lo ? capacity[cpu] : lo;
+            hi = capacity[cpu] > hi ? capacity[cpu] : hi;
+        }
+        if (lo == hi) {
+            return;
+        }
+        rankSlow = rankFast = 0;
+        for (int cpu = 0; cpu < count; cpu++) {
+            rank[cpu] = maxKHz[cpu] ? capacity[cpu] * 4096u + maxKHz[cpu] / 1000u : 0;
+            if (rank[cpu] && (!rankSlow || rank[cpu] < rankSlow)) {
+                rankSlow = rank[cpu];
+            }
+            rankFast = rank[cpu] > rankFast ? rank[cpu] : rankFast;
+        }
+        slowest = fastest = 0;
+        for (int cpu = 0; cpu < count; cpu++) {
+            if (!maxKHz[cpu]) {
+                continue;
+            }
+            if (rank[cpu] == rankSlow) {
+                slowest = maxKHz[cpu] > slowest ? maxKHz[cpu] : slowest;
+            }
+            if (rank[cpu] == rankFast) {
+                fastest = maxKHz[cpu] > fastest ? maxKHz[cpu] : fastest;
+            }
+        }
+        if (slowest == fastest) {
+            slowest = fastest - 1;  // (kept apart for the "all alike" checks of the clock)
+        }
     }
 
     // "8 cores: 0-5 at most 1586 MHz, 6-7 at most 1794 MHz"
@@ -115,6 +173,22 @@ struct Layout {
             }
             i = j + 1;
         }
+        // the kinds by the capacity where they differ from the clock's order (1.1.0)
+        if (rankFast && n < static_cast<int>(size)) {
+            n += snprintf(out + n, size - n, "; kinds by the system's capacity:");
+            for (int i = 0; i < count && n < static_cast<int>(size);) {
+                int j = i;
+                while (j + 1 < count && capacity[j + 1] == capacity[i]) {
+                    j++;
+                }
+                n += j > i ? snprintf(out + n, size - n, "%s %d-%d %u", i ? "," : "", i, j, capacity[i])
+                           : snprintf(out + n, size - n, "%s %d %u", i ? "," : "", i, capacity[i]);
+                i = j + 1;
+            }
+            if (n < static_cast<int>(size)) {
+                snprintf(out + n, size - n, " (%s the fastest)", Kind(count - 1) == 2 ? "the last" : "not the last");
+            }
+        }
     }
 };
 
@@ -130,6 +204,8 @@ inline const Layout& GetLayout()
             }
             snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu);
             l.maxKHz[cpu] = ReadNumber(path);
+            snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpu_capacity", cpu);
+            l.capacity[cpu] = ReadNumber(path);
             l.count = cpu + 1;
         }
         for (int cpu = 0; cpu < l.count; cpu++) {
@@ -140,6 +216,11 @@ inline const Layout& GetLayout()
             if (khz > l.fastest) {
                 l.fastest = khz;
             }
+        }
+        // (RE4_CPU_CAPACITY=0: by the clock only, as before 1.1.0)
+        const char* byCapacity = getenv("RE4_CPU_CAPACITY");
+        if (!(byCapacity && *byCapacity == '0')) {
+            l.RankByCapacity();
         }
         return l;
     }();
@@ -174,7 +255,7 @@ struct ThreadUse {
         const Layout& l = GetLayout();
         const double n = pictures ? pictures : 1;
         int len = snprintf(out, size, "%.1f ms of processor time each", cpuNs / 1e6 / n);
-        if (l.slowest != l.fastest && len < static_cast<int>(size)) {
+        if (!l.Alike() && len < static_cast<int>(size)) {
             len += snprintf(out + len, size - len, ", on fast/middle/slow cores %.0f/%.0f/%.0f %%",
                             onKind[2] * 100.0 / n, onKind[1] * 100.0 / n, onKind[0] * 100.0 / n);
         }
@@ -210,6 +291,7 @@ inline WantedCores& Wanted()
     return w;
 }
 inline bool KeepOnFastCores();  // below
+inline bool RenderCoresNow(cpu_set_t* set);  // below (the render thread's cores as the clocks allow them now)
 
 // Which cores KeepOffSlowCores gives a thread. With three kinds of core (a prime core: the Retroid Pocket Flip 2's
 // Snapdragon 865 has one at 2841 MHz, three at 2419 and four at 1804) the render thread gets the fastest kind alone
@@ -247,7 +329,7 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role =
         snprintf(out, size, "left to Android (RE4_FAST_CORES=0)");
         return false;
     }
-    if (!l.fastest || l.slowest == l.fastest) {
+    if (!l.fastest || l.Alike()) {
         snprintf(out, size, "left to Android (%s)", l.fastest ? "all cores alike" : "clocks not readable");
         return false;
     }
@@ -303,7 +385,8 @@ inline bool KeepOffSlowCores(const Layout& l, char* out, size_t size, int role =
     }
     Wanted().set = set;
     Wanted().on = true;
-    Wanted().role = prime ? role : kAnyThread;
+    // (1.1.0: the render thread's role also without prime cores: its cores follow the clocks, RenderCoresNow)
+    Wanted().role = prime || role == kRenderThread ? role : kAnyThread;
     return true;
 }
 
@@ -383,10 +466,11 @@ inline bool KeepOnFastCores()
     if (!w.on) {
         return false;
     }
-    // the render thread on prime cores: the fastest cores allowed now (switched off or held back while hot: others)
+    // the render thread: the cores the clocks allow it now (RenderCoresNow, 1.1.0; switched off or held back while hot:
+    // others, with a margin and a pause between two moves)
     if (w.role == kRenderThread) {
         cpu_set_t best;
-        if (FastestCoresNow(GetLayout(), &best)) {
+        if (RenderCoresNow(&best)) {
             w.set = best;
         }
     }
@@ -441,7 +525,7 @@ inline bool KeepOffSlowCores(char* out, size_t size, int role = kAnyThread)
 // The cores faster than the slowest kind (0 when all are alike or the clocks are not readable).
 inline int FasterCores(const Layout& l)
 {
-    if (!l.fastest || l.slowest == l.fastest) {
+    if (!l.fastest || l.Alike()) {
         return 0;
     }
     int n = 0;
@@ -449,6 +533,20 @@ inline int FasterCores(const Layout& l)
         n += l.maxKHz[cpu] && l.Kind(cpu) != 0;
     }
     return n;
+}
+
+// Whether helpers go on the slow cores here (PutOnSlowCores): one or two faster cores, not switched off by
+// RE4_FAST_CORES=0 or RE4_HELPERS_SLOW=0. Then a failed placement is worth another try (hintChunk) and the helpers stay
+// out of the performance hint's session (it would pull them back on the two fast cores).
+inline bool HelpersGoSlow(const Layout& l)
+{
+    const char* env = getenv("RE4_FAST_CORES");
+    const char* helpers = getenv("RE4_HELPERS_SLOW");
+    if ((env && *env == '0') || (helpers && *helpers == '0')) {
+        return false;
+    }
+    const int faster = FasterCores(l);
+    return faster > 0 && faster <= 2;
 }
 
 // Puts thread `tid` (a helper, e.g. a vertex thread) on the slowest kind of core when no more than
@@ -475,32 +573,57 @@ inline bool PutOnSlowCores(const Layout& l, int tid, cpu_set_t* set, char* out, 
         snprintf(out, size, "left to Android (%d faster cores: room for them too)", faster);
         return false;
     }
-    cpu_set_t allowed;
+    // the cores allowed: the thread's own and the app's main thread's (a helper started by a thread already on the fast
+    // cores has only those; a Xiaomi with Android 16, user report 20.11.2026: "no slow core allowed to the app" at the
+    // start, all helpers then beside the game and the render thread); neither with a slow core (Android's start boost
+    // gives the app only the fast cores for its first seconds): the slow cores asked for anyway, and when Android
+    // refuses, hintChunk tries again later
+    cpu_set_t allowed, mainSet;
     CPU_ZERO(&allowed);
-    if (sched_getaffinity(tid, sizeof(allowed), &allowed) != 0) {
+    CPU_ZERO(&mainSet);
+    const bool own = sched_getaffinity(tid, sizeof(allowed), &allowed) == 0;
+    if (sched_getaffinity(getpid(), sizeof(mainSet), &mainSet) == 0) {
+        CPU_OR(&allowed, &allowed, &mainSet);
+    } else if (!own) {
         snprintf(out, size, "left to Android (its cores not readable)");
         return false;
     }
     cpu_set_t slow;
-    CPU_ZERO(&slow);
-    int n = 0, len = snprintf(out, size, "on cores");
-    for (int cpu = 0; cpu < l.count; cpu++) {
-        if (l.Kind(cpu) != 0 || !CPU_ISSET(cpu, &allowed)) {
-            continue;
+    for (int pass = 0; pass < 2; pass++) {
+        CPU_ZERO(&slow);
+        int n = 0;
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (l.Kind(cpu) != 0 || (pass == 0 && !CPU_ISSET(cpu, &allowed)) || (pass == 1 && !CoreOnline(cpu))) {
+                continue;
+            }
+            CPU_SET(cpu, &slow);
+            n++;
         }
-        CPU_SET(cpu, &slow);
-        n++;
-        if (len < static_cast<int>(size)) {
-            len += snprintf(out + len, size - len, " %d", cpu);
+        if (n) {
+            break;
         }
-    }
-    if (!n) {
-        snprintf(out, size, "left to Android (no slow core allowed to the app)");
-        return false;
+        if (pass == 1) {
+            snprintf(out, size, "left to Android (no slow core allowed to the app)");
+            return false;
+        }
     }
     if (sched_setaffinity(tid, sizeof(slow), &slow) != 0) {
-        snprintf(out, size, "left to Android (not allowed: %s)", strerror(errno));
+        snprintf(out, size, errno == EINVAL ? "left to Android (no slow core allowed to the app)"
+                                            : "left to Android (not allowed: %s)",
+                 strerror(errno));
         return false;
+    }
+    // the cores it got (Android may have narrowed them)
+    cpu_set_t got;
+    CPU_ZERO(&got);
+    if (sched_getaffinity(tid, sizeof(got), &got) == 0 && CPU_COUNT(&got) > 0) {
+        CPU_AND(&slow, &slow, &got);
+    }
+    int len = snprintf(out, size, "on cores");
+    for (int cpu = 0; cpu < l.count && len < static_cast<int>(size); cpu++) {
+        if (CPU_ISSET(cpu, &slow)) {
+            len += snprintf(out + len, size - len, " %d", cpu);
+        }
     }
     if (len < static_cast<int>(size)) {
         snprintf(out + len, size - len, ", the slowest (only %d faster cores)", faster);
@@ -509,6 +632,175 @@ inline bool PutOnSlowCores(const Layout& l, int tid, cpu_set_t* set, char* out, 
         *set = slow;
     }
     return true;
+}
+
+// The render thread's cores when the maker holds cores back (1.1.0, the project owner's decision of 20.11.2026 after a
+// user's Xiaomi with a Snapdragon 8s Gen 4: the fastest core, the render thread's, held at 633 of 3206 MHz from the
+// 14th minute on while Android said no heat; in a full room 60 FPS fell to 30). Each core is judged by the clock it
+// may reach now (AllowedKHz), the slowest kind's at 45 % (a small core does less than half the work per clock; the
+// middle and the fastest kind count alike: on the Snapdragon 865 both are Cortex-A77, as before 1.1.0 the highest
+// allowed clock wins), an equal one for the faster kind. The render thread goes to the cores of the best group (its
+// kind, its allowed clock) only when that one beats the cores it has by 15 % (back to a faster kind: when it is at
+// least as good) and its last move is 5 s ago:
+// no back and forth. The slowest kind only where the helpers do not go there (HelpersGoSlow) and RE4_RENDER_SLOW is
+// not 0. It starts on the cores KeepOffSlowCores gave it (as before); without a change in the clocks nothing moves.
+struct RenderPick {
+    static constexpr unsigned kMarginPercent = 115;
+    static constexpr double kPause = 5.0;
+    bool have = false;      // `set` is known (the first call takes the thread's cores as they are)
+    cpu_set_t set;
+    double movedAt = -1e9;  // seconds (CLOCK_MONOTONIC) of the last move
+    unsigned moves = 0;
+    char last[160] = "";    // the last move, for the log: "from core 7 (633 MHz allowed) to cores 0 1 (2016 MHz)"
+
+    static unsigned Score(int kind, unsigned khz)
+    {
+        const unsigned percent = kind == 0 ? 45 : 100;
+        return static_cast<unsigned>(static_cast<unsigned long long>(khz) * percent / 100);
+    }
+
+    // `allowed[cpu]`: the clock core cpu may reach now in kHz (0: not readable, its highest then), `online[cpu]`: it is
+    // switched on; `current`: the thread's cores so far (the first call), `slowOk`: the slowest kind may be chosen,
+    // `now` in seconds. True when `set` changed (a move).
+    bool Update(const Layout& l, const unsigned* allowed, const bool* online, const cpu_set_t& current, bool slowOk,
+                double now)
+    {
+        if (!have) {
+            set = current;
+            have = true;
+        }
+        unsigned best = 0, have_ = 0;
+        int bestCpu = -1, bestKind = -1;
+        bool anyOnline = false;
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (!l.maxKHz[cpu] || !online[cpu]) {
+                continue;
+            }
+            const unsigned khz = allowed[cpu] ? allowed[cpu] : l.maxKHz[cpu];
+            const unsigned score = Score(l.Kind(cpu), khz);
+            if (CPU_ISSET(cpu, &set)) {
+                anyOnline = true;
+                have_ = score > have_ ? score : have_;
+            }
+            if (l.Kind(cpu) == 0 && !slowOk && !l.Alike()) {
+                continue;
+            }
+            if (score > best || (score == best && l.Kind(cpu) > bestKind)) {
+                best = score;
+                bestCpu = cpu;
+                bestKind = l.Kind(cpu);
+            }
+        }
+        if (bestCpu < 0) {
+            return false;
+        }
+        const int kind = l.Kind(bestCpu);
+        const unsigned khz = allowed[bestCpu] ? allowed[bestCpu] : l.maxKHz[bestCpu];
+        cpu_set_t group;
+        CPU_ZERO(&group);
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (l.maxKHz[cpu] && online[cpu] && l.Kind(cpu) == kind &&
+                (allowed[cpu] ? allowed[cpu] : l.maxKHz[cpu]) == khz) {
+                CPU_SET(cpu, &group);
+            }
+        }
+        if (CPU_EQUAL(&group, &set) || CPU_COUNT(&group) == 0) {
+            return false;
+        }
+        // its cores all switched off: at once; otherwise only with the margin (none back to a faster kind) and after
+        // the pause
+        int setKind = -1;
+        for (int cpu = 0; cpu < l.count; cpu++) {
+            if (CPU_ISSET(cpu, &set) && l.maxKHz[cpu]) {
+                setKind = l.Kind(cpu) > setKind ? l.Kind(cpu) : setKind;
+            }
+        }
+        const unsigned margin = kind > setKind ? 100 : kMarginPercent;
+        if (anyOnline && (static_cast<unsigned long long>(best) * 100 <
+                              static_cast<unsigned long long>(have_) * margin ||
+                          now - movedAt < kPause)) {
+            return false;
+        }
+        // "from core 7 (633 MHz allowed) to cores 0 1 (2016 MHz allowed)"
+        int len = snprintf(last, sizeof(last), "from cores");
+        unsigned fromKHz = 0;
+        for (int cpu = 0; cpu < l.count && len < static_cast<int>(sizeof(last)); cpu++) {
+            if (CPU_ISSET(cpu, &set)) {
+                len += snprintf(last + len, sizeof(last) - len, " %d", cpu);
+                const unsigned a = allowed[cpu] ? allowed[cpu] : l.maxKHz[cpu];
+                fromKHz = a > fromKHz ? a : fromKHz;
+            }
+        }
+        if (len < static_cast<int>(sizeof(last))) {
+            len += snprintf(last + len, sizeof(last) - len, " (%u MHz allowed%s) to cores", fromKHz / 1000,
+                            anyOnline ? "" : ", switched off");
+        }
+        for (int cpu = 0; cpu < l.count && len < static_cast<int>(sizeof(last)); cpu++) {
+            if (CPU_ISSET(cpu, &group)) {
+                len += snprintf(last + len, sizeof(last) - len, " %d", cpu);
+            }
+        }
+        if (len < static_cast<int>(sizeof(last))) {
+            snprintf(last + len, sizeof(last) - len, " (%u MHz allowed, %s kind)", khz / 1000,
+                     kind == 2 ? "the fastest" : kind == 1 ? "the middle" : "the slowest");
+        }
+        set = group;
+        movedAt = now;
+        moves++;
+        return true;
+    }
+};
+
+inline RenderPick& TheRenderPick()
+{
+    static RenderPick pick;  // (one render thread at a time)
+    return pick;
+}
+
+// The render thread's cores now (KeepOnFastCores): the clocks read, RenderPick's choice. False when nothing is known.
+inline bool RenderCoresNow(cpu_set_t* set)
+{
+    const Layout& l = GetLayout();
+    if (!l.fastest || l.count <= 0) {
+        return false;
+    }
+    unsigned allowed[Layout::kMax] = {};
+    bool online[Layout::kMax] = {};
+    for (int cpu = 0; cpu < l.count; cpu++) {
+        online[cpu] = CoreOnline(cpu);
+        allowed[cpu] = online[cpu] ? AllowedKHz(cpu) : 0;
+    }
+    const char* env = getenv("RE4_RENDER_SLOW");
+    const bool slowOk = !(env && *env == '0') && !HelpersGoSlow(l);
+    timespec ts{};
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    RenderPick& pick = TheRenderPick();
+    pick.Update(l, allowed, online, Wanted().set, slowOk, ts.tv_sec + ts.tv_nsec / 1e9);
+    *set = pick.set;
+    return true;
+}
+
+// "clocks now/allowed/highest: 0 1075/2016/2016, 1 ..., 7 633/633/3206 MHz, 6 offline": every core's clock now, the one
+// it may reach now (the maker's or the heat's limit) and its highest (1.1.0, the render thread's minute line).
+inline void DescribeAllClocks(const Layout& l, char* out, size_t size)
+{
+    int len = snprintf(out, size, "clocks now/allowed/highest:");
+    bool any = false;
+    for (int cpu = 0; cpu < l.count && len < static_cast<int>(size); cpu++) {
+        if (!l.maxKHz[cpu]) {
+            continue;
+        }
+        if (!CoreOnline(cpu)) {
+            len += snprintf(out + len, size - len, "%s %d offline", any ? "," : "", cpu);
+        } else {
+            len += snprintf(out + len, size - len, "%s %d %u/%u/%u", any ? "," : "", cpu, CurrentKHz(cpu) / 1000,
+                            AllowedKHz(cpu) / 1000, l.maxKHz[cpu] / 1000);
+        }
+        any = true;
+    }
+    if (len < static_cast<int>(size)) {
+        snprintf(out + len, size - len, any ? " MHz" : " not readable");
+    }
 }
 
 // Thread `tid` back on every core Android allows (after PutOnSlowCores).
@@ -560,6 +852,7 @@ public:
         const auto manager = reinterpret_cast<Manager>(dlsym(lib, "APerformanceHint_getManager"));
         const auto create = reinterpret_cast<Create>(dlsym(lib, "APerformanceHint_createSession"));
         report_ = reinterpret_cast<int (*)(void*, int64_t)>(dlsym(lib, "APerformanceHint_reportActualWorkDuration"));
+        retarget_ = reinterpret_cast<int (*)(void*, int64_t)>(dlsym(lib, "APerformanceHint_updateTargetWorkDuration"));
         close_ = reinterpret_cast<void (*)(void*)>(dlsym(lib, "APerformanceHint_closeSession"));
         if (!manager || !create || !report_) {
             *why = "not on this Android (before 13)";
@@ -586,6 +879,13 @@ public:
 
     bool On() const { return session_ != nullptr; }
 
+    // a new target for the work of one picture (1.1.0: the render thread's with 60 FPS on or off); false without a
+    // session
+    bool Retarget(long long targetNs)
+    {
+        return session_ && retarget_ && targetNs > 0 && retarget_(session_, targetNs) == 0;
+    }
+
     void Close()
     {
         if (session_ && close_) {
@@ -597,6 +897,7 @@ public:
 private:
     void* session_ = nullptr;
     int (*report_)(void*, int64_t) = nullptr;
+    int (*retarget_)(void*, int64_t) = nullptr;
     void (*close_)(void*) = nullptr;
 };
 

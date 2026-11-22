@@ -134,6 +134,32 @@ public final class CoreBridge {
   public static native void setAim(boolean invert, float speed, boolean autoAim, boolean alwaysRun);
   /** The game's own options changed "reverse" since the last call (patch 0188): -1, else 0 / 1 for "Invert vertical". */
   public static native int aimFromGame();
+  /** The menu's "Vibration" not Off (1.1.0): the game's own vibration switch follows it (runtime/aim_options.cpp). */
+  public static native void setGameVibration(boolean on);
+  /** The game's own options changed "vibration" since the last call (1.1.0): -1, else 0 / 1. */
+  public static native int vibrationFromGame();
+  /** "Enemy health bars" (1.1.0, Cheats & Mods): a bar above each living enemy (runtime/health_bars.cpp). */
+  public static native void setHealthBars(boolean on);
+  /** The cheat "Stack items" (1.1.0, Cheats & Mods): ammo, grenades and recovery items up to `max` a slot (0 Standard,
+   *  250, 500, 999; patch 0254). */
+  public static native void setStackItems(int max);
+  /** The mouse in the game's title and options menus (1.1.0): the app's own pointer (u, v 0..1 over the game's
+   *  picture) at each move, `click` for a left click (runtime/mouse_menu.cpp). */
+  public static native void mouseMenu(float u, float v, boolean click);
+  /** "Reload without aiming" (1.1.0, keyboard): one reload through the game's own direct reload (patch 0241). */
+  public static native void quickReload();
+  /** Photo mode (1.1.0): op 1 on with the mask (1 HUD, 2 Leon, 4 the partner, 8 the enemies hidden), 0 off, 2 the
+   *  mask alone; false with a core without it (runtime/photo_mode.cpp). */
+  public static native boolean photoMode(int op, int mask);
+  /** The free camera's input in photo mode: a = move x, move z, rise, turn (bytes from the low one, -127..127);
+   *  b = tilt (byte), speed (byte: 0 normal, 1 slow, 2 fast), bit 16 back to the start, bits 17-20 the camera effect; c = turn and tilt by the
+   *  mouse or a finger (s16 each, 1/8192 rad, low = turn). */
+  public static native void photoInput(int a, int b, int c);
+  /** 1: photo mode is on (the pictures say so); 2: a request was refused since the last call. */
+  public static native int photoState();
+  /** "Prepare shaders at start" (1.1.0): {state (0 not started, 1 running, 2 through), done, total} of the shaders made
+   *  ahead (GLES programs or the Vulkan pipeline list). */
+  public static native int[] shaderPrep();
   /** The Potato mode bits from the graphics settings ("weatherEffects", "specialEffects", both on by default; since
    *  0.99.3 "particleEffects" 0 normal / 1 less / 2 none in bits 2..3 and "shadowsLight", on by default, bit 4 when
    *  off; the core's runtime/potato.cpp). */
@@ -284,6 +310,16 @@ public final class CoreBridge {
    */
   public static native void setCpuSkip(boolean on);
   /**
+   * Frame skip "Auto" (1.1.0): both frame skips (setFrameSkip's and setCpuSkip's) only while the game stays under 30
+   * pictures a second for about half a second, off again after two seconds at full pace. Not with 60 FPS.
+   */
+  public static native void setFrameSkipAuto(boolean on);
+  /**
+   * "Even frame pacing" (1.1.0): on (the default) the steady rhythms (a picture held back one vsync at 30, each picture
+   * asked for its vsync at 60 on screens faster than 60 Hz); off each picture at the next free vsync.
+   */
+  public static native void setEvenPacing(boolean on);
+  /**
    * Save bandwidth (Vulkan; 0.99.8): the clear after an EFB copy goes with the next pass, which then loads nothing
    * there (less memory traffic on a tiling GPU such as Mali or Adreno); the pictures stay the same. OpenGL ES: nothing.
    */
@@ -292,6 +328,11 @@ public final class CoreBridge {
   public static native void setFxaa(boolean on);
   /** Sharpen (0 off, 1 light, 2 strong): a contrast-adaptive sharpening of every picture after FXAA, not movies. */
   public static native void setSharpen(int level);
+  /**
+   * The upscaler (1.1.0; 0 off, 1 SGSR, 2 FSR): the picture enlarged by Qualcomm's SGSR or AMD's FSR 1 instead of the
+   * plain stretch when it is smaller than its place on the screen (gx_upscale.h).
+   */
+  public static native void setUpscaler(int kind);
   /**
    * "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words are enlarged with
    * clean edges on a thread of their own and drawn sharper at high resolutions (word_sharpen.h); on by default.
@@ -353,6 +394,8 @@ public final class CoreBridge {
   public static native void zoom(int notches);
   /** The cheat "Random enemies" (CoreMenu, 0.99.12): its seed (20 bits), 0 off; from the next room on. */
   public static native void setEnemyRandom(int seed);
+  /** The cheat "More enemies" (1.1.0): about 40 % more of a room's ordinary Ganados at random places; its seed, 0 off. */
+  public static native void setMoreEnemies(int seed);
   /** "Gentler QTEs" (CoreMenu, comfort controls, 0.99.15): Professional's quick-time events as Normal's
    *  (runtime/qte_touch.cpp re4_qte_level, patch 0232); cores before 0.99.15 leave it out. */
   public static native void setGentleQte(boolean on);

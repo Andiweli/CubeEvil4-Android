@@ -110,10 +110,9 @@ public class CoreMenuRowsTest {
           show.invoke(menu, 4, false);  // PERFORMANCE
           View root = (View) CoreMenuLayoutTest.field(menu, "root");
           root.setLayoutDirection(config.getLayoutDirection());
-          // (by its value's text: the Arabic one begins with the right-to-left mark)
-          Button view = withLabel(root, activity.getString(R.string.ingame_toggle_value,
-              activity.getString(R.string.ingame_potato_view), activity.getString(R.string.ingame_view_normal)));
-          assertNotNull(language + ": the view distance button", view);
+          // (1.1.0: the arrow selector by its name)
+          ArrowSelector view = CoreMenuLayoutTest.selectorNamed(root, activity.getString(R.string.ingame_potato_view));
+          assertNotNull(language + ": the view distance selector", view);
           float density = activity.getResources().getDisplayMetrics().density;
           // the window's width fixed, the levels clicked through, as in the app (each click lays the button out anew)
           for (int width : new int[] {320, 480, 700, 960}) {
@@ -128,12 +127,9 @@ public class CoreMenuRowsTest {
               assertTrue(where + ": inside the page", view.getLeft() >= 0 && view.getRight() <= row.getWidth());
               CoreMenuLayoutTest.checkBounds(view, where);
               android.text.Layout layout = view.getLayout();
-              int eyes = view.getText().toString().indexOf('\uFFFC');
-              assertTrue(where + ": the eyes after the text", eyes > 0);
-              assertTrue(where + ": the eyes on the text's last line or the next",
-                  layout.getLineForOffset(eyes) == layout.getLineCount() - 1);
+              // the name and the value on a line each (1.1.0), nothing cut
               if (scale == 1f && width >= 700)
-                assertEquals(where + ": on one line", 1, layout.getLineCount());
+                assertEquals(where + ": name and value on a line each", 2, layout.getLineCount());
               checked++;
             }
             view.performClick();  // round to Normal again for the next width
@@ -260,6 +256,90 @@ public class CoreMenuRowsTest {
         }
       }
     assertEquals("languages, font sizes and widths", 11 * 3 * 4, checked);
+  }
+
+  /** A button whose text holds `label` (a toggle's text may begin with a direction mark in Arabic). */
+  private static Button buttonWith(View view, String label) {
+    if (view instanceof Button && ((Button) view).getText().toString().contains(label)) return (Button) view;
+    if (view instanceof android.view.ViewGroup) {
+      android.view.ViewGroup g = (android.view.ViewGroup) view;
+      for (int i = 0; i < g.getChildCount(); i++) {
+        Button b = buttonWith(g.getChildAt(i), label);
+        if (b != null) return b;
+      }
+    }
+    return null;
+  }
+
+  private static int leftIn(View v, View ancestor) {
+    int x = 0;
+    for (View at = v; at != null && at != ancestor; at = (View) at.getParent()) x += at.getLeft();
+    return x;
+  }
+
+  /** 1.1.0 (the project owner, 20./21.11.2026), in every language: under "Device" the controller's "Force controller
+   *  detection" or the keyboard's "Reload without aiming", as wide as the device's buttons; the mouse's sensitivity on
+   *  one line from 520 dp up, its slider not left of the device's buttons; "Record the error log" a switch, on by
+   *  default; "Source and updates" at the bottom of Management and of the main page. */
+  @Test public void menuChanges110() throws Exception {
+    Method show = CoreMenu.class.getDeclaredMethod("showPage", int.class, boolean.class); show.setAccessible(true);
+    java.lang.reflect.Field kind = CoreMenu.class.getDeclaredField("mapKind"); kind.setAccessible(true);
+    int checked = 0;
+    for (String language : new String[] {"en", "de", "es", "fr", "it", "pt", "ru", "ar", "zh", "hi", "in"}) {
+      try (var controller = Robolectric.buildActivity(Activity.class).create()) {
+        Activity activity = controller.get();
+        Configuration config = new Configuration(activity.getResources().getConfiguration());
+        config.setLocale(Locale.forLanguageTag(language));
+        activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
+        assertTrue(language + ": the error log on by default", CoreLog.enabled(activity));
+        CoreMenu menu = new CoreMenu(activity, null, false, 1920, 1080);
+        View root = (View) CoreMenuLayoutTest.field(menu, "root");
+        root.setLayoutDirection(config.getLayoutDirection());
+        float density = activity.getResources().getDisplayMetrics().density;
+        String force = activity.getString(R.string.ingame_force_controller);
+        String reload = activity.getString(R.string.ingame_quick_reload);
+        String controllerLabel = activity.getString(R.string.ingame_map_controller);
+        kind.setInt(menu, ActionMap.KIND_CONTROLLER);
+        show.invoke(menu, 7, false);
+        assertNotNull(language + ": the controller: force detection", buttonWith(root, force));
+        assertNull(language + ": the controller: no reload switch", buttonWith(root, reload));
+        kind.setInt(menu, ActionMap.KIND_KEYBOARD);
+        show.invoke(menu, 7, false);
+        Button quick = buttonWith(root, reload), device = buttonWith(root, controllerLabel);
+        assertNotNull(language + ": the keyboard: reload without aiming", quick);
+        assertNull(language + ": the keyboard: no force detection", buttonWith(root, force));
+        TextView mouse = textIn(root, activity.getString(R.string.ingame_mouse_sensitivity));
+        assertNotNull(language + ": the mouse's sensitivity", mouse);
+        for (int width : new int[] {560, 640, 700, 800, 960}) {
+          String where = language + "/" + width;
+          CoreMenuLayoutTest.measure(root, Math.round(width * density), Math.round(400 * density));
+          assertEquals(where + ": the mouse's label on one line", 1, mouse.getLineCount());
+          View page = (View) ((View) quick.getParent()).getParent().getParent();
+          assertTrue(where + ": reload right under the device row",
+              CoreMenuLayoutTest.topIn(quick, page) > CoreMenuLayoutTest.topIn(device, page)
+                  && CoreMenuLayoutTest.topIn(quick, page) < CoreMenuLayoutTest.topIn(mouse, page));
+          if (config.getLayoutDirection() == View.LAYOUT_DIRECTION_LTR) {
+            View deviceBox = (View) device.getParent();
+            assertEquals(where + ": reload as far in as the device's buttons", leftIn(deviceBox, page),
+                leftIn((View) quick.getParent(), page));
+            // (1.1.0) the mouse's sensitivity a slider cell of the grid, as the other cells
+            assertTrue(where + ": a slider cell", mouse.getParent() instanceof SliderCell);
+          }
+          checked++;
+        }
+        show.invoke(menu, 6, false);
+        assertNotNull(language + ": the error log's switch", buttonWith(root, activity.getString(R.string.ingame_log_record)));
+        assertNotNull(language + ": graphics capture kept", buttonWith(root, activity.getString(R.string.ingame_log_capture)));
+        assertNotNull(language + ": Management's source link",
+            buttonWith(root, activity.getString(R.string.ingame_source_line, CoreMenu.SOURCE_URL)));
+        show.invoke(menu, 0, false);
+        assertNotNull(language + ": the main page's source link",
+            buttonWith(root, activity.getString(R.string.ingame_source_line, CoreMenu.SOURCE_URL)));
+        assertNotNull(language + ": the main page's source note", textIn(root,
+            activity.getString(R.string.ingame_source_only) + "\n" + activity.getString(R.string.ingame_source_avoid)));
+      }
+    }
+    assertEquals("languages and widths", 11 * 5, checked);
   }
 
 }

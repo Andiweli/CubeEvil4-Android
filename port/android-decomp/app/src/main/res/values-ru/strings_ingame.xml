@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Russian (Русский): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 · Игровое меню</string>
+    <string name="ingame_title">Настройки CubeEvil4</string>
     <string name="ingame_back">Вернуться в игру</string>
 
     <string name="ingame_graphics">Графика</string>
@@ -23,7 +23,33 @@
     <string name="ingame_laser_yellow">Жёлтый</string>
     <string name="ingame_postprocessing">Постобработка</string>
     <string name="ingame_effects">Эффекты</string>
-    <string name="ingame_optional_features">Дополнительные функции</string>
+    <string name="ingame_optional_features">Дополнительно</string>
+    <string name="ingame_side_filtering">Фильтрация</string>
+    <string name="ingame_side_features">Функции</string>
+    <string name="ingame_side_levels">Уровни</string>
+    <string name="ingame_side_mute">Без звука</string>
+    <string name="ingame_side_touch_style">Сенсорный стиль</string>
+    <string name="ingame_side_gyro">Гироскоп</string>
+    <string name="ingame_side_axes">Оси</string>
+    <string name="ingame_side_control_type">Тип управления</string>
+    <string name="ingame_side_assists">Помощь</string>
+    <string name="ingame_side_aim_with">Прицел</string>
+    <string name="ingame_side_view">Вид</string>
+    <string name="ingame_side_stick">Настройки стика</string>
+    <string name="ingame_mapping_section">Назначение кнопок и клавиш</string>
+    <string name="ingame_side_assign">Назначить</string>
+    <string name="ingame_side_profile">Профиль</string>
+    <string name="ingame_side_options">Параметры</string>
+    <string name="ingame_side_basic_weapons">Обычное оружие</string>
+    <string name="ingame_side_explosive_weapons">Взрывное оружие</string>
+    <string name="ingame_side_unlocks">Открытия</string>
+    <string name="ingame_side_stacking">Стопки</string>
+    <string name="ingame_side_random">Случайность</string>
+    <string name="ingame_side_advanced">Расширенные</string>
+    <string name="ingame_side_main_character">Главный герой</string>
+    <string name="ingame_side_mercenaries">Mercenaries</string>
+    <string name="ingame_side_manage">Управление</string>
+    <string name="ingame_side_texture_options">Параметры текстур</string>
     <string name="ingame_perf_section">Производительность</string>
     <string name="ingame_minimap">Мини-карта</string>
     <string name="ingame_flares">Блики объектива</string>
@@ -38,6 +64,26 @@
     <string name="ingame_hud_hz">Гц экрана</string>
     <string name="ingame_hud_time">Ч:М:С с начала игры</string>
     <string name="ingame_hud_help">Ч:М:С — собственное время игры, его хранит каждое сохранение, как на GameCube. Время в этом меню или в фоне не считается.</string>
+    <string name="ingame_skip_intro">Пропустить вступление</string>
+    <string name="ingame_skip_intro_help">Пропустить вступление: при запуске игра сразу открывает главное меню, без логотипов и предупреждения о здоровье (со следующего запуска).</string>
+    <string name="ingame_photo_mode">Фоторежим</string>
+    <string name="ingame_photo_mode_help">Фоторежим: L3 (нажатие левого стика) на контроллере, P на клавиатуре или кнопка «Фоторежим» вверху этого меню останавливает игру и освобождает камеру; она ездит по всей комнате и останавливается у стен. HUD, Леона, Эшли и врагов можно скрыть по отдельности, L и R переключают эффекты камеры. В фоторежиме SELECT открывает это меню для фильтров и эффектов. Когда это включено, L3 и P принадлежат фоторежиму. Недоступно в заставках, фильмах, меню и при сохранении. Снимок делайте скриншотом устройства.</string>
+    <string name="ingame_photo_title">Фоторежим</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Леон</string>
+    <string name="ingame_photo_partner">Эшли</string>
+    <string name="ingame_photo_enemies">Враги</string>
+    <string name="ingame_photo_hint_pad">Левый стик: движение · Правый стик: поворот, наклон · Крестовина: вверх/вниз · L/R: эффект камеры · X HUD · Y Леон · A Эшли · Z враги · START сброс · SELECT меню · B или L3 выход</string>
+    <string name="ingame_photo_hint_keys">WASD: движение · Мышь: обзор · E/Q: вверх/вниз · Shift быстро · Alt медленно · Колесо или 5/6: эффект камеры · 1 HUD · 2 Леон · 3 Эшли · 4 враги · R сброс · F1 меню · Esc или P выход</string>
+    <string name="ingame_photo_hint_touch">Левая половина: тяните для движения · Правая половина: тяните для обзора · Второй палец: вверх/вниз · ◆: эффект камеры · Касание: показать это · ✕ выход</string>
+    <string name="ingame_photo_not_here">Фоторежим здесь недоступен (заставки, фильмы, меню, сохранение).</string>
+    <string name="ingame_photo_start">Фоторежим</string>
+    <string name="ingame_photo_fx_normal">Обычный</string>
+    <string name="ingame_photo_fx_wide">Широкий угол</string>
+    <string name="ingame_photo_fx_tele">Телеобъектив</string>
+    <string name="ingame_photo_fx_dolly">Долли-зум</string>
+    <string name="ingame_photo_fx_dutch">Голландский угол</string>
+    <string name="ingame_photo_fx_orbit">Облёт</string>
     <string name="ingame_fps_bottom_left">Внизу слева</string>
     <string name="ingame_fps_bottom_centre">Внизу по центру</string>
     <string name="ingame_fps_top_left">Вверху слева</string>
@@ -115,6 +161,8 @@
     <string name="ingame_gyro_sensitivity">Чувствительность гироскопа</string>
     <string name="ingame_gyro_invert_v">Инвертировать по вертикали</string>
     <string name="ingame_gyro_invert_h">Инвертировать по горизонтали</string>
+    <string name="ingame_gyro_source">Гироскоп из</string>
+    <string name="ingame_gyro_source_help">Гироскоп из: «Авто» использует гироскоп контроллера, которым вы играете, если он есть (например, DualSense или DualShock 4; Android 12 и новее), иначе — гироскоп этого устройства. «Устройство» или «Контроллер» всегда берёт именно его. Гироскоп по-прежнему прицеливает, только пока Леон поднимает оружие.</string>
     <string name="ingame_alternate_help">Альтернативное управление: L1 = нож, L2 = прицеливание (правым стиком), R1 = инвентарь (оружие/лечение), R2 = выстрел / удар ножом, Y = карта. A, B, X (Эшли) и START — как раньше. Прицел винтовки: левый стик вверх/вниз — зум.</string>
     <string name="ingame_knife_swipe">Нож свайпом</string>
     <string name="ingame_knife_swipe_help">Нож свайпом: быстрый свайп по изображению достаёт нож и наносит удар; свайп вверх или вниз — удар выше или ниже.</string>
@@ -236,7 +284,7 @@
     <string name="ingame_controls_page">Управление</string>
     <string name="ingame_performance">Производительность</string>
     <string name="ingame_management">Управление данными</string>
-    <string name="ingame_navigation">Крестовина: Навигация  ·  A: Выбор  ·  B: Назад  ·  SELECT / START: В игру</string>
+    <string name="ingame_navigation">Крестовина: Навигация  ·  A: Выбор / дальше  ·  L1/R1 (Q/E): Изменить значение  ·  B: Назад  ·  SELECT / START: В игру</string>
     <string name="ingame_instant">Мгновенное сохранение</string>
     <string name="ingame_slot">Слот сохранения</string>
     <string name="ingame_slot_details">Глава %1$s  ·  %2$s  ·  Время игры %3$s</string>
@@ -278,7 +326,9 @@
     <string name="ingame_skip_aggressive">Агрессивный</string>
     <string name="ingame_vk_bandwidth">Меньше трафика (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Оригинальный ТВ-фильтр GameCube</string>
+    <string name="ingame_aa_msaa">Сглаживание MSAA</string>
+    <string name="ingame_aa_fxaa">Сглаживание FXAA</string>
+    <string name="ingame_tv_filter">ТВ-фильтр GameCube</string>
     <string name="ingame_fxaa_help">Сглаживает зубчатые края на последнем шаге. Работает с MSAA и без него; картинка становится чуть мягче.</string>
     <string name="ingame_sharper_text">Чёткий текст меню</string>
     <string name="ingame_sharper_text_help">Чёткий текст меню рисует слова в меню игры с чёткими краями при высоком разрешении, на любом языке.</string>
@@ -296,6 +346,14 @@
     <string name="ingame_colour_help">Тёплая плёнка подчёркивает коричневые и золотые тона; хоррор на выживание делает цвета бледнее, а контраст жёстче. Сила задаёт степень.</string>
     <string name="ingame_skip_normal_help">Пропуск кадров «Обычный»: если графический чип не успевает, готовый кадр пропускается, чтобы игра шла с обычной скоростью.</string>
     <string name="ingame_skip_aggressive_help">Пропуск кадров «Агрессивный»: игра сама пропускает не больше одного кадра из двух, когда отстаёт; намного быстрее на телефонах с медленным процессором.</string>
+    <string name="ingame_skip_auto">Авто</string>
+    <string name="ingame_fs_off">Без пропуска кадров</string>
+    <string name="ingame_fs_auto">Пропуск кадров: авто</string>
+    <string name="ingame_fs_normal">Пропуск кадров: обычный</string>
+    <string name="ingame_fs_aggressive">Пропуск кадров: агрессивный</string>
+    <string name="ingame_skip_auto_help">Пропуск кадров «Авто»: пока игра идёт на полной скорости, ничего не пропускается; только если она около полсекунды держится ниже 30 кадров в секунду, помогают оба вида пропуска (сначала пропуск рендерера; игровой только если игра две секунды держится ниже 24, и мягче, чем в «Агрессивном»), пока она снова не проработает две секунды на полной скорости.</string>
+    <string name="ingame_even_pacing">Ровная смена кадров</string>
+    <string name="ingame_even_pacing_help">Ровная смена кадров: Вкл. (по умолчанию) при необходимости придерживает кадр, чтобы каждый был на экране одинаково долго (ровные 30, и 60 на экранах быстрее 60 Гц). Выкл. показывает каждый кадр, как только он готов, как в старых версиях: чуть отзывчивее, но менее ровно.</string>
     <string name="ingame_vk_bandwidth_help">Только Vulkan: экономит пропускную способность памяти на чипах Mali и Adreno; изображение не меняется.</string>
     <string name="ingame_skip_or_smooth">Пропуск кадров и 60 FPS исключают друг друга: включение одного выключает другое.</string>
     <string name="ingame_merge_help">Объединяет несколько объектов в один вызов графического драйвера. Может помочь телефонам с медленным драйвером (например, GPU Mali); не действует при 60 FPS.</string>
@@ -326,6 +384,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Кейс L</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
+    <string name="ingame_cheat_stack">Складывать патроны</string>
+    <string name="ingame_cheat_stack_help">Складывать патроны: патроны складываются до 250, 500 или 999 в одной ячейке (Стандарт: ограничения игры). Гранаты, лечебные предметы и сокровища остаются как в игре. Если потом выбрать меньше, большие стопки останутся и будут тратиться по одной; новые находки займут новую ячейку.</string>
+    <string name="ingame_stack_standard">Стандарт</string>
+    <string name="ingame_cheat_refill">Пополнить патроны</string>
+    <string name="ingame_cheat_refill_full">Нечего пополнять: в кейсе нет патронов или всё уже заполнено.</string>
+    <string name="ingame_cheat_refill_help">Пополнить патроны: каждая стопка патронов в кейсе заполняется до значения «Складывать патроны» (Стандарт: обычный максимум своего вида); новых патронов нет, заряженные в оружие патроны не меняются.</string>
     <string name="ingame_cheats_help">Переключатели остаются включёнными, пока вы их не выключите; сохранения их не запоминают. Некоторые атаки по-прежнему сразу убивают Леона (бензопила, захват, валун). «Невидимость»: враги вас игнорируют, а боссы и постановочные сцены — нет. «Устойчивый прицел»: лазер и оптический прицел не качаются. «Костюмы»: «Куртка Леона» оставляет Леона в коричневой куртке всю игру; «Особый» одевает Леона и Эшли в их особые костюмы. Кнопки меняют вашу игру: оружие, кейс и деньги останутся в следующем сохранении. «Открыть доп. игры» добавляет Assignment Ada и The Mercenaries в главное меню.</string>
     <string name="ingame_cheat_done">Готово: %1$s.</string>
     <string name="ingame_cheat_already">Уже есть: %1$s.</string>
@@ -355,6 +419,7 @@
     <string name="ingame_later">Позже</string>
     <string name="ingame_controller_config">Назначение кнопок</string>
     <string name="ingame_controller_config_help">Назначение кнопок: каждое действие игры на кнопки контроллера или клавиатуры.</string>
+    <string name="ingame_ashley_hold_help">Эшли где-то застряла? Быстро нажмите её кнопку (Ждать / Идти) дважды: она появится прямо за Леоном и пойдёт за ним.</string>
     <string name="ingame_stick_dead_zone">Мёртвая зона стика</string>
     <string name="ingame_stick_range">Диапазон стика</string>
     <string name="ingame_stick_help">Мёртвая зона стика: мелкие движения около центра не учитываются (для стика, который сам смещается). Диапазон стика: стик, отклонённый настолько, считается отклонённым до упора, чтобы Леон уверенно шёл и бежал. Значения по умолчанию оставляют стики как есть; на сенсорное управление это не влияет.</string>
@@ -399,6 +464,10 @@
     <string name="ingame_map_keyboard">Клавиатура и мышь</string>
     <string name="ingame_mouse_help">Мышь (Android 8 и новее) управляет игрой, пока она идёт: поворачивает камеру и двигает прицел; колесо меняет зум оптического прицела и бинокля. Меню приложения (F1) освобождает указатель.</string>
     <string name="ingame_keyboard_c_help">Нож: удерживайте его клавишу и цельтесь мышью. Клавиши C-стика (по умолчанию I, K, J, L) поворачивают камеру и меняют зум прицела и бинокля.</string>
+    <string name="ingame_quick_reload">Перезарядка без прицеливания</string>
+    <string name="ingame_quick_reload_help">Перезарядка без прицеливания (клавиатура): одна клавиша перезарядки (по умолчанию R) перезаряжает, не поднимая сначала оружие.</string>
+    <string name="ingame_force_controller">Принудительно считать контроллером</string>
+    <string name="ingame_force_controller_help">Принудительно считать контроллером: если геймпад не распознаётся или Android считает его клавиатурой: каждая клавиша внешнего устройства считается кнопкой контроллера, её можно назначить выше. Настоящая клавиатура тогда тоже считается контроллером, поэтому для игры с клавиатурой и мышью выключите это (мышь продолжает работать). Собственные кнопки устройства, сенсорное управление и клавиши громкости остаются как есть.</string>
     <string name="ingame_mouse_sensitivity">Чувствительность мыши</string>
     <string name="ingame_map_controller">Контроллер</string>
     <string name="ingame_map_device">Устройство</string>
@@ -408,6 +477,11 @@
     <string name="ingame_cheat_section_player">Игрок</string>
     <string name="ingame_cheat_section_weapons">Оружие</string>
     <string name="ingame_cheat_section_game">Общее и инвентарь</string>
+    <string name="ingame_cheat_section_world">Враги и окружение</string>
+    <string name="ingame_health_bars">Полоски здоровья врагов</string>
+    <string name="ingame_health_bars_help">Полоски здоровья врагов: небольшая полоска над каждым врагом показывает его здоровье (зелёная, жёлтая ниже четверти, красная ниже десятой части); не в роликах и меню.</string>
+    <string name="ingame_more_enemies">Больше врагов</string>
+    <string name="ingame_more_enemies_help">Больше врагов: примерно на 40 процентов больше обычных Ганадо в комнате, в случайных местах, на любой сложности; со следующей комнаты. Боссы, особые враги и волны не меняются; только в сюжете.</string>
     <string name="ingame_dof_light">Слабая</string>
     <string name="ingame_dof_strong">Сильная</string>
     <string name="ingame_player_view">Вид игрока</string>
@@ -479,6 +553,17 @@
     <string name="ingame_shader_cache_help">Игра сохраняет созданные шейдеры, чтобы сцены не подтормаживали снова. Очищайте их, только если после обновления появились графические ошибки; первые сцены могут тогда один раз подтормозить.</string>
     <string name="ingame_shader_clear">Очистить кэш шейдеров</string>
     <string name="ingame_shader_clear_text">Игра перезапустится и удалит созданные шейдеры. Она создаст их заново во время игры, поэтому первые сцены могут подтормаживать. Прогресс с последнего сохранения будет потерян.</string>
+    <string name="ingame_shader_prep">Загружать шейдеры при запуске</string>
+    <string name="ingame_shader_prep_help">Загружать шейдеры при запуске: каждый запуск сначала готовит все известные шейдеры (программы графического чипа) и показывает ход подготовки; после этого комнаты и эффекты не тормозят при первом появлении. В первый раз это занимает около минуты с Vulkan и до нескольких минут с OpenGL ES на медленных телефонах, потом лишь секунды. Пропустить нельзя. Нужно 4 ГБ ОЗУ или больше.</string>
+    <string name="ingame_shader_prep_low_ram">Нужно не меньше 4 ГБ ОЗУ (у этого устройства %1$s ГБ).</string>
+    <string name="ingame_shader_prep_title">Подготовка шейдеров…</string>
+    <string name="ingame_shader_prep_line">Однажды подготовленные, они не будут тормозить. Подождите, пропустить нельзя.</string>
+    <string name="ingame_output_res">Разрешение вывода</string>
+    <string name="ingame_output_res_help">Разрешение вывода: размер изображения, которое отправляется на экран; экран растягивает его до своих пикселей. Ниже — быстрее на телефонах с очень чёткими экранами (выше 1080p), особенно с CRT, bloom, FXAA или резкостью, и чуть мягче. Родное: собственный размер экрана. Разрешение выше (3D игры) не меняется.</string>
+    <string name="ingame_upscaler">Апскейлер</string>
+    <string name="ingame_upscaler_sgsr">SGSR (лёгкий)</string>
+    <string name="ingame_upscaler_fsr">FSR (сильный)</string>
+    <string name="ingame_upscaler_help">Апскейлер: как увеличивается картинка игры, когда она меньше своего места на экране (разрешение выше ниже, чем у экрана). Выкл.: простое мягкое растяжение. SGSR (Qualcomm Snapdragon Game Super Resolution): более чёткие края, мало работы для телефона; рекомендуется. FSR (AMD FidelityFX Super Resolution 1): самый чёткий, примерно вдвое больше работы, чем SGSR. Ничего не меняется, если картинка такого же размера, как её место, и с фильтром CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Моды</string>
     <string name="ingame_hd_textures">HD-текстуры</string>

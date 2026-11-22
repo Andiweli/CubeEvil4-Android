@@ -158,6 +158,8 @@ typedef struct Re4CorePart {
                                        (CamCtrl) instead of the sub screen's own */
 #define RE4_CORE_SCREEN_EVENT 2     /* an event (cutscene) runs */
 #define RE4_CORE_SCREEN_DEBUGCAM 4  /* the debug camera (pad 2) is on */
+#define RE4_CORE_SCREEN_NOHUD 8     /* 1.1.0: no HUD of ours now (re4_hud_off_now, health_bars.cpp: a cutscene, a
+                                       film, the title and its movies, a menu, a door scene ...): no minimap */
 #define RE4_CORE_MAX_PARTS 8192
 
 typedef struct Re4CoreSnapshot {
@@ -285,6 +287,21 @@ void re4_core_set_potato(int mask);
  * the game: the stick's turn while aiming the guns and the knife, patch 0151). Any thread. */
 void re4_core_set_aim(int bits);
 int re4_core_aim_from_game(void);  // patch 0188: -1, or the game's own "reverse" (0 / 1)
+/* 1.1.0: bits 4/5 of re4_core_set_aim: with bit 5 the game's own vibration switch (CFG_VIBRATION) follows bit 4
+ * (the app's "Vibration" not Off); re4_core_vibration_from_game: -1, or the game's own options' "vibration". */
+int re4_core_vibration_from_game(void);
+/* 1.1.0 (runtime/mouse_menu.cpp): the mouse in the game's title and options menus: the app's own pointer over the
+ * game's picture (u across, v down, 0..1) at each move, `click` 1 for a left click. Any thread. */
+void re4_core_mouse_menu(float u, float v, int click);
+/* 1.1.0 (runtime/aim_options.cpp, patch 0241): one reload without the aim (the keyboard's reload key). Any thread. */
+void re4_core_quick_reload(void);
+/* 1.1.0 (runtime/photo_mode.cpp, patch 0243): photo mode. op 1 enter with `mask` (1 HUD, 2 Leon, 4 the partner,
+ * 8 the enemies hidden), 0 leave, 2 the mask alone; the chunks say whether it is on (RE4_GX_CHUNK_PHOTO) or was
+ * refused (RE4_GX_CHUNK_PHOTO_REFUSED). re4_core_photo_input: the free camera's input while it is on (a: move x,
+ * move z, rise, turn as s8 from the low byte; b: tilt s8, speed byte 0 normal 1 slow 2 fast, bits 17-20 the camera effect (0 normal, 1 wide, 2 tele, 3 dolly zoom, 4 Dutch angle, 5 orbit), bit 16 back to the
+ * start; c: turn and tilt deltas, s16 each in 1/8192 rad, added once). Any thread. */
+void re4_core_photo_mode(int op, int mask);
+void re4_core_photo_input(int a, int b, int c);
 /* The app menu's AUDIO page (cores since 30.10.2026, runtime/sound_volume.cpp): bits 0..7 the music, bits
  * 8..15 the sound effects volume in percent (0..100; 100 as the game). Any thread. */
 void re4_core_set_sound_volume(int bits);
@@ -373,6 +390,8 @@ void re4_core_zoom(int notches);
 /* The cheat "Random enemies" (cores since 12.11.2026, 0.99.12; runtime/enemy_random.cpp, patch 0231): its seed
  * (20 bits), 0 off; from the next room on. Any thread. */
 void re4_core_set_enemy_random(int seed);
+/* 1.1.0: the cheat "More enemies" (runtime/enemy_random.cpp): its seed, 0 off; from the next room. Any thread. */
+void re4_core_set_more_enemies(int seed);
 /* "Gentler QTEs" (cores since 14.11.2026, 0.99.15; runtime/qte_touch.cpp re4_qte_level, patch 0232): on, the quick-time
  * events of Professional take the time windows and press counts of Normal; damage, enemies and the rest stay
  * Professional's. Any thread. */

@@ -283,6 +283,12 @@ bool Context::Create(const ContextOptions &options, std::string *error) {
     if (!HasExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
       return fail(std::string("no VK_KHR_swapchain on ") + properties.deviceName);
     want.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    // the pictures' times on the screen (1.1.0), where the driver has them (Android's own swapchain has them on most
+    // devices since Android 8); without them each picture goes to the next free vsync, as before
+    const char *timing = std::getenv("RE4_VK_DISPLAY_TIMING");
+    displayTiming = HasExtension(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME) && !(timing && *timing == '0');
+    if (displayTiming)
+      want.push_back(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
   }
   const float priority = 1.0f;
   auto qci = Make<VkDeviceQueueCreateInfo>(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO);
@@ -304,6 +310,8 @@ bool Context::Create(const ContextOptions &options, std::string *error) {
   }
   if (!LoadDevice(device, &e))
     return fail(e);
+  if (displayTiming && (!vkGetRefreshCycleDurationGOOGLE || !vkGetPastPresentationTimingGOOGLE))
+    displayTiming = false;  // (the extension named, its functions not there: as without it)
   vkGetDeviceQueue(device, family, 0, &queue);
   return true;
 }

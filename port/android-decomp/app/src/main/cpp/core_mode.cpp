@@ -17,6 +17,7 @@
 #include "core_scene.h"
 #include "gx_auto_level.h"
 #include "gx_bench_steps.h"
+#include "gx_core.h"
 #include "gx_gl.h"
 #include "gx_selfcheck.h"
 #include "minimap_view.h"
@@ -106,6 +107,7 @@ struct CoreApi {
   void (*setSoundVolume)(int){};  // optional (cores since 30.10.2026): music | effects << 8, percent
   void (*setAim)(int){};        // optional (cores since 30.10.2026): bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bits 8.. aim speed in percent
   int (*aimFromGame)(void){};   // optional (cores since 03.11.2026, patch 0188): the game's own "reverse" changed
+  int (*vibrationFromGame)(void){};  // optional (cores since 1.1.0): the game's own "vibration" changed
   void (*restartGame)(int){};   // optional (cores since 27.10.2026): new game language, restart (European discs)
   const char *(*discProblem)(void){};  // optional (cores since 27.10.2026): the first unreadable disc file
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
@@ -121,8 +123,13 @@ struct CoreApi {
   void (*bodyTurn)(float){};  // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
+  void (*setMoreEnemies)(int){};  // optional (cores since 1.1.0): the cheat "More enemies"
   void (*setGentleQte)(int){};    // optional (cores since 14.11.2026, 0.99.15): "Gentler QTEs"
   void (*setLeonJacket)(int){};   // optional (cores since 17.11.2026, 1.0): the cheat "Leon's jacket"
+  void (*mouseMenu)(float, float, int){};  // optional (cores since 1.1.0): the mouse in the game's menus
+  void (*quickReload)(void){};    // optional (cores since 1.1.0): one reload without the aim
+  void (*photoMode)(int, int){};  // optional (cores since 1.1.0): photo mode
+  void (*photoInput)(int, int, int){};
   int (*rtShadows)(void){};       // optional (cores since 16.11.2026): the real-time shadows the core knows
   void (*swipe)(int){};           // optional (cores since 22.10.2026): a swipe across it
   void (*slash)(float){};         // optional (cores since 22.10.2026): the knife by a swipe
@@ -460,6 +467,7 @@ void loadCore(JNIEnv *env) {
   api.setPotato = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_potato"));
   api.setAim = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_aim"));
   api.aimFromGame = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_aim_from_game"));
+  api.vibrationFromGame = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_vibration_from_game"));
   api.setSoundVolume = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_sound_volume"));
   api.restartGame = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_restart_game"));
   api.discProblem = reinterpret_cast<const char *(*)(void)>(dlsym(api.main, "re4_core_disc_problem"));
@@ -476,8 +484,13 @@ void loadCore(JNIEnv *env) {
   api.bodyTurn = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_body_turn"));
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
+  api.setMoreEnemies = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_more_enemies"));
   api.setGentleQte = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_gentle_qte"));
   api.setLeonJacket = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_leon_jacket"));
+  api.mouseMenu = reinterpret_cast<void (*)(float, float, int)>(dlsym(api.main, "re4_core_mouse_menu"));
+  api.quickReload = reinterpret_cast<void (*)(void)>(dlsym(api.main, "re4_core_quick_reload"));
+  api.photoMode = reinterpret_cast<void (*)(int, int)>(dlsym(api.main, "re4_core_photo_mode"));
+  api.photoInput = reinterpret_cast<void (*)(int, int, int)>(dlsym(api.main, "re4_core_photo_input"));
   api.rtShadows = reinterpret_cast<int (*)(void)>(dlsym(api.main, "re4_core_rt_shadows"));
   api.swipe = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_swipe"));
   api.slash = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_slash"));
@@ -588,6 +601,10 @@ std::atomic<int> optInvalidate{-1}, optTiled{0}, optHalfDof{1};
 std::atomic<unsigned> optSerial{0};
 unsigned optApplied = ~0u;
 std::atomic<bool> corePaused{false};
+// photo mode (1.1.0) as the chunks say: on, and a request refused (CoreBridge.photoState takes it)
+std::atomic<bool> photoOn{false}, photoRefused{false};
+// what photo mode hides (CoreBridge.photoMode's mask; 1 the HUD: the minimap goes with it, not with Leon)
+std::atomic<int> photoMask{0};
 // Android's thermal status and headroom (ThermalWatch, 0.99.15; set by CoreBridge.setThermal from the app's main thread,
 // read by the render thread): Dynamic's lines name them, so a report shows whether a step down came with heat
 std::atomic<int> thermalStatus{-2};
@@ -715,6 +732,7 @@ Bench bench;
 std::atomic<int> optDof{-1};  // the menu's depth of field (CoreBridge.setDof: 0 off, 1 light, 2 strong); -1 not set yet
 std::atomic<int> optFxaa{0};   // the menu's FXAA (CoreBridge.setFxaa)
 std::atomic<int> optSharpen{0};  // the menu's sharpening (CoreBridge.setSharpen: 0 off, 1 light, 2 strong)
+std::atomic<int> optUpscaler{0};  // the menu's upscaler (CoreBridge.setUpscaler: 0 off, 1 SGSR, 2 FSR; 1.1.0)
 std::atomic<int> optSharperText{1};  // "Sharper menu text" (CoreBridge.setSharperText; on by default)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
@@ -746,6 +764,11 @@ std::atomic<long long> displayVsyncAt{0}, displayVsyncPeriod{0};
 re4gx::PictureCadence pictureCadence;
 // 0.99.12: a steady rhythm at 30 pictures a second (picture_cadence.h PictureHold)
 re4gx::PictureHold pictureHold;
+// The menu's "Even frame pacing" (CoreBridge.setEvenPacing, 1.1.0; the project owner, 20.11.2026, after a user's
+// "0.97.0 felt like 120 fps"): on (the default) the steady rhythms as since 0.99.12/0.99.13 (PictureHold at 30, the
+// present times of PresentPacer at 60 on screens faster than 60 Hz); off each picture goes to the next free vsync as
+// in 0.97.0: shown sooner (up to two vsyncs), less even.
+std::atomic<int> optEvenPacing{1};
 namespace present {
 std::string Summary();  // 0.99.13: the present times of the last window (below)
 }
@@ -824,6 +847,39 @@ void probe(EGLDisplay display) {
       nextFrameId && frameTimestamps ? "there" : "not there");
 }
 
+// A picture the screen showed at `shown` (ns): every 10 s the line "screen pacing (as shown)" with the intervals as
+// the screen showed them (OpenGL ES: EGL_ANDROID_get_frame_timestamps; Vulkan: VK_GOOGLE_display_timing).
+void noteShown(long long shown) {
+  shownSeen++;
+  std::string line;
+  const long long period = displayVsyncPeriod.load();
+  if (shown != lastShown && shownCadence.Note(shown, period, period > 0 ? 1e9 / period : 0.0, &line)) {
+    line.replace(0, std::strlen("picture pacing"), "screen pacing (as shown)");
+    char tail[160];
+    std::snprintf(tail, sizeof(tail), "; asked %d vsyncs after the drawing's (%u asked, %u judged, %u late, %u "
+                  "up, %u down)", pacer.latency, pacer.asked, pacer.judged, pacer.lateAll, pacer.ups, pacer.downs);
+    LOG("%s%s", line.c_str(), pacer.latency ? tail : "");
+  }
+  lastShown = shown;
+}
+
+// The render thread behind the game: a picture left out (60 FPS, `dropped` counts them); three within 2 s and the
+// times step aside for 30 s (OpenGL ES and Vulkan).
+void noteBehind(long long began, unsigned dropped) {
+  static unsigned droppedSeen = 0;
+  if (dropped != droppedSeen) {
+    if (dropped > droppedSeen)
+      pacer.Behind(began);
+    droppedSeen = dropped;
+  }
+  static unsigned asidesLogged = 0;
+  if (pacer.asides != asidesLogged) {
+    asidesLogged = pacer.asides;
+    LOG("screen pacing: present times set aside for 30 s (the GPU or the render thread behind; %u so far)",
+        pacer.asides);
+  }
+}
+
 // The results of the pictures shown some swaps ago (each picture's times come after the screen showed it).
 void collect(EGLDisplay display, EGLSurface surface) {
   if (!stamps || !pending)
@@ -848,19 +904,8 @@ void collect(EGLDisplay display, EGLSurface surface) {
     const long long done = values[0] > 0 ? values[0] : 0, shown = values[1] > 0 ? values[1] : 0;
     if (p.target > 0)
       pacer.Outcome(p.target, done, shown);
-    if (shown > 0) {
-      shownSeen++;
-      std::string line;
-      const long long period = displayVsyncPeriod.load();
-      if (shown != lastShown && shownCadence.Note(shown, period, period > 0 ? 1e9 / period : 0.0, &line)) {
-        line.replace(0, std::strlen("picture pacing"), "screen pacing (as shown)");
-        char tail[160];
-        std::snprintf(tail, sizeof(tail), "; asked %d vsyncs after the drawing's (%u asked, %u judged, %u late, %u "
-                      "up, %u down)", pacer.latency, pacer.asked, pacer.judged, pacer.lateAll, pacer.ups, pacer.downs);
-        LOG("%s%s", line.c_str(), pacer.latency ? tail : "");
-      }
-      lastShown = shown;
-    }
+    if (shown > 0)
+      noteShown(shown);
   }
   pending = kept;
 }
@@ -913,21 +958,9 @@ void beforeSwap(long long began, bool active, unsigned dropped) {
     }
   }
   collect(display, surface);
-  // the render thread behind the game: a picture left out (60 FPS); three within 2 s and the times step aside
-  static unsigned droppedSeen = 0;
-  if (dropped != droppedSeen) {
-    if (dropped > droppedSeen)
-      pacer.Behind(began);
-    droppedSeen = dropped;
-  }
-  static unsigned asidesLogged = 0;
-  if (pacer.asides != asidesLogged) {
-    asidesLogged = pacer.asides;
-    LOG("screen pacing: present times set aside for 30 s (the GPU or the render thread behind; %u so far)",
-        pacer.asides);
-  }
+  noteBehind(began, dropped);
   long long target = 0;
-  if (presentationTime) {
+  if (presentationTime && optEvenPacing.load()) {
     const long long asked = pacer.Target(began, displayVsyncPeriod.load(), active ? n : 1);
     if (asked > 0 && presentationTime(display, surface, asked) == EGL_TRUE)
       target = asked + pacer.period / 2;
@@ -941,6 +974,94 @@ void beforeSwap(long long began, bool active, unsigned dropped) {
       ring[pending++] = {id, target, 0};
   }
 }
+
+// Vulkan (1.1.0, the project owner's decision of 20.11.2026 after a user's 120 Hz phone: "a lot of frame rate drops"
+// at 60 pictures a second, 41 % of them a vsync early or late): the same present times through
+// VK_GOOGLE_display_timing. The drawing's vsync and the 60 FPS state before the drawing (vkBefore, the render
+// thread's CoreBridge.draw), then the renderer's hook right before its present: the pictures shown since (their
+// outcome, the "screen pacing (as shown)" line) and the time for this one, under "Even frame pacing" as OpenGL ES's.
+// Without the extension the hook is never called: each picture at the next free vsync, as before.
+long long vkBegan = 0;
+bool vkActive = false;
+unsigned vkDropped = 0;
+bool vkProbed = false, vkOff = false;
+unsigned vkSwapchain = ~0u;
+struct VkPending {
+  std::uint32_t id;
+  long long target;
+  int age;
+};
+VkPending vkRing[kRing];
+int vkPending = 0;
+
+void vkBefore(long long began, bool active, unsigned dropped) {
+  vkBegan = began;
+  vkActive = active;
+  vkDropped = dropped;
+}
+
+long long vkHook(void *, std::uint32_t id, const re4gx::GxShownPicture *shown, int count, long long refresh,
+                 unsigned swapchain) {
+  if (!vkProbed) {
+    vkProbed = true;
+    const char *off = getenv("RE4_GX_PRESENT_TIME");
+    vkOff = off && *off == '0';
+    LOG("screen pacing (Vulkan): present times there (VK_GOOGLE_display_timing, the screen's refresh %.2f ms)%s",
+        refresh > 0 ? refresh / 1e6 : 0.0, vkOff ? ", not asked (RE4_GX_PRESENT_TIME=0)" : "");
+  }
+  if (swapchain != vkSwapchain) {
+    // a new swapchain: the numbers of the old one are gone, the rhythm anew (as GLES at a new surface)
+    vkSwapchain = swapchain;
+    vkPending = 0;
+    lastShown = 0;
+    shownCadence = re4gx::PictureCadence();
+    pacer.Reset();
+  }
+  const int n = every.load();
+  const long long period = displayVsyncPeriod.load();
+  for (int i = 0; i < count; i++) {
+    long long target = 0;
+    bool found = false;
+    for (int k = 0; k < vkPending; k++)
+      if (vkRing[k].id == shown[i].id) {
+        target = vkRing[k].target;
+        vkRing[k] = vkRing[--vkPending];
+        found = true;
+        break;
+      }
+    if (!found)
+      continue;  // (an older swapchain's, or already gone)
+    const long long done = re4gx::VkReadyFor(target, shown[i].actual, shown[i].earliest, shown[i].margin);
+    if (target > 0)
+      pacer.Outcome(target, done, shown[i].actual);
+    // the screen's own intervals, as OpenGL ES's (only on a screen faster than 60 Hz, where the app draws at every
+    // n-th vsync)
+    if (n >= 2 && shown[i].actual > 0)
+      noteShown(shown[i].actual);
+  }
+  // (a present whose time never comes back: gone after 40 presents)
+  int kept = 0;
+  for (int k = 0; k < vkPending; k++)
+    if (++vkRing[k].age <= 40)
+      vkRing[kept++] = vkRing[k];
+  vkPending = kept;
+  noteBehind(vkBegan, vkDropped);
+  long long want = 0, target = 0;
+  if (!vkOff && optEvenPacing.load()) {
+    const long long asked = pacer.Target(vkBegan, period, vkActive ? n : 1);
+    if (asked > 0) {
+      want = asked;
+      target = asked + pacer.period / 2;
+      if (pacer.asked == 1)
+        LOG("screen pacing: each picture asked for its vsync, %d after its drawing's (every %d vsyncs at %.1f Hz, "
+            "Vulkan)", pacer.latency, pacer.every, pacer.period > 0 ? 1e9 / pacer.period : 0.0);
+    }
+  }
+  if (vkPending == kRing)
+    vkRing[0] = vkRing[--vkPending];  // (full: the oldest out)
+  vkRing[vkPending++] = {id, target, 0};
+  return want;
+}
 }  // namespace present
 // 60 FPS (experimental): the chunk run last, kept for the in-between picture after it (its
 // vertices), and the next one, whose in-between picture is on the screen and which runs at the
@@ -949,6 +1070,35 @@ const Re4GxChunk *smoothPrev = nullptr, *smoothNext = nullptr;
 // Frame skip: the chunk after the one that was skipped or drawn (taken to look at it, drawn next)
 const Re4GxChunk *skipNext = nullptr;
 std::atomic<int> optFrameSkip{0};  // the menu's Frame skip (CoreBridge.setFrameSkip)
+// Frame skip "Auto" (CoreBridge.setFrameSkipAuto, 1.1.0, the project owner's decision of 20.11.2026): both frame skips
+// (the renderer's and the game's own, as "Aggressive") only while the game stays under 30 (picture_cadence.h AutoSkip);
+// off while 60 FPS is on
+std::atomic<int> optSkipAuto{0};
+re4gx::AutoSkip autoSkip;
+// Frame skip now: the menu's Normal, or Auto while the game is behind
+bool skipNow() { return optFrameSkip.load() != 0 || (optSkipAuto.load() != 0 && autoSkip.on); }
+// Auto: a chunk the render thread took from the core (its number, the time)
+void autoNote(const Re4GxChunk *c, bool smoothOn) {
+  if (!c)
+    return;
+  if (!optSkipAuto.load() || smoothOn) {
+    if (autoSkip.on || !autoSkip.marks.empty()) {
+      autoSkip.on = false;
+      autoSkip.Reset();
+    }
+    return;
+  }
+  const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  if (autoSkip.Note(t, c->sequence)) {
+    const unsigned n = autoSkip.ons + autoSkip.offs;
+    if (n <= 20 || n % 50 == 0)
+      LOG("auto frame skip: %s (%.1f game pictures a second, %.0f %% of them left out; %u times on so far, %u with the "
+          "game's own)",
+          autoSkip.cpu ? "the game's own frame skip too (as needed), the game under 24 for two seconds"
+          : autoSkip.on ? "on (the renderer's), the game under 30 for half a second" : "off, two seconds at full pace",
+          autoSkip.rate, autoSkip.leftOut * 100.0, autoSkip.ons, autoSkip.cpuOns);
+  }
+}
 re4gx::SmoothPacer smoothPacer;
 // when the last chunks came: 60 a second is the game's own pace (movies, title)
 re4gx::ChunkRate chunkRate;  // 60 FPS: the in-between pictures pause when the renderer is behind again and again
@@ -964,6 +1114,12 @@ bool autoLevelOn = false;
 // with the first renderer of each render thread (Android starts a new one after the app was in
 // the background), then each chunk's Run against 33.3 ms
 re4cpu::PerfHint renderHint;
+// The render thread's target per picture (1.1.0, the project owner, 20.11.2026; the idea from a fork): 16.7 ms while
+// 60 FPS is on (two pictures in a game frame), else 33.3 ms. With 33.3 ms at 60 FPS Android saw half the time spare
+// and lowered the render core's clock, the pictures then came late on 120 Hz phones (user report 20.11.2026: the
+// render core at 0.8-1.8 GHz instead of 3.2, the steady rhythm set aside).
+long long renderHintTarget = 0;
+long long renderTargetFor(bool sixty) { return sixty ? 16666667LL : 33333333LL; }
 int renderPlaced = 0;  // the render thread set up
 // The menu's "Force Performance" (CoreBridge.setFastCores, wish of the project owner, 24.10.2026):
 // 1 "Use performance cores" (the render thread and, through the core, the game thread on the fast
@@ -991,6 +1147,14 @@ int cpuSkipSent = -1;  // what the core was told last (-1: nothing yet)
 // project owner, 30.10.2026): bit 0 inverted, bits 8.. the speed in percent (the core's runtime/aim_options.cpp).
 std::atomic<int> optAim{100 << 8};
 std::atomic<int> optFarCamera{0};  // the menu's "Far camera" (CoreBridge.setFarCamera), bit 3 of the aim bits
+// the menu's "Vibration" not Off (CoreBridge.setGameVibration, 1.1.0): bits 4/5 of the aim bits, the game's own
+// vibration switch follows it (runtime/aim_options.cpp); -1 before the app sent it (bit 5 clear)
+std::atomic<int> optGameVibration{-1};
+// the menu's "Enemy health bars" (CoreBridge.setHealthBars, 1.1.0): bit 20 of the aim bits (runtime/health_bars.cpp)
+std::atomic<int> optHealthBars{0};
+// the cheat "Stack items" (CoreBridge.setStackItems, 1.1.0): its step in bits 21..22 of the aim bits (0 Standard, 1 250,
+// 2 500, 3 999; runtime/cheats.cpp, patch 0254)
+std::atomic<int> optStackItems{0};
 // the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
 // degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
 std::atomic<int> optFov{0};
@@ -1062,6 +1226,7 @@ void startWarm(const std::string &cache, const std::string &list, std::uint32_t 
   const char *off = getenv("RE4_GX_WARM");
   if (off && *off == '0') {
     if (warmCentroid < 0) LOG("GX programs made ahead: off (RE4_GX_WARM=0)");
+    re4gx::ShaderPrep().state = 2;
     warmCentroid = static_cast<int>(centroid);
     return;
   }
@@ -1107,6 +1272,7 @@ void startWarm(const std::string &cache, const std::string &list, std::uint32_t 
     // (not eglTerminate: the app's own context lives on the same display)
     if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
     if (context != EGL_NO_CONTEXT) eglDestroyContext(display, context);
+    re4gx::ShaderPrep().state = 2;  // ("Prepare shaders at start": through, or not possible)
     warmBusy = false;
   }).detach();
 }
@@ -1684,11 +1850,16 @@ bool minimapProgram() {
 // Vulkan renderer over its picture (GxRenderer::SetOverlay)
 bool minimapBuild(int format, unsigned xh, bool wide, re4gx::GxOverlay *out) {
   if (!optMinimap.load() || minimap.failed || !api.roomOutline || !frame.valid || frame.step[0] != 3 ||
-      (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT)))
+      (frame.screen & (RE4_CORE_SCREEN_SUB | RE4_CORE_SCREEN_EVENT | RE4_CORE_SCREEN_NOHUD)))
+    return false;
+  // photo mode (1.1.0, the owner's device test of 19.11.2026): the minimap belongs to the HUD and goes with its switch;
+  // Leon hidden (his be_flag bit 1 cleared) keeps it, his matrix still places it
+  const bool photo = photoOn.load();
+  if (!re4mm::MinimapShown(photo, photoMask.load()))
     return false;
   const Re4CoreModel *player = nullptr;
   for (const Re4CoreModel &mdl : frame.models)
-    if (mdl.manager == 0 && mdl.id == 0 && (mdl.beFlag & 6) == 6) {
+    if (mdl.manager == 0 && mdl.id == 0 && re4mm::PlayerModel(mdl.beFlag, photo)) {
       player = &mdl;
       break;
     }
@@ -2325,6 +2496,8 @@ bool drawGx() {
   gx->SetFxaa(optFxaa.load() != 0);
   static const int sharpenEnv = getenv("RE4_GX_SHARPEN") ? atoi(getenv("RE4_GX_SHARPEN")) : 0;
   gx->SetSharpen(sharpenEnv > 0 ? sharpenEnv : optSharpen.load());
+  static const char *upscalerEnv = getenv("RE4_GX_UPSCALER");
+  gx->SetUpscaler(upscalerEnv && *upscalerEnv ? atoi(upscalerEnv) : optUpscaler.load());
   // "Sharper menu text" (1.0.0): RE4_WORD_SHARPEN=0/1 wins over the menu
   static const char *wordsEnv = getenv("RE4_WORD_SHARPEN");
   gx->SetWordSharpen(wordsEnv && *wordsEnv ? *wordsEnv == '1' : optSharperText.load() != 0);
@@ -2425,7 +2598,14 @@ bool drawGx() {
     if (roomStart || (breakPaused && !paused)) {
       const double t = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
       autoLevel.Restart(t);
-      if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      // (1.0.0) a room's start ends a pause of the in-between pictures at once, the app menu closing only one of 5 s
+      if (!benchForcing()) {
+        std::string why;
+        smoothPacer.Break(t, re4gx::AutoLevel::kQuiet,
+                          roomStart ? re4gx::SmoothPacer::BreakKind::kRoom : re4gx::SmoothPacer::BreakKind::kMenu, &why);
+        if (!why.empty() && smoothOn)
+          LOG("%s", why.c_str());
+      }
       // (0.99.14) where Dynamic stands at each room's start: the level, its steps, the rooms remembered
       if (roomStart && autoLevelOn && !benchForcing())
         LOG("%s; now r%03x", autoLevel.Summary(t).c_str(), static_cast<unsigned>(frame.room));
@@ -2439,6 +2619,8 @@ bool drawGx() {
   const Re4GxChunk *chunk = deferred ? deferred : skipNext ? skipNext : api.gxAcquire();
   if (chunk == skipNext)
     skipNext = nullptr;
+  else if (chunk && !deferred)
+    autoNote(chunk, smoothOn);  // (each chunk once: a held one comes back as skipNext)
   // A steady rhythm (0.99.12, a user's Helio G85 phone at 30 FPS on 60 Hz: 46 % of the new pictures two vsyncs apart,
   // the others 1 and 3 in turn, felt as small frame drops): a new game picture that is ready one vsync after the last
   // one (that one came late) waits for the next vsync, so every picture shows for two. Only at 30 game pictures a
@@ -2449,7 +2631,8 @@ bool drawGx() {
     const long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
     const long long at = displayVsyncAt.load(), period = displayVsyncPeriod.load();
     const double nowSec = std::chrono::duration<double>(now.time_since_epoch()).count();
-    if (!chunkRate.Sixty(nowSec) && pictureHold.Wait(re4gx::PictureCadence::Snap(nowNs, at, period), period)) {
+    if (optEvenPacing.load() && !chunkRate.Sixty(nowSec) &&
+        pictureHold.Wait(re4gx::PictureCadence::Snap(nowNs, at, period), period)) {
       skipNext = chunk;
       chunk = nullptr;
       if (pictureHold.held == 1 || pictureHold.held % 600 == 0)
@@ -2464,12 +2647,13 @@ bool drawGx() {
   // applied, GxRenderer::Skip) and the next one drawn at once: the game keeps its pace instead of
   // waiting for a slow GPU. Not while a graphics capture is on its way.
   bool behind = false;
-  if (chunk && !deferred && (optFrameSkip.load() != 0 || smoothOn) && !gxDumpWanted && !gxDumpSeriesLeft &&
+  if (chunk && !deferred && (skipNow() || smoothOn) && !gxDumpWanted && !gxDumpSeriesLeft &&
       !gxHitShotsLeft && !gxHitSeriesPending) {
     if (const Re4GxChunk *next = api.gxAcquire()) {
       behind = true;
+      autoNote(next, smoothOn);
       // (Frame skip and 60 FPS are one or the other, CoreMenu; with both set, 60 FPS wins)
-      if (optFrameSkip.load() != 0 && !smoothOn && gx->CanSkip(*chunk, *next)) {
+      if (skipNow() && !smoothOn && gx->CanSkip(*chunk, *next)) {
         gx->Skip(*chunk);
         api.gxRelease(chunk);
         chunk = next;
@@ -2549,6 +2733,9 @@ bool drawGx() {
     // whether it is a menu picture of the game (Dynamic does not judge those)
     const unsigned chunkCpuUs = chunk->coreCpuUs;
     const bool chunkStill = (chunk->flags & RE4_GX_CHUNK_STILL) != 0;
+    photoOn.store((chunk->flags & RE4_GX_CHUNK_PHOTO) != 0);
+    if (chunk->flags & RE4_GX_CHUNK_PHOTO_REFUSED)
+      photoRefused.store(true);
     // the in-between picture first when the switch is on and nothing records this chunk's picture;
     // Run(chunk) then at the next refresh
     bool between = false;
@@ -2610,7 +2797,19 @@ bool drawGx() {
       gxHitShotsLeft--;
     }
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - now).count();
+    // 60 FPS switched (or given up for a while): the target follows
+    if (renderHint.On() && renderHintTarget != renderTargetFor(smoothOn)) {
+      renderHintTarget = renderTargetFor(smoothOn);
+      const bool done = renderHint.Retarget(renderHintTarget);
+      static unsigned retargets;
+      if (++retargets <= 10 || retargets % 100 == 0)
+        LOG("performance hint: the render thread's target %.1f ms a picture (60 FPS %s)%s", renderHintTarget / 1e6,
+            smoothOn ? "on" : "off", done ? "" : "; not taken by this Android");
+    }
     renderHint.Report(static_cast<long long>(ms * 1e6));
+    // (1.0.0) the pictures' times for the line when 60 FPS gives up (SmoothPacer)
+    if (smoothOn && !benchForcing())
+      smoothPacer.Picture(std::chrono::duration<double>(now.time_since_epoch()).count(), ms);
     // the menu's "Force Performance": to the core (the game thread) and for this thread
     const int fast = optFastCores.load();
     if (api.setFastCores && fast != fastSent) {
@@ -2633,14 +2832,23 @@ bool drawGx() {
           : viewDistance >= 50 ? "Short" : "Very short", viewDistance);
     }
     // (60 FPS and the game's frame skip exclude each other: the in-between pictures need every picture)
-    const int cpuSkip = optCpuSkip.load() != 0 && !smoothOn ? 1 : 0;
+    // (Auto: while the game is under 30, the game's frame skip "as needed" (2, runtime/cpu_skip.cpp: a picture left out
+    // only once the game is a whole frame behind, not after every late frame as "Aggressive"; 1.1.0, a user's
+    // Snapdragon 460: Auto felt as choppy as Aggressive); its own line says when, so no line here for it)
+    const bool autoOn = optSkipAuto.load() != 0 && autoSkip.on;
+    const int cpuSkip = smoothOn ? 0 : optCpuSkip.load() != 0 ? 1 : autoOn && autoSkip.cpu ? 2 : 0;
     if (api.setCpuSkip && cpuSkip != cpuSkipSent) {
       api.setCpuSkip(cpuSkip);
       cpuSkipSent = cpuSkip;
-      LOG("aggressive frame skip to the core: %s", cpuSkip ? "on (the game leaves a picture out while it is behind)"
-                                                           : optCpuSkip.load() ? "off (60 FPS is on)" : "off");
+      if (optCpuSkip.load() || !optSkipAuto.load())
+        LOG("aggressive frame skip to the core: %s", cpuSkip ? "on (the game leaves a picture out while it is behind)"
+                                                             : optCpuSkip.load() ? "off (60 FPS is on)" : "off");
     }
+    const int vibration = optGameVibration.load();
     const int aim = optAim.load() | (optFarCamera.load() ? 8 : 0)  // bit 3 "Far camera" (patch 0171)
+                    | (vibration < 0 ? 0 : vibration ? 0x30 : 0x20)  // bits 4/5 the game's vibration (1.1.0)
+                    | (optHealthBars.load() ? 1 << 20 : 0)            // bit 20 the enemy health bars (1.1.0)
+                    | (optStackItems.load() & 3) << 21                 // bits 21..22 the cheat "Stack items" (1.1.0)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
@@ -2656,28 +2864,104 @@ bool drawGx() {
       renderFast = fast;
       if (fast) {
         char cores[160];
+        re4cpu::TheRenderPick() = re4cpu::RenderPick();  // (its cores anew: from KeepOffSlowCores' on)
         re4cpu::KeepOffSlowCores(cores, sizeof(cores), re4cpu::kRenderThread);
         LOG("cores: the render thread %s", cores);
         const int tid = re4cpu::ThreadId();
         const char *why = "";
-        renderHint.Open(&tid, 1, 33333333LL, &why);
-        LOG("performance hint: %s (the render thread, 33.3 ms a picture)", why);
+        renderHintTarget = renderTargetFor(smoothOn);
+        renderHint.Open(&tid, 1, renderHintTarget, &why);
+        LOG("performance hint: %s (the render thread, %.1f ms a picture)", why, renderHintTarget / 1e6);
       } else {
         renderHint.Close();
         if (!first) re4cpu::ReleaseCores();
         LOG("cores: the render thread left to Android (Force Performance: Default)");
       }
     }
-    // about once a second: back on the fast cores if Android moved the thread off them
+    // about once a second: back on the fast cores if Android moved the thread off them, and (1.1.0) on other cores
+    // when the maker holds its cores back far below others (re4_cpu_info.h RenderPick)
     static unsigned coreChecks, coreMoves;
-    if (fast && ++coreChecks % 30 == 0 && re4cpu::KeepOnFastCores() && ++coreMoves <= 4)
-      LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
+    if (fast && ++coreChecks % 30 == 0) {
+      const unsigned picks = re4cpu::TheRenderPick().moves;
+      const bool moved = re4cpu::KeepOnFastCores();
+      const unsigned picked = re4cpu::TheRenderPick().moves;
+      if (picked != picks) {
+        if (picked <= 20 || picked % 50 == 0)
+          LOG("cores: the render thread moved for the clocks %s (%u times so far)", re4cpu::TheRenderPick().last,
+              picked);
+      } else if (moved && ++coreMoves <= 4) {
+        LOG("cores: the render thread put back on its cores (Android had moved it, %u times so far)", coreMoves);
+      }
+    }
+    // (1.1.0) once a minute every core's clock now, the clock it may reach now and its highest: a maker that holds
+    // cores back while Android says no heat shows here (the user's Xiaomi, 19.11.2026)
+    {
+      static double clocksAt = -1.0;
+      const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      if (clocksAt < 0.0)
+        clocksAt = t;
+      if (t - clocksAt >= 60.0) {
+        clocksAt = t;
+        char clocks[512], cores[96];
+        re4cpu::DescribeAllClocks(re4cpu::GetLayout(), clocks, sizeof(clocks));
+        re4cpu::AffinityText(cores, sizeof(cores));
+        LOG("cores: %s; the render thread on %s, now on core %d (moved for the clocks %u times)", clocks, cores,
+            sched_getcpu(), re4cpu::TheRenderPick().moves);
+      }
+    }
     gxRunMs += ms;
     // a Run this long is a stall (programs made, textures in), not a GPU too slow: a break as above
     if (ms > 250.0) {
       const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
       autoLevel.Restart(t);
-      if (!benchForcing()) smoothPacer.Restart(t, re4gx::AutoLevel::kQuiet);
+      if (!benchForcing()) {
+        std::string why;
+        smoothPacer.Break(t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kStall, &why);
+        if (!why.empty() && smoothOn)
+          LOG("%s", why.c_str());
+      }
+    }
+    // (1.0.0) 60 FPS once a minute: the seconds with in-between pictures and at an even 30, the switches to 30, and the
+    // render thread's core: its highest clock in the minute (a look a second) and the clock it may reach now. A phone
+    // that slows down when warm lowers that limit while Android still says no heat (reports/fps-drops-2026-11-18).
+    static double minuteAt = -1.0, clockAt = -1.0;
+    static unsigned clockMaxKHz = 0;
+    if (!smoothOn || benchForcing()) {
+      minuteAt = -1.0;  // (a minute anew when 60 FPS is on again)
+    } else {
+      const double t = std::chrono::duration<double>(now.time_since_epoch()).count();
+      if (minuteAt < 0.0) {
+        minuteAt = t;
+        smoothPacer.TakeMinute();
+        clockMaxKHz = 0;
+      }
+      if (t - clockAt >= 1.0) {
+        clockAt = t;
+        const int cpu = sched_getcpu();
+        if (cpu >= 0)
+          clockMaxKHz = std::max(clockMaxKHz, re4cpu::CurrentKHz(cpu));
+      }
+      if (t - minuteAt >= 60.0) {
+        const re4gx::SmoothPacer::Minute m = smoothPacer.TakeMinute();
+        if (m.sixty + m.even > 0.0) {
+          const int cpu = sched_getcpu();
+          const unsigned allowed = cpu >= 0 ? re4cpu::AllowedKHz(cpu) : 0;
+          const unsigned top = cpu >= 0 && cpu < re4cpu::Layout::kMax ? re4cpu::GetLayout().maxKHz[cpu] : 0;
+          char limit[96];
+          if (allowed && top)
+            std::snprintf(limit, sizeof(limit), "its limit now %u of %u MHz", allowed / 1000, top / 1000);
+          else if (allowed)
+            std::snprintf(limit, sizeof(limit), "its limit now %u MHz", allowed / 1000);
+          else
+            std::snprintf(limit, sizeof(limit), "its limit not readable");
+          LOG("60 FPS in the last %.0f s: %.0f s with in-between pictures, %.0f s at an even 30, switches to 30: %u "
+              "(step %d of %d now); the render thread's core %d at up to %u MHz, %s",
+              t - minuteAt, m.sixty, m.even, m.switches, smoothPacer.Step(), re4gx::SmoothPacer::kSteps, cpu,
+              clockMaxKHz / 1000, limit);
+        }
+        minuteAt = t;
+        clockMaxKHz = 0;
+      }
     }
     gxRunMax = std::max(gxRunMax, ms);
     gxRunCount++;
@@ -3138,8 +3422,13 @@ void useCoreProcess(const std::string &why) {
   api.bodyTurn = re4ipc_body_turn;
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
+  api.setMoreEnemies = re4ipc_set_more_enemies;
   api.setGentleQte = re4ipc_set_gentle_qte;
   api.setLeonJacket = re4ipc_set_leon_jacket;
+  api.mouseMenu = re4ipc_mouse_menu;
+  api.quickReload = re4ipc_quick_reload;
+  api.photoMode = re4ipc_photo_mode;
+  api.photoInput = re4ipc_photo_input;
   api.rtShadows = re4ipc_rt_shadows;
   api.swipe = re4ipc_swipe;
   api.slash = re4ipc_slash;
@@ -3512,6 +3801,19 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_draw(JNIEnv 
   lastDraw = now;
   // the vsync this drawing began at (the beat asked for it there; PresentPacer keeps it on the beat's grid)
   const long long began = displayVsyncAt.load();
+  if (gxVulkan()) {
+    // Vulkan presents itself in drawGx: the drawing's vsync before, its present times in the renderer's hook (1.1.0)
+    present::vkBefore(began, optSmooth.load() != 0 && !smoothTooSlow, gxBetweenDropped);
+    static const void *hooked = nullptr;
+    static bool told = false;
+    if (gx && gx.get() != hooked) {
+      hooked = gx.get();  // (each new renderer: the hook again)
+      gx->SetPresentHook(present::vkHook, nullptr);
+      if (!gx->PresentTimes() && !told && (told = true))
+        LOG("screen pacing (Vulkan): present times not there (the driver has no VK_GOOGLE_display_timing): each "
+            "picture at the next free vsync");
+    }
+  }
   if (drawGx()) {
     // OpenGL ES: the swap comes after this (GLSurfaceView); Vulkan presents itself
     if (!gxVulkan()) present::beforeSwap(began, optSmooth.load() != 0 && !smoothTooSlow, gxBetweenDropped);
@@ -3610,10 +3912,74 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setAim(JNIEn
         percent, autoAim == JNI_TRUE ? "on" : "off", alwaysRun == JNI_TRUE ? "on" : "off");
 }
 
+// The menu's "Vibration" not Off (1.1.0): the game's own vibration switch follows it (drawGx tells the core).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGameVibration(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optGameVibration.exchange(want) != want) LOG("rumble: the game's vibration switch %s", want ? "on" : "off");
+}
+
 // Patch 0188: "reverse" changed in the game's own options since the last call (-1: no; with the core in its own
 // process always -1).
 extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_aimFromGame(JNIEnv *, jclass) {
   return api.aimFromGame ? api.aimFromGame() : -1;
+}
+
+// The mouse in the game's title and options menus (1.1.0, runtime/mouse_menu.cpp): the app's pointer, a left click.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_mouseMenu(JNIEnv *, jclass, jfloat u, jfloat v,
+                                                                            jboolean click) {
+  if (api.mouseMenu) api.mouseMenu(u, v, click == JNI_TRUE ? 1 : 0);
+}
+
+// "Reload without aiming" (1.1.0): the keyboard's reload key without the aim (runtime/aim_options.cpp, patch 0241).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_quickReload(JNIEnv *, jclass) {
+  if (api.quickReload) api.quickReload();
+}
+
+// Photo mode (1.1.0, runtime/photo_mode.cpp): op 1 on with the mask, 0 off, 2 the mask; false: a core without it.
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_re4decomp_CoreBridge_photoMode(JNIEnv *, jclass, jint op, jint mask) {
+  if (!api.photoMode) return JNI_FALSE;
+  if (op == 1) photoRefused.store(false);
+  photoMask.store(op == 0 ? 0 : mask);
+  api.photoMode(op, mask);
+  return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_photoInput(JNIEnv *, jclass, jint a, jint b, jint c) {
+  if (api.photoInput) api.photoInput(a, b, c);
+}
+
+// "Prepare shaders at start" (1.1.0): {state (0 not started, 1 running, 2 through), done, total} of the programs (GLES)
+// or the app's pipeline list (Vulkan) made ahead
+extern "C" JNIEXPORT jintArray JNICALL Java_com_ast_re4decomp_CoreBridge_shaderPrep(JNIEnv *env, jclass) {
+  re4gx::ShaderPrepProgress &p = re4gx::ShaderPrep();
+  const jint v[3] = {p.state.load(), static_cast<jint>(p.done.load()), static_cast<jint>(p.total.load())};
+  jintArray out = env->NewIntArray(3);
+  if (out) env->SetIntArrayRegion(out, 0, 3, v);
+  return out;
+}
+
+// What the pictures say (the render thread, RE4_GX_CHUNK_PHOTO / _REFUSED): 1 photo mode is on, 2 a request was refused
+// since the last ask (taken)
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_photoState(JNIEnv *, jclass) {
+  return (photoOn.load() ? 1 : 0) | (photoRefused.exchange(false) ? 2 : 0);
+}
+
+// The menu's "Enemy health bars" (1.1.0, Cheats & Mods): drawGx tells the core (bit 20 of the aim bits).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setHealthBars(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optHealthBars.exchange(want) != want) LOG("health bars: %s (the menu)", want ? "on" : "off");
+}
+
+// The cheat "Stack items" (1.1.0, Cheats & Mods): drawGx tells the core (bit 21 of the aim bits, patch 0254).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setStackItems(JNIEnv *, jclass, jint max) {
+  const int want = max >= 999 ? 3 : max >= 500 ? 2 : max >= 250 ? 1 : 0;
+  if (optStackItems.exchange(want) != want) LOG("stack items: step %d (the menu, %d a slot)", want, (int) max);
+}
+
+// 1.1.0: "vibration" changed in the game's own options since the last call (-1: no; with the core in its own
+// process always -1).
+extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_vibrationFromGame(JNIEnv *, jclass) {
+  return api.vibrationFromGame ? api.vibrationFromGame() : -1;
 }
 
 // "Far camera" (the menu, Controls): the shoulder camera further back while walking and standing (patch 0171),
@@ -3658,6 +4024,21 @@ extern "C" JNIEXPORT jint JNICALL Java_com_ast_re4decomp_CoreBridge_cheatAction(
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkip(JNIEnv *, jclass, jboolean on) {
   const int want = on ? 1 : 0;
   if (optFrameSkip.exchange(want) != want) LOG("frame skip: %s", want ? "on (chunks are left out while the renderer is behind)" : "off");
+}
+
+// Frame skip "Auto" (the menu, 1.1.0): both frame skips only while the game stays under 30 (picture_cadence.h AutoSkip).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setFrameSkipAuto(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optSkipAuto.exchange(want) != want)
+    LOG("frame skip Auto: %s", want ? "on (both frame skips while the game stays under 30 a second)" : "off");
+}
+
+// "Even frame pacing" (the menu, 1.1.0): the steady rhythms (on) or each picture at the next free vsync (off).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setEvenPacing(JNIEnv *, jclass, jboolean on) {
+  const int want = on ? 1 : 0;
+  if (optEvenPacing.exchange(want) != want)
+    LOG("frame pacing: %s", want ? "even (pictures held for a steady rhythm, present times on fast screens)"
+                                 : "fast (each picture at the next free vsync)");
 }
 
 // Aggressive frame skip (the menu, patch 0227): the game leaves a picture out while it is behind (drawGx tells the core).
@@ -3867,6 +4248,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharpen(J
     LOG("sharpen: %s", want == 2 ? "strong" : want == 1 ? "light" : "off");
 }
 
+// The upscaler (1.1.0, gx_upscale.h): SGSR or FSR 1 instead of the plain stretch when the picture is smaller than its
+// box on the screen (GxRenderer::SetUpscaler); 0 off, 1 SGSR, 2 FSR.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setUpscaler(JNIEnv *, jclass, jint kind) {
+  const int want = kind < 0 || kind > 2 ? 0 : kind;
+  if (optUpscaler.exchange(want) != want)
+    LOG("upscaler: %s", want == 2 ? "FSR" : want == 1 ? "SGSR" : "off");
+}
+
 // "Sharper menu text" (1.0.0, decision of the project owner, 16.11.2026): the game's own menu words drawn sharper at
 // high resolutions (GxRenderer::SetWordSharpen, word_sharpen.h); on by default.
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSharperText(JNIEnv *, jclass, jboolean on) {
@@ -3926,6 +4315,11 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLeonJacke
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setGentleQte(JNIEnv *, jclass, jboolean on) {
   if (api.setGentleQte) api.setGentleQte(on ? 1 : 0);
+}
+
+// "More enemies" (1.1.0): its seed, 0 off (runtime/enemy_random.cpp).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMoreEnemies(JNIEnv *, jclass, jint seed) {
+  if (api.setMoreEnemies) api.setMoreEnemies(seed);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setEnemyRandom(JNIEnv *, jclass, jint seed) {

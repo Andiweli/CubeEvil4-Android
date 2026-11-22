@@ -62,6 +62,11 @@ unsigned gMarks;           // frames marked since the last log line
 
 // the lights of this frame (re4_rt_shadow_frame -> re4_rt_shadow_mark)
 const int kMaxCast = 3;
+// Stage 8 (18.11.2026): the most a parallel light that casts may travel upwards or sideways (the world's y of the way
+// it travels, unit): it has to come from at least about 14 degrees above the horizon. The game's parallel lights from
+// below or the side are fill lights for the figures, no sun or moon: in r10e two of them travel upwards (y +0.5 to
+// +0.65) and threw Leon's shadow up the walls and onto the wall beside the ladder (the owner's device test).
+const f32 kFromAbove = -0.25f;
 struct Cast {
     cLight* light;  // the game's light
     Vec dir;        // a parallel light: the way it travels (world, unit)
@@ -340,9 +345,10 @@ int chooseLights()
             Vec dir = {0.0f, -1.0f, 0.0f};
             bool casts = false;
             const f32 light = lightAt(l, obj, size, flash, &dir, &casts);
-            // a parallel light casts when it sits in the world (or a flash lights it); any other from its place,
-            // unless a figure carries it (a Ganado's torch, the muzzle flash): it would throw its bearer's shadow
-            const bool castable = l->Type == 5 ? casts : !isFigureModel(l->pParent);
+            // a parallel light casts when it sits in the world (or a flash lights it) and comes from above
+            // (kFromAbove); any other from its place, unless a figure carries it (a Ganado's torch, the muzzle
+            // flash): it would throw its bearer's shadow
+            const bool castable = l->Type == 5 ? casts && dir.y < kFromAbove : !isFigureModel(l->pParent);
             int k = 0;
             while (k < n && found[k].light != l) {
                 k++;
@@ -365,12 +371,19 @@ int chooseLights()
                 Vec pos;
                 l->getPos(&pos);
                 re4_log("real-time shadows: light %d: id %u type %u be 0x%x %s, %.0f mm away, colour %u %u %u a %u, "
-                        "intensity %.2f, radius %.0f -> %.3f%s",
+                        "intensity %.2f, radius %.0f -> %.3f%s%s",
                         i, (unsigned) l->Id, (unsigned) l->Type, (unsigned) l->be_flag,
                         (l->be_flag & 0x40) ? "(an effect's)" : "", (double) GetDistance3((Vec*) &obj, &pos),
                         (unsigned) l->DispCol.r, (unsigned) l->DispCol.g, (unsigned) l->DispCol.b,
                         (unsigned) l->DispCol.a, (double) l->Intensity, (double) l->Radius, (double) light,
-                        castable ? ", casts" : "");
+                        castable ? ", casts" : "",
+                        l->Type != 5 ? ""
+                        : casts && dir.y >= kFromAbove ? ", from below or the side: no shadow"
+                        : "");
+                if (l->Type == 5) {
+                    re4_log("real-time shadows: light %d travels (%.2f %.2f %.2f) in the world", i, (double) dir.x,
+                            (double) dir.y, (double) dir.z);
+                }
             }
         }
     }

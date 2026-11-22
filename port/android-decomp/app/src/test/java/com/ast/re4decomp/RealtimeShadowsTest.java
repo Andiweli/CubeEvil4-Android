@@ -190,14 +190,14 @@ public class RealtimeShadowsTest {
         assertEquals("the note only where not capable (" + k + ")", !capable, find(root, note) != null);
         int start = capable ? 2 : 0;
         int[] values = {R.string.ingame_off, R.string.ingame_rt_shadows_figures, R.string.ingame_rt_shadows_objects};
+        // (1.1.0: an arrow selector, the name over the value)
         assertEquals("the value in force, not the default of a capable device",
-            activity.getString(R.string.ingame_toggle_value, label, activity.getString(values[start])), row.getText().toString());
+            label + "\n" + activity.getString(values[start]), row.getText().toString());
         assertFalse("nothing stored until the player chooses", RealtimeShadows.chosen(graphics));
         for (int i = 1; i <= 3; i++) {
           row.performClick();
           int level = (start + i) % 3;
-          assertEquals(activity.getString(R.string.ingame_toggle_value, label, activity.getString(values[level])),
-              row.getText().toString());
+          assertEquals(label + "\n" + activity.getString(values[level]), row.getText().toString());
           assertEquals(level, RealtimeShadows.choice(graphics, capable));
           assertEquals(level, RealtimeShadows.choice(graphics, !capable));  // kept: the device no longer decides
           assertEquals(i, changed[0]);

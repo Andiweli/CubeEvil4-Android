@@ -1054,6 +1054,11 @@ void re4ipc_zoom(int notches)
     post(kZoom, notches, 0, 0);
 }
 
+void re4ipc_set_more_enemies(int seed)
+{
+    post(kSetMoreEnemies, seed, 0, 0);
+}
+
 void re4ipc_set_enemy_random(int seed)
 {
     post(kSetEnemyRandom, seed, 0, 0);
@@ -1075,6 +1080,29 @@ int re4ipc_rt_shadows(void)
     Reply r;
     // (an older core process answers "unknown command" with -1: none)
     return call(kRtShadows, 0, 0, 0, nullptr, 0, 3000, &r) && r.header.a > 0 ? r.header.a : 0;
+}
+
+void re4ipc_photo_mode(int op, int mask)
+{
+    post(kPhotoMode, op, mask, 0);
+}
+
+void re4ipc_photo_input(int a, int b, int c)
+{
+    post(kPhotoInput, a, b, c);
+}
+
+void re4ipc_quick_reload(void)
+{
+    post(kQuickReload, 0, 0, 0);
+}
+
+void re4ipc_mouse_menu(float u, float v, int click)
+{
+    int32_t a, b;
+    memcpy(&a, &u, 4);
+    memcpy(&b, &v, 4);
+    post(kMouseMenu, a, b, click);
 }
 
 void re4ipc_touch(float u, float v)

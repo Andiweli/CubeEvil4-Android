@@ -9,7 +9,7 @@
 -->
 <resources>
     <!-- the menu's top -->
-    <string name="ingame_title">CubeEvil4 Ingame Menu</string>
+    <string name="ingame_title">CubeEvil4 Options</string>
     <string name="ingame_back">Back to the game</string>
 
     <!-- Graphics -->
@@ -32,7 +32,33 @@
     <string name="ingame_laser_yellow">Yellow</string>
     <string name="ingame_postprocessing">Post-processing</string>
     <string name="ingame_effects">Effects</string>
-    <string name="ingame_optional_features">Optional features</string>
+    <string name="ingame_optional_features">Optional</string>
+    <string name="ingame_side_filtering">Filtering</string>
+    <string name="ingame_side_features">Features</string>
+    <string name="ingame_side_levels">Levels</string>
+    <string name="ingame_side_mute">Mute</string>
+    <string name="ingame_side_touch_style">Touch style</string>
+    <string name="ingame_side_gyro">Gyroscope</string>
+    <string name="ingame_side_axes">Axes</string>
+    <string name="ingame_side_control_type">Control type</string>
+    <string name="ingame_side_assists">Assists</string>
+    <string name="ingame_side_aim_with">Aim with</string>
+    <string name="ingame_side_view">View</string>
+    <string name="ingame_side_stick">Stick options</string>
+    <string name="ingame_mapping_section">Map buttons and keys</string>
+    <string name="ingame_side_assign">Assign</string>
+    <string name="ingame_side_profile">Profile</string>
+    <string name="ingame_side_options">Options</string>
+    <string name="ingame_side_basic_weapons">Basic weapons</string>
+    <string name="ingame_side_explosive_weapons">Explosives</string>
+    <string name="ingame_side_unlocks">Unlocks</string>
+    <string name="ingame_side_stacking">Stacking</string>
+    <string name="ingame_side_random">Randomizer</string>
+    <string name="ingame_side_advanced">Advanced</string>
+    <string name="ingame_side_main_character">Main character</string>
+    <string name="ingame_side_mercenaries">Mercenaries</string>
+    <string name="ingame_side_manage">Manage</string>
+    <string name="ingame_side_texture_options">Texture options</string>
     <string name="ingame_perf_section">Performance</string>
     <string name="ingame_minimap">Minimap</string>
     <string name="ingame_flares">Lens flares</string>
@@ -47,6 +73,26 @@
     <string name="ingame_hud_hz">Display Hz</string>
     <string name="ingame_hud_time">H:M:S since game start</string>
     <string name="ingame_hud_help">H:M:S is the game\'s own play time, kept in every save as on the GameCube. Time in this menu or in the background does not count.</string>
+    <string name="ingame_skip_intro">Skip intro</string>
+    <string name="ingame_skip_intro_help">Skip intro: at the start the game goes straight to its title menu, without the logos and the health warning (from the next start).</string>
+    <string name="ingame_photo_mode">Photo mode</string>
+    <string name="ingame_photo_mode_help">Photo mode: L3 (press the left stick) on a controller, P on a keyboard, or the \"Photo mode\" button at the top of this menu freezes the game and frees the camera; it moves through the whole room and stops at walls. The HUD, Leon, Ashley and the enemies can be hidden one by one, L and R switch camera effects. In photo mode SELECT opens this menu for filters and effects. With this on, L3 and P belong to photo mode. Not in cutscenes, films, menus or while saving. Take the picture with your device\'s screenshot.</string>
+    <string name="ingame_photo_title">Photo mode</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Enemies</string>
+    <string name="ingame_photo_hint_pad">Left stick: move · Right stick: turn, tilt · D-pad: up/down · L/R: camera effect · X HUD · Y Leon · A Ashley · Z enemies · START reset · SELECT menu · B or L3 exit</string>
+    <string name="ingame_photo_hint_keys">WASD: move · Mouse: look · E/Q: up/down · Shift fast · Alt slow · Wheel or 5/6: camera effect · 1 HUD · 2 Leon · 3 Ashley · 4 enemies · R reset · F1 menu · Esc or P exit</string>
+    <string name="ingame_photo_hint_touch">Left half: drag to move · Right half: drag to look · Second finger: up/down · ◆: camera effect · Tap: show this · ✕ exit</string>
+    <string name="ingame_photo_not_here">Photo mode is not available here (cutscenes, films, menus, saving).</string>
+    <string name="ingame_photo_start">Photo mode</string>
+    <string name="ingame_photo_fx_normal">Normal</string>
+    <string name="ingame_photo_fx_wide">Wide angle</string>
+    <string name="ingame_photo_fx_tele">Telephoto</string>
+    <string name="ingame_photo_fx_dolly">Dolly zoom</string>
+    <string name="ingame_photo_fx_dutch">Dutch angle</string>
+    <string name="ingame_photo_fx_orbit">Orbit</string>
     <string name="ingame_fps_bottom_left">Bottom left</string>
     <string name="ingame_fps_bottom_centre">Bottom centre</string>
     <string name="ingame_fps_top_left">Top left</string>
@@ -126,6 +172,8 @@
     <string name="ingame_gyro_sensitivity">Gyro sensitivity</string>
     <string name="ingame_gyro_invert_v">Invert vertical</string>
     <string name="ingame_gyro_invert_h">Invert horizontal</string>
+    <string name="ingame_gyro_source">Gyro from</string>
+    <string name="ingame_gyro_source_help">Gyro from: Auto uses the gyroscope of the controller you play with when it has one (for example DualSense or DualShock 4; Android 12 and later), otherwise this device\'s. Device or Controller always takes that one. The gyro still aims only while Leon raises a weapon.</string>
     <string name="ingame_alternate_help">Alternate Controls: L1 = Knife, L2 = Aim (aim with the right stick), R1 = Inventory (Weapons/Recovery), R2 = Fire / use the knife, Y = Map. A, B, X (Ashley) and START as before. Rifle scope: left stick up/down zooms.</string>
     <string name="ingame_knife_swipe">Knife by Swipe</string>
     <string name="ingame_knife_swipe_help">Knife by Swipe: a quick swipe across the picture draws the knife and slashes; swipe upward or downward to slash high or low.</string>
@@ -248,7 +296,7 @@
     <string name="ingame_controls_page">Controls</string>
     <string name="ingame_performance">Performance</string>
     <string name="ingame_management">Management</string>
-    <string name="ingame_navigation">D-pad: Navigate  ·  A: Select  ·  B: Back  ·  SELECT / START: Back to game</string>
+    <string name="ingame_navigation">D-pad: Navigate  ·  A: Select / next  ·  L1/R1 (Q/E): Change value  ·  B: Back  ·  SELECT / START: Back to game</string>
     <string name="ingame_instant">Instant save</string>
     <string name="ingame_slot">Save slot</string>
     <string name="ingame_slot_details">Chapter %1$s  ·  %2$s  ·  Play time %3$s</string>
@@ -290,7 +338,9 @@
     <string name="ingame_skip_aggressive">Aggressive</string>
     <string name="ingame_vk_bandwidth">Save bandwidth (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Original GameCube TV filter</string>
+    <string name="ingame_aa_msaa">MSAA anti-aliasing</string>
+    <string name="ingame_aa_fxaa">FXAA anti-aliasing</string>
+    <string name="ingame_tv_filter">GameCube TV filter</string>
     <string name="ingame_fxaa_help">Smooths jagged edges in a last step. Works with or without MSAA; the picture gets slightly softer.</string>
     <string name="ingame_sharper_text">Sharper menu text</string>
     <string name="ingame_sharper_text_help">Sharper menu text draws the game’s own menu words with crisp edges at high resolutions, in every language.</string>
@@ -308,6 +358,14 @@
     <string name="ingame_colour_help">Warm film brings out the browns and golds; Survival horror pales the colours and hardens the contrast. Strength sets how much.</string>
     <string name="ingame_skip_normal_help">Frame skip Normal: while the graphics chip lags, a finished picture is left out so the game keeps its normal speed.</string>
     <string name="ingame_skip_aggressive_help">Frame skip Aggressive: the game itself leaves out up to every second picture while it falls behind; much faster on phones with a slow processor.</string>
+    <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_fs_off">No frame skip</string>
+    <string name="ingame_fs_auto">Auto frame skip</string>
+    <string name="ingame_fs_normal">Normal frame skip</string>
+    <string name="ingame_fs_aggressive">Aggressive frame skip</string>
+    <string name="ingame_skip_auto_help">Frame skip Auto: nothing is left out while the game runs at full speed; only when it stays under 30 pictures a second for about half a second do both kinds of frame skip help (first the renderer\'s; the game\'s own only if it stays under 24 for two seconds, and more gently than Aggressive), until it has run at full speed for two seconds again.</string>
+    <string name="ingame_even_pacing">Even frame pacing</string>
+    <string name="ingame_even_pacing_help">Even frame pacing: On (the default) holds a picture back where needed so that every picture stays on the screen equally long (a steady 30, and 60 on screens faster than 60 Hz). Off shows each picture as soon as it is ready, as in older versions: a little more direct, but less even.</string>
     <string name="ingame_vk_bandwidth_help">Vulkan only: saves memory bandwidth on Mali and Adreno chips; the picture stays the same.</string>
     <string name="ingame_skip_or_smooth">Frame skip and 60 FPS exclude each other: switching one on switches the other off.</string>
     <string name="ingame_merge_help">Merges several objects into one call to the graphics driver. Can help phones with a slow driver (e.g. Mali GPUs); no effect with 60 FPS.</string>
@@ -338,6 +396,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Attaché case L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheat_stack">Stack ammo</string>
+    <string name="ingame_cheat_stack_help">Stack ammo: ammo stacks up to 250, 500 or 999 in one slot (Standard: the game\'s own limits). Grenades, recovery items and treasures stay as in the game. A smaller choice later keeps larger stacks, they are used up one by one; new pick-ups then take a new slot.</string>
+    <string name="ingame_stack_standard">Standard</string>
+    <string name="ingame_cheat_refill">Refill ammo</string>
+    <string name="ingame_cheat_refill_full">Nothing to refill: no ammo in the case, or all of it is full.</string>
+    <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to the value of \"Stack ammo\" (Standard: its type\'s normal maximum); no new ammo, the weapons\' loaded rounds stay.</string>
     <string name="ingame_cheats_help">The switches stay on until you switch them off; saves do not keep them. Some attacks still kill Leon at once (chainsaw, grab, boulder). Invisibility: enemies ignore you, bosses and scripted scenes do not. Steady aim: the laser and the scope do not sway. Costumes: Leon\'s jacket keeps Leon in his brown jacket for the whole game; Special dresses Leon and Ashley in their special outfits. The buttons change your game: weapons, the case and the money stay in your next save. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>
@@ -367,6 +431,7 @@
     <string name="ingame_later">Later</string>
     <string name="ingame_controller_config">Button Mapping</string>
     <string name="ingame_controller_config_help">Button Mapping: put every action of the game on keys of your controller or keyboard.</string>
+    <string name="ingame_ashley_hold_help">Ashley stuck somewhere? Press her button (Wait / Follow) twice quickly: she appears right behind Leon and follows him.</string>
     <string name="ingame_stick_dead_zone">Stick dead zone</string>
     <string name="ingame_stick_range">Stick range</string>
     <string name="ingame_stick_help">Stick dead zone: small movements around the centre are ignored (for a drifting stick). Stick range: a stick pushed this far counts as pushed all the way, so Leon walks and runs reliably. The defaults leave the sticks as they are; the touch controls are not affected.</string>
@@ -411,6 +476,10 @@
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_mouse_help">The mouse (Android 8 and later) controls the game while it runs: it turns the camera and moves the aim; the wheel zooms the scope and the binoculars. The app menu (F1) frees the pointer.</string>
     <string name="ingame_keyboard_c_help">The knife: hold its key and aim with the mouse. The C stick\'s keys (I, K, J, L by default) turn the camera and zoom the scope and the binoculars.</string>
+    <string name="ingame_quick_reload">Reload without aiming</string>
+    <string name="ingame_quick_reload_help">Reload without aiming (keyboard): the reload key alone (R by default) reloads, without raising the weapon first.</string>
+    <string name="ingame_force_controller">Force controller detection</string>
+    <string name="ingame_force_controller_help">Force controller detection: use this if your gamepad is not detected or Android lists it as a keyboard: every key of an external device then counts as a controller button, and you can assign it above. A real keyboard then counts as a controller too, so switch this off to play with keyboard and mouse (the mouse keeps working). The device\'s own buttons, the touch controls and the volume keys stay as they are.</string>
     <string name="ingame_mouse_sensitivity">Mouse Sensitivity</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Device</string>
@@ -420,6 +489,11 @@
     <string name="ingame_cheat_section_player">Player</string>
     <string name="ingame_cheat_section_weapons">Weapons</string>
     <string name="ingame_cheat_section_game">General &amp; inventory</string>
+    <string name="ingame_cheat_section_world">Enemies and world</string>
+    <string name="ingame_health_bars">Enemy health bars</string>
+    <string name="ingame_health_bars_help">Enemy health bars: a small bar above each enemy shows its health (green, yellow below a quarter, red below a tenth); not in cutscenes and menus.</string>
+    <string name="ingame_more_enemies">More enemies</string>
+    <string name="ingame_more_enemies_help">More enemies: about 40 percent more of a room\'s ordinary Ganados, at random places, on every difficulty; from the next room. Bosses, special enemies and waves stay as they are; only in the story.</string>
     <string name="ingame_dof_light">Light</string>
     <string name="ingame_dof_strong">Strong</string>
     <string name="ingame_player_view">Player View</string>
@@ -491,6 +565,17 @@
     <string name="ingame_shader_cache_help">The game keeps the shaders it built so scenes do not stutter again. Clear them only if graphics errors appear after an update; the first scenes may then stutter once.</string>
     <string name="ingame_shader_clear">Clear shader cache</string>
     <string name="ingame_shader_clear_text">The game restarts and deletes the built shaders. It builds them anew as you play, so the first scenes can stutter. Progress since your last save is lost.</string>
+    <string name="ingame_shader_prep">Load shaders at start</string>
+    <string name="ingame_shader_prep_help">Load shaders at start: each start first prepares every known shader (the graphics chip\'s programs) and shows how far it is; afterwards rooms and effects do not stutter the first time they appear. The first time this takes about a minute with Vulkan and up to several minutes with OpenGL ES on slow phones, later only seconds. It cannot be skipped. Needs 4 GB RAM or more.</string>
+    <string name="ingame_shader_prep_low_ram">Needs at least 4 GB RAM (this device has %1$s GB).</string>
+    <string name="ingame_shader_prep_title">Preparing shaders…</string>
+    <string name="ingame_shader_prep_line">Prepared once, they will not stutter later. Please wait, this cannot be skipped.</string>
+    <string name="ingame_output_res">Display resolution</string>
+    <string name="ingame_output_res_help">Display resolution: the size of the picture sent to the screen; the screen stretches it to its own pixels. Lower is faster on phones with very sharp screens (above 1080p), above all with CRT, bloom, FXAA or Sharpen, and a little softer. Native: the screen\'s own size. The resolution above (the game\'s 3D) stays as it is.</string>
+    <string name="ingame_upscaler">Upscaler</string>
+    <string name="ingame_upscaler_sgsr">SGSR (light)</string>
+    <string name="ingame_upscaler_fsr">FSR (strong)</string>
+    <string name="ingame_upscaler_help">Upscaler: how the game\'s picture is enlarged when it is smaller than its place on the screen (when the resolution above is lower than the screen\'s). Off: the plain, soft stretch. SGSR (Qualcomm Snapdragon Game Super Resolution): sharper edges, light work for the phone; recommended. FSR (AMD FidelityFX Super Resolution 1): the sharpest, about twice the work of SGSR. Nothing changes when the picture is as large as its place, nor with the CRT filter.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
     <string name="ingame_hd_textures">HD textures</string>

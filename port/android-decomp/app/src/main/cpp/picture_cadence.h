@@ -304,4 +304,130 @@ struct PresentPacer {
   }
 };
 
+// Vulkan's present times (VK_GOOGLE_display_timing, 1.1.0): when a picture asked for the vsync `target` (Target's
+// value + period / 2) was ready, as PresentPacer::Outcome takes it (EGL's rendering complete time), from what the
+// swapchain tells. Android's swapchain gives the time shown (`actual`), the earliest it could have been shown
+// (`earliest`: `actual` less whole refresh periods) and its margin: from the picture's being ready to the compositor's
+// latch, less the same periods. The margin as it was (`margin` + `actual` - `earliest`) is the time the picture had to
+// spare before the latch, which is what Outcome judges (its target less kMarginNs less the ready time): so the ready
+// time is put that far before the target, whatever the device's latch is. 0: not known (a time missing).
+inline long long VkReadyFor(long long target, long long actual, long long earliest, long long margin)
+{
+    if (target <= 0 || actual <= 0 || earliest <= 0 || earliest > actual || margin < 0)
+        return 0;
+    const long long ready = target - PresentPacer::kMarginNs - (margin + (actual - earliest));
+    return ready > 0 ? ready : 0;
+}
+
+// Frame skip "Auto" (1.1.0, the project owner's decision of 20.11.2026): the frame skips (the renderer's and the game's
+// own, as "Aggressive") only while the game stays below 30 pictures a second. The game's pace from the chunks' own
+// numbers (Re4GxChunk::sequence counts every chunk the core built, a picture the game left out included, one the
+// renderer leaves out too): over the last half second below 27 a second (two pictures or more missing; a single late
+// picture switches nothing) turns it on, two seconds at 29 a second or more turn it off again. A pause of more than 0.25 s between two chunks (a room loading,
+// the menu, a stall) starts the measurement anew and keeps the state.
+//
+// In two steps (1.1.0, a user's Snapdragon 460 in the cable car: "with Auto it feels like aggressive frame skip - the
+// counter shows 30 FPS, but the gameplay still feels choppy"): `on` (under 27) is the renderer's frame skip (a picture the
+// graphics chip is behind with); `cpu`, the game's own frame skip ("as needed", runtime/cpu_skip.cpp mode 2), only while
+// the game stays clearly behind (under 24 a second for two seconds with `on`): a processor that is only a little too
+// slow keeps every picture (a game a little slower, but smooth: on the PC at 26 a second the game's frame skip gave 30 a
+// second with 15 to 20 pictures, the time between them 40 and 67 ms in turn). `cpu` goes again when the game leaves out
+// less than one picture in ten for two seconds (the chunks' numbers against the chunks); `on` only after that.
+struct AutoSkip {
+  static constexpr double kWindow = 0.5, kCalm = 2.0, kGap = 0.25, kLow = 27.0, kFull = 29.0, kDeep = 24.0,
+                          kFewLeftOut = 0.1;
+  bool on = false;
+  bool cpu = false;            // the game's own frame skip too (a step further, see above)
+  unsigned cpuOns = 0;         // its switches on so far
+  double leftOut = 0.0;        // the share of the game's pictures left out in the last window
+  double deepSince = -1.0;     // since when the game is under kDeep with `on` (-1 not)
+  double fewSince = -1.0;      // since when it leaves out few with `cpu` (-1 not)
+  unsigned ons = 0, offs = 0;  // the switches so far
+  double rate = 0.0;           // the pace of the last window (pictures a second)
+  struct Mark {
+    double t;
+    unsigned seq;
+  };
+  std::vector<Mark> marks;  // the chunks of the last window
+  double goodSince = -1.0;  // since when the pace is full (on), -1 not
+
+  void Reset() {
+    marks.clear();
+    goodSince = -1.0;
+    deepSince = -1.0;
+    fewSince = -1.0;
+  }
+  // A chunk taken at `t` seconds, its sequence number: true when `on` changed.
+  bool Note(double t, unsigned seq) {
+    if (!marks.empty() && (t - marks.back().t > kGap || seq <= marks.back().seq || t < marks.back().t))
+      Reset();
+    marks.push_back({t, seq});
+    std::size_t old = 0;
+    while (old + 1 < marks.size() && t - marks[old + 1].t >= kWindow)
+      old++;
+    if (old)
+      marks.erase(marks.begin(), marks.begin() + static_cast<long>(old));
+    const double span = t - marks.front().t;
+    if (span < kWindow * 0.9)
+      return false;  // not half a second yet
+    rate = (seq - marks.front().seq) / span;
+    const double numbers = static_cast<double>(seq - marks.front().seq);
+    leftOut = numbers > 0.0 ? std::max(0.0, 1.0 - static_cast<double>(marks.size() - 1) / numbers) : 0.0;
+    if (!on) {
+      if (rate < kLow) {
+        on = true;
+        ons++;
+        goodSince = -1.0;
+        deepSince = -1.0;
+        return true;
+      }
+      return false;
+    }
+    if (cpu) {
+      // the game's frame skip: off once it leaves out few for two seconds (the game nearly keeps up by itself)
+      if (leftOut >= kFewLeftOut) {
+        fewSince = -1.0;
+        return false;
+      }
+      if (fewSince < 0.0)
+        fewSince = t;
+      if (t - fewSince >= kCalm) {
+        cpu = false;
+        fewSince = -1.0;
+        goodSince = -1.0;
+        deepSince = -1.0;
+        return true;
+      }
+      return false;
+    }
+    if (rate < kDeep) {
+      if (deepSince < 0.0)
+        deepSince = t;
+      if (t - deepSince >= kCalm) {
+        cpu = true;
+        cpuOns++;
+        deepSince = -1.0;
+        fewSince = -1.0;
+        goodSince = -1.0;
+        return true;
+      }
+    } else {
+      deepSince = -1.0;
+    }
+    if (rate < kFull) {
+      goodSince = -1.0;
+      return false;
+    }
+    if (goodSince < 0.0)
+      goodSince = t;
+    if (t - goodSince >= kCalm) {
+      on = false;
+      offs++;
+      goodSince = -1.0;
+      return true;
+    }
+    return false;
+  }
+};
+
 } // namespace re4gx

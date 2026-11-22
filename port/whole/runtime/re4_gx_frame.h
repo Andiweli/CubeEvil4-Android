@@ -248,7 +248,12 @@ enum Re4GxChunkFlags {
     RE4_GX_CHUNK_MOVIE = 1u << 7, /* a movie plays (re4_gx_movie, 0.99.2): the
                                      app's "Sharpen" leaves its pictures as they
                                      are (the blocks of the compression) */
-    RE4_GX_CHUNK_DRAWLESS = 1u << 8 /* the OUYA branch (re4_gx_set_drawless): the core
+    RE4_GX_CHUNK_PHOTO = 1u << 8, /* photo mode is on (re4_gx_photo, 1.1.0): the app
+                                     shows its overlay, hides its touch controls */
+    RE4_GX_CHUNK_PHOTO_REFUSED = 1u << 9, /* the app asked for photo mode and the
+                                     game refused (an event, a menu ...) */
+    RE4_GX_CHUNK_DRAWLESS = 1u << 16 /* the OUYA branch (re4_gx_set_drawless; 1u << 8 until
+                                     1.1.0 gave it to PHOTO): the core
                                      left this chunk's draws out, its state, textures
                                      and copies are there; the renderer runs it as
                                      state only and never shows it */

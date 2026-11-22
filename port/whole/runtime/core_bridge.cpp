@@ -38,6 +38,7 @@ extern cObjMgr ObjMgr;
 
 extern "C" int re4_dvd_inserted_disc(void);
 extern "C" int re4_valid_port_ptr(const void* p);
+extern "C" int re4_hud_off_now(void);       // runtime/health_bars.cpp (1.1.0)
 
 extern "C" void re4_gx_screen(int flags);  // runtime/gx_decode.cpp
 
@@ -364,7 +365,8 @@ extern "C" void re4_bridge_capture(Re4CoreSnapshot* s)
     s->room = g->room_id;
     s->screen = (StaFlagChk(g, STA_SUB_SCRN) ? RE4_CORE_SCREEN_SUB : 0) |
                 (StaFlagChk(g, STA_EVENT) ? RE4_CORE_SCREEN_EVENT : 0) |
-                (DbgFlagChk(g, DBG_DBG_CAM) ? RE4_CORE_SCREEN_DEBUGCAM : 0);
+                (DbgFlagChk(g, DBG_DBG_CAM) ? RE4_CORE_SCREEN_DEBUGCAM : 0) |
+                (re4_hud_off_now() ? RE4_CORE_SCREEN_NOHUD : 0);
     // the OUYA branch: no chunks without draws in a sub screen (gx_decode.cpp), from the game's request on
     // (SubScreenOpen sets STA_SSCRN_REQUEST some frames before SubScreenExec sets STA_SUB_SCRN; 0x100 is the
     // core's own bit, not in RE4_CORE_SCREEN_*)

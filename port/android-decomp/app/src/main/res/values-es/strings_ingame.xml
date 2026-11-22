@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Spanish (Español): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 · Menú del juego</string>
+    <string name="ingame_title">Opciones de CubeEvil4</string>
     <string name="ingame_back">Volver al juego</string>
 
     <string name="ingame_graphics">Gráficos</string>
@@ -23,7 +23,33 @@
     <string name="ingame_laser_yellow">Amarillo</string>
     <string name="ingame_postprocessing">Posprocesado</string>
     <string name="ingame_effects">Efectos</string>
-    <string name="ingame_optional_features">Funciones opcionales</string>
+    <string name="ingame_optional_features">Opcional</string>
+    <string name="ingame_side_filtering">Filtrado</string>
+    <string name="ingame_side_features">Funciones</string>
+    <string name="ingame_side_levels">Niveles</string>
+    <string name="ingame_side_mute">Silenciar</string>
+    <string name="ingame_side_touch_style">Estilo táctil</string>
+    <string name="ingame_side_gyro">Giroscopio</string>
+    <string name="ingame_side_axes">Ejes</string>
+    <string name="ingame_side_control_type">Tipo de control</string>
+    <string name="ingame_side_assists">Ayudas</string>
+    <string name="ingame_side_aim_with">Apuntar con</string>
+    <string name="ingame_side_view">Vista</string>
+    <string name="ingame_side_stick">Opciones del stick</string>
+    <string name="ingame_mapping_section">Asignar botones y teclas</string>
+    <string name="ingame_side_assign">Asignar</string>
+    <string name="ingame_side_profile">Perfil</string>
+    <string name="ingame_side_options">Opciones</string>
+    <string name="ingame_side_basic_weapons">Armas básicas</string>
+    <string name="ingame_side_explosive_weapons">Armas explosivas</string>
+    <string name="ingame_side_unlocks">Desbloqueos</string>
+    <string name="ingame_side_stacking">Apilable</string>
+    <string name="ingame_side_random">Aleatorio</string>
+    <string name="ingame_side_advanced">Avanzado</string>
+    <string name="ingame_side_main_character">Protagonista</string>
+    <string name="ingame_side_mercenaries">Mercenaries</string>
+    <string name="ingame_side_manage">Gestión</string>
+    <string name="ingame_side_texture_options">Opciones de textura</string>
     <string name="ingame_perf_section">Rendimiento</string>
     <string name="ingame_minimap">Minimapa</string>
     <string name="ingame_flares">Destellos de lente</string>
@@ -38,6 +64,26 @@
     <string name="ingame_hud_hz">Hz de pantalla</string>
     <string name="ingame_hud_time">H:M:S desde el inicio</string>
     <string name="ingame_hud_help">H:M:S es el tiempo de juego del propio juego, que cada partida guardada conserva, como en GameCube. El tiempo en este menú o en segundo plano no cuenta.</string>
+    <string name="ingame_skip_intro">Saltar la intro</string>
+    <string name="ingame_skip_intro_help">Saltar la intro: al iniciar, el juego va directamente a su menú principal, sin los logotipos ni el aviso de salud (desde el próximo inicio).</string>
+    <string name="ingame_photo_mode">Modo foto</string>
+    <string name="ingame_photo_mode_help">Modo foto: L3 (pulsar el stick izquierdo) en el mando, P en el teclado o el botón «Modo foto» arriba en este menú congela el juego y libera la cámara; recorre toda la sala y se detiene en las paredes. El HUD, Leon, Ashley y los enemigos se pueden ocultar uno a uno; L y R cambian los efectos de cámara. En el modo foto, SELECT abre este menú para filtros y efectos. Con esto activado, L3 y P son del modo foto. No en escenas, películas, menús ni al guardar. Haz la foto con la captura de pantalla de tu dispositivo.</string>
+    <string name="ingame_photo_title">Modo foto</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Enemigos</string>
+    <string name="ingame_photo_hint_pad">Stick izquierdo: mover · Stick derecho: girar, inclinar · Cruceta: subir/bajar · L/R: efecto de cámara · X HUD · Y Leon · A Ashley · Z enemigos · START restablecer · SELECT menú · B o L3 salir</string>
+    <string name="ingame_photo_hint_keys">WASD: mover · Ratón: mirar · E/Q: subir/bajar · Shift rápido · Alt lento · Rueda o 5/6: efecto de cámara · 1 HUD · 2 Leon · 3 Ashley · 4 enemigos · R restablecer · F1 menú · Esc o P salir</string>
+    <string name="ingame_photo_hint_touch">Mitad izquierda: arrastra para mover · Mitad derecha: arrastra para mirar · Segundo dedo: subir/bajar · ◆: efecto de cámara · Toque: mostrar esto · ✕ salir</string>
+    <string name="ingame_photo_not_here">El modo foto no está disponible aquí (escenas, películas, menús, guardado).</string>
+    <string name="ingame_photo_start">Modo foto</string>
+    <string name="ingame_photo_fx_normal">Normal</string>
+    <string name="ingame_photo_fx_wide">Gran angular</string>
+    <string name="ingame_photo_fx_tele">Teleobjetivo</string>
+    <string name="ingame_photo_fx_dolly">Efecto vértigo</string>
+    <string name="ingame_photo_fx_dutch">Plano holandés</string>
+    <string name="ingame_photo_fx_orbit">Órbita</string>
     <string name="ingame_fps_bottom_left">Abajo a la izquierda</string>
     <string name="ingame_fps_bottom_centre">Abajo en el centro</string>
     <string name="ingame_fps_top_left">Arriba a la izquierda</string>
@@ -115,6 +161,8 @@
     <string name="ingame_gyro_sensitivity">Sensibilidad del giroscopio</string>
     <string name="ingame_gyro_invert_v">Invertir vertical</string>
     <string name="ingame_gyro_invert_h">Invertir horizontal</string>
+    <string name="ingame_gyro_source">Giroscopio de</string>
+    <string name="ingame_gyro_source_help">Giroscopio de: Auto usa el giroscopio del mando con el que juegas si tiene uno (por ejemplo DualSense o DualShock 4; Android 12 o posterior); si no, el de este dispositivo. Dispositivo o Mando usa siempre ese. El giroscopio solo apunta mientras Leon alza un arma.</string>
     <string name="ingame_alternate_help">Controles alternativos: L1 = Cuchillo, L2 = Apuntar (con el stick derecho), R1 = Inventario (Armas/Curación), R2 = Disparar / usar el cuchillo, Y = Mapa. A, B, X (Ashley) y START como antes. Mira del rifle: el stick izquierdo arriba/abajo hace zoom.</string>
     <string name="ingame_knife_swipe">Cuchillo deslizando</string>
     <string name="ingame_knife_swipe_help">Cuchillo deslizando: un deslizamiento rápido sobre la imagen saca el cuchillo y corta; desliza hacia arriba o hacia abajo para cortar alto o bajo.</string>
@@ -233,7 +281,7 @@
     <string name="ingame_controls_page">Controles</string>
     <string name="ingame_performance">Rendimiento</string>
     <string name="ingame_management">Gestión</string>
-    <string name="ingame_navigation">Cruceta: Navegar  ·  A: Elegir  ·  B: Atrás  ·  SELECT / START: Volver al juego</string>
+    <string name="ingame_navigation">Cruceta: Navegar  ·  A: Elegir / siguiente  ·  L1/R1 (Q/E): Cambiar valor  ·  B: Atrás  ·  SELECT / START: Volver al juego</string>
     <string name="ingame_instant">Guardado instantáneo</string>
     <string name="ingame_slot">Ranura de guardado</string>
     <string name="ingame_slot_details">Capítulo %1$s  ·  %2$s  ·  Tiempo %3$s</string>
@@ -275,7 +323,9 @@
     <string name="ingame_skip_aggressive">Agresivo</string>
     <string name="ingame_vk_bandwidth">Ahorrar banda (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Filtro de TV original de GameCube</string>
+    <string name="ingame_aa_msaa">Suavizado MSAA</string>
+    <string name="ingame_aa_fxaa">Suavizado FXAA</string>
+    <string name="ingame_tv_filter">Filtro de TV de GameCube</string>
     <string name="ingame_fxaa_help">Suaviza los bordes dentados en un último paso. Funciona con o sin MSAA; la imagen queda algo más suave.</string>
     <string name="ingame_sharper_text">Texto de menús más nítido</string>
     <string name="ingame_sharper_text_help">Texto de menús más nítido dibuja las palabras de los menús del juego con bordes nítidos en altas resoluciones, en todos los idiomas.</string>
@@ -293,6 +343,14 @@
     <string name="ingame_colour_help">Película cálida realza los marrones y dorados; Survival horror apaga los colores y endurece el contraste. Intensidad indica cuánto.</string>
     <string name="ingame_skip_normal_help">Salto de fotogramas Normal: si el chip gráfico se retrasa, se omite una imagen ya hecha para que el juego mantenga su velocidad normal.</string>
     <string name="ingame_skip_aggressive_help">Salto de fotogramas Agresivo: el propio juego omite como mucho una de cada dos imágenes cuando se retrasa; mucho más rápido en móviles con un procesador lento.</string>
+    <string name="ingame_skip_auto">Auto</string>
+    <string name="ingame_fs_off">Sin salto de fotogramas</string>
+    <string name="ingame_fs_auto">Salto de fotogramas auto</string>
+    <string name="ingame_fs_normal">Salto de fotogramas normal</string>
+    <string name="ingame_fs_aggressive">Salto de fotogramas agresivo</string>
+    <string name="ingame_skip_auto_help">Salto de fotogramas Auto: mientras el juego va a velocidad completa no se salta nada; solo cuando se queda por debajo de 30 imágenes por segundo durante medio segundo ayudan los dos tipos de salto (primero el del renderizador; el del juego solo si se queda dos segundos por debajo de 24, y más suave que en Agresivo), hasta que vuelve a ir dos segundos a velocidad completa.</string>
+    <string name="ingame_even_pacing">Ritmo de imagen uniforme</string>
+    <string name="ingame_even_pacing_help">Ritmo de imagen uniforme: Sí (por defecto) retiene una imagen cuando hace falta para que cada una se vea el mismo tiempo (30 constantes, y 60 en pantallas de más de 60 Hz). No muestra cada imagen en cuanto está lista, como en versiones anteriores: algo más directo, pero menos uniforme.</string>
     <string name="ingame_vk_bandwidth_help">Solo Vulkan: ahorra ancho de banda de memoria en chips Mali y Adreno; la imagen no cambia.</string>
     <string name="ingame_skip_or_smooth">El salto de fotogramas y los 60 FPS se excluyen: al activar uno se desactiva el otro.</string>
     <string name="ingame_merge_help">Agrupa varios objetos en una sola llamada al controlador gráfico. Puede ayudar en móviles con un controlador lento (p. ej., GPU Mali); sin efecto con 60 FPS.</string>
@@ -323,6 +381,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Maletín L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheat_stack">Apilar munición</string>
+    <string name="ingame_cheat_stack_help">Apilar munición: la munición se apila hasta 250, 500 o 999 en una casilla (Estándar: los límites del juego). Las granadas, los objetos curativos y los tesoros quedan como en el juego. Si luego eliges menos, las pilas mayores se conservan y se gastan una a una; lo que recojas después ocupa una casilla nueva.</string>
+    <string name="ingame_stack_standard">Estándar</string>
+    <string name="ingame_cheat_refill">Rellenar munición</string>
+    <string name="ingame_cheat_refill_full">Nada que rellenar: no hay munición en el maletín, o ya está llena.</string>
+    <string name="ingame_cheat_refill_help">Rellenar munición: cada pila de munición del maletín se llena hasta el valor de «Apilar munición» (Estándar: el máximo normal de su tipo); no se añade munición nueva y las balas cargadas en las armas no cambian.</string>
     <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; las partidas guardadas no los conservan. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Invisibilidad: los enemigos te ignoran; los jefes y las escenas fijas, no. Puntería estable: el láser y la mira telescópica no oscilan. Trajes: Chaqueta de Leon mantiene a Leon con su chaqueta marrón todo el juego; Especial viste a Leon y Ashley con sus trajes especiales. Los botones cambian tu partida: las armas, el maletín y el dinero quedan en tu próxima partida guardada. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal.</string>
     <string name="ingame_cheat_done">Hecho: %1$s.</string>
     <string name="ingame_cheat_already">Ya lo tienes: %1$s.</string>
@@ -352,6 +416,7 @@
     <string name="ingame_later">Más tarde</string>
     <string name="ingame_controller_config">Asignación de botones</string>
     <string name="ingame_controller_config_help">Asignación de botones: pon cada acción del juego en teclas de tu mando o teclado.</string>
+    <string name="ingame_ashley_hold_help">¿Ashley se ha quedado atascada? Pulsa su botón (Esperar / Seguir) dos veces rápido: aparece justo detrás de Leon y lo sigue.</string>
     <string name="ingame_stick_dead_zone">Zona muerta del stick</string>
     <string name="ingame_stick_range">Alcance del stick</string>
     <string name="ingame_stick_help">Zona muerta del stick: se ignoran los pequeños movimientos alrededor del centro (para un stick que se desvía). Alcance del stick: un stick empujado hasta aquí ya cuenta como empujado del todo, para que Leon camine y corra sin fallos. Los valores predeterminados dejan los sticks como están; los controles táctiles no cambian.</string>
@@ -396,6 +461,10 @@
     <string name="ingame_map_keyboard">Teclado y ratón</string>
     <string name="ingame_mouse_help">El ratón (Android 8 o superior) controla el juego mientras se juega: gira la cámara y mueve la mira; la rueda hace zoom con la mira telescópica y los prismáticos. El menú de la app (F1) libera el puntero.</string>
     <string name="ingame_keyboard_c_help">El cuchillo: mantén su tecla y apunta con el ratón. Las teclas del stick C (I, K, J, L por defecto) giran la cámara y hacen zoom en la mira y los prismáticos.</string>
+    <string name="ingame_quick_reload">Recargar sin apuntar</string>
+    <string name="ingame_quick_reload_help">Recargar sin apuntar (teclado): la tecla de recarga sola (R por defecto) recarga sin levantar antes el arma.</string>
+    <string name="ingame_force_controller">Forzar detección de mando</string>
+    <string name="ingame_force_controller_help">Forzar detección de mando: úsalo si tu mando no se detecta o Android lo trata como teclado: cada tecla de un dispositivo externo cuenta entonces como botón de mando y se puede asignar arriba. Un teclado real también cuenta entonces como mando; desactívalo para jugar con teclado y ratón (el ratón sigue funcionando). Los botones del propio dispositivo, los controles táctiles y las teclas de volumen no cambian.</string>
     <string name="ingame_mouse_sensitivity">Sensibilidad del ratón</string>
     <string name="ingame_map_controller">Mando</string>
     <string name="ingame_map_device">Dispositivo</string>
@@ -405,6 +474,11 @@
     <string name="ingame_cheat_section_player">Jugador</string>
     <string name="ingame_cheat_section_weapons">Armas</string>
     <string name="ingame_cheat_section_game">General e inventario</string>
+    <string name="ingame_cheat_section_world">Enemigos y entorno</string>
+    <string name="ingame_health_bars">Barras de vida de enemigos</string>
+    <string name="ingame_health_bars_help">Barras de vida de enemigos: una pequeña barra sobre cada enemigo muestra su salud (verde, amarilla por debajo de un cuarto, roja por debajo de una décima parte); no en escenas ni menús.</string>
+    <string name="ingame_more_enemies">Más enemigos</string>
+    <string name="ingame_more_enemies_help">Más enemigos: alrededor de un 40 por ciento más de los Ganados normales de una sala, en lugares aleatorios, en cualquier dificultad; desde la siguiente sala. Los jefes, los enemigos especiales y las oleadas no cambian; solo en la historia.</string>
     <string name="ingame_dof_light">Suave</string>
     <string name="ingame_dof_strong">Fuerte</string>
     <string name="ingame_player_view">Vista del jugador</string>
@@ -476,6 +550,17 @@
     <string name="ingame_shader_cache_help">El juego guarda los shaders que ha creado para que las escenas no vuelvan a ir a tirones. Vacía la caché solo si aparecen errores gráficos tras una actualización; las primeras escenas pueden ir a tirones una vez.</string>
     <string name="ingame_shader_clear">Vaciar caché de shaders</string>
     <string name="ingame_shader_clear_text">El juego se reinicia y borra los shaders creados. Los vuelve a crear mientras juegas, así que las primeras escenas pueden ir a tirones. Se pierde el progreso desde la última vez que guardaste.</string>
+    <string name="ingame_shader_prep">Cargar shaders al iniciar</string>
+    <string name="ingame_shader_prep_help">Cargar shaders al iniciar: cada inicio prepara primero todos los shaders conocidos (los programas del chip gráfico) y muestra cuánto falta; después, las salas y los efectos no dan tirones la primera vez que aparecen. La primera vez tarda alrededor de un minuto con Vulkan y hasta varios minutos con OpenGL ES en móviles lentos, después solo segundos. No se puede saltar. Necesita 4 GB de RAM o más.</string>
+    <string name="ingame_shader_prep_low_ram">Necesita al menos 4 GB de RAM (este dispositivo tiene %1$s GB).</string>
+    <string name="ingame_shader_prep_title">Preparando shaders…</string>
+    <string name="ingame_shader_prep_line">Una vez preparados, no darán tirones después. Espera, no se puede saltar.</string>
+    <string name="ingame_output_res">Resolución de salida</string>
+    <string name="ingame_output_res_help">Resolución de salida: el tamaño de la imagen que se envía a la pantalla; la pantalla la estira a sus propios píxeles. Más baja es más rápida en móviles con pantallas muy nítidas (más de 1080p), sobre todo con CRT, bloom, FXAA o nitidez, y algo más suave. Nativa: el tamaño propio de la pantalla. La resolución de arriba (el 3D del juego) no cambia.</string>
+    <string name="ingame_upscaler">Escalador</string>
+    <string name="ingame_upscaler_sgsr">SGSR (ligero)</string>
+    <string name="ingame_upscaler_fsr">FSR (fuerte)</string>
+    <string name="ingame_upscaler_help">Escalador: cómo se amplía la imagen del juego cuando es más pequeña que su sitio en la pantalla (una resolución de arriba menor que la de la pantalla). No: el estirado simple y suave. SGSR (Qualcomm Snapdragon Game Super Resolution): bordes más nítidos, poco trabajo para el móvil; recomendado. FSR (AMD FidelityFX Super Resolution 1): el más nítido, unas dos veces el trabajo de SGSR. Nada cambia si la imagen es tan grande como su sitio, ni con el filtro CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mods</string>
     <string name="ingame_hd_textures">Texturas HD</string>

@@ -1,0 +1,19 @@
+# Port patch (1.1.0, wish of the project owner, 19.11.2026): "Photo mode" (the app menu's Display, Optional features,
+# off by default). gameMainLoop asks runtime/photo_mode.cpp first: while photo mode is on, the game's frame is left
+# out as a whole (as with the game's own option screen, Rno0 6), the free camera is set there and Trans draws the
+# world as it stands. Off: as the game. The patch adds no line (the byte views of game.cpp stay near their lines).
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -587,10 +587,10 @@
+ // Rno0 == 3: one frame of play, running every manager in turn. The Z button opens the option
+ // screen (Rno0 = 6) when OptionOpenCheck allows.
+ // instant slot (patch 0111)
+-extern "C" int re4_instant_game_tick(void);
++extern "C" int re4_instant_game_tick(void); int re4_photo_frame(); /* photo mode: patch 0243, runtime/photo_mode.cpp */
+ void gameMainLoop()
+ {
+-    if (re4_instant_game_tick()) return;
++    if (re4_instant_game_tick() || re4_photo_frame()) return; /* port (patch 0243): photo mode leaves the frame out */
+     static int other_slow = 3;
+     static int preb_slow_flg = 1;
+     static f32 player_Seq_speed = 0.6f;

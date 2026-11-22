@@ -686,6 +686,50 @@ std::string GxFragmentShader(const ShaderKey &k) {
     const unsigned f0 = k.alphaTest & 7, f1 = (k.alphaTest >> 3) & 7, logic = (k.alphaTest >> 6) & 3;
     static const char *logicOp[4] = {"&&", "||", "!=", "=="};
     const bool always = (f0 == 7 && f1 == 7) || (logic == 1 && (f0 == 7 || f1 == 7));
+    // With MSAA (bit 0 of centroid: samples > 1) the test covers the pixel's samples by how far its alpha lies past
+    // the edge, measured against the alpha's change to the next pixel (1.1.0, the project owner, 21.11.2026: smoother
+    // edges on foliage, fences and hair; the alpha-to-coverage idea, but through the sample mask, so the alpha the game
+    // writes stays as it is). Each comparison "<", "<=", ">", ">=" gets its share (never 0, always 1), AND the smaller,
+    // OR the larger (the game's own: "> ref OR > ref", "> ref OR > 255"); "==", "!=" and XOR / XNOR keep the hard test.
+    // The written colour is the same; only where the test's edge crosses a pixel some samples stay uncovered. OpenGL ES
+    // needs GL_OES_sample_variables (or 3.2) for it, Vulkan has it; without it, and without MSAA, the test as before
+    // (the programs of 1 sample unchanged).
+    static const bool softOff = [] {  // RE4_GX_SOFT_ALPHA=0: the hard test with MSAA too (a test's comparison)
+      const char *v = std::getenv("RE4_GX_SOFT_ALPHA");
+      return v && *v == '0';
+    }();
+    const auto softOk = [](unsigned f) { return f == 0 || f == 1 || f == 3 || f == 4 || f == 6 || f == 7; };
+    // the share of a comparison: 0 / 1 for never / always, else the distance past its edge (half a step past the
+    // reference, where the hard test flips) in the alpha's change a pixel
+    const auto share = [](unsigned f, const char *ref) {
+      static thread_local char text[2][160];
+      static thread_local int n;
+      char *b = text[n++ & 1];
+      if (f == 0 || f == 7) {
+        std::snprintf(b, 160, "%s", f ? "1.0" : "0.0");
+      } else {
+        const bool greater = f == 4 || f == 6;
+        const char *edge = f == 4 || f == 3 ? "+ 0.5" : "- 0.5";
+        if (greater)
+          std::snprintf(b, 160, "clamp((float(prev.a) - (float(%s) %s)) / aStep + 0.5, 0.0, 1.0)", ref, edge);
+        else
+          std::snprintf(b, 160, "clamp(((float(%s) %s) - float(prev.a)) / aStep + 0.5, 0.0, 1.0)", ref, edge);
+      }
+      return b;
+    };
+    if (!always && (k.centroid & 1) && !softOff && logic <= 1 && softOk(f0) && softOk(f1)) {
+      out.insert(out.find('\n') + 1, "#extension GL_OES_sample_variables : enable\n");
+      out += "#if defined(GL_OES_sample_variables) || __VERSION__ >= 320\n";
+      out += "  if (alphaRef.w > 1) {\n"
+             "    float aStep = max(fwidth(float(prev.a)), 1.0);\n";
+      const std::string c0 = share(f0, "alphaRef.x"), c1 = share(f1, "alphaRef.y");
+      Add(out, "    float aCov = %s(%s, %s);\n", logic == 0 ? "min" : "max", c0.c_str(), c1.c_str());
+      out += "    int aSamples = int(aCov * float(alphaRef.w) + 0.5);\n"
+             "    if (aSamples <= 0) discard;\n"
+             "    gl_SampleMask[0] = aSamples >= 31 ? -1 : (1 << aSamples) - 1;\n"
+             "  } else\n";
+      out += "#endif\n";
+    }
     if (!always)
       Add(out, "  if (!(%s %s %s)) discard;\n", AlphaFunc(f0, "alphaRef.x"), logicOp[logic],
           AlphaFunc(f1, "alphaRef.y"));

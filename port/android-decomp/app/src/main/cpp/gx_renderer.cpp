@@ -45,6 +45,7 @@ void GxRenderer::Run(const Re4GxChunk &chunk) { impl_->Run(chunk); }
 void GxRenderer::SetDepthSink(DepthSink sink) { impl_->SetDepthSink(std::move(sink)); }
 void GxRenderer::SetFxaa(bool on) { impl_->SetFxaa(on); }
 void GxRenderer::SetSharpen(int level) { impl_->SetSharpen(level); }
+void GxRenderer::SetUpscaler(int kind) { impl_->SetUpscaler(kind); }
 void GxRenderer::SetTvFilter(bool on) { impl_->SetTvFilter(on); }
 void GxRenderer::SetBandwidthSave(bool on) { impl_->SetBandwidthSave(on); }
 void GxRenderer::SetPsx(bool on) { impl_->SetPsx(on); }
@@ -83,6 +84,8 @@ bool GxRenderer::Present(int x, int y, int w, int h, unsigned top, unsigned rows
 GLuint GxRenderer::EfbColor() const { return impl_->EfbColor(); }
 void GxRenderer::SetWindow(void *window, int width, int height) { impl_->SetWindow(window, width, height); }
 void GxRenderer::SetOverlay(const GxOverlay &overlay) { impl_->SetOverlay(overlay); }
+bool GxRenderer::PresentTimes() const { return impl_->PresentTimes(); }
+void GxRenderer::SetPresentHook(GxPresentHook hook, void *user) { impl_->SetPresentHook(hook, user); }
 std::string GxRenderer::ApiInfo() const { return impl_->ApiInfo(); }
 std::string GxRenderer::TimingLine() { return impl_->TimingLine(); }
 bool GxRenderer::ReadXfb(std::vector<std::uint8_t> *rgba, unsigned *width, unsigned *height) {

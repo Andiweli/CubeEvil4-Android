@@ -36,6 +36,10 @@
 //   3 +1 000 000 pesetas (addMoney: at most 99 999 999; decision 2)
 //   5..9 more weapons at their highest levels (wish of the project owner, 01.11.2026; kGifts): Handcannon,
 //     Chicago Typewriter, the endless rocket launcher, the Mine Thrower with its scope, Matilda
+//   10 refill ammo (1.1.0, the project owner, 21.11.2026: "Aktuelle Slots mit Munition im Koffer sollen bis zu deren
+//     aktuellem Maximum pro Munitionsart gefuellt werden. Nutzt man den 999 Stack Cheat wird bis 999 aufgefuellt."):
+//     every ammo slot (item type 2) in the case to itemMaxNum (999 with "Stack items", patch 0254); no new slots, the
+//     weapons' loaded rounds stay; 2 when there was nothing to fill
 // One button anywhere (pSys only; wish of the project owner, 29.10.2026), the app restarts the game after
 // a question so the title menu shows it:
 //   4 unlock the extra games: what clearing the game sets (r333.cpp, the end of the last room) for
@@ -80,6 +84,7 @@
 #include "pl_npc.h"
 #include "puzzle.h"
 #include <dolphin/dvd.h>
+#include "re4_mem1_map.h"
 
 // (no <algorithm> after the game's headers: in the OUYA branch's libc++ of NDK r23c it breaks on them,
 // "__libcpp_allocate", 14.11.2026)
@@ -91,6 +96,7 @@
 #include <string.h>
 
 extern "C" void re4_log(const char* fmt, ...);
+extern "C" int re4_stack_items(void);  // below (patch 0254)
 extern "C" int re4_bench_freeze(void);  // runtime/benchmark.cpp: 1 while the benchmark goes to or is at its place
 extern "C" void re4_formats_part_loaded(const char* name, int nest, int index, const void* part, unsigned addr);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
@@ -163,6 +169,8 @@ const char* actionName(int what)
         return "+1000000 pesetas";
     case 4:
         return "extra games";
+    case 10:
+        return "refill ammo";
     }
     return "?";
 }
@@ -519,15 +527,16 @@ void hook(unsigned frame)
 
 // Leon's player archive for a stand-in (the events, the radio screen, what the character's archive
 // lacks) and Krauser's weapon buffer (read.cpp: Game.omake_wep_addr, made by gameInit only for his own
-// game), in the development half of MEM1 that nothing else uses (re4_runtime.h: the core's and the
-// option data's second places end at 0x82000000)
-const u32 kLeonArcAddr = 0x82000000u;
+// game), in the cheats' place of MEM1 that nothing else uses (re4_mem1_map.h RE4_MEM1_CHEAT_ADDR, 5 MB; until 1.1.0
+// at 0x82000000, now above the larger heaps)
+const u32 kLeonArcAddr = RE4_MEM1_CHEAT_ADDR;
 const u32 kLeonArcMax = 0x118000u;  // read.cpp ReadPlayerData: Leon's limit
-const u32 kWepPlaceAddr = 0x82200000u;
+const u32 kWepPlaceAddr = RE4_MEM1_CHEAT_ADDR + 0x200000u;
 // Ada's own right hands for Leon's weapons (patch 0196): her handgun's, TMP's and rifle's files (their grip
 // hands 0xA, 0xC, 0xD, as wep38/39/40.cpp give initWepHand), each in a place of 0x80000 after Krauser's
 // buffer (WEP_DATA_MAX 0x70000)
-const u32 kAdaGripAddr[3] = {0x82300000u, 0x82380000u, 0x82400000u};
+const u32 kAdaGripAddr[3] = {RE4_MEM1_CHEAT_ADDR + 0x300000u, RE4_MEM1_CHEAT_ADDR + 0x380000u,
+                             RE4_MEM1_CHEAT_ADDR + 0x400000u};
 const u32 kAdaGripMax = 0x80000u;
 const char* const kAdaGripFile[3] = {"em/wep38.drs", "em/wep39.drs", "em/wep40.drs"};
 const u8 kAdaGripNo[3] = {0xA, 0xC, 0xD};
@@ -548,8 +557,10 @@ int gAdaGrips;  // bit k: kAdaGripFile[k] read
 // empty tag: the entry whose data it shares). Left out: Ada's em4d entry 0x18E, the stun rod Ganado's weapon
 // model, no motion. Leon and the stand-ins' own Mercenaries are not touched (only while a stand-in plays the
 // story).
-const u32 kSetAddr = 0x82480000u;
+const u32 kSetAddr = RE4_MEM1_CHEAT_ADDR + 0x480000u;
 const u32 kSetMax = 0x60000u;  // Ada's set: 0x41700 bytes
+// (the set and the scratch behind it, 0x400 bytes, inside the cheats' place)
+static_assert(0x480000u + 0x60000u + 0x400u <= RE4_MEM1_CHEAT_MAX, "the cheats' places outgrow RE4_MEM1_CHEAT_MAX");
 const unsigned kSetLo = 0xFB;
 const unsigned kSetHi = 0x2BD;
 const unsigned kMeleeFirst = 0x2B4;  // the melee block, missing in the story's files
@@ -1378,6 +1389,26 @@ int re4CheatPerform(int what)
         addMoney(1000000);
         re4_log("cheat: %s: %u pesetas", actionName(what), (unsigned) pG->peseta);
         break;
+    case 10: {
+        int slots = 0, filled = 0, rounds = 0;
+        cItem* p = ItemMgr.m_pItem;
+        for (int i = 0; p && i < ItemMgr.m_array_num; i++, p++) {
+            if (!(p->flags & 1) || itemType(p->id) != 2) {
+                continue;
+            }
+            slots++;
+            const u16 max = itemMaxNum(p->id);
+            if (p->num < max) {
+                rounds += max - p->num;
+                p->num = max;
+                filled++;
+            }
+        }
+        re4_log("cheat: %s: %d of %d ammo slots filled up, %d rounds (to %s)", actionName(what), filled, slots, rounds,
+                re4_stack_items() ? "the Stack items value" : "each type's maximum");
+        result = filled ? 1 : 2;
+        break;
+    }
     default:
         return 0;
     }
@@ -1391,6 +1422,29 @@ int re4_invisible(void)
 {
     const int wanted = gWanted.load(std::memory_order_relaxed);
     return wanted != -1 && (wanted & kInvisible) ? 1 : 0;
+}
+
+// Patch 0254 (item.cpp itemInfo, ss_item.cpp): the cheat "Stack items" (1.1.0, the project owner, 21.11.2026: "Gegenstaende
+// stapeln"): ammo, grenades and recovery items up to 250, 500 or 999 a slot (the arrow selector of 21.11.2026: Standard,
+// 250, 500, 999). The app's step comes in bits 21..22 of the aim bits (runtime/aim_options.cpp re4_aim_set, not a cheat
+// bit: those are all taken); any thread. re4_stack_items: the most a slot, 0 for Standard (the game's own limits).
+static std::atomic<int> gStackItems(0);
+void re4_stack_items_set(int step)
+{
+    static const int kMost[4] = {0, 250, 500, 999};
+    const int most = kMost[step & 3];
+    if (gStackItems.exchange(most) != most) {
+        if (most) {
+            re4_log("cheat: stack items up to %d a slot (ammo, grenades and recovery items)", most);
+        } else {
+            re4_log("cheat: stack items Standard (the game's limits; larger stacks stay and are used up)");
+        }
+    }
+}
+
+int re4_stack_items(void)
+{
+    return gStackItems.load(std::memory_order_relaxed);
 }
 
 // Patch 0233 (pl_wep.cpp, cam_extra.cpp): the cheat "Steady aim" (any thread; the game frames read it).

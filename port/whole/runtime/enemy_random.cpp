@@ -33,6 +33,16 @@
 // the game's own (only a copy's death sets a bit of an empty entry). Same seed, same list and room: the same places,
 // the same ones left out, the same copies.
 //
+// The cheat "More enemies" (1.1.0, wish of the project owner, 19.11.2026: "rund 40% mehr Gegner (gerechnet auf die
+// verfügbaren Gegner im Raum) dazugeneriert. Positionen zufällig", on any difficulty; a seed of its own,
+// re4_core_set_more_enemies) uses the same plan: in an open or "places only" room (since 19.11.2026; never untouched, the extra games,
+// Ashley's part, stage 4) it adds copies of the room's ordinary Ganados that come now, 40 % of the Ganados at the start
+// (rounded, at most kMaxCopies, only while the enemy works keep room as above), each at a place of stage 2's route
+// (10 m from Leon at the start, the floor, wall and area checks) or beside another one (stage 1.5), its death kept
+// at an empty list entry (none left: the number 0xFF, its death kept in gDead, patch 0244). Its models: every ordinary Ganado that comes now. Alone it moves nobody; with "Random enemies" both work together (its +/- copies first).
+// Waves and reinforcements stay as the scripts make them (EmSetFromList2), and rooms whose script counts or names its
+// enemies (a door that opens when all are dead) keep their number, so nothing waits for an enemy that never comes.
+//
 // Kinds of rooms (port/tools/enemy_random_table.py -> enemy_random_rooms.inc): open; "places only" (stage 2: the
 // script counts, sweeps or names list entries; the places of the Ganados it does not drive change, the number never;
 // 0.99.13 had this only for the 11 rooms that just count); untouched (a boss, r100), and rooms without a script file.
@@ -65,6 +75,7 @@ extern "C" void re4_enemy_random_room(void);
 extern "C" int re4_enemy_random_entry(int no, EM_LIST* out);
 extern "C" int re4_enemy_random_extra(EM_LIST* out);
 extern "C" void re4_enemy_random_extra_made(int ok);
+extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 
 namespace {
 
@@ -81,6 +92,18 @@ const RoomRow kRooms[] = {
 };
 
 volatile int gSeed;  // 20 bits, 0 off (the app's switch)
+volatile int gMore;  // "More enemies": 20 bits, 0 off (the app's switch)
+int gTestMore = -1;  // RE4_MORE_ENEMIES (the PC check)
+
+int moreNow()
+{
+    if (gTestMore < 0) {
+        const char* v = getenv("RE4_MORE_ENEMIES");
+        gTestMore = v && *v ? (int) (strtol(v, 0, 0) & 0xFFFFF) : 0;
+    }
+    const int s = __atomic_load_n(&gMore, __ATOMIC_RELAXED);
+    return s ? s : gTestMore;
+}
 
 u32 mix(u32 x)
 {
@@ -160,10 +183,12 @@ struct Place {
     s16 rot[3];
 };
 
-constexpr int kMaxCopies = 2;
+constexpr int kMaxCopies = 16;  // +/- 2 of "Random enemies", 40 % of "More enemies"
 
 struct Plan {
     bool on;
+    bool randomOn;     // "Random enemies" (places, +/- 10 %)
+    int more;          // "More enemies": the copies it asks for (0 off)
     int room, list, kind;
     u32 seed;
     bool moved[256];   // the entry comes at place[entry]
@@ -173,10 +198,11 @@ struct Plan {
     int change;        // -2 .. +2
     int ganados;       // Ganados that come at the start
     struct Copy {
-        int from, beside, entry;
+        int from, beside, entry;  // entry 0xFF: no empty list entry left, its death is kept here (gDead)
+        int index;                // its number in the room's plan (the key of gDead)
         Place at;
     } copies[kMaxCopies];
-    int copyCount, copyNext, copiesMade, copiesFailed;
+    int copyCount, copyNext, copiesMade, copiesFailed, copiesDeadBefore;
     int movers, swapped, nearby, spots, protectedByArea, copyRefused;
     // stage 2: the room's way points, the movers placed through them, those without a way point near their spot,
     // how far the movers came from their own spot (cm, summed; the largest), the tries turned down and why
@@ -189,6 +215,93 @@ struct Plan {
 };
 Plan gPlan;
 unsigned gLines;
+
+// "More enemies" (1.1.0, the owner's device test of 19.11.2026: "ich bin schon nach r101 und es sind dieselben Gegner
+// wie sonst"): the village's list (list 0) has no empty entry, so its rooms got no copy at all. A copy without an empty
+// entry now comes with the game's own "not from the list" number 0xFF (EmSetGetList gives none, a death sets the
+// unused bit 255 as for the game's own such enemies); its death is kept here, for this run of the app (list, room, its
+// number in the room's plan): a room visited again keeps it dead. The game thread.
+struct DeadCopy {
+    s16 list, room;
+    u8 index;
+};
+constexpr int kMaxDead = 1024;
+DeadCopy gDead[kMaxDead];
+int gDeadN;
+struct LiveCopy {
+    cEm* em;     // found after its creation (0: not yet)
+    Place at;    // where it came
+    u8 id, index;
+};
+LiveCopy gLive[kMaxCopies];
+int gLiveN, gLiveRoom = -1, gLiveList = -1;
+bool gDeadHooked;
+
+bool nearBy(float a, float b)
+{
+    return a - b < 600.0f && b - a < 600.0f;
+}
+
+bool copyDead(int list, int room, int index)
+{
+    for (int i = 0; i < gDeadN; i++) {
+        if (gDead[i].list == list && gDead[i].room == room && gDead[i].index == index) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Every frame: the copies without an entry that died (life 0 while the work is still theirs); a work gone with the
+// room or a script's sweep (alive no more, life left) is no death.
+void watchCopies(unsigned)
+{
+    if (!gLiveN || !pG) {
+        return;
+    }
+    const int room = pG->stage_no << 8 | pG->room_no;
+    if (room != gLiveRoom || pG->em_list_no != gLiveList) {
+        gLiveN = 0;
+        return;
+    }
+    for (int i = 0; i < gLiveN; i++) {
+        LiveCopy& c = gLive[i];
+        if (!c.em) {
+            // the work at its place with the number 0xFF
+            for (u32 k = 0; k < EmMgr.getArrayNum(); k++) {
+                cEm* e = EmMgr.fastAt(k);
+                if (e && e->isAlive() && e->emset_no == 0xFF && e->id == c.id && nearBy(e->pos.x, c.at.pos[0] * 10.0f) &&
+                    nearBy(e->pos.z, c.at.pos[2] * 10.0f)) {
+                    bool taken = false;
+                    for (int j = 0; j < gLiveN; j++) {
+                        taken |= j != i && gLive[j].em == e;
+                    }
+                    if (!taken) {
+                        c.em = e;
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        cEm* e = c.em;
+        const bool same = e->emset_no == 0xFF && e->id == c.id;
+        if (same && e->hp <= 0) {
+            if (gDeadN < kMaxDead) {
+                gDead[gDeadN++] = {(s16) gLiveList, (s16) gLiveRoom, c.index};
+            }
+            if (gLines < 300) {
+                gLines++;
+                re4_log("enemies: more enemies in r%03x: copy %d died (kept dead while the app runs)", gLiveRoom, c.index);
+            }
+            c = gLive[--gLiveN];
+            i--;
+        } else if (!same || !e->isAlive()) {
+            c = gLive[--gLiveN];
+            i--;
+        }
+    }
+}
 int gTestSeed = -1;  // RE4_ENEMY_RANDOM (the PC check)
 // RE4_ENEMY_RANDOM_CHECK=1 (the PC check): the list as EmSetFromList found it, compared at its end: the randomizer
 // writes no entry (the game itself sets be_flag of what it created; a copy's death bit is no part of the list)
@@ -635,18 +748,28 @@ extern "C" void re4_core_set_enemy_random(int seed)
     }
 }
 
+// The app (CoreBridge.setMoreEnemies, 1.1.0): "More enemies", its seed, 0 off; from the next room on. Any thread.
+extern "C" void re4_core_set_more_enemies(int seed)
+{
+    seed &= 0xFFFFF;
+    if (__atomic_exchange_n(&gMore, seed, __ATOMIC_RELAXED) != seed) {
+        re4_log("core: more enemies %s", seed ? "on (from the next room)" : "off (from the next room)");
+    }
+}
+
 // Patch 0231, EmSetFromList's start: the room's plan.
 extern "C" void re4_enemy_random_room(void)
 {
     Plan& p = gPlan;
     memset(&p, 0, sizeof(p));
-    const int seed = seedNow();
-    if (!seed || !pG) {
+    const int seed = seedNow(), moreSeed = moreNow();
+    if ((!seed && !moreSeed) || !pG) {
         return;
     }
     p.room = pG->stage_no << 8 | pG->room_no;
     p.list = pG->em_list_no;
-    p.seed = (u32) seed;
+    p.seed = (u32) (seed ? seed : moreSeed);
+    p.randomOn = seed != 0;
     const RoomRow* row = rowOf(p.room);
     p.kind = row ? row->kind : kUntouched;
     if (SysFlagChk(pG, SYS_OMAKE_ADA_GAME) || SysFlagChk(pG, SYS_OMAKE_ETC_GAME) || pG->pl_type == 1) {
@@ -661,7 +784,8 @@ extern "C" void re4_enemy_random_room(void)
     char roomText[16];
     snprintf(roomText, sizeof(roomText), "r%03x", p.room);
     if (p.why[0]) {
-        logLine("enemies: random enemies leave %s as it is (%s)", roomText, p.why);
+        logLine(seed ? "enemies: random enemies leave %s as it is (%s)" : "enemies: more enemies leave %s as it is (%s)",
+                roomText, p.why);
         return;
     }
     // the entries the room's areas wait for (a door, an item that comes with a death)
@@ -674,6 +798,9 @@ extern "C" void re4_enemy_random_room(void)
     // the movers (static: alive or not) and the spots, in entry order; the Ganados that come now
     int movers[256], spots[256];
     int nm = 0, ns = 0;
+    // "More enemies": the copies' models, every ordinary Ganado that comes now, the ones the script drives too (a copy is
+    // a new enemy no script drives; the owner's device test of 19.11.2026: in the village the scripts drive nearly all)
+    int src[256], nsrc = 0;
     Avoid avoid;
     avoid.n = 0;
     gOld.n = 0;
@@ -686,6 +813,9 @@ extern "C" void re4_enemy_random_room(void)
         if (ganadoId(e.id) && comesNow(e, i)) {
             p.ganados++;
             avoidAdd(gOld, e.pos);
+        }
+        if (ordinary(e) && comesNow(e, i)) {
+            src[nsrc++] = i;
         }
         const bool protect = namedIn(row, i) || waited[i];
         if (protect && ganadoSpot(e)) {
@@ -708,11 +838,12 @@ extern "C" void re4_enemy_random_room(void)
     }
     p.movers = nm;
     p.spots = ns;
-    if (nm == 0) {
+    const bool copiesHere = moreSeed && nsrc > 0 && (p.kind == kOpen || p.kind == kPlacesOnly);
+    if (nm == 0 && !copiesHere) {
         if (gLines < 300) {
             gLines++;
-            re4_log("enemies: random enemies in r%03x (list %d, seed %u): no ordinary Ganado to change", p.room, p.list,
-                    p.seed);
+            re4_log("enemies: %s in r%03x (list %d, seed %u): no ordinary Ganado to change",
+                    p.randomOn ? "random enemies" : "more enemies", p.room, p.list, p.seed);
         }
         return;
     }
@@ -764,6 +895,13 @@ extern "C" void re4_enemy_random_room(void)
     int now[256], nn = 0, idle = -1;
     for (int k = 0; k < nm; k++) {
         const int no = movers[k];
+        if (!p.randomOn) {
+            // "More enemies" alone: nobody moves, the ones that come now are the copies' models
+            if (comesNow(pG->Em_list[no], no)) {
+                now[nn++] = no;
+            }
+            continue;
+        }
         if (!comesNow(pG->Em_list[no], no)) {
             // (dead or later in the chapter: EmSetFromList does not create it now, nothing to place; its spot stays
             // one the others may take in stage 1.5's shuffle)
@@ -800,8 +938,17 @@ extern "C" void re4_enemy_random_room(void)
         p.moverCount++;
     }
     // the number: +/- 10 % (rooms with 10 or more Ganados at the start), never in a room that counts
-    const int range = p.kind == kPlacesOnly ? 0 : p.ganados >= 20 ? 2 : p.ganados >= 10 ? 1 : 0;
+    const int range = !p.randomOn || p.kind == kPlacesOnly ? 0 : p.ganados >= 20 ? 2 : p.ganados >= 10 ? 1 : 0;
     p.change = range ? (int) (hashOf(p.seed, (u32) p.list, (u32) p.room, 0x4E) % (u32) (2 * range + 1)) - range : 0;
+    // "More enemies": 40 % of the Ganados at the start; since the owner's device test of 19.11.2026 also where the script
+    // counts, sweeps or names enemies ("places only"): those scripts count and destroy through the character manager
+    // (SceCountEmAlive, SceDestroyEm, EmMgr: a copy counts and goes with them) or name list entries (a copy is none);
+    // only adding, nothing waits for an enemy that never comes. Bosses and the kept rooms stay as they are.
+    if (moreSeed && (p.kind == kOpen || p.kind == kPlacesOnly)) {
+        p.more = (p.ganados * 4 + 5) / 10;
+    }
+    int wanted = (p.change > 0 ? p.change : 0) + p.more;
+    wanted = wanted > kMaxCopies ? kMaxCopies : wanted;
     if (p.change < 0) {
         // left out: Ganados that come now, never the last of a kind in the room
         for (int c = 0; c < -p.change && nn > 0; c++) {
@@ -823,7 +970,8 @@ extern "C" void re4_enemy_random_room(void)
                 }
             }
         }
-    } else if (p.change > 0) {
+    }
+    if (wanted > 0) {
         // the room's enemy works keep room for what is to come: this start's entries, the room's later ones, 4 more
         int coming = 0;
         for (int i = 0; i < 256; i++) {
@@ -842,20 +990,33 @@ extern "C" void re4_enemy_random_room(void)
                 empty[ne++] = i;
             }
         }
-        for (int c = 0; c < p.change; c++) {
+        for (int c = 0; c < wanted; c++) {
             if (c >= free) {
                 snprintf(p.refused, sizeof(p.refused), "the room's enemy works full");
                 break;
             }
-            if (nn == 0 || ne <= c) {
-                snprintf(p.refused, sizeof(p.refused), nn ? "no empty list entry" : "no Ganado comes now");
+            if (nn == 0 && nsrc == 0) {
+                snprintf(p.refused, sizeof(p.refused), "no Ganado comes now");
                 break;
             }
             Plan::Copy& cp = p.copies[p.copyCount];
-            cp.from = now[hashOf(p.seed, (u32) p.list, (u32) p.room, 0x46 + (u32) c) % (u32) nn];
-            cp.beside = now[hashOf(p.seed, (u32) p.list, (u32) p.room, 0x47 + (u32) c) % (u32) nn];
-            const int first = (int) (hashOf(p.seed, (u32) p.list, (u32) p.room, 0x45) % (u32) ne);
-            cp.entry = empty[(first + c) % ne];
+            // (the models: the ones that come now and move, else every ordinary one that comes now)
+            const int* model = nn ? now : src;
+            const int nmodel = nn ? nn : nsrc;
+            cp.from = model[hashOf(p.seed, (u32) p.list, (u32) p.room, 0x46 + (u32) c) % (u32) nmodel];
+            cp.beside = model[hashOf(p.seed, (u32) p.list, (u32) p.room, 0x47 + (u32) c) % (u32) nmodel];
+            cp.index = c;
+            if (c < ne) {
+                const int first = (int) (hashOf(p.seed, (u32) p.list, (u32) p.room, 0x45) % (u32) ne);
+                cp.entry = empty[(first + c) % ne];
+            } else {
+                // no empty entry left: the game's "not from the list", its death kept here (gDead)
+                cp.entry = 0xFF;
+                if (copyDead(p.list, p.room, c)) {
+                    p.copiesDeadBefore++;
+                    continue;
+                }
+            }
             const Place anchor = p.moved[cp.beside] ? p.place[cp.beside] : placeOf(pG->Em_list[cp.beside]);
             Place at;
             // stage 2: anywhere the route of the other one's part reaches, else beside it
@@ -912,13 +1073,13 @@ extern "C" int re4_enemy_random_extra(EM_LIST* out)
     }
     if (p.copyNext == 0 && gLines < 300) {
         gLines++;
-        char count[160] = "";
+        char count[640] = "";
         int len = 0;
-        if (p.kind == kPlacesOnly) {
+        if (p.kind == kPlacesOnly && p.more == 0) {
             len = snprintf(count, sizeof(count), "; the number stays (places only: the script counts or names enemies)");
-        } else if (p.change == 0) {
+        } else if (p.change == 0 && p.more == 0) {
             len = snprintf(count, sizeof(count), "; the number stays (%s)", p.ganados >= 10 ? "as drawn" : "under 10");
-        } else if (p.change < 0) {
+        } else if (p.change < 0 && p.more == 0) {
             len = snprintf(count, sizeof(count), "; %d -> %d, left out:", p.ganados, p.ganados - p.leftDone);
             for (int i = 0; i < 256 && len < (int) sizeof(count) - 8; i++) {
                 if (p.left[i]) {
@@ -926,20 +1087,27 @@ extern "C" int re4_enemy_random_extra(EM_LIST* out)
                 }
             }
         } else {
-            len = snprintf(count, sizeof(count), "; %d -> %d:", p.ganados, p.ganados + p.copyCount);
+            len = snprintf(count, sizeof(count), "; %d -> %d, copies (of, beside, death at):", p.ganados,
+                           p.ganados - p.leftDone + p.copyCount);
             for (int c = 0; c < p.copyCount && len < (int) sizeof(count) - 40; c++) {
-                len += snprintf(count + len, sizeof(count) - len, " a copy of 0x%02x beside 0x%02x (death at 0x%02x)",
-                                p.copies[c].from, p.copies[c].beside, p.copies[c].entry);
+                len += snprintf(count + len, sizeof(count) - len, " 0x%02x/0x%02x/0x%02x", p.copies[c].from,
+                                p.copies[c].beside, p.copies[c].entry);
             }
-            if (p.copyCount < p.change) {
-                snprintf(count + len, sizeof(count) - len, " (%d not: %s)", p.change - p.copyCount,
+            const int wanted = (p.change > 0 ? p.change : 0) + p.more;
+            if (p.copiesDeadBefore) {
+                len += snprintf(count + len, sizeof(count) - len, " (%d killed before)", p.copiesDeadBefore);
+            }
+            if (p.copyCount + p.copiesDeadBefore < wanted) {
+                snprintf(count + len, sizeof(count) - len, " (%d not: %s)", wanted - p.copyCount - p.copiesDeadBefore,
                          p.refused[0] ? p.refused : "no safe place");
             }
         }
-        re4_log("enemies: random enemies in r%03x (list %d, seed %u%s): %d Ganados at the start, %d ordinary, %d spots: "
-                "%d anywhere on the route, %d at a new place nearby, %d on another's spot%s%s",
+        re4_log("enemies: %s in r%03x (list %d, seed %u%s): %d Ganados at the start, %d ordinary, %d spots: "
+                "%d anywhere on the route, %d at a new place nearby, %d on another's spot%s%s%s",
+                p.randomOn && p.more ? "random and more enemies" : p.randomOn ? "random enemies" : "more enemies",
                 p.room, p.list, p.seed, p.kind == kPlacesOnly ? ", places only" : "", p.ganados, p.movers, p.spots,
-                p.routed, p.nearby, p.swapped, count, p.protectedByArea ? " (some kept: an area waits for them)" : "");
+                p.routed, p.nearby, p.swapped, count, p.protectedByArea ? " (some kept: an area waits for them)" : "",
+                p.more ? " (more enemies: 40 %)" : "");
         if (gLines < 300) {
             gLines++;
             re4_log("enemies: r%03x stage %d: route %d way points (%d of the movers without one near), the %d that come "
@@ -962,6 +1130,21 @@ extern "C" int re4_enemy_random_extra(EM_LIST* out)
     memcpy(out->pos, cp.at.pos, sizeof(out->pos));
     memcpy(out->rot, cp.at.rot, sizeof(out->rot));
     out->be_flag = 1;
+    if (cp.entry == 0xFF) {
+        // watched for its death (watchCopies finds its work after the creation)
+        if (gLiveRoom != p.room || gLiveList != p.list) {
+            gLiveN = 0;
+            gLiveRoom = p.room;
+            gLiveList = p.list;
+        }
+        if (gLiveN < kMaxCopies) {
+            gLive[gLiveN++] = {0, cp.at, (u8) out->id, (u8) cp.index};
+        }
+        if (!gDeadHooked) {
+            gDeadHooked = true;
+            re4_add_frame_hook(watchCopies);
+        }
+    }
     return cp.entry;
 }
 

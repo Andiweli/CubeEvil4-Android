@@ -456,8 +456,7 @@ final class BenchmarkFlow {
     out.add(toggle(R.string.ingame_smooth60, s(v[PerfProfile.SMOOTH] != 0 ? R.string.ingame_on : R.string.ingame_off)));
     int cap = v[PerfProfile.SMOOTH] != 0 ? cap60 : cap30;
     out.add(toggle(R.string.ingame_resolution, s(R.string.ingame_dynamic) + " (≤ " + PerfProfile.level(Math.min(8, cap + 1)) + ")"));
-    int[] skip = {R.string.ingame_off, R.string.ingame_skip_normal, R.string.ingame_skip_aggressive};
-    out.add(toggle(R.string.ingame_frame_skip, s(skip[Math.max(0, Math.min(2, v[PerfProfile.SKIP]))])));
+    out.add(toggle(R.string.ingame_frame_skip, s(CoreMenu.SKIP_LABELS[Math.max(0, Math.min(3, v[PerfProfile.SKIP]))])));
     out.add(effects(v));
     out.add(toggle(R.string.ingame_perf_cores, s(v[PerfProfile.CORES] != 0 ? R.string.ingame_on : R.string.ingame_off)));
     boolean normal = v[PerfProfile.WEATHER] != 0 && v[PerfProfile.SPECIAL] != 0 && v[PerfProfile.PARTICLES] == 0

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Hindi (हिन्दी): the texts of values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 इन-गेम मेन्यू</string>
+    <string name="ingame_title">CubeEvil4 विकल्प</string>
     <string name="ingame_back">गेम पर लौटें</string>
 
     <string name="ingame_graphics">ग्राफ़िक्स</string>
@@ -23,7 +23,33 @@
     <string name="ingame_laser_yellow">पीला</string>
     <string name="ingame_postprocessing">पोस्ट-प्रोसेसिंग</string>
     <string name="ingame_effects">इफ़ेक्ट्स</string>
-    <string name="ingame_optional_features">वैकल्पिक फ़ीचर</string>
+    <string name="ingame_optional_features">वैकल्पिक</string>
+    <string name="ingame_side_filtering">फ़िल्टरिंग</string>
+    <string name="ingame_side_features">फ़ीचर</string>
+    <string name="ingame_side_levels">स्तर</string>
+    <string name="ingame_side_mute">म्यूट</string>
+    <string name="ingame_side_touch_style">टच शैली</string>
+    <string name="ingame_side_gyro">जाइरोस्कोप</string>
+    <string name="ingame_side_axes">अक्ष</string>
+    <string name="ingame_side_control_type">नियंत्रण प्रकार</string>
+    <string name="ingame_side_assists">सहायता</string>
+    <string name="ingame_side_aim_with">निशाना</string>
+    <string name="ingame_side_view">दृश्य</string>
+    <string name="ingame_side_stick">स्टिक विकल्प</string>
+    <string name="ingame_mapping_section">बटन और कुंजियाँ सेट करें</string>
+    <string name="ingame_side_assign">सेट करें</string>
+    <string name="ingame_side_profile">प्रोफ़ाइल</string>
+    <string name="ingame_side_options">विकल्प</string>
+    <string name="ingame_side_basic_weapons">सामान्य हथियार</string>
+    <string name="ingame_side_explosive_weapons">विस्फोटक हथियार</string>
+    <string name="ingame_side_unlocks">अनलॉक</string>
+    <string name="ingame_side_stacking">स्टैकिंग</string>
+    <string name="ingame_side_random">रैंडम</string>
+    <string name="ingame_side_advanced">उन्नत</string>
+    <string name="ingame_side_main_character">मुख्य पात्र</string>
+    <string name="ingame_side_mercenaries">Mercenaries</string>
+    <string name="ingame_side_manage">प्रबंधन</string>
+    <string name="ingame_side_texture_options">टेक्सचर विकल्प</string>
     <string name="ingame_perf_section">परफ़ॉर्मेंस</string>
     <string name="ingame_minimap">मिनी-मैप</string>
     <string name="ingame_flares">लेंस फ़्लेयर</string>
@@ -38,6 +64,26 @@
     <string name="ingame_hud_hz">डिस्प्ले Hz</string>
     <string name="ingame_hud_time">घं:मि:से गेम शुरू होने से</string>
     <string name="ingame_hud_help">घं:मि:से गेम का अपना खेल-समय है, जिसे हर सेव रखता है, जैसे GameCube पर। इस मेनू में या बैकग्राउंड में बिताया समय नहीं गिना जाता।</string>
+    <string name="ingame_skip_intro">इंट्रो छोड़ें</string>
+    <string name="ingame_skip_intro_help">इंट्रो छोड़ें: शुरू होते ही गेम सीधे टाइटल मेनू पर जाता है, लोगो और स्वास्थ्य चेतावनी के बिना (अगली शुरुआत से)।</string>
+    <string name="ingame_photo_mode">फ़ोटो मोड</string>
+    <string name="ingame_photo_mode_help">फ़ोटो मोड: कंट्रोलर पर L3 (बायाँ स्टिक दबाएँ), कीबोर्ड पर P या इस मेन्यू में ऊपर \"फ़ोटो मोड\" बटन खेल को रोक देता है और कैमरा आज़ाद कर देता है; कैमरा पूरे कमरे में चलता है और दीवारों पर रुकता है। HUD, लियोन, Ashley और दुश्मनों को अलग-अलग छिपाया जा सकता है, L और R कैमरा इफ़ेक्ट बदलते हैं। फ़ोटो मोड में SELECT फ़िल्टर और इफ़ेक्ट के लिए यह मेन्यू खोलता है। यह चालू होने पर L3 और P फ़ोटो मोड के लिए हैं। कटसीन, फ़िल्म, मेन्यू और सेव करते समय नहीं। तस्वीर अपने डिवाइस के स्क्रीनशॉट से लें।</string>
+    <string name="ingame_photo_title">फ़ोटो मोड</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">लियोन</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">दुश्मन</string>
+    <string name="ingame_photo_hint_pad">बायाँ स्टिक: चलें · दायाँ स्टिक: घूमें, झुकाएँ · डी-पैड: ऊपर/नीचे · L/R: कैमरा इफ़ेक्ट · X HUD · Y लियोन · A Ashley · Z दुश्मन · START रीसेट · SELECT मेन्यू · B या L3 बाहर</string>
+    <string name="ingame_photo_hint_keys">WASD: चलें · माउस: देखें · E/Q: ऊपर/नीचे · Shift तेज़ · Alt धीमा · व्हील या 5/6: कैमरा इफ़ेक्ट · 1 HUD · 2 लियोन · 3 Ashley · 4 दुश्मन · R रीसेट · F1 मेन्यू · Esc या P बाहर</string>
+    <string name="ingame_photo_hint_touch">बायाँ आधा: खींचकर चलें · दायाँ आधा: खींचकर देखें · दूसरी उँगली: ऊपर/नीचे · ◆: कैमरा इफ़ेक्ट · टैप: यह दिखाएँ · ✕ बाहर</string>
+    <string name="ingame_photo_not_here">फ़ोटो मोड यहाँ उपलब्ध नहीं है (कटसीन, फ़िल्म, मेन्यू, सेव)।</string>
+    <string name="ingame_photo_start">फ़ोटो मोड</string>
+    <string name="ingame_photo_fx_normal">सामान्य</string>
+    <string name="ingame_photo_fx_wide">वाइड एंगल</string>
+    <string name="ingame_photo_fx_tele">टेलीफ़ोटो</string>
+    <string name="ingame_photo_fx_dolly">डॉली ज़ूम</string>
+    <string name="ingame_photo_fx_dutch">तिरछा कोण</string>
+    <string name="ingame_photo_fx_orbit">चक्कर</string>
     <string name="ingame_fps_bottom_left">नीचे बाएँ</string>
     <string name="ingame_fps_bottom_centre">नीचे बीच में</string>
     <string name="ingame_fps_top_left">ऊपर बाएँ</string>
@@ -115,6 +161,8 @@
     <string name="ingame_gyro_sensitivity">जाइरो संवेदनशीलता</string>
     <string name="ingame_gyro_invert_v">वर्टिकल उलटें</string>
     <string name="ingame_gyro_invert_h">हॉरिज़ॉन्टल उलटें</string>
+    <string name="ingame_gyro_source">जाइरो कहाँ से</string>
+    <string name="ingame_gyro_source_help">जाइरो कहाँ से: ऑटो उस कंट्रोलर का जाइरोस्कोप लेता है जिससे आप खेल रहे हैं, अगर उसमें हो (जैसे DualSense या DualShock 4; Android 12 और नया), वरना इस डिवाइस का। डिवाइस या कंट्रोलर हमेशा वही लेता है। जाइरो अब भी तभी निशाना लगाता है जब लियोन हथियार उठाता है।</string>
     <string name="ingame_alternate_help">वैकल्पिक नियंत्रण: L1 = चाकू, L2 = निशाना (दाएँ स्टिक से), R1 = इन्वेंटरी (हथियार/उपचार), R2 = फ़ायर / चाकू चलाएँ, Y = नक्शा। A, B, X (एश्ली) और START पहले जैसे। राइफ़ल स्कोप: बाएँ स्टिक को ऊपर/नीचे करने से ज़ूम।</string>
     <string name="ingame_knife_swipe">स्वाइप से चाकू</string>
     <string name="ingame_knife_swipe_help">स्वाइप से चाकू: तस्वीर पर तेज़ स्वाइप चाकू निकालकर वार करता है; ऊपर या नीचे स्वाइप करने पर ऊँचा या नीचा वार होता है।</string>
@@ -230,7 +278,7 @@
     <string name="ingame_controls_page">नियंत्रण</string>
     <string name="ingame_performance">प्रदर्शन</string>
     <string name="ingame_management">प्रबंधन</string>
-    <string name="ingame_navigation">डी-पैड: नेविगेट  ·  A: चुनें  ·  B: वापस  ·  SELECT / START: गेम में लौटें</string>
+    <string name="ingame_navigation">डी-पैड: नेविगेट  ·  A: चुनें / अगला  ·  L1/R1 (Q/E): मान बदलें  ·  B: वापस  ·  SELECT / START: गेम में लौटें</string>
     <string name="ingame_instant">तुरंत सेव</string>
     <string name="ingame_slot">सेव स्लॉट</string>
     <string name="ingame_slot_details">अध्याय %1$s  ·  %2$s  ·  खेलने का समय %3$s</string>
@@ -272,7 +320,9 @@
     <string name="ingame_skip_aggressive">आक्रामक</string>
     <string name="ingame_vk_bandwidth">बैंडविड्थ बचाएँ (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">मूल GameCube टीवी फ़िल्टर</string>
+    <string name="ingame_aa_msaa">एंटी-एलियासिंग MSAA</string>
+    <string name="ingame_aa_fxaa">एंटी-एलियासिंग FXAA</string>
+    <string name="ingame_tv_filter">GameCube टीवी फ़िल्टर</string>
     <string name="ingame_fxaa_help">आख़िरी चरण में दाँतेदार किनारों को चिकना करता है। MSAA के साथ या बिना काम करता है; तस्वीर थोड़ी नरम हो जाती है।</string>
     <string name="ingame_sharper_text">स्पष्ट मेनू टेक्स्ट</string>
     <string name="ingame_sharper_text_help">स्पष्ट मेनू टेक्स्ट ऊँचे रिज़ॉल्यूशन पर गेम के अपने मेनू शब्दों को साफ़ किनारों के साथ दिखाता है, हर भाषा में।</string>
@@ -290,6 +340,14 @@
     <string name="ingame_colour_help">गर्म फ़िल्म भूरे और सुनहरे रंगों को उभारती है; सर्वाइवल हॉरर रंगों को फीका और कंट्रास्ट को तेज़ करता है। तीव्रता बताती है कितना।</string>
     <string name="ingame_skip_normal_help">फ़्रेम स्किप सामान्य: ग्राफ़िक्स चिप पिछड़ने पर एक तैयार फ़्रेम छोड़ दिया जाता है ताकि गेम सामान्य गति से चले।</string>
     <string name="ingame_skip_aggressive_help">फ़्रेम स्किप आक्रामक: पिछड़ने पर गेम खुद दो में से अधिकतम एक फ़्रेम छोड़ता है; धीमे प्रोसेसर वाले फ़ोन पर काफ़ी तेज़।</string>
+    <string name="ingame_skip_auto">ऑटो</string>
+    <string name="ingame_fs_off">फ़्रेम स्किप नहीं</string>
+    <string name="ingame_fs_auto">ऑटो फ़्रेम स्किप</string>
+    <string name="ingame_fs_normal">सामान्य फ़्रेम स्किप</string>
+    <string name="ingame_fs_aggressive">आक्रामक फ़्रेम स्किप</string>
+    <string name="ingame_skip_auto_help">फ़्रेम स्किप ऑटो: जब तक गेम पूरी रफ़्तार से चलता है, कुछ नहीं छोड़ा जाता; केवल जब वह लगभग आधे सेकंड तक 30 तस्वीरें प्रति सेकंड से कम रहे, तब दोनों तरह के स्किप मदद करते हैं (पहले रेंडरर का; गेम का अपना केवल तब, जब वह दो सेकंड तक 24 से नीचे रहे, और आक्रामक से नरम), जब तक वह फिर से दो सेकंड पूरी रफ़्तार से न चले।</string>
+    <string name="ingame_even_pacing">एकसमान फ़्रेम गति</string>
+    <string name="ingame_even_pacing_help">एकसमान फ़्रेम गति: चालू (डिफ़ॉल्ट) ज़रूरत पड़ने पर एक तस्वीर को थोड़ा रोकता है ताकि हर तस्वीर स्क्रीन पर बराबर समय तक रहे (स्थिर 30, और 60 Hz से तेज़ स्क्रीन पर 60)। बंद हर तस्वीर तैयार होते ही दिखाता है, पुराने संस्करणों की तरह: थोड़ा ज़्यादा सीधा, पर कम एकसमान।</string>
     <string name="ingame_vk_bandwidth_help">केवल Vulkan: Mali और Adreno चिप पर मेमोरी बैंडविड्थ बचाता है; चित्र वैसा ही रहता है।</string>
     <string name="ingame_skip_or_smooth">फ़्रेम स्किप और 60 FPS साथ नहीं चलते: एक को चालू करने पर दूसरा बंद हो जाता है।</string>
     <string name="ingame_merge_help">कई वस्तुओं को ग्राफ़िक्स ड्राइवर की एक ही कॉल में मिलाता है। धीमे ड्राइवर वाले फ़ोन (जैसे Mali GPU) पर मदद कर सकता है; 60 FPS के साथ कोई असर नहीं।</string>
@@ -320,6 +378,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">अटैची केस L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheat_stack">गोला-बारूद स्टैक करें</string>
+    <string name="ingame_cheat_stack_help">गोला-बारूद स्टैक करें: गोला-बारूद एक खाने में 250, 500 या 999 तक जमा होता है (मानक: खेल की अपनी सीमाएँ)। ग्रेनेड, उपचार आइटम और ख़ज़ाने खेल जैसे ही रहते हैं। बाद में कम चुनने पर बड़े ढेर बने रहते हैं और एक-एक करके इस्तेमाल होते हैं; बाद में उठाई चीज़ें नए खाने में जाती हैं।</string>
+    <string name="ingame_stack_standard">मानक</string>
+    <string name="ingame_cheat_refill">गोला-बारूद भरें</string>
+    <string name="ingame_cheat_refill_full">भरने को कुछ नहीं: केस में गोला-बारूद नहीं है, या सब भरा हुआ है।</string>
+    <string name="ingame_cheat_refill_help">गोला-बारूद भरें: केस का हर गोला-बारूद ढेर \"गोला-बारूद स्टैक करें\" के मान तक भरा जाता है (मानक: अपनी किस्म की सामान्य अधिकतम संख्या); नया गोला-बारूद नहीं मिलता, हथियारों में भरी गोलियाँ वैसी ही रहती हैं।</string>
     <string name="ingame_cheats_help">स्विच तब तक चालू रहते हैं जब तक आप उन्हें बंद न करें; सेव उन्हें याद नहीं रखते। कुछ हमले अब भी Leon को तुरंत मार देते हैं (चेनसॉ, पकड़, चट्टान)। अदृश्यता: दुश्मन आपको अनदेखा करते हैं, बॉस और तय दृश्य नहीं। स्थिर निशाना: लेज़र और स्कोप नहीं हिलते। पोशाकें: लियोन की जैकेट से Leon पूरे गेम में अपनी भूरी जैकेट पहने रहता है; विशेष से Leon और Ashley अपनी विशेष पोशाक पहनते हैं। बटन आपका गेम बदलते हैं: हथियार, केस और पैसा अगले सेव में रहते हैं। एक्स्ट्रा गेम अनलॉक करें Assignment Ada और The Mercenaries को टाइटल मेनू में जोड़ता है।</string>
     <string name="ingame_cheat_done">हो गया: %1$s।</string>
     <string name="ingame_cheat_already">पहले से है: %1$s।</string>
@@ -349,6 +413,7 @@
     <string name="ingame_later">बाद में</string>
     <string name="ingame_controller_config">बटन मैपिंग</string>
     <string name="ingame_controller_config_help">बटन मैपिंग: गेम की हर क्रिया को अपने कंट्रोलर या कीबोर्ड की कुंजियों पर रखें।</string>
+    <string name="ingame_ashley_hold_help">Ashley कहीं अटक गई? उसका बटन (रुको / साथ चलो) जल्दी से दो बार दबाएँ: वह लियोन के ठीक पीछे दिखेगी और उसके साथ चलेगी।</string>
     <string name="ingame_stick_dead_zone">स्टिक डेड ज़ोन</string>
     <string name="ingame_stick_range">स्टिक रेंज</string>
     <string name="ingame_stick_help">स्टिक डेड ज़ोन: बीच के आसपास की छोटी हलचल अनदेखी की जाती है (अपने आप खिसकने वाली स्टिक के लिए)। स्टिक रेंज: इतनी दबाई गई स्टिक पूरी दबाई गई मानी जाती है, ताकि Leon भरोसे से चले और दौड़े। डिफ़ॉल्ट मान स्टिक को वैसे ही रहने देते हैं; टच कंट्रोल पर इसका असर नहीं होता।</string>
@@ -393,6 +458,10 @@
     <string name="ingame_map_keyboard">कीबोर्ड और माउस</string>
     <string name="ingame_mouse_help">गेम चलते समय माउस (Android 8 और नया) गेम को नियंत्रित करता है: यह कैमरा घुमाता है और निशाना चलाता है; व्हील स्कोप और दूरबीन में ज़ूम करता है। ऐप मेनू (F1) पॉइंटर छोड़ देता है।</string>
     <string name="ingame_keyboard_c_help">चाकू: उसकी की दबाए रखें और माउस से निशाना लगाएँ। C स्टिक की कीज़ (डिफ़ॉल्ट रूप से I, K, J, L) कैमरा घुमाती हैं और स्कोप और दूरबीन में ज़ूम करती हैं।</string>
+    <string name="ingame_quick_reload">बिना निशाना लगाए रीलोड</string>
+    <string name="ingame_quick_reload_help">बिना निशाना लगाए रीलोड (कीबोर्ड): सिर्फ़ रीलोड कुंजी (डिफ़ॉल्ट R) हथियार उठाए बिना रीलोड करती है।</string>
+    <string name="ingame_force_controller">कंट्रोलर पहचान ज़बरदस्ती करें</string>
+    <string name="ingame_force_controller_help">कंट्रोलर पहचान ज़बरदस्ती करें: अगर आपका गेमपैड पहचाना नहीं जाता या Android उसे कीबोर्ड मानता है: तब किसी बाहरी डिवाइस की हर कुंजी कंट्रोलर बटन गिनी जाती है और ऊपर असाइन की जा सकती है। असली कीबोर्ड भी तब कंट्रोलर गिना जाता है, इसलिए कीबोर्ड और माउस से खेलने के लिए इसे बंद करें (माउस काम करता रहता है)। डिवाइस के अपने बटन, टच कंट्रोल और वॉल्यूम कुंजियाँ जैसी हैं वैसी रहती हैं।</string>
     <string name="ingame_mouse_sensitivity">माउस संवेदनशीलता</string>
     <string name="ingame_map_controller">कंट्रोलर</string>
     <string name="ingame_map_device">डिवाइस</string>
@@ -402,6 +471,11 @@
     <string name="ingame_cheat_section_player">खिलाड़ी</string>
     <string name="ingame_cheat_section_weapons">हथियार</string>
     <string name="ingame_cheat_section_game">सामान्य और इन्वेंटरी</string>
+    <string name="ingame_cheat_section_world">दुश्मन और माहौल</string>
+    <string name="ingame_health_bars">दुश्मनों की हेल्थ बार</string>
+    <string name="ingame_health_bars_help">दुश्मनों की हेल्थ बार: हर दुश्मन के ऊपर एक छोटी पट्टी उसकी सेहत दिखाती है (हरी, एक चौथाई से कम पर पीली, दसवें हिस्से से कम पर लाल); कटसीन और मेनू में नहीं।</string>
+    <string name="ingame_more_enemies">ज़्यादा दुश्मन</string>
+    <string name="ingame_more_enemies_help">ज़्यादा दुश्मन: किसी कमरे के सामान्य Ganado लगभग 40 प्रतिशत ज़्यादा, बेतरतीब जगहों पर, हर कठिनाई पर; अगले कमरे से। बॉस, ख़ास दुश्मन और लहरें वैसे ही रहते हैं; सिर्फ़ कहानी में।</string>
     <string name="ingame_dof_light">हल्का</string>
     <string name="ingame_dof_strong">तेज़</string>
     <string name="ingame_player_view">खिलाड़ी का दृश्य</string>
@@ -473,6 +547,17 @@
     <string name="ingame_shader_cache_help">गेम बनाए गए शेडर रखता है, ताकि दृश्य दोबारा न अटकें। इन्हें तभी साफ़ करें जब किसी अपडेट के बाद ग्राफ़िक्स में गड़बड़ी दिखे; तब शुरुआती दृश्य एक बार अटक सकते हैं।</string>
     <string name="ingame_shader_clear">शेडर कैश साफ़ करें</string>
     <string name="ingame_shader_clear_text">गेम फिर से शुरू होगा और बनाए गए शेडर हटा देगा। खेलते समय वह उन्हें फिर से बनाता है, इसलिए शुरुआती दृश्य अटक सकते हैं। पिछली बार सेव करने के बाद की प्रगति खो जाएगी।</string>
+    <string name="ingame_shader_prep">शुरुआत में शेडर लोड करें</string>
+    <string name="ingame_shader_prep_help">शुरुआत में शेडर लोड करें: हर शुरुआत में पहले सभी ज्ञात शेडर (ग्राफ़िक्स चिप के प्रोग्राम) तैयार होते हैं और प्रगति दिखती है; उसके बाद कमरे और इफ़ेक्ट पहली बार आने पर नहीं अटकते। पहली बार Vulkan के साथ लगभग एक मिनट और धीमे फ़ोन पर OpenGL ES के साथ कई मिनट तक लगते हैं, बाद में बस कुछ सेकंड। इसे छोड़ा नहीं जा सकता। 4 GB RAM या अधिक चाहिए।</string>
+    <string name="ingame_shader_prep_low_ram">कम से कम 4 GB RAM चाहिए (इस डिवाइस में %1$s GB है)।</string>
+    <string name="ingame_shader_prep_title">शेडर तैयार हो रहे हैं…</string>
+    <string name="ingame_shader_prep_line">एक बार तैयार होने पर बाद में नहीं अटकेंगे। कृपया प्रतीक्षा करें, इसे छोड़ा नहीं जा सकता।</string>
+    <string name="ingame_output_res">आउटपुट रिज़ॉल्यूशन</string>
+    <string name="ingame_output_res_help">आउटपुट रिज़ॉल्यूशन: स्क्रीन पर भेजी जाने वाली तस्वीर का आकार; स्क्रीन उसे अपने पिक्सेल तक खींचती है। बहुत तेज़ स्क्रीन (1080p से ऊपर) वाले फ़ोन पर कम मान तेज़ है, ख़ासकर CRT, ब्लूम, FXAA या शार्पन के साथ, और थोड़ा नरम। नेटिव: स्क्रीन का अपना आकार। ऊपर का रिज़ॉल्यूशन (खेल का 3D) वैसा ही रहता है।</string>
+    <string name="ingame_upscaler">अपस्केलर</string>
+    <string name="ingame_upscaler_sgsr">SGSR (हल्का)</string>
+    <string name="ingame_upscaler_fsr">FSR (तेज़)</string>
+    <string name="ingame_upscaler_help">अपस्केलर: जब गेम की तस्वीर स्क्रीन पर अपनी जगह से छोटी हो (ऊपर का रेज़ोल्यूशन स्क्रीन से कम), तो उसे कैसे बड़ा किया जाए। बंद: सादा, नरम खिंचाव। SGSR (Qualcomm Snapdragon Game Super Resolution): ज़्यादा साफ़ किनारे, फ़ोन पर कम काम; अनुशंसित। FSR (AMD FidelityFX Super Resolution 1): सबसे साफ़, SGSR से लगभग दोगुना काम। जब तस्वीर अपनी जगह जितनी बड़ी हो, या CRT फ़िल्टर के साथ, कुछ नहीं बदलता।</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">मॉड्स</string>
     <string name="ingame_hd_textures">HD टेक्सचर</string>

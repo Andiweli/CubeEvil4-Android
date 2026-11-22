@@ -2,7 +2,7 @@
 <!-- Chinese, Simplified (简体中文; Android uses it for zh-Hans: China, Singapore): the texts of
      values/strings_ingame.xml, same names and placeholders. -->
 <resources>
-    <string name="ingame_title">CubeEvil4 游戏内菜单</string>
+    <string name="ingame_title">CubeEvil4 选项</string>
     <string name="ingame_back">返回游戏</string>
 
     <string name="ingame_graphics">图形</string>
@@ -24,7 +24,33 @@
     <string name="ingame_laser_yellow">黄色</string>
     <string name="ingame_postprocessing">后期处理</string>
     <string name="ingame_effects">效果</string>
-    <string name="ingame_optional_features">可选功能</string>
+    <string name="ingame_optional_features">可选</string>
+    <string name="ingame_side_filtering">过滤</string>
+    <string name="ingame_side_features">功能</string>
+    <string name="ingame_side_levels">音量</string>
+    <string name="ingame_side_mute">静音</string>
+    <string name="ingame_side_touch_style">触控样式</string>
+    <string name="ingame_side_gyro">陀螺仪</string>
+    <string name="ingame_side_axes">轴向</string>
+    <string name="ingame_side_control_type">操作方式</string>
+    <string name="ingame_side_assists">辅助</string>
+    <string name="ingame_side_aim_with">瞄准方式</string>
+    <string name="ingame_side_view">视角</string>
+    <string name="ingame_side_stick">摇杆选项</string>
+    <string name="ingame_mapping_section">按键映射</string>
+    <string name="ingame_side_assign">映射</string>
+    <string name="ingame_side_profile">性能配置</string>
+    <string name="ingame_side_options">选项</string>
+    <string name="ingame_side_basic_weapons">普通武器</string>
+    <string name="ingame_side_explosive_weapons">爆炸武器</string>
+    <string name="ingame_side_unlocks">解锁</string>
+    <string name="ingame_side_stacking">堆叠</string>
+    <string name="ingame_side_random">随机</string>
+    <string name="ingame_side_advanced">进阶</string>
+    <string name="ingame_side_main_character">主角</string>
+    <string name="ingame_side_mercenaries">Mercenaries</string>
+    <string name="ingame_side_manage">管理</string>
+    <string name="ingame_side_texture_options">纹理选项</string>
     <string name="ingame_perf_section">性能</string>
     <string name="ingame_minimap">小地图</string>
     <string name="ingame_flares">镜头光晕</string>
@@ -39,6 +65,26 @@
     <string name="ingame_hud_hz">屏幕 Hz</string>
     <string name="ingame_hud_time">自游戏开始的 时:分:秒</string>
     <string name="ingame_hud_help">时:分:秒是游戏自身的游戏时间，与 GameCube 上一样保存在每个存档中。在此菜单中或在后台的时间不计入。</string>
+    <string name="ingame_skip_intro">跳过开场</string>
+    <string name="ingame_skip_intro_help">跳过开场：启动时游戏直接进入标题菜单，不显示标志和健康警告（下次启动起生效）。</string>
+    <string name="ingame_photo_mode">拍照模式</string>
+    <string name="ingame_photo_mode_help">拍照模式：按下手柄的 L3（按压左摇杆）、键盘的 P 或本菜单顶部的“拍照模式”按钮即可冻结游戏并自由移动镜头；镜头可在整个房间内移动，遇墙停下。HUD、里昂、阿什莉和敌人可分别隐藏，L 和 R 切换镜头效果。拍照模式中按 SELECT 打开本菜单调整滤镜和效果。开启此项后，L3 和 P 归拍照模式使用。过场动画、影片、菜单和存档时不可用。请用设备自带的截图功能拍照。</string>
+    <string name="ingame_photo_title">拍照模式</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">里昂</string>
+    <string name="ingame_photo_partner">阿什莉</string>
+    <string name="ingame_photo_enemies">敌人</string>
+    <string name="ingame_photo_hint_pad">左摇杆：移动 · 右摇杆：转向、俯仰 · 十字键：升降 · L/R：镜头效果 · X HUD · Y 里昂 · A 阿什莉 · Z 敌人 · START 复位 · SELECT 菜单 · B 或 L3 退出</string>
+    <string name="ingame_photo_hint_keys">WASD：移动 · 鼠标：环视 · E/Q：升降 · Shift 快速 · Alt 慢速 · 滚轮或 5/6：镜头效果 · 1 HUD · 2 里昂 · 3 阿什莉 · 4 敌人 · R 复位 · F1 菜单 · Esc 或 P 退出</string>
+    <string name="ingame_photo_hint_touch">左半屏：拖动移动 · 右半屏：拖动环视 · 第二根手指：升降 · ◆：镜头效果 · 轻点：显示此栏 · ✕ 退出</string>
+    <string name="ingame_photo_not_here">此处无法使用拍照模式（过场动画、影片、菜单、存档）。</string>
+    <string name="ingame_photo_start">拍照模式</string>
+    <string name="ingame_photo_fx_normal">普通</string>
+    <string name="ingame_photo_fx_wide">广角</string>
+    <string name="ingame_photo_fx_tele">长焦</string>
+    <string name="ingame_photo_fx_dolly">滑动变焦</string>
+    <string name="ingame_photo_fx_dutch">倾斜构图</string>
+    <string name="ingame_photo_fx_orbit">环绕</string>
     <string name="ingame_fps_bottom_left">左下</string>
     <string name="ingame_fps_bottom_centre">下方居中</string>
     <string name="ingame_fps_top_left">左上</string>
@@ -116,6 +162,8 @@
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
     <string name="ingame_gyro_invert_v">反转垂直方向</string>
     <string name="ingame_gyro_invert_h">反转水平方向</string>
+    <string name="ingame_gyro_source">陀螺仪来源</string>
+    <string name="ingame_gyro_source_help">陀螺仪来源：自动会在你正在使用的手柄带有陀螺仪时使用它（例如 DualSense 或 DualShock 4；Android 12 及以上），否则使用本设备的。设备或手柄则始终使用对应的那个。陀螺仪仍然只在里昂举起武器时瞄准。</string>
     <string name="ingame_alternate_help">替代操作：L1 = 小刀，L2 = 瞄准（用右摇杆瞄准），R1 = 物品栏（武器/回复），R2 = 射击 / 使用小刀，Y = 地图。A、B、X（阿什莉）和 START 保持不变。步枪瞄准镜：左摇杆上下推动即可缩放。</string>
     <string name="ingame_knife_swipe">滑动出刀</string>
     <string name="ingame_knife_swipe_help">滑动出刀：在画面上快速滑动即可拔刀挥砍；向上或向下滑动可向高处或低处挥砍。</string>
@@ -228,7 +276,7 @@
     <string name="ingame_controls_page">控制</string>
     <string name="ingame_performance">性能</string>
     <string name="ingame_management">管理</string>
-    <string name="ingame_navigation">方向键：导航  ·  A：选择  ·  B：返回  ·  SELECT / START：回到游戏</string>
+    <string name="ingame_navigation">方向键：导航  ·  A：选择 / 下一个  ·  L1/R1（Q/E）：更改数值  ·  B：返回  ·  SELECT / START：回到游戏</string>
     <string name="ingame_instant">即时存档</string>
     <string name="ingame_slot">存档槽</string>
     <string name="ingame_slot_details">章节 %1$s  ·  %2$s  ·  游戏时间 %3$s</string>
@@ -270,7 +318,9 @@
     <string name="ingame_skip_aggressive">激进</string>
     <string name="ingame_vk_bandwidth">节省带宽（Vulkan）</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">原版 GameCube 电视滤镜</string>
+    <string name="ingame_aa_msaa">MSAA 抗锯齿</string>
+    <string name="ingame_aa_fxaa">FXAA 抗锯齿</string>
+    <string name="ingame_tv_filter">GameCube 电视滤镜</string>
     <string name="ingame_fxaa_help">在最后一步平滑锯齿边缘。可与 MSAA 同时使用或单独使用；画面会略微变柔和。</string>
     <string name="ingame_sharper_text">更清晰的菜单文字</string>
     <string name="ingame_sharper_text_help">更清晰的菜单文字：在高分辨率下以清晰的边缘绘制游戏自带的菜单文字，适用于所有语言。</string>
@@ -288,6 +338,14 @@
     <string name="ingame_colour_help">暖色胶片突出棕色和金色；生存恐怖让颜色变淡、对比更强。强度决定效果的多少。</string>
     <string name="ingame_skip_normal_help">跳帧“普通”：图形芯片跟不上时，跳过一帧已完成的画面，使游戏保持正常速度。</string>
     <string name="ingame_skip_aggressive_help">跳帧“激进”：游戏落后时自身最多每两帧跳过一帧；在处理器较慢的手机上快得多。</string>
+    <string name="ingame_skip_auto">自动</string>
+    <string name="ingame_fs_off">不跳帧</string>
+    <string name="ingame_fs_auto">自动跳帧</string>
+    <string name="ingame_fs_normal">普通跳帧</string>
+    <string name="ingame_fs_aggressive">激进跳帧</string>
+    <string name="ingame_skip_auto_help">跳帧“自动”：游戏全速运行时不跳过任何画面；只有当它约半秒保持在每秒 30 帧以下时，两种跳帧才会帮忙（先是渲染器的；只有游戏两秒内保持在 24 以下时才用游戏自身的，并且比“激进”更温和），直到它再次全速运行两秒。</string>
+    <string name="ingame_even_pacing">均匀帧节奏</string>
+    <string name="ingame_even_pacing_help">均匀帧节奏：开（默认）在需要时稍微保留一帧，使每一帧在屏幕上停留同样长的时间（稳定 30 帧，以及高于 60 Hz 的屏幕上的 60 帧）。关：每帧准备好就立即显示，与旧版本相同：稍微更跟手，但不够均匀。</string>
     <string name="ingame_vk_bandwidth_help">仅限 Vulkan：在 Mali 和 Adreno 芯片上节省显存带宽；画面保持不变。</string>
     <string name="ingame_skip_or_smooth">跳帧与 60 帧互斥：开启其中一个会关闭另一个。</string>
     <string name="ingame_merge_help">将多个物体合并为一次图形驱动调用。可能对驱动较慢的手机（如 Mali GPU）有帮助；开启 60 帧时不起作用。</string>
@@ -318,6 +376,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">手提箱 L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
+    <string name="ingame_cheat_stack">弹药堆叠</string>
+    <string name="ingame_cheat_stack_help">弹药堆叠：弹药在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）。手榴弹、回复道具和宝物保持游戏原样。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
+    <string name="ingame_stack_standard">标准</string>
+    <string name="ingame_cheat_refill">补满弹药</string>
+    <string name="ingame_cheat_refill_full">没有可补充的：箱子里没有弹药，或已全部补满。</string>
+    <string name="ingame_cheat_refill_help">补满弹药：箱子里的每一堆弹药都会补到“弹药堆叠”的数值（标准：该种类的正常上限）；不会添加新弹药，武器中已装填的子弹不变。</string>
     <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。隐身：敌人无视你，首领和固定剧情则不会。稳定瞄准：激光和瞄准镜不会晃动。服装：“里昂的夹克”让里昂整个游戏都穿着棕色夹克；“特别”让里昂和阿什莉穿上各自的特殊服装。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。解锁额外游戏会把 Assignment Ada 和 The Mercenaries 加入标题菜单。</string>
     <string name="ingame_cheat_done">完成：%1$s。</string>
     <string name="ingame_cheat_already">已经有了：%1$s。</string>
@@ -347,6 +411,7 @@
     <string name="ingame_later">稍后</string>
     <string name="ingame_controller_config">按键映射</string>
     <string name="ingame_controller_config_help">按键映射：把游戏的每个动作放到手柄或键盘的按键上。</string>
+    <string name="ingame_ashley_hold_help">Ashley 卡住了？快速按两下她的按钮（等待 / 跟随）：她会出现在里昂身后并跟随他。</string>
     <string name="ingame_stick_dead_zone">摇杆死区</string>
     <string name="ingame_stick_range">摇杆范围</string>
     <string name="ingame_stick_help">摇杆死区：忽略中心附近的小幅移动（适用于会漂移的摇杆）。摇杆范围：摇杆推到这个程度就算推到底，这样 Leon 能稳定地行走和奔跑。默认值保持摇杆原样；不影响触控操作。</string>
@@ -391,6 +456,10 @@
     <string name="ingame_map_keyboard">键盘和鼠标</string>
     <string name="ingame_mouse_help">游戏运行时，鼠标（Android 8 及以上）控制游戏：转动镜头、移动准星；滚轮可缩放瞄准镜和望远镜。应用菜单（F1）会释放鼠标指针。</string>
     <string name="ingame_keyboard_c_help">刀：按住刀的按键并用鼠标瞄准。C 摇杆的按键（默认 I、K、J、L）可转动视角，并缩放瞄准镜和望远镜。</string>
+    <string name="ingame_quick_reload">无需瞄准即可装弹</string>
+    <string name="ingame_quick_reload_help">无需瞄准即可装弹（键盘）：单按装弹键（默认 R）即可装弹，无需先举起武器。</string>
+    <string name="ingame_force_controller">强制识别为手柄</string>
+    <string name="ingame_force_controller_help">强制识别为手柄：当手柄未被识别或 Android 将其识别为键盘时使用：外部设备的每个按键都将视为手柄按键，可在上方分配。真正的键盘此时也会被视为手柄，因此用键盘和鼠标游戏时请关闭（鼠标仍可使用）。设备自带的按键、触屏控制和音量键保持不变。</string>
     <string name="ingame_mouse_sensitivity">鼠标灵敏度</string>
     <string name="ingame_map_controller">手柄</string>
     <string name="ingame_map_device">设备</string>
@@ -400,6 +469,11 @@
     <string name="ingame_cheat_section_player">玩家</string>
     <string name="ingame_cheat_section_weapons">武器</string>
     <string name="ingame_cheat_section_game">通用与物品栏</string>
+    <string name="ingame_cheat_section_world">敌人与环境</string>
+    <string name="ingame_health_bars">敌人血条</string>
+    <string name="ingame_health_bars_help">敌人血条：每个敌人头上的小条显示其生命值（绿色，低于四分之一为黄色，低于十分之一为红色）；过场动画和菜单中不显示。</string>
+    <string name="ingame_more_enemies">更多敌人</string>
+    <string name="ingame_more_enemies_help">更多敌人：房间里的普通 Ganado 增加约四成，位置随机，任何难度均有效；从下一个房间开始。头目、特殊敌人和敌人波次保持不变；仅限主线剧情。</string>
     <string name="ingame_dof_light">轻度</string>
     <string name="ingame_dof_strong">强烈</string>
     <string name="ingame_player_view">玩家视角</string>
@@ -471,6 +545,17 @@
     <string name="ingame_shader_cache_help">游戏会保留已构建的着色器，这样场景不会再次卡顿。只有在更新后出现图形错误时才需要清除；之后最初的几个场景可能会卡顿一次。</string>
     <string name="ingame_shader_clear">清除着色器缓存</string>
     <string name="ingame_shader_clear_text">游戏将重新启动并删除已构建的着色器。游戏过程中会重新构建，因此最初的几个场景可能会卡顿。上次存档之后的进度将会丢失。</string>
+    <string name="ingame_shader_prep">启动时加载着色器</string>
+    <string name="ingame_shader_prep_help">启动时加载着色器：每次启动时先准备所有已知着色器（图形芯片的程序）并显示进度；之后房间和特效首次出现时不会卡顿。首次使用 Vulkan 约需一分钟，在较慢手机上使用 OpenGL ES 可能需要数分钟，之后只需数秒。无法跳过。需要 4 GB 及以上内存。</string>
+    <string name="ingame_shader_prep_low_ram">需要至少 4 GB 内存（此设备有 %1$s GB）。</string>
+    <string name="ingame_shader_prep_title">正在准备着色器…</string>
+    <string name="ingame_shader_prep_line">准备一次后便不会再卡顿。请稍候，无法跳过。</string>
+    <string name="ingame_output_res">输出分辨率</string>
+    <string name="ingame_output_res_help">输出分辨率：发送到屏幕的画面尺寸，屏幕会将其拉伸到自身像素。在屏幕非常精细（高于 1080p）的手机上，较低的值更快，尤其是开启 CRT、泛光、FXAA 或锐化时，画面会略柔和。原生：屏幕自身尺寸。上方的分辨率（游戏的 3D）保持不变。</string>
+    <string name="ingame_upscaler">放大算法</string>
+    <string name="ingame_upscaler_sgsr">SGSR（轻）</string>
+    <string name="ingame_upscaler_fsr">FSR（强）</string>
+    <string name="ingame_upscaler_help">放大算法：当游戏画面小于它在屏幕上的位置时（上面的分辨率低于屏幕的分辨率），画面如何放大。关：普通的柔和拉伸。SGSR（Qualcomm Snapdragon Game Super Resolution）：边缘更清晰，手机负担小；推荐。FSR（AMD FidelityFX Super Resolution 1）：最清晰，工作量约为 SGSR 的两倍。画面与其位置一样大时，或开启 CRT 滤镜时，没有变化。</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">模组</string>
     <string name="ingame_hd_textures">高清纹理</string>

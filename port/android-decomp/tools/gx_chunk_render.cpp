@@ -211,12 +211,18 @@ int main(int argc, char **argv) {
       // RE4_GX_DOF_FULL=1: the depth of field's blur at the full resolution (GxOptions::halfDof off)
       const char *dofFull = std::getenv("RE4_GX_DOF_FULL");
       options.halfDof = !(dofFull && *dofFull == '1');
+      // RE4_GX_ANISO=N: the menu's texture filter (anisotropy 2..16; 1.1.0, the case's grid lines)
+      const char *aniso = std::getenv("RE4_GX_ANISO");
+      options.anisotropy = aniso ? static_cast<float>(std::max(1, std::atoi(aniso))) : 1.0f;
       renderer->SetOptions(options);
       // RE4_GX_PSX=1: the PSone demake as the app's switch sets it (GxRenderer::SetPsx)
       const char *psx = std::getenv("RE4_GX_PSX");
       renderer->SetPsx(psx && *psx == '1');
       const char *sharpen = std::getenv("RE4_GX_SHARPEN");
       renderer->SetSharpen(sharpen ? std::atoi(sharpen) : 0);
+      // RE4_GX_UPSCALER=1|2: the menu's upscaler (SGSR, FSR; 1.1.0) for the -screen pictures (RE4_GX_SCREEN)
+      const char *upscaler = std::getenv("RE4_GX_UPSCALER");
+      renderer->SetUpscaler(upscaler ? std::atoi(upscaler) : 0);
       // RE4_GX_CRT=1|2, RE4_GX_COLOUR=MODE,LEVEL: the menu's CRT and colour (SetCrt, SetColour; 0.99.9)
       const char *crt = std::getenv("RE4_GX_CRT");
       renderer->SetCrt(crt ? std::atoi(crt) : 0);
@@ -450,6 +456,12 @@ int main(int argc, char **argv) {
                                                       "x zurückgemalt").c_str() : "",
                 s.missingTextures > before.missingTextures ? ", fehlende Texturen" : "",
                 s.shaderErrors > before.shaderErrors ? ", FEHLER: Shader" : "");
+    // 1.1.0: the mipmaps made for the game's textures without (gx_mips.h)
+    if (s.mipTextures > before.mipTextures || s.mipSkippedDynamic > before.mipSkippedDynamic)
+      std::printf("  mipmaps: %u textures given levels (%u cut-outs), %.2f MB more, %.1f ms; %u left without\n",
+                  s.mipTextures - before.mipTextures, s.mipCutouts - before.mipCutouts,
+                  (s.mipBytes - before.mipBytes) / 1048576.0, (s.mipUs - before.mipUs) / 1000.0,
+                  s.mipSkippedDynamic - before.mipSkippedDynamic);
     if (s.hdLookups > before.hdLookups)
       std::printf("  HD: %u of %u textures replaced, %u without a replacement, %u over the budget, %u not readable; "
                   "replacements on the GPU %.1f MB\n",

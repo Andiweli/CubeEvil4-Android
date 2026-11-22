@@ -1,0 +1,42 @@
+# Port patch, a bug of our cheat "Invisibility" (patch 0204; not of the prototype): it gives every enemy the
+# player's distance as 1e16, and em10_R1_Keeper (R1 0x01, the Ganados that wait in place) shows a keeper only
+# within 50000 units: else it fades out, loses its collision and stops (work flag 0x400000). With the cheat on
+# the keepers (all but those a room shows always: flag 0x40, r320) stayed invisible in every room, among them
+# the key-carrying Zealot (the leader) in r209, so the key could not be taken until the cheat was off (a
+# player's report, 18.11.2026, 0.99.18-rc). Their showing now takes the real distance while the cheat is on;
+# finding and attacking the player stay off as before (em10FindCk, setFindPL, DBG_EM_NO_ATK). Off: as the
+# game. No other enemy shows or hides by the player's distance (checked: every l_pl comparison in src/em*,
+# src/game and the room scripts).
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -3530,6 +3530,21 @@
+     em10ActEvtSetTrade(em);
+ }
+ 
++/* port (patch 0237): the player's distance for a keeper's showing. With the cheat "Invisibility" (patch 0204)
++   emMove gives every enemy l_pl 1e16, and a keeper (R1 0x01: shown within 50000 units, else invisible and
++   without collision) never showed: the key-carrying Zealot in r209 stayed invisible until the cheat was off
++   (a player's report, 18.11.2026). With the cheat its showing takes the real distance, as emMove computes
++   it; finding and attacking the player stay off (em10FindCk, setFindPL, DBG_EM_NO_ATK). */
++static inline f32 em10KeeperL(cEm10* em)
++{
++    if (re4_invisible()) {
++        f32 dx = pPL->pos.x - em->pos.x;
++        f32 dz = pPL->pos.z - em->pos.z;
++        return dx * dx + dz * dz;
++    }
++    return em->l_pl;
++}
++
+ // R1 == 0x01 Keeper: guard post idle. Far from the player (> 50000 units) the Ganado fades out and
+ // stops colliding (flag 0x400000); when the player is behind (Pl_rot > 90 deg) it plays the turn
+ // motion (step 2/3) and attacks from there; leaves the post for em10WalkRtnSet when the player is
+@@ -3557,7 +3572,7 @@
+             em->ang.y += Muku(&em->pos, &pPL->pos, em->ang.y, PI);
+             em->ang.y = LIMIT_ANGLE(em->ang.y);
+         }
+-        if (em->l_pl < 2500000000.0f || (em->flag & 0x40) || G_ROOM_ID == 0x320) {
++        if (em10KeeperL(em) < 2500000000.0f || (em->flag & 0x40) || G_ROOM_ID == 0x320) {
+             w->Be_flg &= ~0x400000;
+             if (!(em->be_flag & 2)) {
+                 em->be_flag |= 2;

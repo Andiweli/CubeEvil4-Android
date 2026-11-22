@@ -770,8 +770,8 @@ static void testTasks()
         re4_log("  trace: %s", gTrace);
     }
     CHECK(TaskStatus(3) == 0 && TaskStatus(1) != 0);
-    // the game's heaps end where the runtime puts the FST (lp64_sizes.json Heap_end_addr and
-    // RE4_MEM1_LP64_HEAP_EXTRA: 0x817F4000 on ILP32, 1 MB higher on LP64)
+    // the game's heaps end where the runtime puts the FST (patch 0245 Heap_end_addr and re4_mem1_map.h
+    // RE4_MEM1_HEAP_END: 0x826F4000 on ILP32 and LP64 since 1.1.0)
     CHECK(gHeapEnd == RE4_MEM1_FST_ADDR);
     if (gHeapEnd != RE4_MEM1_FST_ADDR) {
         re4_log("  heap end 0x%lx, FST at 0x%x", gHeapEnd, RE4_MEM1_FST_ADDR);
@@ -2443,6 +2443,102 @@ static void testCpuInfo()
     }
     re4cpu::DescribeClocks(sd, text, sizeof(text));
     ok &= strstr(text, "cores now:") == text && strstr(text, " 4 ") != nullptr && strstr(text, " 3 ") == nullptr;
+    // the render thread's cores as the clocks allow them (RenderPick, 1.1.0): the user's Xiaomi (Snapdragon 8s Gen 4:
+    // 0-1 2016, 2-4 3014, 5-6 2803, 7 3206 MHz), the render thread on core 7
+    {
+        re4cpu::Layout x;
+        x.count = 8;
+        const unsigned top[8] = {2016000, 2016000, 3014000, 3014000, 3014000, 2803000, 2803000, 3206000};
+        for (int i = 0; i < 8; i++) {
+            x.maxKHz[i] = top[i];
+        }
+        x.slowest = 2016000;
+        x.fastest = 3206000;
+        unsigned allowed[8];
+        bool online[8];
+        for (int i = 0; i < 8; i++) {
+            allowed[i] = top[i];
+            online[i] = true;
+        }
+        cpu_set_t seven;
+        CPU_ZERO(&seven);
+        CPU_SET(7, &seven);
+        re4cpu::RenderPick p;
+        // nothing held back: it stays
+        bool pick = !p.Update(x, allowed, online, seven, true, 100.0) && CPU_EQUAL(&p.set, &seven);
+        // core 7 at 3014 of 3206 (as fast as the middle cores): it stays (no move without a margin)
+        allowed[7] = 3014000;
+        pick &= !p.Update(x, allowed, online, seven, true, 110.0);
+        // core 7 held at 2054: the middle cores at 3014 are 47 % faster: to cores 2 3 4
+        allowed[7] = 2054000;
+        pick &= p.Update(x, allowed, online, seven, true, 120.0) && CPU_COUNT(&p.set) == 3 && CPU_ISSET(2, &p.set) &&
+                CPU_ISSET(4, &p.set) && !CPU_ISSET(7, &p.set) && strstr(p.last, "from cores 7 (2054 MHz") != nullptr &&
+                strstr(p.last, "to cores 2 3 4 (3014 MHz allowed, the middle kind)") != nullptr;
+        // core 7 back at 3206 two seconds later: not yet (the pause); after it back to the faster kind (no margin)
+        allowed[7] = 3206000;
+        pick &= !p.Update(x, allowed, online, seven, true, 122.0) && CPU_ISSET(2, &p.set);
+        pick &= p.Update(x, allowed, online, seven, true, 126.0) && CPU_EQUAL(&p.set, &seven);
+        // the report: every faster core held at 633, the slow ones may reach 2016 (45 %: 907 > 633 + 15 %): to cores 0 1,
+        // but not where the helpers go on the slow cores (slowOk false)
+        for (int i = 2; i < 8; i++) {
+            allowed[i] = 633000;
+        }
+        pick &= !p.Update(x, allowed, online, seven, false, 140.0) && CPU_EQUAL(&p.set, &seven);
+        pick &= p.Update(x, allowed, online, seven, true, 141.0) && CPU_COUNT(&p.set) == 2 && CPU_ISSET(0, &p.set) &&
+                CPU_ISSET(1, &p.set) && strstr(p.last, "the slowest kind") != nullptr;
+        // the slow ones held at 1300 a bit later (585 < 633): back to core 7, the faster kind as good or better
+        allowed[0] = allowed[1] = 1300000;
+        pick &= p.Update(x, allowed, online, seven, true, 150.0) && CPU_EQUAL(&p.set, &seven);
+        // the same clocks again: it stays (no back and forth)
+        pick &= !p.Update(x, allowed, online, seven, true, 160.0) && !p.Update(x, allowed, online, seven, true, 170.0);
+        // core 7 switched off: at once to the best of the rest, without the pause
+        online[7] = false;
+        allowed[2] = allowed[3] = allowed[4] = 1500000;
+        pick &= p.Update(x, allowed, online, seven, true, 171.0) && CPU_ISSET(2, &p.set) && !CPU_ISSET(7, &p.set) &&
+                strstr(p.last, "switched off") != nullptr;
+        pick &= p.moves == 5;
+        // the clocks line names every core with its three clocks (this machine's: some of them not readable)
+        re4cpu::DescribeAllClocks(x, text, sizeof(text));
+        pick &= strstr(text, "clocks now/allowed/highest:") == text && strstr(text, "/3206") != nullptr;
+        if (!pick) {
+            re4_log("  cpuinfo: render pick: moves %u, last \"%s\", clocks \"%s\"", p.moves, p.last, text);
+        }
+        ok &= pick;
+    }
+    // the kinds by the system's capacity (1.1.0): the user's OPPO A53 (Snapdragon 460): cores 0-3 Cortex-A53 at 1804
+    // MHz (capacity 494), 4-7 Cortex-A73 at 1612 (1024); by the clock the small ones were "fast"
+    {
+        re4cpu::Layout o;
+        o.count = 8;
+        for (int i = 0; i < 8; i++) {
+            o.maxKHz[i] = i < 4 ? 1804800 : 1612800;
+            o.capacity[i] = i < 4 ? 494 : 1024;
+        }
+        o.slowest = 1612800;
+        o.fastest = 1804800;
+        bool kinds = o.Kind(0) == 2 && o.Kind(7) == 0;  // (by the clock, as before)
+        o.RankByCapacity();
+        kinds &= o.Kind(0) == 0 && o.Kind(3) == 0 && o.Kind(4) == 2 && o.Kind(7) == 2 && !o.Alike() &&
+                 o.fastest == 1612800 && o.slowest == 1804800 && !re4cpu::HasPrimeCores(o) &&
+                 re4cpu::FasterCores(o) == 4 && !re4cpu::HelpersGoSlow(o);
+        o.Describe(text, sizeof(text));
+        kinds &= strstr(text, "kinds by the system's capacity: 0-3 494, 4-7 1024 (the last the fastest)") != nullptr;
+        // the Snapdragon 865 with a kernel that gives the prime core and the big ones the same 1024: still three kinds
+        re4cpu::Layout p = sd;
+        for (int i = 0; i < 8; i++) {
+            p.capacity[i] = i < 4 ? 410 : 1024;
+        }
+        p.RankByCapacity();
+        kinds &= p.Kind(3) == 0 && p.Kind(5) == 1 && p.Kind(7) == 2 && re4cpu::HasPrimeCores(p);
+        // a core without a capacity, or all alike: by the clock as before
+        re4cpu::Layout q = sd;
+        q.RankByCapacity();
+        kinds &= q.rankFast == 0 && q.Kind(7) == 2 && q.Kind(0) == 0;
+        if (!kinds) {
+            re4_log("  cpuinfo: kinds by capacity: \"%s\"", text);
+        }
+        ok &= kinds;
+    }
     setenv("RE4_PRIME_CORE", "0", 1);
     ok &= !re4cpu::HasPrimeCores(sd);
     unsetenv("RE4_PRIME_CORE");
@@ -2491,6 +2587,8 @@ static void testCpuInfo()
     // (two) yes, the Retroid (four) and alike cores no; a helper thread of this machine, the cores
     // above the lowest two made slow, lands below them; RE4_HELPERS_SLOW=0 leaves it
     ok &= re4cpu::FasterCores(a30) == 2 && re4cpu::FasterCores(sd) == 4 && re4cpu::FasterCores(alike) == 0;
+    // HelpersGoSlow: the placement's tries and the hint without the helpers only where they go on the slow cores
+    ok &= re4cpu::HelpersGoSlow(a30) && !re4cpu::HelpersGoSlow(sd) && !re4cpu::HelpersGoSlow(alike);
     ok &= !re4cpu::PutOnSlowCores(sd, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
           strstr(text, "4 faster cores") != nullptr;
     ok &= !re4cpu::PutOnSlowCores(alike, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
@@ -2498,6 +2596,7 @@ static void testCpuInfo()
     setenv("RE4_HELPERS_SLOW", "0", 1);
     ok &= !re4cpu::PutOnSlowCores(a30, re4cpu::ThreadId(), nullptr, text, sizeof(text)) &&
           strstr(text, "RE4_HELPERS_SLOW=0") != nullptr;
+    ok &= !re4cpu::HelpersGoSlow(a30);
     unsetenv("RE4_HELPERS_SLOW");
     if (cores >= 3 && cores <= re4cpu::Layout::kMax) {
         re4cpu::Layout two;  // the two highest cores fast
@@ -2539,6 +2638,19 @@ static void testCpuInfo()
             CPU_ZERO(&now);
             sched_getaffinity(helperTid, sizeof(now), &now);
             lower &= CPU_ISSET(cores - 1, &now) != 0;
+            // a helper that has only the two fast cores (started by a thread already on them; user report
+            // 20.11.2026): the main thread's cores count, it still lands below them
+            cpu_set_t top;
+            CPU_ZERO(&top);
+            CPU_SET(cores - 2, &top);
+            CPU_SET(cores - 1, &top);
+            if (sched_setaffinity(helperTid, sizeof(top), &top) == 0) {
+                const bool again = re4cpu::PutOnSlowCores(two, helperTid, &set, where, sizeof(where));
+                CPU_ZERO(&now);
+                sched_getaffinity(helperTid, sizeof(now), &now);
+                lower &= again && !CPU_ISSET(cores - 1, &now) && CPU_ISSET(0, &now);
+                re4cpu::ReleaseThread(helperTid);
+            }
         } else {
             placed = true;  // a test machine that does not give this process every core
         }
@@ -2561,6 +2673,31 @@ static void testCpuInfo()
         re4_log("  cpuinfo: %s", text);
     }
     report("cpuinfo", ok);
+}
+
+// The enemy health bars' fade (runtime/health_bars.cpp, 1.1.0): 12 game frames (0.4 s) from nothing to whole and back,
+// a step of up to 3 frames at once, never below 0 or above 1
+extern "C" float re4_hb_fade_step(float a, int want, unsigned frames);
+static void testHealthBarFade()
+{
+    bool ok = true;
+    float a = 0.0f;
+    int frames = 0;
+    while (a < 1.0f && frames < 100) {
+        a = re4_hb_fade_step(a, 1, 1);
+        frames++;
+    }
+    ok &= frames == 12;
+    a = re4_hb_fade_step(a, 1, 1);
+    ok &= a == 1.0f;
+    a = re4_hb_fade_step(a, 0, 6);  // a gap of 6 frames counts as 3
+    ok &= a > 0.74f && a < 0.76f;
+    a = re4_hb_fade_step(a, 0, 3);
+    a = re4_hb_fade_step(a, 0, 3);
+    a = re4_hb_fade_step(a, 0, 3);
+    ok &= a == 0.0f;
+    ok &= re4_hb_fade_step(0.5f, 1, 0) == 0.5f;
+    report("health bar fade", ok);
 }
 
 // The error log's core file (log.cpp re4_log_file, CoreBridge.setLogFile): the lines remembered
@@ -2713,6 +2850,7 @@ int re4_runtime_tests()
     testArcTable();
     testMovieSubtitles();
     testCpuInfo();
+    testHealthBarFade();
     testPartnerDamage();
     testCaseFreePlace();
     testMenuTouch();

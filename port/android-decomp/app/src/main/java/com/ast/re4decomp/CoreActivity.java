@@ -121,6 +121,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GYRO_SENSITIVITY = "gyroSensitivity";
   // the menu's switches "Invert vertical" / "Invert horizontal" of gyro aiming (GyroAim.setInvert; off)
   static final String GYRO_INVERT_V = "gyroInvertVertical", GYRO_INVERT_H = "gyroInvertHorizontal";
+  // the menu's "Gyro from" (GyroAim.setSource, 1.1.0): Auto (a controller's own gyroscope first), Device, Controller
+  static final String GYRO_SOURCE = "gyroSource";
   // the menu's switch "Knife by Swipe" (watchTap: a swipe while playing draws the knife and slashes; on)
   static final String KNIFE_SWIPE = "knifeSwipe";
   // the menu's "Invert vertical" and "Aim speed" of aiming by touch and controllers, not the gyro (wish of the
@@ -138,6 +140,18 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String GENTLE_QTE = "gentleQte";
   /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn); off. */
   static final String BODY_TURN = "bodyTurn";
+  // "Reload without aiming" (1.1.0, keyboard; INPUT_PREFS): the reload key alone reloads (CoreBridge.quickReload)
+  static final String QUICK_RELOAD = "quickReload";
+  /** "Force controller detection" (1.1.0, INPUT_PREFS, off by default; the idea from a fork): forceController. */
+  static final String FORCE_CONTROLLER = "forceController";
+  /**
+   * "Force controller detection" on: the keys of every external input device count as a controller's buttons (the
+   * controller's mapping, its "Device" in the button mapping), for gamepads Android lists as a keyboard or does not
+   * see as a gamepad. Only key events, only external devices: the device's own buttons and keys, the touch controls,
+   * a mouse's movement and the system's keys (volume, power, home, media; systemKey) stay as they are. A real
+   * external keyboard counts as a controller as well while it is on (the menu's help says so).
+   */
+  static volatile boolean forceController;
   static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
@@ -149,6 +163,31 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
   /** The menu's picture options: scale (0 auto, 1-4), samples, anisotropy, aspect (0 16:9, 1 4:3, 2 stretched, 3 4:3 without bars, 5 Native). */
   static final String GRAPHICS_PREFS = "core_graphics";
+  /** "Skip intro" (1.1.0, GRAPHICS_PREFS): the game's logos before the title menu are left out (RE4_SKIP_INTRO=1). */
+  static final String SKIP_INTRO = "skipIntro";
+  /** "Photo mode" (1.1.0, GRAPHICS_PREFS): a double press of SELECT (F1, the touch controls' MENU) starts it (PhotoMode). */
+  static final String PHOTO_MODE = "photoMode";
+  /** "Prepare shaders at start" (1.1.0, GRAPHICS_PREFS, off by default; ShaderPrepScreen). */
+  static final String SHADER_PREP = "shaderPrepAtStart";
+  /** "Display resolution" (1.1.0, GRAPHICS_PREFS): the picture's shorter side sent to the screen (1080, 900, 720), the
+   *  screen's scaler stretches it to the panel; 0 the panel's own (Native, the default). */
+  static final String OUTPUT_RES = "outputRes";
+  /** The RAM below which it cannot be switched on and an earlier "on" counts as off (the project owner, 20.11.2026:
+   *  "Hat das Gerät weniger als 4 GB kann man die Option nicht aktivieren"): a "4 GB" phone reports about 3.6-3.8 GB. */
+  static final long SHADER_PREP_RAM = 3_500_000_000L;
+  /** The device's RAM in bytes (0 when Android does not say). */
+  static long totalRam(Context c) {
+    android.app.ActivityManager am = (android.app.ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
+    if (am == null) return 0;
+    android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+    am.getMemoryInfo(mi);
+    return mi.totalMem;
+  }
+  /** "Prepare shaders at start" possible here: 4 GB of RAM or more (an unknown amount does not block it). */
+  static boolean shaderPrepAllowed(Context c) {
+    long ram = totalRam(c);
+    return ram <= 0 || ram >= SHADER_PREP_RAM;
+  }
   /** The menu's "Game language" with the European discs (0 the device's, 2..6 as CoreBridge.setLanguage). */
   static final String GAME_PREFS = "core_game", GAME_LANGUAGE = "gameLanguage";
   /** The cheat menu's switches (CoreBridge.setCheats: 1 health, 2 ammo, 4 one-hit kill, 8 automatic QTEs, 16 the
@@ -159,6 +198,19 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String LEON_JACKET = "leonJacket";
   /** The cheat "Random enemies" (0.99.12): its seed, 0 off (CoreBridge.setEnemyRandom). */
   static final String ENEMY_SEED = "enemySeed";
+  /** "Enemy health bars" (1.1.0, GAME_PREFS; CoreBridge.setHealthBars): off by default. */
+  static final String HEALTH_BARS = "enemyHealthBars";
+  /** The cheat "Stack items" (1.1.0, GAME_PREFS; CoreBridge.setStackItems, patch 0254): until the arrow selector a switch
+   *  (true: 999), since STACK_MAX a slot's most (0 Standard, the game's own limits; 250, 500, 999). */
+  static final String STACK_ITEMS = "stackItems", STACK_MAX = "stackMax";
+  static final int[] STACK_STEPS = {0, 250, 500, 999};
+  /** The chosen "Stack items" value (0 Standard). */
+  static int stackMax(android.content.SharedPreferences g) {
+    if (g.contains(STACK_MAX)) return STACK_STEPS[CoreMenu.stepOf(STACK_STEPS, g.getInt(STACK_MAX, 0))];
+    return g.getBoolean(STACK_ITEMS, false) ? 999 : 0;
+  }
+  /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
+  static final String MORE_ENEMIES = "moreEnemiesSeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
       REQUEST_EXPORT_ZIP = 6;
   // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
@@ -199,6 +251,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private String rendererLine = "OpenGL ES";
   // the touch controls (RetroTouch) and its editor, during which the game stands
   private TouchControls touchControls;
+  /** Photo mode (1.1.0): its state, the camera's input and its overlay. */
+  private PhotoMode photo;
+  /** "Prepare shaders at start" (1.1.0): the screen while it runs (null: none), whether it stopped the game. */
+  private ShaderPrepScreen prepScreen;
+  private boolean prepPausedCore;
+  private long prepStartedAt;
   private GyroAim gyroAim;
   private boolean touchEditing;
   private String startProblem = "";
@@ -343,6 +401,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
       Log.i(TAG, "game language: " + gameLanguageNow);
     }
+    // "Skip intro" (1.1.0): the core goes from the memory card check straight to the title menu (runtime/title_skip,
+    // patch 0242); a test script's setting wins
+    if (!settings.contains("RE4_SKIP_INTRO=")
+        && getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(SKIP_INTRO, false)) {
+      coreSettings += ";RE4_SKIP_INTRO=1";
+      Log.i(TAG, "skip intro: on (the game's logos before the title menu are left out)");
+    }
     // the app's own folder (on the shared storage, else internal), where test switches write (RE4_AUDIO_WAV)
     AppStorage.base(this);
     // Management -> "Delete All Data" (0.99.15, PlayerWipe): the memory card and the instant save go before the core
@@ -388,6 +453,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     root.addView(surface);
     surfaceCallbacks(surface);
+    // "Display resolution": the surface's buffer for the view's size, again when the size changes (a turn, a fold)
+    surface.addOnLayoutChangeListener((sv, sl, st, sr, sb, osl, ost, osr, osb) -> {
+      if (sr - sl != osr - osl || sb - st != osb - ost) applyOutputSize();
+    });
     // the benchmark's line at the top while it runs (Display -> GRAPHICS -> Benchmark)
     benchView = new TextView(this);
     benchView.setTextSize(14);
@@ -427,6 +496,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     autoAim = inputPrefs.getBoolean(AUTO_AIM, false);
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
     input.setBodyTurn(inputPrefs.getBoolean(BODY_TURN, false));
+    quickReload = inputPrefs.getBoolean(QUICK_RELOAD, false);
     if (input.bodyTurn()) Log.i(TAG, "turn Leon with mouse / look area: on");
     // "modernMove": a switch of a 0.99.7 test build, taken out again (decision of the project owner, 10.11.2026)
     if (inputPrefs.contains("modernMove")) inputPrefs.edit().remove("modernMove").apply();
@@ -447,9 +517,31 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       });
     }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
+    gyroAim.setSource(inputPrefs.getInt(GYRO_SOURCE, GyroAim.SOURCE_AUTO));
+    forceController = inputPrefs.getBoolean(FORCE_CONTROLLER, false);
+    if (forceController) Log.i(TAG, "force controller detection: on (the keys of external devices count as a controller's)");
+    gyroAim.setController(lastPad >= 0 ? InputDevice.getDevice(lastPad) : null);
     gyroAim.setEnabled(inputPrefs.getBoolean(GYRO_AIM, false));
     root.addView(touchControls.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
         FrameLayout.LayoutParams.MATCH_PARENT));
+    // photo mode's overlay above them (hidden until photo mode is on)
+    photo = new PhotoMode(this, main, photoHost);
+    root.addView(photo.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT));
+    // "Prepare shaders at start" over everything (the game runs until the making ahead has begun, then stands); below
+    // 4 GB of RAM an "on" of before counts as off
+    final boolean prepOn = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(SHADER_PREP, false);
+    final boolean prepAllowed = shaderPrepAllowed(this);
+    if (prepOn && !prepAllowed)
+      Log.i(TAG, "prepare shaders at start: on, but off with " + totalRam(this) / 1000000 + " MB of RAM");
+    if (startProblem.isEmpty() && prepOn && prepAllowed) {
+      prepScreen = new ShaderPrepScreen(this);
+      root.addView(prepScreen.view(), new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+          FrameLayout.LayoutParams.MATCH_PARENT));
+      prepStartedAt = SystemClock.uptimeMillis();
+      Log.i(TAG, "prepare shaders at start: on");
+      main.post(prepTick);
+    }
     // the camera's cutout (Cutout, 0.99.17): the touch controls cover the whole window, their layouts follow the
     // camera's side; the error log says what the window got. Again when the screen turns by 180 degrees.
     root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -471,8 +563,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       if (g.getBoolean("smooth60", false)) skip = 0;
       if (!g.contains(CoreMenu.FRAME_SKIP) || g.getInt(CoreMenu.FRAME_SKIP, 0) != skip) CoreMenu.storeFrameSkipMode(g, skip);
       CoreBridge.setSmooth(g.getBoolean("smooth60", false));
-      CoreBridge.setFrameSkip(skip == 1);
-      CoreBridge.setCpuSkip(skip == 2);
+      CoreMenu.sendFrameSkip(skip);
+      CoreBridge.setEvenPacing(CoreMenu.evenPacing(g));
       CoreBridge.setVkBandwidth(g.getBoolean("vkBandwidth", false));
       CoreBridge.setFxaa(g.getBoolean("fxaa", false));
       CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
@@ -513,6 +605,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       int enemySeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(ENEMY_SEED, 0);
       if (enemySeed != 0) Log.i(TAG, "cheats: random enemies with seed " + enemySeed);
       CoreBridge.setEnemyRandom(enemySeed);
+      int moreSeed = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(MORE_ENEMIES, 0);
+      if (moreSeed != 0) Log.i(TAG, "cheats: more enemies with seed " + moreSeed);
+      CoreBridge.setMoreEnemies(moreSeed);
+      boolean bars = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(HEALTH_BARS, false);
+      if (bars) Log.i(TAG, "enemy health bars on");
+      CoreBridge.setHealthBars(bars);
+      int stack = stackMax(getSharedPreferences(GAME_PREFS, MODE_PRIVATE));
+      if (stack != 0) Log.i(TAG, "cheats: stack items up to " + stack);
+      CoreBridge.setStackItems(stack);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -615,10 +716,50 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   /** The menu's picture options to the renderer (applied at the next picture while the game runs). */
+  private int outputW, outputH;  // the buffer set (applyOutputSize); 0: the view's own
+  private String outputLine = "";
+
+  /**
+   * "Display resolution" (1.1.0; the idea from the RE4Wii-Android port's review, our own code): the picture is drawn
+   * into a smaller buffer than the panel (SurfaceHolder.setFixedSize) and the display's scaler stretches it; the post
+   * effects (CRT, bloom, FXAA, Sharpen) and the composition then work on fewer pixels. The touch controls, the photo
+   * mode's bar and every other view keep the panel's pixels (they are views of their own); the renderer learns the
+   * buffer's size from its surface. Only ever smaller than the panel, the aspect kept.
+   */
+  private void applyOutputSize() {
+    if (surface == null) return;
+    int vw = surface.getWidth(), vh = surface.getHeight();
+    if (vw <= 0 || vh <= 0) return;
+    int target = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt(OUTPUT_RES, 0);
+    int shortSide = Math.min(vw, vh);
+    int w = 0, h = 0;
+    if (target > 0 && shortSide > target) {
+      w = (Math.round((float) vw * target / shortSide) + 1) & ~1;
+      h = (Math.round((float) vh * target / shortSide) + 1) & ~1;
+    }
+    String line = w > 0 ? "display resolution: " + w + "x" + h + " stretched to the panel's " + vw + "x" + vh
+        : "display resolution: the panel's own " + vw + "x" + vh;
+    if (w == outputW && h == outputH && line.equals(outputLine)) return;
+    outputW = w;
+    outputH = h;
+    outputLine = line;
+    if (w > 0) surface.getHolder().setFixedSize(w, h);
+    else surface.getHolder().setSizeFromLayout();
+    Log.i(TAG, line);
+  }
+
+  /** The picture's buffer: the "Display resolution" one, else the view's. */
+  int[] outputSize() {
+    if (outputW > 0 && outputH > 0) return new int[] {outputW, outputH};
+    return new int[] {surface != null ? surface.getWidth() : 0, surface != null ? surface.getHeight() : 0};
+  }
+
   private void applyGraphics() {
+    applyOutputSize();
     SharedPreferences g = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE);
     CoreBridge.setGraphics(CoreMenu.scaleHalves(g), g.getInt("samples", 1), g.getInt("anisotropy", 1),
         g.getInt("aspect", 0));
+    CoreBridge.setUpscaler(CoreMenu.upscaler(g));
     TexturePacks.apply(this, g);
   }
 
@@ -760,7 +901,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     if (info == null || info[2] < 2) return "";  // the level in halves (1.5×: 3)
     int aspect = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getInt("aspect", 0);
-    int rows = CoreMenu.pictureRows(aspect, surface.getWidth(), surface.getHeight());
+    int[] out = outputSize();
+    int rows = CoreMenu.pictureRows(aspect, out[0], out[1]);
     return String.format(Locale.ROOT, "%d×%d (%s×)", 640 * info[2] / 2, rows * info[2] / 2,
         CoreMenu.scaleNumber(info[2], Locale.getDefault()));
   }
@@ -795,6 +937,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       double seconds = (now - fpsSince) / 1000.0;
       long game = Math.round((frames - fpsFrames) / seconds), shown = Math.round((pictures - fpsPictures) / seconds);
       boolean smooth = getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean("smooth60", false);
+      // (1.1.0) with a frame skip leaving pictures out the pictures shown too (a user's Snapdragon 460 with Auto: "the
+      // counter shows 30 FPS, but the gameplay still feels choppy": the game ran at 30, its pictures at about 15)
+      smooth = smooth || shown < game - 1;
       hudFps = smooth ? String.format(Locale.ROOT, getString(R.string.ingame_fps_smooth), game, shown)
           : String.format(Locale.ROOT, getString(R.string.ingame_fps), game);
       showHud();  // with the screen's rate, the resolution and the play time of now
@@ -856,6 +1001,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void askExit() {
+    // "Prepare shaders at start": Back (the button, the gesture) does nothing while its screen is up
+    if (prepScreen != null) {
+      Log.i(TAG, "prepare shaders at start: Back ignored");
+      return;
+    }
     Immersive.show(new AlertDialog.Builder(this).setMessage(R.string.ingame_end_question)
         .setPositiveButton(R.string.ingame_end, (d, w) -> quit())
         .setNegativeButton(R.string.ingame_continue, null).create());
@@ -930,11 +1080,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** SELECT (a controller's key or the touch controls' MENU) went down or up. */
   private void select(boolean down) {
+    // (1.1.0: the double press for photo mode delayed the menu, the owner's second device test of 19.11.2026: "es
+    // sollte wieder instant klappen"; photo mode is on L3 / P / the menu's button now, SELECT always the menu, also in
+    // photo mode: its filters and effects over the standing picture)
     if (down) {
       selectDown = true;
       selectHeld = false;
       main.removeCallbacks(selectHold);
-      main.postDelayed(selectHold, SELECT_HOLD_MS);
+      if (photo == null || !photo.busy()) main.postDelayed(selectHold, SELECT_HOLD_MS);
     } else if (selectDown) {
       // let go before the second: the menu
       selectDown = false;
@@ -943,8 +1096,73 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
   }
 
+  /** "Prepare shaders at start": every 100 ms while its screen is up. */
+  private final Runnable prepTick = new Runnable() {
+    @Override public void run() {
+      if (prepScreen == null || destroyed) return;
+      int[] p = CoreBridge.shaderPrep();
+      int state = p != null && p.length == 3 ? p[0] : 0;
+      // the making ahead has begun (it starts with the first pictures): the game stands until it is through
+      if (state == 1 && !prepPausedCore && resumed && menu == null && menuSupported) {
+        CoreBridge.pause(true, 0);
+        audio.stop();
+        prepPausedCore = true;
+        Log.i(TAG, "prepare shaders at start: " + p[2] + " to look at, the game stands meanwhile");
+      }
+      if (p != null && p.length == 3) prepScreen.update(p[1], p[2]);
+      if (state == 2) {
+        prepEnd("through (" + (p != null ? p[2] : 0) + ")");
+        return;
+      }
+      // nothing begins (no list, a renderer without it): the screen goes after 20 s
+      if (state == 0 && SystemClock.uptimeMillis() - prepStartedAt > 20000) {
+        prepEnd("nothing to prepare");
+        return;
+      }
+      main.postDelayed(this, 100);
+    }
+  };
+
+  /** The preparing screen goes (through, nothing to do); the game goes on. */
+  private void prepEnd(String why) {
+    if (prepScreen == null) return;
+    main.removeCallbacks(prepTick);
+    ((ViewGroup) prepScreen.view().getParent()).removeView(prepScreen.view());
+    prepScreen = null;
+    Log.i(TAG, "prepare shaders at start: " + why + " after " + (SystemClock.uptimeMillis() - prepStartedAt) + " ms");
+    if (prepPausedCore) {
+      prepPausedCore = false;
+      if (resumed && menu == null && !touchEditing) {
+        CoreBridge.pause(false, 0);
+        audio.start();
+      }
+    }
+    surface.requestFocus();
+  }
+
+  /** L3, the keyboard's P or the menu's button with "Photo mode" switched on: photo mode on, or off again. */
+  private void photoKey(String how) {
+    if (photo.busy()) photo.leave(how);
+    else photo.request(how);
+  }
+
+  /** The menu's "Photo mode" (Display, Optional features) is on. */
+  private boolean photoWanted() {
+    return photo != null && getSharedPreferences(GRAPHICS_PREFS, MODE_PRIVATE).getBoolean(PHOTO_MODE, false);
+  }
+
+  private final PhotoMode.Host photoHost = new PhotoMode.Host() {
+    @Override public int[] pad() { return input.pad(); }
+
+    @Override public void releaseAll() { CoreActivity.this.releaseAll(); }
+
+    @Override public void touchControlsHidden(boolean hidden) {
+      if (touchControls != null) touchControls.view().setVisibility(hidden ? View.GONE : View.VISIBLE);
+    }
+  };
+
   private void openMenu() {
-    if (menu != null || destroyed) return;
+    if (menu != null || destroyed || prepScreen != null) return;
     if (!menuSupported) {
       Toast.makeText(this, R.string.ingame_no_menu,
           Toast.LENGTH_SHORT).show();
@@ -953,6 +1171,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     releaseAll();
     boolean paused = CoreBridge.pause(true, 800);
     keepGameAimInvert();
+    keepGameVibration();
     audio.stop();
     stopVibrator();
     Log.i(TAG, "menu open" + (paused ? ", the game stands" : ", the game did not stop yet (loading?)")
@@ -1047,6 +1266,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       gyroAim.setEnabled(on);
     }
 
+    @Override public void gyroSourceChanged(int source) {
+      int s = GyroAim.clampSource(source);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(GYRO_SOURCE, s).apply();
+      gyroAim.setSource(s);
+    }
+
     @Override public void latchChanged(boolean on) {
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(TOUCH_LATCH, on).apply();
       touchControls.setLatch(on);
@@ -1115,6 +1340,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(ALWAYS_RUN, on).apply();
       alwaysRun = on;
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
+    }
+
+    @Override public void quickReloadChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(QUICK_RELOAD, on).apply();
+      quickReload = on;
+      Log.i(TAG, "reload without aiming (keyboard): " + (on ? "on" : "off"));
     }
 
     @Override public void bodyTurnChanged(boolean on) {
@@ -1197,6 +1428,31 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(ENEMY_SEED, seed).apply();
       Log.i(TAG, "cheats: random enemies " + (seed != 0 ? "on with seed " + seed : "off"));
       CoreBridge.setEnemyRandom(seed);
+    }
+
+    @Override public boolean photoAvailable() { return photoWanted() && !photo.busy(); }
+
+    @Override public void startPhotoMode() {
+      // after the menu's dismissal (the core runs again first)
+      main.postDelayed(() -> { if (menu == null && !photo.busy()) photo.request("the menu's button"); }, 150);
+    }
+
+    @Override public void moreEnemiesChanged(int seed) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(MORE_ENEMIES, seed).apply();
+      Log.i(TAG, "cheats: more enemies " + (seed != 0 ? "on with seed " + seed : "off"));
+      CoreBridge.setMoreEnemies(seed);
+    }
+
+    @Override public void stackItemsChanged(int max) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(STACK_MAX, max).remove(STACK_ITEMS).apply();
+      Log.i(TAG, "cheats: stack items " + (max == 0 ? "Standard" : "up to " + max));
+      CoreBridge.setStackItems(max);
+    }
+
+    @Override public void healthBarsChanged(boolean on) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putBoolean(HEALTH_BARS, on).apply();
+      Log.i(TAG, "enemy health bars " + (on ? "on" : "off"));
+      CoreBridge.setHealthBars(on);
     }
 
     @Override public void restartGame() {
@@ -1412,11 +1668,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         }
         importNext(new StringBuilder());
       } else if (request == REQUEST_REPORT && data.getData() != null) {
-        try (OutputStream out = getContentResolver().openOutputStream(data.getData())) {
-          if (out == null) throw new IOException("no stream");
-          CoreLog.writeReport(this, out, settings, reportExtras());
-        }
-        Toast.makeText(this, R.string.ingame_report_saved, Toast.LENGTH_SHORT).show();
+        final Uri target = data.getData();
+        makeReport("saved", () -> {
+          try (OutputStream out = getContentResolver().openOutputStream(target)) {
+            if (out == null) throw new IOException("no stream");
+            CoreLog.writeReport(this, out, settings, reportExtras());
+          }
+          return null;
+        }, made -> Toast.makeText(this, R.string.ingame_report_saved, Toast.LENGTH_SHORT).show(),
+            e -> message(getString(R.string.ingame_failed, e.getMessage())));
       }
     } catch (IOException | RuntimeException e) {
       Log.w(TAG, "menu: " + e);
@@ -2008,24 +2268,66 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   /** The error report to an app of the tester's choice (mail, messenger, cloud). */
   private void shareReport() {
-    try {
+    final String name = reportName();
+    makeReport("sent", () -> {
       File dir = ReportProvider.folder(this);
       File[] old = dir.listFiles();
       if (old != null) for (File f : old) f.delete();
-      File zip = new File(dir, reportName());
+      File zip = new File(dir, name);
       try (OutputStream out = new FileOutputStream(zip)) {
         CoreLog.writeReport(this, out, settings, reportExtras());
       }
+      return zip;
+    }, zip -> {
       Uri uri = ReportProvider.uri(this, zip);
       Intent send = new Intent(Intent.ACTION_SEND).setType("application/zip").putExtra(Intent.EXTRA_STREAM, uri)
           .putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_label) + ": " + zip.getName()).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
       send.setClipData(ClipData.newRawUri(zip.getName(), uri));
       startActivity(Intent.createChooser(send, getString(R.string.ingame_report_chooser)));
-    } catch (IOException | RuntimeException e) {
-      Log.w(TAG, "report: " + e);
-      message(getString(R.string.ingame_report_failed, e.getMessage()));
-    }
+    }, e -> message(getString(R.string.ingame_report_failed, e.getMessage())));
   }
+
+  /** A part of making the report that may fail (on the report's thread). */
+  private interface ReportWork { File run() throws IOException; }
+
+  /**
+   * The report made on a thread of its own (1.1.0; a user's OPPO A53 with a Snapdragon 460 after an update over 1.0.0
+   * without clearing its data: "force close" at Save / Send report, fine with the data cleared). On the main thread the
+   * report read every key file of the shader cache (two versions' programs side by side after an update, thousands of
+   * small files), the logs and the zip, longer than Android lets the main thread wait before it offers to close the
+   * app. `made` (with the zip of a send) or `failed` (any Throwable, also an OutOfMemoryError) then on the main thread;
+   * a second press while one is made is dropped. The time it took goes into the log.
+   */
+  private void makeReport(String what, ReportWork work, java.util.function.Consumer<File> made,
+                          java.util.function.Consumer<Throwable> failed) {
+    if (reportBusy) {
+      Log.i(TAG, "report: one is being made, this press dropped");
+      return;
+    }
+    reportBusy = true;
+    final long start = SystemClock.elapsedRealtime();
+    Thread t = new Thread(() -> {
+      File result = null;
+      Throwable error = null;
+      try {
+        result = work.run();
+      } catch (Throwable e) {
+        error = e;
+      }
+      final long ms = SystemClock.elapsedRealtime() - start;
+      final File done = result;
+      final Throwable problem = error;
+      Log.i(TAG, "report " + what + ": " + (problem == null ? "made" : "failed (" + problem + ")") + " in " + ms + " ms");
+      main.post(() -> {
+        reportBusy = false;
+        if (isFinishing() || isDestroyed()) return;
+        if (problem == null) made.accept(done);
+        else failed.accept(problem);
+      });
+    }, "Report");
+    t.start();
+  }
+  private volatile boolean reportBusy;
 
   @Override
   @SuppressWarnings("deprecation")
@@ -2034,6 +2336,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private static boolean controller(android.view.InputEvent e) {
+    // "Force controller detection" (1.1.0): an external device's keys are a controller's
+    if (e instanceof KeyEvent && forcedController(e.getDevice(), ((KeyEvent) e).getKeyCode())) return true;
     // a keyboard's events carry the D-pad's source too when it has arrow keys (keyboardDevice)
     if (keyboardDevice(e.getDevice())) return false;
     return (e.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
@@ -2055,6 +2359,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
 
   private void send() {
+    // photo mode: the game stands, PhotoMode reads the controllers itself (and sends the camera's input)
+    if (photo != null && photo.active()) return;
     int[] p = input.pad();
     CoreBridge.pad(p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
     String stick = stickWatch.sample(SystemClock.uptimeMillis(), p[1], p[2]);
@@ -2114,6 +2420,33 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * 0x301): that alone does not make it a controller (tester report 05.11.2026, OnePlus 9R: a keyboard was taken
    * for a controller, its keys did nothing in the game and in the button mapping).
    */
+  /** With "Force controller detection" on: a key `code` of device `d` counts as a controller's (external, not virtual,
+   *  no system key). */
+  static boolean forcedController(InputDevice d, int code) {
+    return forceController && d != null && !d.isVirtual() && externalDevice(d) && !systemKey(code);
+  }
+
+  /** A device plugged in or paired (Android 10: InputDevice.isExternal; before: a vendor id, which the device's own
+   *  buttons and keys lack). */
+  static boolean externalDevice(InputDevice d) {
+    if (Build.VERSION.SDK_INT >= 29) return d.isExternal();
+    return d.getVendorId() != 0;
+  }
+
+  /** The system's keys, which "Force controller detection" leaves to Android: volume, power, home, the task switcher,
+   *  the camera, media and brightness keys. */
+  static boolean systemKey(int code) {
+    switch (code) {
+      case KeyEvent.KEYCODE_VOLUME_UP: case KeyEvent.KEYCODE_VOLUME_DOWN: case KeyEvent.KEYCODE_VOLUME_MUTE:
+      case KeyEvent.KEYCODE_POWER: case KeyEvent.KEYCODE_HOME: case KeyEvent.KEYCODE_APP_SWITCH:
+      case KeyEvent.KEYCODE_CAMERA: case KeyEvent.KEYCODE_BRIGHTNESS_UP: case KeyEvent.KEYCODE_BRIGHTNESS_DOWN:
+      case KeyEvent.KEYCODE_SLEEP: case KeyEvent.KEYCODE_WAKEUP:
+        return true;
+      default:
+        return KeyEvent.isMediaSessionKey(code);
+    }
+  }
+
   static boolean keyboardDevice(InputDevice d) {
     if (d == null || d.isVirtual()) return false;
     return keyboardSources(d.getSources(), d.getKeyboardType());
@@ -2193,6 +2526,34 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       return true;
     }
     boolean keyboard = !controller(e) && !KeyEvent.isGamepadButton(code) && keyboardDevice(e.getDevice());
+    // "Prepare shaders at start": every button and key (Back too) is dropped while its screen is up, nothing skips it
+    if (prepScreen != null) return true;
+    // "Photo mode" switched on: L3 and the keyboard's P are its own (whatever the button mapping gives them)
+    if (menu == null && photoWanted() && ((!keyboard && code == KeyEvent.KEYCODE_BUTTON_THUMBL)
+        || (keyboard && code == KeyEvent.KEYCODE_P))) {
+      if (first) photoKey(keyboard ? "P" : "L3");
+      return true;
+    }
+    // photo mode on: every key stays with it (Esc, B and Back leave it; SELECT and F1 open the app menu over it)
+    if (photo != null && photo.active()) {
+      if (input.appFunctionOf(code, keyboard) == CoreInput.APP_MENU) {
+        if (first) select(true);
+        else if (e.getAction() == KeyEvent.ACTION_UP) select(false);
+        return true;
+      }
+      if (code == KeyEvent.KEYCODE_BACK) {
+        if (first) photo.leave("Back");
+        return true;
+      }
+      if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
+      if (keyboard) {
+        photo.keyboardKey(code, down, first);
+      } else if (e.getRepeatCount() == 0 && (controller(e) || KeyEvent.isGamepadButton(code))) {
+        input.key(e.getDeviceId(), code, down);
+        photo.padKey();
+      }
+      return true;
+    }
     int function = input.appFunctionOf(code, keyboard);
     if (function != CoreInput.APP_NONE && first) {
       String what = function == CoreInput.APP_MENU ? "menu" : tools ? "graphics capture" : "nothing (tools off)";
@@ -2221,6 +2582,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (keyboard) {
       if (e.getAction() != KeyEvent.ACTION_DOWN && e.getAction() != KeyEvent.ACTION_UP) return true;
       if (e.getRepeatCount() > 0) return true;
+      if (down) heldKeyboardKeys.add(code); else heldKeyboardKeys.remove(code);
+      if (down) quickReloadKey(code);  // "Reload without aiming" (1.1.0)
       boolean taken = input.keyboardKey(e.getDeviceId(), code, down);
       if (taken || code == KeyEvent.KEYCODE_ESCAPE) {
         if (down) {
@@ -2346,6 +2709,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
 
   @Override
   public boolean onGenericMotionEvent(MotionEvent e) {
+    // "Prepare shaders at start": sticks, triggers and the mouse are dropped while its screen is up
+    if (prepScreen != null) return true;
     // the mouse wheel while the game has the mouse but has not captured it (Android 7, before the first click)
     if (e.getActionMasked() == MotionEvent.ACTION_SCROLL && e.isFromSource(InputDevice.SOURCE_CLASS_POINTER)
         && mouseWanted()) {
@@ -2383,6 +2748,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    */
   @Override
   public boolean dispatchTouchEvent(MotionEvent e) {
+    // "Prepare shaders at start": fingers and mouse clicks are dropped while its screen is up (no tap skips it)
+    if (prepScreen != null) return true;
+    // photo mode: its overlay takes the fingers (the touch controls are hidden, no taps or swipes for the game)
+    if (photo != null && photo.active() && !e.isFromSource(InputDevice.SOURCE_MOUSE)) {
+      return super.dispatchTouchEvent(e);
+    }
     // a mouse on the picture while the game is in front: it is captured (its clicks are no taps)
     if (Build.VERSION.SDK_INT >= 26 && e.isFromSource(InputDevice.SOURCE_MOUSE) && mouseWanted()) {
       if (e.getActionMasked() == MotionEvent.ACTION_DOWN) updateMouseCapture();
@@ -2447,7 +2818,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
           float dx = e.getX(i) - tapX, dy = e.getY(i) - tapY;
           if (!tapMoved && time <= TAP_MS) {
             surface.getLocationInWindow(surfaceAt);
-            CoreBridge.tap(e.getX(i) - surfaceAt[0], e.getY(i) - surfaceAt[1]);
+            // (in the picture's buffer: "Display resolution" makes it smaller than the view)
+            float tsx = outputW > 0 && surface.getWidth() > 0 ? (float) outputW / surface.getWidth() : 1f;
+            float tsy = outputH > 0 && surface.getHeight() > 0 ? (float) outputH / surface.getHeight() : 1f;
+            CoreBridge.tap((e.getX(i) - surfaceAt[0]) * tsx, (e.getY(i) - surfaceAt[1]) * tsy);
           } else if (time <= SWIPE_MS) {
             if (Math.abs(dx) >= surface.getWidth() / 8f && Math.abs(dx) >= 2 * Math.abs(dy)) {
               CoreBridge.swipe(dx < 0 ? 1 : -1);
@@ -2508,6 +2882,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         Log.i(TAG, "performance profiles: a benchmark of before 0.99.14 (no reserve for the GPU): measured again once "
             + "the title's menu waits");
       }
+      // 1.1.0: an unchanged "Low" takes Low's new values once (frame skip Auto, view distance Short)
+      if (PerfProfile.updateLow(g)) {
+        Log.i(TAG, "performance profiles: Low unchanged since chosen, its 1.1.0 values set (frame skip Auto, view Short)");
+      }
       return;
     }
     String[] mine = {"scaleHalves", "scale", "aspect", "samples", "anisotropy", "smooth60", "fxaa", "fastCores",
@@ -2516,7 +2894,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     boolean fresh = true;
     for (String k : mine) if (g.contains(k)) { fresh = false; break; }
     g.edit().putInt(PerfProfile.FIRST, fresh ? PerfProfile.FIRST_PENDING : PerfProfile.FIRST_ASK)
-        .putInt(PerfProfile.ACTIVE, PerfProfile.CUSTOM).apply();
+        .putInt(PerfProfile.ACTIVE, PerfProfile.CUSTOM).putBoolean(PerfProfile.LOW_UPDATED, true).apply();
     Log.i(TAG, "performance profiles: " + (fresh ? "a new installation, the benchmark comes once the title's menu waits"
         : "an update, the menu asks once"));
   }
@@ -2536,7 +2914,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int[] info = CoreBridge.graphicsInfo();
     // the screen's rows of a 16:9 picture (PerfProfile.screenLevel: MSAA only beyond them); the game's surface, else
     // the display
-    int w = surface != null ? surface.getWidth() : 0, h = surface != null ? surface.getHeight() : 0;
+    int[] out = outputSize();
+    int w = out[0], h = out[1];
     if (w <= 0 || h <= 0) {
       android.util.DisplayMetrics m = getResources().getDisplayMetrics();
       w = m.widthPixels; h = m.heightPixels;
@@ -2555,8 +2934,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     applyGraphics();
     CoreBridge.setDof(CoreMenu.dofLevel(g));
     CoreBridge.setSmooth(g.getBoolean("smooth60", false));
-    CoreBridge.setFrameSkip(skip == 1);
-    CoreBridge.setCpuSkip(skip == 2);
+    CoreMenu.sendFrameSkip(skip);
+    CoreBridge.setEvenPacing(CoreMenu.evenPacing(g));
     CoreBridge.setFxaa(g.getBoolean("fxaa", false));
     CoreBridge.setSharpen(CoreMenu.sharpenLevel(g));
     CoreBridge.setSharperText(CoreMenu.sharperText(g));
@@ -2586,8 +2965,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreActivity.this.applyOptions();
       CoreBridge.setGraphics(CoreMenu.scaleHalves(g), 1, 1, 5);
       CoreBridge.setFxaa(false);
-      CoreBridge.setFrameSkip(false);
-      CoreBridge.setCpuSkip(false);
+      CoreMenu.sendFrameSkip(0);
       CoreBridge.setFastCores(true);
       CoreBridge.setPotato(0);
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[0]);
@@ -2598,8 +2976,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setGraphics(v[PerfProfile.SCALE], v[PerfProfile.SAMPLES], v[PerfProfile.ANISO], g.getInt("aspect", 0));
       CoreBridge.setFxaa(v[PerfProfile.FXAA] != 0);
       CoreBridge.setSmooth(v[PerfProfile.SMOOTH] != 0);
-      CoreBridge.setFrameSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 1);
-      CoreBridge.setCpuSkip(v[PerfProfile.SMOOTH] == 0 && v[PerfProfile.SKIP] == 2);
+      CoreMenu.sendFrameSkip(v[PerfProfile.SMOOTH] == 0 ? v[PerfProfile.SKIP] : 0);
       CoreBridge.setFastCores(v[PerfProfile.CORES] == 1);
       CoreBridge.setPotato((v[PerfProfile.WEATHER] != 0 ? 0 : 1) | (v[PerfProfile.SPECIAL] != 0 ? 0 : 2)
           | (v[PerfProfile.PARTICLES] << 2) | (v[PerfProfile.SHADOWS] != 0 ? 0 : 16));
@@ -2675,6 +3052,20 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(AIM_INVERT_V, aimInvert).apply();
     Log.i(TAG, "aim: vertical aiming " + (aimInvert ? "inverted" : "normal") + " from the game's own options, kept");
   }
+
+  /**
+   * A change of "vibration" in the game's own options (Controller) is the menu's "Vibration" too (1.1.0): off makes
+   * it Off, on makes an Off Auto; kept as "Invert vertical" is.
+   */
+  private void keepGameVibration() {
+    if (!menuSupported) return;
+    int fromGame = CoreBridge.vibrationFromGame();
+    if (fromGame < 0 || (fromGame == 1) == (rumbleMode != RumbleTarget.OFF)) return;
+    rumbleMode = fromGame == 1 ? RumbleTarget.AUTO : RumbleTarget.OFF;
+    getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(VIBRATION, rumbleMode).apply();
+    Log.i(TAG, "rumble: " + RumbleTarget.modeName(rumbleMode) + " from the game's own options, kept");
+    chooseRumble("the game's own options");
+  }
   private boolean aimInvert, autoAim, alwaysRun;
   private float aimSpeed = 1f;
 
@@ -2687,6 +3078,37 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // ---- the mouse ----
   private float mouseSensitivity = 1f;
   private int mouseButtons;  // the captured mouse's buttons held (MotionEvent.BUTTON_*)
+  private boolean quickReload;  // "Reload without aiming" (1.1.0)
+
+  /**
+   * "Reload without aiming" (1.1.0, keyboard): a press of the keyboard's reload key (the second key of the mapping's
+   * reload, R by default) while the aim's key is not held asks the core for one reload (the game's own direct reload,
+   * patch 0241). Not in a game menu; the key keeps whatever else it does.
+   */
+  private void quickReloadKey(int code) {
+    if (!quickReload || input.menu() || menu != null) return;
+    int[] reload = input.keyboardMap().keys(ActionMap.RELOAD);
+    int[] aim = input.keyboardMap().keys(ActionMap.AIM);
+    if (reload == null || reload.length == 0 || reload[reload.length - 1] != code) return;
+    if (aim != null && aim.length > 0 && keyHeld(aim[0])) return;
+    CoreBridge.quickReload();
+    Log.i(TAG, "reload without aiming: " + KeyEvent.keyCodeToString(code));
+  }
+
+  /** The keyboard's key or the mouse's button `code` (ActionMap) is held now. */
+  private boolean keyHeld(int code) {
+    for (int bit = 1; bit <= 16; bit <<= 1) {
+      if (ActionMap.mouseButton(bit) == code) return (mouseButtons & bit) != 0;
+    }
+    return heldKeyboardKeys.contains(code);
+  }
+  private final java.util.HashSet<Integer> heldKeyboardKeys = new java.util.HashSet<>();
+  // the mouse in the game's title and options menus (1.1.0, idea from a user's "ModernTPS" mod): a pointer of our own
+  // over the game's picture (0..1), moved by the captured mouse while the game shows a menu, from the middle each time
+  private float menuPointerU = .5f, menuPointerV = .5f;
+  private boolean menuPointerShown;
+  /** The pointer's way across the picture per count of the captured mouse at sensitivity 1. */
+  static final float MENU_POINTER_STEP = 0.0015f;
   private int mouseCaptures;
   private final Runnable mouseRest = () -> {
     input.mouseLook(0, 0);
@@ -2731,6 +3153,30 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int state = e.getButtonState() & 31;
     int changed = state ^ mouseButtons;
     mouseButtons = state;
+    // photo mode: the mouse looks around; a button with the app menu's key leaves
+    if (photo != null && photo.active()) {
+      for (int bit = 1; bit <= 16; bit <<= 1) {
+        if ((changed & bit) != 0 && input.appFunctionOf(ActionMap.mouseButton(bit), true) == CoreInput.APP_MENU) {
+          select((state & bit) != 0);
+          return;
+        }
+      }
+      int action = e.getActionMasked();
+      if (action == MotionEvent.ACTION_SCROLL) {
+        float v = e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+        if (v != 0) photo.effect(v > 0 ? 1 : -1);
+        return;
+      }
+      if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
+        float dx = e.getX(), dy = e.getY();
+        for (int h = 0; h < e.getHistorySize(); h++) {
+          dx += e.getHistoricalX(h);
+          dy += e.getHistoricalY(h);
+        }
+        photo.mouse(dx, aimInvert ? -dy : dy, MOUSE_AIM_RADIANS * mouseSensitivity);
+      }
+      return;
+    }
     for (int bit = 1; bit <= 16; bit <<= 1) {
       if ((changed & bit) == 0) continue;
       int code = ActionMap.mouseButton(bit);
@@ -2740,6 +3186,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         continue;
       }
       input.keyboardKey(e.getDeviceId(), code, down);
+      // a left click in a game menu (1.1.0): the entry under the pointer (runtime/mouse_menu.cpp; the button alone is
+      // nothing there, the menus use the keyboard's default mapping)
+      if (bit == 1 && down && input.menu()) {
+        menuPointer();
+        CoreBridge.mouseMenu(menuPointerU, menuPointerV, true);
+      }
       if (down) {
         touchControls.controllerUsed();
         if (controllerLog.firstKey(e.getDeviceId(), code)) {
@@ -2757,7 +3209,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         dx += e.getHistoricalX(h);
         dy += e.getHistoricalY(h);
       }
-      if (dx != 0 || dy != 0) {
+      if ((dx != 0 || dy != 0) && input.menu()) {
+        // the menu's pointer (1.1.0): the entry under it gets the highlight
+        menuPointer();
+        float step = MENU_POINTER_STEP * mouseSensitivity;
+        menuPointerU = Math.max(0f, Math.min(1f, menuPointerU + dx * step));
+        menuPointerV = Math.max(0f, Math.min(1f, menuPointerV + dy * step * 4f / 3f));
+        CoreBridge.mouseMenu(menuPointerU, menuPointerV, false);
+      } else if (dx != 0 || dy != 0) {
+        menuPointerShown = false;
         // while aiming the core turns the aim by it, in the binoculars their view (0.99.12), and ignores it
         // otherwise (runtime/gyro.cpp, wheel_zoom.cpp); the camera's C stick as long
         // as the mouse moves, but not in the scope or the binoculars, where the C stick zooms (the wheel's job
@@ -2774,6 +3234,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
     }
     send();
+  }
+
+  /** A game menu came: the pointer starts in the middle of the picture. */
+  private void menuPointer() {
+    if (menuPointerShown) return;
+    menuPointerShown = true;
+    menuPointerU = menuPointerV = .5f;
+    Log.i(TAG, "mouse: a game menu, the mouse moves its highlight and a left click chooses");
   }
 
   // ---- the mouse wheel (0.99.12, wish of the project owner, 12.11.2026) ----
@@ -2831,10 +3299,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * without amplitude control.
    */
   private void chooseRumble(String why) {
+    // the game's own vibration switch follows the menu (1.1.0): it was off in most testers' system files, so the
+    // game never started its motor and nothing vibrated (a DualSense user's report, 19.11.2026)
+    CoreBridge.setGameVibration(rumbleMode != RumbleTarget.OFF);
     cancelBoth();
     padMotors = null;
     padAmplitude = false;
     InputDevice d = lastPad >= 0 ? InputDevice.getDevice(lastPad) : null;
+    // the gyro aiming's controller too (1.1.0): its own gyroscope, when it has one
+    if (gyroAim != null) gyroAim.setController(d);
     VibratorManager m = null;
     int motors = 0;
     boolean amplitude = true, external = false;
@@ -2899,6 +3372,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       boolean gameMenu = (r & 0x10) != 0;
       if (gameMenu != input.menu()) {
         input.setMenu(gameMenu);
+        if (!gameMenu) menuPointerShown = false;  // the next menu's pointer starts in the middle (1.1.0)
         send();
       }
       // the scope or the binoculars (bit 6, cores since 12.11.2026): the mouse's movement keeps off the C stick
@@ -3141,6 +3615,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     view.getHolder().addCallback(new SurfaceHolder.Callback() {
       @Override public void surfaceCreated(SurfaceHolder holder) {
         Log.i(TAG, "picture surface (" + kind + "): made");
+        pictureSurface = holder.getSurface();
         surfaceSixtyHz(holder.getSurface());
       }
       @Override public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
@@ -3148,6 +3623,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       }
       @Override public void surfaceDestroyed(SurfaceHolder holder) {
         Log.i(TAG, "picture surface (" + kind + "): gone");
+        pictureSurface = null;
       }
     });
     // the surface takes the fingers beside the touch controls: Android gives the further fingers
@@ -3301,8 +3777,43 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private final DisplayManager.DisplayListener displayTurns = new DisplayManager.DisplayListener() {
     @Override public void onDisplayAdded(int id) {}
     @Override public void onDisplayRemoved(int id) {}
-    @Override public void onDisplayChanged(int id) { logDisplayTurn(); }
+    @Override public void onDisplayChanged(int id) {
+      logDisplayTurn();
+      if (id == Display.DEFAULT_DISPLAY) askSixtyAgain("the display changed");
+    }
   };
+
+  /**
+   * The 60 Hz request again (1.1.0, the project owner, 20.11.2026; the idea from a fork): some phones go back to their
+   * fastest mode after Home, a notification shade or a game mode of their own (user report 20.11.2026: a nubia stayed
+   * at 120 Hz). On resume and when the display changes, while the screen runs faster than 60 Hz: the window's 60 Hz
+   * mode and the surface's 60 pictures a second asked once more; at most once in 5 s, the first 10 times logged.
+   */
+  private long sixtyAskedAt = Long.MIN_VALUE;
+  private int sixtyAsks;
+  private Surface pictureSurface;
+  private void askSixtyAgain(String why) {
+    if (!askSixty || Build.VERSION.SDK_INT < 23) return;
+    final float hz = getWindowManager().getDefaultDisplay().getRefreshRate();
+    final long now = SystemClock.uptimeMillis();
+    if (hz < 65f || now - sixtyAskedAt < 5000) return;
+    sixtyAskedAt = now;
+    if (++sixtyAsks <= 10)
+      Log.i(TAG, String.format(Locale.ROOT, "display at %.1f Hz (%s): 60 Hz asked again", hz, why));
+    Display display = getWindowManager().getDefaultDisplay();
+    Display.Mode current = display.getMode();
+    for (Display.Mode m : display.getSupportedModes()) {
+      if (m.getPhysicalWidth() == current.getPhysicalWidth() && m.getPhysicalHeight() == current.getPhysicalHeight()
+          && Math.abs(m.getRefreshRate() - 60f) < 1.5f) {
+        WindowManager.LayoutParams attributes = getWindow().getAttributes();
+        attributes.preferredDisplayModeId = m.getModeId();
+        getWindow().setAttributes(attributes);
+        break;
+      }
+    }
+    Surface s = pictureSurface;
+    if (s != null && s.isValid()) surfaceSixtyHz(s);
+  }
 
   private void logDisplayTurn() {
     final int turn = getWindowManager().getDefaultDisplay().getRotation() * 90;
@@ -3332,6 +3843,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     DisplayManager displays = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
     if (displays != null) displays.registerDisplayListener(displayTurns, main);
     logDisplayTurn();
+    askSixtyAgain("resumed");
     hideSystemUi();
     picture.onResume();
     resumed = true;
@@ -3359,8 +3871,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // the game stands while the app is not in front (home screen, a file picker of the menu)
     if (menuSupported) CoreBridge.pause(true, 0);
     keepGameAimInvert();
+    keepGameVibration();
     selectDown = false;
     main.removeCallbacks(selectHold);
+    if (photo != null) photo.leave("the app went to the background");
+    prepPausedCore = false;
     stopBeat();
     if (gyroAim != null) gyroAim.pause();
     // the sound pauses with the app (the core skips what it played meanwhile)

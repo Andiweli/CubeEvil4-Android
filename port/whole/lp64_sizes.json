@@ -78,9 +78,6 @@
      "why": "the memory budget of the save/load screen (cCard::getUseMemSize: heap 11 over the swapped-out range): GameCube sums of its blocks; the only block in it that grows on LP64 is the id pool of CardID::m_IdSave (0x100 ID_UNIT, 0x138 -> 0x158 bytes, 8 KB more). Without it IDSystem::gameInit finds no room, every unit is the empty stand-in and CardID::wait passes path0 = 0 to FuncPathParametrize: a read at address 0x7 (FUNC_PATH_PTR::nPoint), exactly the crash in the file list of the save screen (PC check 18.10.2026, confirmed by its log: 'alloc[15800]:free[156a0] id_sys.cpp(66)', 'IDSystem::gameInit() malloc failed', 0x160 bytes short)"},
     {"files": ["src/game/snd.cpp"], "text": "memclr_asm(&pSnd->room_ok, sizeof(SND_WORK) - 0x90)", "expr": "0x90",
      "lp64": "__builtin_offsetof(SND_WORK, room_ok)", "count": 1,
-     "why": "every room change clears the sound work from room_ok to its end: room_ok lies at 0x98 on LP64, the length cleared 8 bytes past Snd"},
-    {"files": ["src/game/main_mem.cpp"], "text": "SysMem.Heap_end_addr = 0x817F4000;", "expr": "0x817F4000",
-     "lp64": "0x818F4000", "count": 1,
-     "why": "the end of the game's heaps (SystemMemInit: heap 0 ends there, and through MemReplaceHeap the room heap 4): 1 MB higher on LP64, as RE4_MEM1_LP64_HEAP_EXTRA (runtime/re4_runtime.h), which moves the FST above it (runtime test 'tasks' checks both agree). The pools and works with pointers take more of the heaps on 64 bit: compare run of 18.10.2026 heap 4 at least 0x115ac0 free on i686, 0xc6b80 on x86_64 (r100); tester report of 19.10.2026 (POCO X7 Pro, r107): 'alloc[3d2080]:free[3b2fa0] read.cpp(725)', em12.drs not loaded ('EmSetFromList() Em set failed, Id = 12'), 0x1F0E0 bytes short"}
+     "why": "every room change clears the sound work from room_ok to its end: room_ok lies at 0x98 on LP64, the length cleared 8 bytes past Snd"}
   ]
 }

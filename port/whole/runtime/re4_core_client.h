@@ -80,6 +80,7 @@ void re4ipc_body_turn(float yaw);
 void re4ipc_set_leon_jacket(int on);
 void re4ipc_zoom(int notches);
 void re4ipc_set_enemy_random(int seed);
+void re4ipc_set_more_enemies(int seed);  // 1.1.0
 void re4ipc_set_gentle_qte(int on);
 int re4ipc_rt_shadows(void);
 void re4ipc_swipe(int dir);
@@ -89,6 +90,10 @@ void re4ipc_set_potato(int mask);
 void re4ipc_set_aim(int bits);
 // Only one chunk in `every` with its draws, the others as state only (RE4_GX_CHUNK_DRAWLESS; the OUYA branch); 0: all
 void re4ipc_set_drawless(int every);
+void re4ipc_mouse_menu(float u, float v, int click);  // 1.1.0
+void re4ipc_quick_reload(void);  // 1.1.0
+void re4ipc_photo_mode(int op, int mask);  // 1.1.0
+void re4ipc_photo_input(int a, int b, int c);  // 1.1.0
 void re4ipc_set_sound_volume(int bits);
 void re4ipc_restart_game(int language);
 const char* re4ipc_disc_problem(void);

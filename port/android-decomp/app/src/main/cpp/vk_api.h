@@ -63,10 +63,11 @@
   X(vkCmdClearColorImage) X(vkCmdClearDepthStencilImage) X(vkCmdPipelineBarrier) X(vkCmdCopyBufferToImage)          \
   X(vkCmdCopyImageToBuffer) X(vkCmdCopyImage) X(vkCmdBlitImage) X(vkCmdCopyBuffer) X(vkCmdResolveImage)            \
   X(vkCmdResetQueryPool) X(vkCmdWriteTimestamp)
-// (swapchain, debug names)
+// (swapchain, debug names, VK_GOOGLE_display_timing)
 #define RE4_VK_DEVICE_OPTIONAL(X)                                                                                     \
   X(vkCreateSwapchainKHR) X(vkDestroySwapchainKHR) X(vkGetSwapchainImagesKHR) X(vkAcquireNextImageKHR)              \
-  X(vkQueuePresentKHR) X(vkSetDebugUtilsObjectNameEXT)
+  X(vkQueuePresentKHR) X(vkSetDebugUtilsObjectNameEXT) X(vkGetRefreshCycleDurationGOOGLE)                          \
+  X(vkGetPastPresentationTimingGOOGLE)
 
 namespace re4vk {
 

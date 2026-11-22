@@ -4,7 +4,7 @@ Copyright (C) 2026 Andiweli
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
-version, with the additional permission below.
+version, with the additional permission and the additional terms below.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -58,6 +58,34 @@ the game code with the patches in port/whole/patches/ applied), in source or
 compiled form, and convey the combination, without those parts becoming
 subject to this License. This License still applies to the code of this
 program itself.
+
+
+Additional terms under section 7 of the GNU GPL version 3 (from 20 November 2026)
+
+Under section 7(b), (c) and (e) of the GNU General Public License version 3,
+the following terms apply to this program in addition to that License:
+
+a) Author attribution (section 7(b)). Keep the notice "CubeEvil4 by Andiweli"
+   together with the address https://github.com/Andiweli/CubeEvil4-Android
+   wherever this program shows its author, credits or legal notices: in the app
+   where it names its author, in this file and in the README. You may add your
+   own name for your changes next to it, but not in place of it.
+
+b) Modified versions (section 7(c)). A modified version must state clearly that
+   it is modified and by whom. It must not be presented as the original
+   CubeEvil4, as an official release, or as the work of anyone other than its
+   actual authors. Notices of this program that point to the original must stay,
+   or be replaced by notices of your own that are just as clear.
+
+c) Names (section 7(e)). This License grants no right to use the name
+   "CubeEvil4" or the author's name to name or promote a modified version,
+   except to say truthfully that it is based on CubeEvil4 (for example
+   "Name, a fork of CubeEvil4"). Naming a modified version "CubeEvil4" needs the
+   author's permission.
+
+These terms apply to CubeEvil4 as published from 20 November 2026 on: the
+master branch from that day and every later version. Copies obtained earlier
+stay under the terms they were published with.
 
 
 -------------------------------------------------------------------------------

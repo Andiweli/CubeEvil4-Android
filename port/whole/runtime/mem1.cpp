@@ -1,8 +1,8 @@
 // GameCube main RAM ("MEM1") at its original address.
 //
 // The game addresses memory the way the GameCube lays it out: SystemMemInit
-// builds its heaps over the fixed map 0x80350000..0x817F4000 (on LP64 1 MB
-// higher, RE4_MEM1_LP64_HEAP_EXTRA), read.cpp loads
+// builds its heaps over the fixed map 0x80350000..0x817F4000 (in the port since
+// 1.1.0 up to RE4_MEM1_HEAP_END, re4_mem1_map.h, patch 0245), read.cpp loads
 // the core/player/weapon archives to fixed addresses, the OS clock is read from
 // 0x800000F8 (OS_BUS_CLOCK), OSPhysicalToCached adds 0x80000000 and dozens of
 // checks accept a pointer only inside 0x80000000..0x82FFFFFF. The port reserves

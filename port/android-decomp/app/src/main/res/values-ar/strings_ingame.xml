@@ -5,7 +5,7 @@
      left-to-right mark &#x200E; keeps "1280 × 672" and ".gci" in their order. The FPS display
      stays left to right (CoreActivity). tools/check_translations.py checks all three. -->
 <resources>
-    <string name="ingame_title">‏قائمة CubeEvil4 داخل اللعبة</string>
+    <string name="ingame_title">‏خيارات CubeEvil4</string>
     <string name="ingame_back">العودة إلى اللعبة</string>
 
     <string name="ingame_graphics">الرسومات</string>
@@ -27,7 +27,33 @@
     <string name="ingame_laser_yellow">أصفر</string>
     <string name="ingame_postprocessing">المعالجة اللاحقة</string>
     <string name="ingame_effects">التأثيرات</string>
-    <string name="ingame_optional_features">ميزات اختيارية</string>
+    <string name="ingame_optional_features">اختياري</string>
+    <string name="ingame_side_filtering">الترشيح</string>
+    <string name="ingame_side_features">الميزات</string>
+    <string name="ingame_side_levels">المستويات</string>
+    <string name="ingame_side_mute">كتم الصوت</string>
+    <string name="ingame_side_touch_style">نمط اللمس</string>
+    <string name="ingame_side_gyro">الجيروسكوب</string>
+    <string name="ingame_side_axes">المحاور</string>
+    <string name="ingame_side_control_type">نوع التحكم</string>
+    <string name="ingame_side_assists">المساعدات</string>
+    <string name="ingame_side_aim_with">التصويب بـ</string>
+    <string name="ingame_side_view">العرض</string>
+    <string name="ingame_side_stick">خيارات العصا</string>
+    <string name="ingame_mapping_section">تعيين الأزرار والمفاتيح</string>
+    <string name="ingame_side_assign">تعيين</string>
+    <string name="ingame_side_profile">الملف</string>
+    <string name="ingame_side_options">الخيارات</string>
+    <string name="ingame_side_basic_weapons">أسلحة عادية</string>
+    <string name="ingame_side_explosive_weapons">أسلحة متفجرة</string>
+    <string name="ingame_side_unlocks">فتح المحتوى</string>
+    <string name="ingame_side_stacking">التكديس</string>
+    <string name="ingame_side_random">العشوائية</string>
+    <string name="ingame_side_advanced">متقدم</string>
+    <string name="ingame_side_main_character">الشخصية الرئيسية</string>
+    <string name="ingame_side_mercenaries">&#x200F;Mercenaries</string>
+    <string name="ingame_side_manage">الإدارة</string>
+    <string name="ingame_side_texture_options">خيارات الخامات</string>
     <string name="ingame_perf_section">الأداء</string>
     <string name="ingame_minimap">خريطة مصغرة</string>
     <string name="ingame_flares">وهج العدسة</string>
@@ -42,6 +68,26 @@
     <string name="ingame_hud_hz">هرتز الشاشة</string>
     <string name="ingame_hud_time">س:د:ث منذ بدء اللعبة</string>
     <string name="ingame_hud_help">س:د:ث هو وقت اللعب الخاص باللعبة، ويحتفظ به كل حفظ كما على GameCube. الوقت في هذه القائمة أو في الخلفية لا يُحتسب.</string>
+    <string name="ingame_skip_intro">&#x200F;تخطي المقدمة</string>
+    <string name="ingame_skip_intro_help">&#x200F;تخطي المقدمة: عند البدء تنتقل اللعبة مباشرةً إلى قائمة العنوان، دون الشعارات وتحذير الصحة (من التشغيل التالي).</string>
+    <string name="ingame_photo_mode">&#x200F;وضع التصوير</string>
+    <string name="ingame_photo_mode_help">&#x200F;وضع التصوير: الزر L3 (الضغط على العصا اليسرى) في وحدة التحكم أو P على لوحة المفاتيح أو زر \"وضع التصوير\" أعلى هذه القائمة يجمّد اللعبة ويحرّر الكاميرا؛ تتحرك في الغرفة كلها وتتوقف عند الجدران. يمكن إخفاء الواجهة وليون وآشلي والأعداء كلٌّ على حدة، ويبدّل L وR مؤثرات الكاميرا. في وضع التصوير يفتح SELECT هذه القائمة للمرشحات والمؤثرات. عند تفعيل هذا يصبح L3 وP لوضع التصوير. غير متاح في المشاهد السينمائية والأفلام والقوائم وأثناء الحفظ. التقط الصورة بلقطة الشاشة في جهازك.</string>
+    <string name="ingame_photo_title">&#x200F;وضع التصوير</string>
+    <string name="ingame_photo_hud">&#x200F;الواجهة</string>
+    <string name="ingame_photo_leon">&#x200F;ليون</string>
+    <string name="ingame_photo_partner">&#x200F;آشلي</string>
+    <string name="ingame_photo_enemies">&#x200F;الأعداء</string>
+    <string name="ingame_photo_hint_pad">&#x200F;العصا اليسرى: تحريك · العصا اليمنى: دوران، إمالة · أزرار الاتجاه: صعود/نزول · L/R: مؤثر الكاميرا · X الواجهة · Y ليون · A آشلي · Z الأعداء · START إعادة · SELECT القائمة · B أو L3 خروج</string>
+    <string name="ingame_photo_hint_keys">&#x200F;WASD: تحريك · الفأرة: نظر · E/Q: صعود/نزول · Shift سريع · Alt بطيء · العجلة أو 5/6: مؤثر الكاميرا · 1 الواجهة · 2 ليون · 3 آشلي · 4 الأعداء · R إعادة · F1 القائمة · Esc أو P خروج</string>
+    <string name="ingame_photo_hint_touch">&#x200F;النصف الأيسر: اسحب للتحريك · النصف الأيمن: اسحب للنظر · إصبع ثانٍ: صعود/نزول · ◆: مؤثر الكاميرا · نقرة: إظهار هذا · ✕ خروج</string>
+    <string name="ingame_photo_not_here">&#x200F;وضع التصوير غير متاح هنا (المشاهد السينمائية، الأفلام، القوائم، الحفظ).</string>
+    <string name="ingame_photo_start">&#x200F;وضع التصوير</string>
+    <string name="ingame_photo_fx_normal">&#x200F;عادي</string>
+    <string name="ingame_photo_fx_wide">&#x200F;زاوية واسعة</string>
+    <string name="ingame_photo_fx_tele">&#x200F;تقريب</string>
+    <string name="ingame_photo_fx_dolly">&#x200F;تكبير دولي</string>
+    <string name="ingame_photo_fx_dutch">&#x200F;زاوية مائلة</string>
+    <string name="ingame_photo_fx_orbit">&#x200F;دوران</string>
     <string name="ingame_fps_bottom_left">أسفل اليسار</string>
     <string name="ingame_fps_bottom_centre">أسفل الوسط</string>
     <string name="ingame_fps_top_left">أعلى اليسار</string>
@@ -119,6 +165,8 @@
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
     <string name="ingame_gyro_invert_v">عكس الاتجاه الرأسي</string>
     <string name="ingame_gyro_invert_h">عكس الاتجاه الأفقي</string>
+    <string name="ingame_gyro_source">&#x200F;الجيروسكوب من</string>
+    <string name="ingame_gyro_source_help">&#x200F;الجيروسكوب من: «تلقائي» يستخدم جيروسكوب وحدة التحكم التي تلعب بها إن كان فيها واحد (مثل DualSense أو DualShock 4؛ Android 12 وما بعده)، وإلا فجيروسكوب هذا الجهاز. «الجهاز» أو «وحدة التحكم» يستخدم ذلك دائمًا. لا يزال الجيروسكوب يصوّب فقط بينما يرفع ليون سلاحًا.</string>
     <string name="ingame_alternate_help">التحكم البديل: L1 = السكين، L2 = التصويب (بالعصا اليمنى)، R1 = الحقيبة (الأسلحة/العلاج)، R2 = إطلاق النار / استخدام السكين، Y = الخريطة. A و B و X (آشلي) و START كما كانت. منظار البندقية: العصا اليسرى لأعلى/لأسفل للتكبير.</string>
     <string name="ingame_knife_swipe">السكين بالسحب</string>
     <string name="ingame_knife_swipe_help">السكين بالسحب: سحبة سريعة على الصورة تُخرج السكين وتضرب؛ اسحب للأعلى أو للأسفل للضرب عاليًا أو منخفضًا.</string>
@@ -247,7 +295,7 @@
     <string name="ingame_controls_page">‏التحكم</string>
     <string name="ingame_performance">‏الأداء</string>
     <string name="ingame_management">‏الإدارة</string>
-    <string name="ingame_navigation">‏لوحة الاتجاهات: تنقّل  ·  A: اختيار  ·  B: رجوع  ·  SELECT / START: العودة للعبة</string>
+    <string name="ingame_navigation">‏لوحة الاتجاهات: تنقّل  ·  A: اختيار / التالي  ·  L1/R1 (Q/E): تغيير القيمة  ·  B: رجوع  ·  SELECT / START: العودة للعبة</string>
     <string name="ingame_instant">‏حفظ فوري</string>
     <string name="ingame_slot">‏خانة الحفظ</string>
     <string name="ingame_slot_details">‏الفصل %1$s  ·  %2$s  ·  وقت اللعب %3$s</string>
@@ -289,7 +337,9 @@
     <string name="ingame_skip_aggressive">‏قوي</string>
     <string name="ingame_vk_bandwidth">‏توفير عرض النطاق (Vulkan)</string>
     <string name="ingame_fxaa">‏FXAA</string>
-    <string name="ingame_tv_filter">مرشّح تلفاز GameCube الأصلي</string>
+    <string name="ingame_aa_msaa">تنعيم الحواف MSAA</string>
+    <string name="ingame_aa_fxaa">تنعيم الحواف FXAA</string>
+    <string name="ingame_tv_filter">مرشّح تلفاز GameCube</string>
     <string name="ingame_fxaa_help">‏يُنعّم الحواف المسنّنة في خطوة أخيرة. يعمل مع MSAA أو بدونه؛ تصبح الصورة أنعم قليلًا.</string>
     <string name="ingame_sharper_text">نص قوائم أوضح</string>
     <string name="ingame_sharper_text_help">نص قوائم أوضح يرسم كلمات قوائم اللعبة الأصلية بحواف واضحة في الدقة العالية، بكل اللغات.</string>
@@ -307,6 +357,14 @@
     <string name="ingame_colour_help">يُبرز الفيلم الدافئ الألوان البنية والذهبية؛ ويجعل رعب البقاء الألوان باهتة والتباين أقوى. تحدد الشدة المقدار.</string>
     <string name="ingame_skip_normal_help">‏تخطي الإطارات عادي: عندما تتأخر شريحة الرسوميات يُتخطى إطار جاهز حتى تحافظ اللعبة على سرعتها العادية.</string>
     <string name="ingame_skip_aggressive_help">تخطي الإطارات قوي: تتخطى اللعبة بنفسها إطارًا واحدًا من كل إطارين على الأكثر عندما تتأخر؛ وهو أسرع بكثير في الهواتف ذات المعالج البطيء.</string>
+    <string name="ingame_skip_auto">تلقائي</string>
+    <string name="ingame_fs_off">&#x200F;بدون تخطي الإطارات</string>
+    <string name="ingame_fs_auto">&#x200F;تخطي الإطارات التلقائي</string>
+    <string name="ingame_fs_normal">&#x200F;تخطي الإطارات العادي</string>
+    <string name="ingame_fs_aggressive">&#x200F;تخطي الإطارات القوي</string>
+    <string name="ingame_skip_auto_help">&#x200F;تخطي الإطارات تلقائي: لا يُتخطى شيء ما دامت اللعبة تعمل بالسرعة الكاملة؛ فقط عندما تبقى دون 30 صورة في الثانية لنحو نصف ثانية يساعد نوعا التخطي (أولًا تخطي العارض؛ وتخطي اللعبة فقط إذا بقيت تحت 24 لثانيتين، وبأخف من الوضع القوي)، حتى تعمل مجددًا ثانيتين بالسرعة الكاملة.</string>
+    <string name="ingame_even_pacing">&#x200F;إيقاع صور منتظم</string>
+    <string name="ingame_even_pacing_help">&#x200F;إيقاع صور منتظم: التشغيل (الافتراضي) يؤخر صورة عند الحاجة لتبقى كل صورة على الشاشة المدة نفسها (30 ثابتة، و60 على الشاشات الأسرع من 60 هرتز). الإيقاف يعرض كل صورة فور جهوزها كما في الإصدارات الأقدم: أكثر مباشرة قليلًا، لكن أقل انتظامًا.</string>
     <string name="ingame_vk_bandwidth_help">مع Vulkan فقط: يوفر عرض نطاق الذاكرة في شرائح Mali وAdreno؛ وتبقى الصورة كما هي.</string>
     <string name="ingame_skip_or_smooth">‏تخطي الإطارات و60 إطارًا في الثانية لا يعملان معًا: تشغيل أحدهما يوقف الآخر.</string>
     <string name="ingame_merge_help">يدمج عدة أجسام في استدعاء واحد لبرنامج تشغيل الرسوميات. قد يفيد الهواتف ذات برنامج تشغيل بطيء (مثل وحدات Mali)؛ ولا يعمل مع 60 FPS.</string>
@@ -337,6 +395,12 @@
     <string name="ingame_cheat_matilda">‏Matilda</string>
     <string name="ingame_cheat_case">الحقيبة L</string>
     <string name="ingame_cheat_money">‏+1,000,000 PTAS</string>
+    <string name="ingame_cheat_stack">تكديس الذخيرة</string>
+    <string name="ingame_cheat_stack_help">تكديس الذخيرة: تتكدس الذخيرة حتى 250 أو 500 أو 999 في خانة واحدة (قياسي: حدود اللعبة). تبقى القنابل وعناصر العلاج والكنوز كما في اللعبة. إذا اخترت قيمة أصغر لاحقًا تبقى الأكوام الأكبر وتُستهلك واحدًا تلو الآخر؛ وما تلتقطه بعدها يأخذ خانة جديدة.</string>
+    <string name="ingame_stack_standard">قياسي</string>
+    <string name="ingame_cheat_refill">إعادة ملء الذخيرة</string>
+    <string name="ingame_cheat_refill_full">لا شيء لإعادة ملئه: لا توجد ذخيرة في الحقيبة، أو كلها ممتلئة.</string>
+    <string name="ingame_cheat_refill_help">إعادة ملء الذخيرة: يُملأ كل كوم ذخيرة في الحقيبة حتى قيمة «تكديس الذخيرة» (قياسي: الحد الأقصى العادي لنوعه)؛ لا ذخيرة جديدة، والطلقات المحشوة في الأسلحة تبقى كما هي.</string>
     <string name="ingame_cheats_help">تبقى المفاتيح مفعّلة حتى توقفها؛ ولا تحفظها ملفات الحفظ. لا تزال بعض الهجمات تقتل ليون فورًا (المنشار، الإمساك، الصخرة). الاختفاء: يتجاهلك الأعداء، أما الزعماء والمشاهد المعدّة مسبقًا فلا. تصويب ثابت: لا يتمايل الليزر ولا المنظار. الأزياء: سترة ليون تُبقي ليون بسترته البنية طوال اللعبة؛ وخاص يُلبس ليون وآشلي أزياءهما الخاصة. تغيّر الأزرار لعبتك: تبقى الأسلحة والحقيبة والمال في الحفظ التالي. ويضيف فتح الألعاب الإضافية Assignment Ada و The Mercenaries إلى قائمة العنوان.</string>
     <string name="ingame_cheat_done">تم: %1$s.</string>
     <string name="ingame_cheat_already">موجود بالفعل: %1$s.</string>
@@ -366,6 +430,7 @@
     <string name="ingame_later">لاحقًا</string>
     <string name="ingame_controller_config">&#x200F;تعيين الأزرار</string>
     <string name="ingame_controller_config_help">&#x200F;تعيين الأزرار: ضع كل حركة في اللعبة على أزرار وحدة التحكم أو لوحة المفاتيح.</string>
+    <string name="ingame_ashley_hold_help">&#x200F;هل علقت Ashley في مكان ما؟ اضغط زرّها (انتظري / اتبعيني) مرتين بسرعة: ستظهر خلف ليون مباشرةً وتتبعه.</string>
     <string name="ingame_stick_dead_zone">المنطقة الميتة للعصا</string>
     <string name="ingame_stick_range">مدى العصا</string>
     <string name="ingame_stick_help">المنطقة الميتة للعصا: تُتجاهَل الحركات الصغيرة حول المركز (لعصا تنحرف من تلقاء نفسها). مدى العصا: العصا المدفوعة إلى هذا الحد تُحسب مدفوعة إلى النهاية، ليمشي ليون ويركض بثبات. القيم الافتراضية تترك العصوين كما هما؛ ولا يتأثر التحكم باللمس.</string>
@@ -410,6 +475,10 @@
     <string name="ingame_map_keyboard">لوحة المفاتيح والفأرة</string>
     <string name="ingame_mouse_help">الفأرة (Android 8 وما بعده) تتحكم في اللعبة أثناء تشغيلها: تدير الكاميرا وتحرّك التصويب؛ وعجلتها تكبّر المنظار والمنظار المزدوج. قائمة التطبيق (F1) تحرر المؤشر.</string>
     <string name="ingame_keyboard_c_help">السكين: اضغط مطولًا على مفتاحه وصوّب بالفأرة. مفاتيح عصا C (I وK وJ وL افتراضيًا) تدير الكاميرا وتكبّر المنظار والمنظار المزدوج.</string>
+    <string name="ingame_quick_reload">&#x200F;إعادة التلقيم دون تصويب</string>
+    <string name="ingame_quick_reload_help">&#x200F;إعادة التلقيم دون تصويب (لوحة المفاتيح): مفتاح إعادة التلقيم وحده (R افتراضيًا) يعيد التلقيم دون رفع السلاح أولًا.</string>
+    <string name="ingame_force_controller">&#x200F;فرض التعرف على وحدة التحكم</string>
+    <string name="ingame_force_controller_help">&#x200F;فرض التعرف على وحدة التحكم: استخدمه إذا لم تُكتشف وحدة التحكم أو عدّها Android لوحة مفاتيح: يُحسب عندها كل مفتاح في جهاز خارجي زرًا لوحدة التحكم ويمكن تعيينه أعلاه. وتُحسب لوحة المفاتيح الحقيقية عندها وحدة تحكم أيضًا، فأوقفه للعب بلوحة المفاتيح والفأرة (يبقى الفأرة يعمل). أزرار الجهاز نفسه وعناصر اللمس ومفاتيح الصوت تبقى كما هي.</string>
     <string name="ingame_mouse_sensitivity">حساسية الفأرة</string>
     <string name="ingame_map_controller">وحدة التحكم</string>
     <string name="ingame_map_device">الجهاز</string>
@@ -419,6 +488,11 @@
     <string name="ingame_cheat_section_player">اللاعب</string>
     <string name="ingame_cheat_section_weapons">الأسلحة</string>
     <string name="ingame_cheat_section_game">عام والمخزون</string>
+    <string name="ingame_cheat_section_world">&#x200F;الأعداء والبيئة</string>
+    <string name="ingame_health_bars">&#x200F;أشرطة صحة الأعداء</string>
+    <string name="ingame_health_bars_help">&#x200F;أشرطة صحة الأعداء: شريط صغير فوق كل عدو يُظهر صحته (أخضر، وأصفر تحت الربع، وأحمر تحت العُشر)؛ لا يظهر في المشاهد السينمائية والقوائم.</string>
+    <string name="ingame_more_enemies">&#x200F;أعداء أكثر</string>
+    <string name="ingame_more_enemies_help">&#x200F;أعداء أكثر: نحو 40 بالمئة أكثر من أعداء Ganado العاديين في الغرفة، في أماكن عشوائية، في كل مستويات الصعوبة؛ بدءًا من الغرفة التالية. يبقى الزعماء والأعداء الخاصون والموجات كما هي؛ في القصة فقط.</string>
     <string name="ingame_dof_light">خفيف</string>
     <string name="ingame_dof_strong">قوي</string>
     <string name="ingame_player_view">رؤية اللاعب</string>
@@ -490,6 +564,17 @@
     <string name="ingame_shader_cache_help">تحتفظ اللعبة بالمظللات التي أنشأتها، حتى لا تتقطع المشاهد مجددًا. لا تُفرغها إلا إذا ظهرت أخطاء رسومية بعد تحديث؛ وقد تتقطع المشاهد الأولى حينها مرة واحدة.</string>
     <string name="ingame_shader_clear">إفراغ ذاكرة المظللات المؤقتة</string>
     <string name="ingame_shader_clear_text">سيُعاد تشغيل اللعبة وستُحذف المظللات التي أُنشئت. تنشئها اللعبة من جديد أثناء اللعب، لذا قد تتقطع المشاهد الأولى. سيُفقد التقدم منذ آخر حفظ.</string>
+    <string name="ingame_shader_prep">&#x200F;تحميل المظللات عند البدء</string>
+    <string name="ingame_shader_prep_help">&#x200F;تحميل المظللات عند البدء: يجهّز كل بدء أولًا جميع المظللات المعروفة (برامج شريحة الرسوميات) ويعرض التقدّم؛ بعدها لا تتقطع الغرف والمؤثرات عند ظهورها أول مرة. يستغرق ذلك أول مرة نحو دقيقة مع Vulkan وحتى عدة دقائق مع OpenGL ES على الهواتف البطيئة، ثم ثوانيَ فقط. لا يمكن تخطيه. يحتاج إلى 4 غيغابايت ذاكرة أو أكثر.</string>
+    <string name="ingame_shader_prep_low_ram">&#x200F;يحتاج إلى 4 غيغابايت ذاكرة على الأقل (في هذا الجهاز %1$s غيغابايت).</string>
+    <string name="ingame_shader_prep_title">&#x200F;جارٍ تجهيز المظللات…</string>
+    <string name="ingame_shader_prep_line">&#x200F;بعد تجهيزها مرة لن تتقطع لاحقًا. يرجى الانتظار، لا يمكن تخطي ذلك.</string>
+    <string name="ingame_output_res">&#x200F;دقة العرض</string>
+    <string name="ingame_output_res_help">&#x200F;دقة العرض: حجم الصورة المرسلة إلى الشاشة؛ تمدّها الشاشة إلى بكسلاتها. الأدنى أسرع في الهواتف ذات الشاشات الحادة جدًا (فوق 1080p)، خاصةً مع CRT أو التوهج أو FXAA أو التوضيح، وأنعم قليلًا. أصلي: حجم الشاشة نفسه. تبقى الدقة أعلاه (ثلاثي الأبعاد في اللعبة) كما هي.</string>
+    <string name="ingame_upscaler">أداة التكبير</string>
+    <string name="ingame_upscaler_sgsr">&#x200F;SGSR (خفيف)</string>
+    <string name="ingame_upscaler_fsr">&#x200F;FSR (قوي)</string>
+    <string name="ingame_upscaler_help">أداة التكبير: كيف تُكبَّر صورة اللعبة عندما تكون أصغر من مكانها على الشاشة (دقة أعلاه أقل من دقة الشاشة). إيقاف: التمديد البسيط الناعم. SGSR (Qualcomm Snapdragon Game Super Resolution): حواف أوضح، وعمل قليل على الهاتف؛ موصى به. FSR (AMD FidelityFX Super Resolution 1): الأوضح، ونحو ضعف عمل SGSR. لا يتغير شيء عندما تكون الصورة بحجم مكانها، ولا مع مرشح CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">التعديلات</string>
     <string name="ingame_hd_textures">الأنسجة عالية الدقة</string>

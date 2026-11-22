@@ -1,0 +1,21 @@
+# A debug leftover of the prototype (Nov 2004 debug build; the code matches the GameCube SHA1): in the bottle cap
+# screen (sub screen, Key items -> caps) X on an empty case gave its cap at once. The final game (US retail Sscrn.rel)
+# has no such key. A user's report of 20.11.2026: a button on an empty slot "immediately unlocks the Bottle Caps
+# character". Decision of the project owner 22.10.2026: prototype bugs the final game does not have are fixed.
+--- a/src/Sscrn/ss_cap.cpp
++++ b/src/Sscrn/ss_cap.cpp
+@@ -246,12 +246,8 @@
+         }
+         return;
+     }
+-    if (Key.trg & 0x20000) {
+-        if (ItemMgr.search(cap_id_tbl[sel[2]]) == 0) {
+-            ItemMgr.get(cap_id_tbl[sel[2]], 0);
+-        }
+-        return;
+-    }
++    /* port (patch 0247): the prototype's debug grant (X on an empty case gave its cap at once) is gone, as in the
++       final game (US retail Sscrn.rel) */
+     {
+         s8 old = sel[2];
+         if (Key.rep & 0x02000000) {

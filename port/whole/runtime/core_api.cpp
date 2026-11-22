@@ -727,7 +727,7 @@ int re4_core_cheat_action(int what)
     if (what >= 20 && what <= 24) return re4_bench_command(what);  // 24: the title's menu waits (0.99.10)
     // 25: the game's play time in seconds for the app's Information HUD, -1 outside a game (0.99.11), any thread
     if (what == 25) return re4_instant_play_seconds();
-    if (what < 1 || what > 9) return 0;
+    if (what < 1 || what > 10) return 0;  // (10: "Refill ammo", 1.1.0)
     pthread_mutex_lock(&gPauseLock);
     if (!gPaused || !gPauseWanted || gInstantBusy || gCheatPending) {
         pthread_mutex_unlock(&gPauseLock);
@@ -824,6 +824,41 @@ extern "C" int re4_aim_from_game(void);
 int re4_core_aim_from_game(void)
 {
     return re4_aim_from_game();
+}
+
+extern "C" int re4_vibration_from_game(void);
+extern "C" void re4_mouse_menu_point(float u, float v, int click);
+extern "C" void re4_quick_reload_request(void);
+extern "C" void re4_photo_mode_request(int op, int mask);
+extern "C" void re4_photo_mode_input(int a, int b, int c);
+
+// "Reload without aiming" (1.1.0, runtime/aim_options.cpp): the keyboard's reload key was pressed without the aim
+void re4_core_quick_reload(void)
+{
+    re4_quick_reload_request();
+}
+
+// Photo mode (1.1.0, runtime/photo_mode.cpp): on, off, what it hides; the free camera's input
+void re4_core_photo_mode(int op, int mask)
+{
+    re4_photo_mode_request(op, mask);
+}
+
+void re4_core_photo_input(int a, int b, int c)
+{
+    re4_photo_mode_input(a, b, c);
+}
+
+// The mouse in the game's menus (1.1.0, runtime/mouse_menu.cpp): the app's pointer over the picture, a left click
+void re4_core_mouse_menu(float u, float v, int click)
+{
+    re4_mouse_menu_point(u, v, click);
+}
+
+// The game's own options changed "vibration" (1.1.0): -1, else 0 / 1 for the app's "Vibration" (Off / Auto).
+int re4_core_vibration_from_game(void)
+{
+    return re4_vibration_from_game();
 }
 
 extern "C" void re4_sound_volume_set(int music, int effects);

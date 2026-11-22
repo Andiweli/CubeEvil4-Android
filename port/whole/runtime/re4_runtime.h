@@ -54,22 +54,10 @@ int re4_game_main(void);
 /* OSGetArenaLo at boot: end of main.dol in the original (SystemMemInit halts
  * above 0x8034FFFF). The DOL itself lives in libre4_main.so. */
 #define RE4_MEM1_ARENA_LO 0x80300000u
-/* LP64 (milestone 12): the game's heaps end this much higher, in the half of
- * MEM1 only a development console has (lp64_sizes.json: SystemMemInit's
- * Heap_end_addr, the same value). The works with pointers need more room in
- * them on 64 bit: the compare run of 18.10.2026 had 0x4EF40 bytes less free in
- * heap 4 (r100), and on a POCO X7 Pro em12 found no room in r107 (0x1F0E0 short).
- * 0 on ILP32: the GameCube map. */
-#if __SIZEOF_POINTER__ == 4
-#define RE4_MEM1_LP64_HEAP_EXTRA 0u
-#else
-#define RE4_MEM1_LP64_HEAP_EXTRA 0x00100000u
-#endif
-/* The disc's file system table sits at the top of retail memory, above the
- * game's last heap (0x817F4000), as the IPL places it; on LP64 above the
- * higher heap end. */
-#define RE4_MEM1_FST_ADDR (0x817F4000u + RE4_MEM1_LP64_HEAP_EXTRA)
-#define RE4_MEM1_FST_MAX 0x0000C000u
+/* The end of the game's heaps, the FST above them and the port's own places up to
+ * the end of MEM1 (since 1.1.0 one map for ILP32 and LP64; until then the heaps
+ * ended at 0x817F4000, on LP64 1 MB higher): re4_mem1_map.h. */
+#include "re4_mem1_map.h"
 /* Retail console: the development paths (SN host file I/O) stay off. */
 #define RE4_CONSOLE_TYPE 0x00000003u
 /* Reserves MEM1 and writes the boot globals; 0 when the range is taken. */
@@ -154,14 +142,11 @@ int re4_disc_retail_kr(void);
  * result screens; patch 0120 ...). */
 int re4_disc_retail(void);
 /* A larger etc/core.das than the debug build's fixed place holds (the European release, patch
- * 0117): it is read here instead, in the development half of MEM1 that nothing else uses. */
-#define RE4_MEM1_CORE_ALT_ADDR 0x81C00000u
-#define RE4_MEM1_CORE_ALT_MAX 0x00300000u
+ * 0117): it is read at RE4_MEM1_CORE_ALT_ADDR instead (re4_mem1_map.h). */
 void* re4_core_data_place(const char* name, unsigned fixedMax);
 /* A larger SS/<lang>/option.dat than the debug build's fixed place holds (the European discs'
- * German, French, Spanish and Italian ones, patch 0121): behind the core's second place. */
-#define RE4_MEM1_OPTION_ALT_ADDR 0x81F00000u
-#define RE4_MEM1_OPTION_ALT_MAX 0x00100000u
+ * German, French, Spanish and Italian ones, patch 0121): at RE4_MEM1_OPTION_ALT_ADDR, behind the
+ * core's second place (re4_mem1_map.h). */
 void* re4_option_data_place(const char* name, unsigned fixedMax);
 /* The start's reads without the frame pace (patch 0085): 1 while the next
    step of a read may follow at once, the end at the first title.dat. */
@@ -330,6 +315,9 @@ void re4_gx_still(int on);
 /* A movie plays (1) or not (0): the chunks closed from now on carry RE4_GX_CHUNK_MOVIE (runtime/gx_decode.cpp).
  * Set every frame by runtime/picture.cpp (re4_movie_playing). */
 void re4_gx_movie(int on);
+/* Photo mode (runtime/photo_mode.cpp, 1.1.0): on (1) or off (0); refused (1): the next chunk carries
+ * RE4_GX_CHUNK_PHOTO_REFUSED once (runtime/gx_decode.cpp). */
+void re4_gx_photo(int on, int refused);
 /* The picture format "Native" (runtime/picture.cpp, patch 0214): the camera's projection was loaded wide (1) or
  * as the game's 4:3 (0); the first call after a display copy decides the chunk's RE4_GX_CHUNK_WIDE.
  * re4_gx_wide_now: that decision so far, -1 none yet in this chunk. */

@@ -19,8 +19,10 @@
 #include "picture_cadence.h"
 #include "potato_bits.h"
 #include "gx_chunk_builder.h"
+#include "gx_core.h"
 #include "gx_gl.h"
 #include "gx_gl_shader.h"
+#include "gx_mips.h"
 #include "gx_selfcheck.h"
 #include "gx_texture.h"
 #include "re4_gx_frame.h"
@@ -1744,6 +1746,99 @@ static std::string HoldRun(bool hold, double from, double to, unsigned *held, un
   return last;
 }
 
+// Frame skip "Auto" (1.1.0, picture_cadence.h AutoSkip): on after about half a second under 30, off after two seconds
+// at full pace, nothing at an even 30, a room's load pause keeps the state
+void TestAutoSkip() {
+  re4gx::AutoSkip a;
+  double t = 0.0;
+  unsigned seq = 0, changes = 0;
+  // 3 s at an even 30 (the Retroid): never on
+  for (int i = 0; i < 90; i++, t += 1.0 / 30, seq++)
+    changes += a.Note(t, seq);
+  Check(!a.on && changes == 0, "auto frame skip: an even 30 a second: never on");
+  // a little jitter (32.0 / 34.6 ms in turn; its first picture one late, 67 ms after the last): still never on
+  for (int i = 0; i < 90; i++, seq++) {
+    t += i % 2 ? 0.0320 : 0.0346;
+    changes += a.Note(t, seq);
+  }
+  Check(!a.on && changes == 0, "auto frame skip: 30 a second with jitter and one late picture: never on");
+  // one late picture now and then (every 20th 67 ms): never on
+  for (int i = 0; i < 120; i++, seq++) {
+    t += i % 20 == 19 ? 2.0 / 30 : 1.0 / 30;  // (the late one: its number the next, no chunk left out)
+    changes += a.Note(t, seq);
+  }
+  Check(!a.on && changes == 0, "auto frame skip: a single late picture now and then: never on");
+  // the game at 24 a second (the user's Helio G85 in r105): on within about 0.6 s
+  const double slowFrom = t;
+  double onAt = -1.0;
+  for (int i = 0; i < 48; i++, seq++) {
+    t += 1.0 / 24;
+    if (a.Note(t, seq) && a.on && onAt < 0)
+      onAt = t;
+  }
+  std::fprintf(stderr, "  auto frame skip: on %.2f s after the game fell to 24 a second\n", onAt - slowFrom);
+  Check(a.on && onAt > 0 && onAt - slowFrom <= 0.7, "auto frame skip: 24 a second: on within 0.7 s");
+  // back at 30: off after about 2 s, not before
+  const double fullFrom = t;
+  double offAt = -1.0;
+  for (int i = 0; i < 120; i++, seq++) {
+    t += 1.0 / 30;
+    if (a.Note(t, seq) && !a.on && offAt < 0)
+      offAt = t;
+  }
+  std::fprintf(stderr, "  auto frame skip: off %.2f s after the game was back at 30\n", offAt - fullFrom);
+  Check(!a.on && offAt - fullFrom >= 2.0 && offAt - fullFrom <= 3.0, "auto frame skip: back at 30: off after 2-3 s");
+  // pictures the game left out count by their numbers: 20 chunks a second, every second number missing (40 game
+  // pictures' worth, the skip working): not "slow"
+  for (int i = 0; i < 30; i++, seq++)
+    a.Note(t += 1.0 / 24, seq);
+  Check(a.on, "auto frame skip: on again at 24");
+  for (int i = 0; i < 90; i++) {
+    t += 1.0 / 15;
+    seq += 2;
+    a.Note(t, seq);
+  }
+  Check(!a.on, "auto frame skip: the numbers of pictures left out count: off at full pace");
+  // a room's load (2 s without chunks) and one slow chunk after it: no switch
+  changes = a.ons + a.offs;
+  t += 2.0;
+  a.Note(t, seq++);
+  for (int i = 0; i < 60; i++, seq++)
+    a.Note(t += 1.0 / 30, seq);
+  Check(!a.on && a.ons + a.offs == changes, "auto frame skip: a load pause switches nothing");
+  // (1.1.0, two steps) the game at 26 a second (a processor a little too slow): the renderer's only, for good
+  for (int i = 0; i < 26 * 5; i++, seq++)
+    a.Note(t += 1.0 / 26, seq);
+  Check(a.on && !a.cpu, "auto frame skip: 26 a second: the renderer's frame skip, not the game's");
+  // at 21 a second: the game's own after about two seconds more
+  const double deepFrom = t;
+  double cpuAt = -1.0;
+  for (int i = 0; i < 21 * 4; i++, seq++)
+    if (a.Note(t += 1.0 / 21, seq) && a.cpu && cpuAt < 0)
+      cpuAt = t;
+  std::fprintf(stderr, "  auto frame skip: the game's own %.2f s after the game fell to 21 a second\n", cpuAt - deepFrom);
+  Check(a.cpu && cpuAt - deepFrom >= 2.0 && cpuAt - deepFrom <= 3.0, "auto frame skip: 21 a second: the game's own in 2-3 s");
+  // it works (the game at 30, one picture in three left out: 20 chunks a second, numbers 30): it stays
+  for (int i = 0; i < 20 * 4; i++) {
+    seq += i % 2 ? 1 : 2;
+    a.Note(t += 1.0 / 20, seq);
+  }
+  Check(a.on && a.cpu, "auto frame skip: the game's own stays while it leaves out a third");
+  // the place gets lighter (29 of 30 pictures shown): the game's own goes after about two seconds, the renderer's later
+  double cpuOffAt = -1.0;
+  const double lightFrom = t;
+  for (int i = 0; i < 30 * 3; i++) {
+    seq += i % 30 == 29 ? 2 : 1;
+    if (a.Note(t += 1.0 / 30, seq) && !a.cpu && cpuOffAt < 0)
+      cpuOffAt = t;
+  }
+  Check(!a.cpu && cpuOffAt - lightFrom >= 2.0 && cpuOffAt - lightFrom <= 3.0,
+        "auto frame skip: few left out: the game's own off after 2-3 s");
+  for (int i = 0; i < 30 * 3; i++, seq++)
+    a.Note(t += 1.0 / 30, seq);
+  Check(!a.on && !a.cpu, "auto frame skip: then at full pace: off");
+}
+
 void TestPictureHold() {
   unsigned held = 0, shown = 0;
   double lag = 0.0;
@@ -1866,7 +1961,13 @@ struct PresentRun {
   int twoShare = 0;  // % of the intervals of 2 vsyncs
 };
 
-static PresentRun PresentSim(bool pace, double from, double to, int pictures, unsigned seed = 4711) {
+// `vulkan` (1.1.0): Android's swapchain with VK_GOOGLE_display_timing instead of EGL: the compositor latches a
+// picture `latchLead` ns before the vsync the screen shows it at (2 ms as above, or a whole vsync on a deeper
+// pipeline), and the pacer learns when it was ready only from what the swapchain tells (the time shown, the earliest
+// possible, the margin; its calculation as in Android's swapchain.cpp TimingInfo::calculate) through VkReadyFor.
+// `estimateOff` counts the pictures shown at their vsync whose spare time came out more than 0.1 ms off.
+static PresentRun PresentSim(bool pace, double from, double to, int pictures, unsigned seed = 4711, bool vulkan = false,
+                             unsigned *estimateOff = nullptr, long long latchLead = 2000000LL) {
   const long long period = 8302889;  // 120.44 Hz, the report's
   const long long start = 2000000000LL;
   re4gx::PresentPacer pacer;
@@ -1882,14 +1983,29 @@ static PresentRun PresentSim(bool pace, double from, double to, int pictures, un
     const long long began = (seed >> 24) % 23 == 0 ? grid + period : grid;
     const long long done = grid + static_cast<long long>(r * period);
     long long asked = pace ? pacer.Target(began, period, 2) : 0;
-    long long earliest = done + 2000000LL;
+    long long earliest = vulkan ? done + latchLead : done + 2000000LL;
     if (asked > 0)
       earliest = std::max(earliest, asked);
     const long long at = start + ((earliest - start + period - 1) / period) * period;
     shots.push_back({began, asked > 0 ? asked + period / 2 : 0, done, at});
     // what the screen reports some swaps later: here at once
-    if (pace)
+    if (pace && !vulkan)
       pacer.Outcome(shots.back().target, done, at);
+    if (pace && vulkan) {
+      // Android's swapchain: the margin from ready to the latch, then whole periods off both while it still fits
+      const long long latch = at - latchLead;
+      long long margin = latch - done, early = at;
+      while (margin > period && early - period > latch) {
+        early -= period;
+        margin -= period;
+      }
+      const long long target = shots.back().target;
+      const long long ready = re4gx::VkReadyFor(target, at, early, margin);
+      // the spare time Outcome sees (target - 2 ms - ready) against the real one (latch - done)
+      if (estimateOff && target > 0 && at == target && std::llabs((target - 2000000LL - ready) - (latch - done)) > 100000LL)
+        ++*estimateOff;
+      pacer.Outcome(target, ready, at);
+    }
   }
   PresentRun out;
   // the screen: at each vsync the newest picture due; an older one due at the same vsync or later is dropped
@@ -1927,6 +2043,226 @@ static PresentRun PresentSim(bool pace, double from, double to, int pictures, un
   out.asked = pacer.asked;
   out.twoShare = intervals ? static_cast<int>(100 * two / intervals) : 0;
   return out;
+}
+
+// 1.1.0 (the project owner, 21.11.2026): mipmaps made for the game's textures without (gx_mips.h). The functions
+// alone: the levels' count, the 2x2 average, a cut-out's colour by alpha and its coverage kept.
+void TestMipFunctions() {
+  Check(re4gx::GxMipCount(256, 256) == 9 && re4gx::GxMipCount(256, 64) == 9 && re4gx::GxMipCount(1, 1) == 1,
+        "mipmaps: the levels down to 1 x 1");
+  Check(re4gx::GxWantsMips(1, 256, 128) && re4gx::GxWantsMips(1, 64, 8) && !re4gx::GxWantsMips(1, 32, 32) &&
+            !re4gx::GxWantsMips(1, 256, 4) && !re4gx::GxWantsMips(9, 256, 256),
+        "mipmaps: only for textures of 64 or more without the game's own levels");
+  // a 4 x 2 RGBA8: the 2x2 average (rounded), an odd size takes its last texel twice
+  std::vector<std::uint8_t> src = {0, 0, 0, 255,  100, 0, 0, 255,  200, 0, 0, 255,  50, 0, 0, 255,
+                                   0, 100, 0, 255,  0, 0, 0, 255,  0, 0, 0, 255,  0, 0, 200, 255}, dst;
+  re4gx::GxMipDown(src.data(), 4, 2, false, dst);
+  Check(dst.size() == 8 && dst[0] == 25 && dst[1] == 25 && dst[2] == 0 && dst[3] == 255 && dst[4] == 63 &&
+            dst[6] == 50,
+        "mipmaps: each texel the 2x2 average of the level above");
+  std::vector<std::uint8_t> odd = {10, 0, 0, 255, 20, 0, 0, 255, 30, 0, 0, 255}, oddDst;  // 3 x 1
+  re4gx::GxMipDown(odd.data(), 3, 1, false, oddDst);
+  Check(oddDst.size() == 4 && oddDst[0] == 15, "mipmaps: an odd size averages its own texels");
+  // a cut-out: hidden texels black, visible ones white; by alpha the colour stays white, not grey
+  std::vector<std::uint8_t> cut = {255, 255, 255, 255,  0, 0, 0, 0,  0, 0, 0, 0,  255, 255, 255, 255};
+  Check(re4gx::GxCutout(cut.data(), 2, 2) && !re4gx::GxCutout(src.data(), 4, 2), "mipmaps: a cut-out found by its alpha");
+  std::vector<std::uint8_t> cutDst;
+  re4gx::GxMipDown(cut.data(), 2, 2, true, cutDst);
+  Check(cutDst[0] == 255 && cutDst[3] == 128, "mipmaps: a cut-out's colour by alpha (no dark fringe)");
+  // coverage: a 64 x 64 leaf pattern (30 % solid, in single texels) keeps about 30 % at 128 or more in its levels
+  std::vector<std::uint8_t> leaf(64 * 64 * 4);
+  std::mt19937 rnd(7);
+  for (std::size_t i = 0; i < 64 * 64; i++) {
+    const bool solid = rnd() % 100 < 30;
+    leaf[i * 4] = 40, leaf[i * 4 + 1] = 120, leaf[i * 4 + 2] = 30, leaf[i * 4 + 3] = solid ? 255 : 0;
+  }
+  const float cover = re4gx::GxCoverage(leaf.data(), 64, 64);
+  std::vector<std::uint8_t> above = leaf, below;
+  unsigned w = 64;
+  float plain = 0.0f, kept = 0.0f;
+  for (int l = 1; l <= 3; l++) {
+    re4gx::GxMipDown(above.data(), w, w, true, below);
+    w /= 2;
+    std::vector<std::uint8_t> raw = below;
+    plain = re4gx::GxCoverage(raw.data(), w, w);
+    re4gx::GxKeepCoverage(below.data(), w, w, cover);
+    kept = re4gx::GxCoverage(below.data(), w, w);
+    above.swap(below);
+  }
+  std::fprintf(stderr, "  mipmaps: a cut-out's coverage %.0f %%, level 3 plain %.0f %%, kept %.0f %%\n", cover * 100,
+               plain * 100, kept * 100);
+  Check(std::fabs(kept - cover) < 0.08f && std::fabs(plain - cover) > std::fabs(kept - cover),
+        "mipmaps: a cut-out's coverage kept in its levels (trees do not thin out)");
+}
+
+// An I8 texture, w x h, value(x, y) per texel, tiled as the GameCube keeps it (8 x 4 tiles).
+static std::vector<std::uint8_t> I8Texture(unsigned w, unsigned h, int (*value)(unsigned, unsigned)) {
+  std::vector<std::uint8_t> t;
+  t.reserve(static_cast<std::size_t>(w) * h);
+  for (unsigned ty = 0; ty < h; ty += 4)
+    for (unsigned tx = 0; tx < w; tx += 8)
+      for (unsigned y = ty; y < ty + 4; y++)
+        for (unsigned x = tx; x < tx + 8; x++)
+          t.push_back(static_cast<std::uint8_t>(value(x, y)));
+  return t;
+}
+
+// The renderer: a 256 x 256 checker (texels 0 and 255, no levels of its own) on a 37 x 37 quad, linear: with the made
+// levels an even grey (the GameCube's and the old renderer's shimmer is a noise of black and white texels); the same
+// texture sampled nearest keeps its look (only level 0). Read back as the display copy (GL and Vulkan).
+// 1.1.0 (the project owner's Retroid, 21.11.2026: the attaché case's grid lines faint or gone with an HD pack): lines
+// wider than the GPU draws are drawn again, moved by whole pixels across them. The copies and their moves.
+void TestWideLines() {
+  using re4gx::GxCore;
+  Check(GxCore::WideLineCopies(2.5f, 1.0f) == 2, "wide lines: 2.5 px on a 1 px GPU: two copies");
+  Check(GxCore::WideLineCopies(4.17f, 1.0f) == 3 && GxCore::WideLineCopies(5.0f, 1.0f) == 4,
+        "wide lines: 4.17 and 5 px: three and four");
+  Check(GxCore::WideLineCopies(2.5f, 8.0f) == 0 && GxCore::WideLineCopies(1.0f, 1.0f) == 0 &&
+            GxCore::WideLineCopies(1.2f, 1.0f) == 0,
+        "wide lines: none where the GPU draws them (or a hair wider)");
+  Check(GxCore::WideLineMove(1, 1.0f) == 1.0f && GxCore::WideLineMove(2, 1.0f) == -1.0f &&
+            GxCore::WideLineMove(3, 1.0f) == 2.0f && GxCore::WideLineMove(4, 1.0f) == -2.0f,
+        "wide lines: the copies 1, -1, 2, -2 px across");
+}
+
+void TestMadeMips(re4gx::GxApi api, const char *tag) {
+  re4gx::GxRenderer r(api);
+  std::string error;
+  Require(r.Init(1, &error), error.c_str());
+  const auto checker = I8Texture(256, 256, [](unsigned x, unsigned y) { return ((x + y) & 1) ? 255 : 0; });
+  auto spread = [&](unsigned mode0, unsigned key, double *mean) {
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 8u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);
+    b.Bp(0x80, mode0);  // wrap repeat; mag linear; min as given
+    b.Bp(0x84, 0);      // the game's level limits 0 .. 0 (no levels of its own)
+    b.Bp(0x88, 255 | 255 << 10 | 1u << 20);  // 256 x 256, I8
+    b.Bp(0x30, 255);
+    b.Bp(0x31, 255);
+    b.Texture(0, key, 0, 0x180000 + key, 256, 256, 1, checker);
+    std::vector<std::uint8_t> v;
+    VT(v, 101, 101, 0, kWhite, 0, 0);
+    VT(v, 138, 101, 0, kWhite, 1, 0);
+    VT(v, 138, 138, 0, kWhite, 1, 1);
+    VT(v, 101, 138, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    if (!r.ReadXfb(&rgba, &w, &h) || w < 200 || h < 200)
+      return 999.0;
+    double sum = 0, sq = 0;
+    int n = 0;
+    for (unsigned y = 106; y < 133; y++)
+      for (unsigned x = 106; x < 133; x++) {
+        const double g = rgba[(static_cast<std::size_t>(y) * w + x) * 4];
+        sum += g, sq += g * g, n++;
+      }
+    *mean = sum / n;
+    return std::sqrt(std::max(0.0, sq / n - *mean * *mean));
+  };
+  double meanLinear = 0, meanNearest = 0;
+  const double linear = spread(1u << 4 | 4u << 5, 0x7101, &meanLinear);   // min "linear" (the rooms' walls and floors)
+  const double nearest = spread(1u << 4 | 0u << 5, 0x7102, &meanNearest);  // min "nearest"
+  std::fprintf(stderr, "  mipmaps (%s): a checker at 1/7 size: linear mean %.0f, spread %.1f; nearest spread %.1f; "
+               "%u textures given levels, %.2f MB more, %.2f ms\n", tag, meanLinear, linear, nearest,
+               r.Stats().mipTextures, r.Stats().mipBytes / 1048576.0, r.Stats().mipUs / 1000.0);
+  Check(linear < 12.0 && meanLinear > 100.0 && meanLinear < 155.0,
+        (std::string("mipmaps (") + tag + "): a far checker an even grey, no shimmer").c_str());
+  // (nearest: black and white texels, the display copy's vertical filter softens them a little)
+  Check(nearest > 30.0, (std::string("mipmaps (") + tag + "): a texture sampled nearest keeps its look").c_str());
+  Check(r.Stats().mipTextures == 2 && r.Stats().mipBytes > 20000,
+        (std::string("mipmaps (") + tag + "): levels made for the game's texture without").c_str());
+  r.Release();
+}
+
+// 1.1.0: the soft alpha test of MSAA (gx_gl_shader.cpp): a 32 x 32 cut-out (I8, alpha = value) over 256 pixels,
+// tested "alpha >= 128": with 4 samples the pixels at the edge get some of their samples (grey after the resolve);
+// with 1 sample the shader is the one of before (no sample mask in its text) and the edge stays hard.
+void TestSoftAlpha(re4gx::GxApi api, const char *tag) {
+  // the programs' text: the sample mask only in MSAA's programs (bit 0 of centroid), for "<", "<=", ">", ">=" with
+  // AND / OR (the game's "> ref OR > ref" too), not for "==" or XOR
+  re4gx::ShaderKey k{};
+  k.numStages = 1;
+  k.alphaTest = 6u | 7u << 3;  // >= ref0 AND always
+  const std::string one = re4gx::GxFragmentShader(k);
+  k.centroid = 1;
+  const std::string four = re4gx::GxFragmentShader(k);
+  k.alphaTest = 4u | 4u << 3 | 1u << 6;  // > ref0 OR > ref1 (the game's)
+  const std::string game = re4gx::GxFragmentShader(k);
+  k.alphaTest = 2u | 7u << 3;  // == ref0: the hard one
+  const std::string equal = re4gx::GxFragmentShader(k);
+  k.alphaTest = 4u | 4u << 3 | 2u << 6;  // XOR: the hard one
+  const std::string exclusive = re4gx::GxFragmentShader(k);
+  Check(one.find("gl_SampleMask") == std::string::npos && four.find("gl_SampleMask") != std::string::npos &&
+            game.find("gl_SampleMask") != std::string::npos && game.find("max(") != std::string::npos &&
+            equal.find("gl_SampleMask") == std::string::npos && exclusive.find("gl_SampleMask") == std::string::npos,
+        "soft alpha test: only in MSAA's programs, for the ordering compares with AND / OR");
+  for (int samples : {1, 4}) {
+    re4gx::GxRenderer r(api);
+    re4gx::GxOptions o;
+    o.samples = samples;
+    r.SetOptions(o);
+    std::string error;
+    Require(r.Init(1, &error), error.c_str());
+    // a cut-out: texels 0 .. 15 clear, 16 .. 31 solid; filtered linearly the alpha climbs about 32 a pixel there
+    const auto ramp = I8Texture(32, 32, [](unsigned x, unsigned) { return x >= 16 ? 255 : 0; });
+    Builder b;
+    Baseline(b);
+    DisplayCopy(b, true, kBlack);
+    b.Bp(0x00, 1u | 1u << 4);
+    b.Xf(0x103F, {1});
+    b.Xf(0x1040, {5u << 7});
+    b.Bp(0x28, 0 | 0 << 3 | 1 << 6 | 0 << 7 | 0x3F7u << 12);
+    b.Bp(0xC0, 12u | 15u << 4 | 15u << 8 | 15u << 12 | 1u << 19);   // colour white (ONE)
+    b.Bp(0xC1, 4u << 4 | 7u << 7 | 7u << 10 | 7u << 13 | 1u << 19);  // alpha = the texture's
+    b.Bp(0x80, 1u << 4 | 4u << 5);
+    b.Bp(0x84, 0);
+    b.Bp(0x88, 31 | 31 << 10 | 1u << 20);
+    b.Bp(0x30, 31);
+    b.Bp(0x31, 31);
+    b.Texture(0, 0x7201, 0, 0x1A0000, 32, 32, 1, ramp);
+    b.Bp(0xF3, 128 | 128u << 8 | 4u << 16 | 4u << 19 | 1u << 22);  // alpha > 128 OR > 128 (as the game sets it)
+    // a slanted quad (each row a third of a pixel further right): the edge crosses the pixels at every place
+    std::vector<std::uint8_t> v;
+    VT(v, 100, 100, 0, kWhite, 0, 0);
+    VT(v, 356, 100, 0, kWhite, 1, 0);
+    VT(v, 368, 136, 0, kWhite, 1, 1);
+    VT(v, 112, 136, 0, kWhite, 0, 1);
+    b.Draw(RE4_GX_V_COLOR0 | RE4_GX_V_TEX0, 24, v, 4, 0x80);
+    DisplayCopy(b, false, kBlack);
+    r.Run(b.Chunk());
+    std::vector<std::uint8_t> rgba;
+    unsigned w = 0, h = 0;
+    Require(r.ReadXfb(&rgba, &w, &h) && w >= 400, "soft alpha test: the display copy read back");
+    // rows 105 .. 130: black where the test fails, white where it passes; with 4 samples a pixel at the edge grey
+    // (some of its samples covered); firstLit: the edge in row 105
+    int partial = 0, firstLit = -1;
+    for (unsigned y = 105; y <= 130; y++)
+      for (unsigned x = 200; x < 300; x++) {
+        const int g = rgba[(y * w + x) * 4];
+        if (y == 105 && firstLit < 0 && g > 0)
+          firstLit = static_cast<int>(x);
+        if (g > 0 && g < 240)
+          partial++;
+      }
+    const bool msaa = r.Samples() > 1;
+    std::fprintf(stderr, "  soft alpha test (%s, %d samples): the edge at x %d, %d pixels partly covered\n", tag,
+                 r.Samples(), firstLit, partial);
+    if (msaa)
+      Check(partial >= 5 && firstLit > 220 && firstLit < 240,
+            (std::string("soft alpha test (") + tag + "): with MSAA the edge's pixels partly covered, in place").c_str());
+    else
+      Check(partial == 0 && firstLit > 220 && firstLit < 240,
+            (std::string("soft alpha test (") + tag + "): with 1 sample the hard edge as before").c_str());
+    r.Release();
+  }
 }
 
 void TestPresentPacer() {
@@ -1987,6 +2323,38 @@ void TestPresentPacer() {
     c.Behind(v + 300 * per);
     c.Behind(v + 600 * per);
     Check(!c.Aside(), "present pacer: behind now and then (2.5 s apart): still asking");
+  }
+  // Vulkan (1.1.0, VK_GOOGLE_display_timing): the user's 120 Hz Xiaomi showed 41 % of the pictures a vsync early or
+  // late without present times; with them and the swapchain's report the same rhythm as OpenGL ES's
+  {
+    const PresentRun vkOff = PresentSim(false, 1.3, 2.3, 1300, 4711, true);
+    unsigned off = 0, offDeep = 0;
+    const PresentRun vkOn = PresentSim(true, 1.3, 2.3, 1300, 4711, true, &off);
+    // a deeper pipeline: the compositor latches a whole vsync before the screen
+    const PresentRun vkDeep = PresentSim(true, 1.3, 2.3, 1300, 4711, true, &offDeep, 8302889 + 500000LL);
+    const PresentRun vkFast = PresentSim(true, 0.6, 1.2, 1300, 4711, true);
+    std::fprintf(stderr, "  Vulkan without:    %s (%d %% at 2 vsyncs)\n  Vulkan with:       %s (%u shown, %u dropped, "
+                 "%d %% at 2 vsyncs, %.2f vsyncs to the screen, latency %d, spare off %u)\n  Vulkan, deeper:    %s "
+                 "(%d %% at 2 vsyncs, latency %d, %u up, %u down, spare off %u)\n  Vulkan, fast GPU:  %d %% at 2 "
+                 "vsyncs, latency %d, %u down\n",
+                 vkOff.line.c_str(), vkOff.twoShare, vkOn.line.c_str(), vkOn.shown, vkOn.dropped, vkOn.twoShare,
+                 vkOn.delay, vkOn.latency, off, vkDeep.line.c_str(), vkDeep.twoShare, vkDeep.latency, vkDeep.ups,
+                 vkDeep.downs, offDeep, vkFast.twoShare, vkFast.latency, vkFast.downs);
+    Check(vkOff.twoShare < 70, "present pacer (Vulkan): without present times 1 and 3 vsyncs in turn");
+    Check(vkOn.twoShare >= 97 && vkOn.dropped == 0 && vkOn.shown == 1300 && off == 0 && vkOn.latency == 3,
+          "present pacer (Vulkan): with the swapchain's report at least 97 % for 2 vsyncs, none lost, as OpenGL ES");
+    Check(vkDeep.twoShare >= 95 && vkDeep.dropped == 0 && offDeep == 0 && vkDeep.downs == 0,
+          "present pacer (Vulkan): a deeper pipeline: one vsync more, the rhythm holds, no step down into lateness");
+    Check(vkFast.latency == 2 && vkFast.twoShare >= 99, "present pacer (Vulkan): a fast GPU: back to 2 vsyncs");
+    const PresentRun vkSlow = PresentSim(true, 3.6, 5.0, 1300, 4711, true);
+    Check(vkSlow.asides >= 1 && vkSlow.shown + vkSlow.dropped == 1300,
+          "present pacer (Vulkan): a device that does not keep up: the times step aside");
+    // the estimate: a time missing or the earliest after the time shown: not known
+    Check(re4gx::VkReadyFor(0, 100, 100, 1) == 0 && re4gx::VkReadyFor(100, 0, 100, 1) == 0 &&
+              re4gx::VkReadyFor(100, 100, 120, 1) == 0 && re4gx::VkReadyFor(100, 100, 100, -1) == 0,
+          "present pacer (Vulkan): the ready time only from complete times");
+    Check(re4gx::VkReadyFor(20000000, 20000000, 12000000, 1000000) == 9000000,
+          "present pacer (Vulkan): ready = target - 2 ms - the margin as it was (margin + shown - earliest)");
   }
   // only where every n-th vsync is a 60th of a second
   re4gx::PresentPacer p;
@@ -4317,6 +4685,138 @@ void TestSmoothPacer() {
   for (int i = 0; i < 6; i++, t += 1.0 / 30.0)
     p.Chunk(t, true, nullptr);
   Check(!p.Off() && p.Offs() == 1, "pacer: the catch-up right after a pause does not count");
+
+  // (1.0.0, reports/fps-drops-2026-11-18) a phone that slows down when warm: the renderer behind with 45 % of the
+  // chunks all the while. Each pause longer when 60 FPS fails again soon after it came back: 5, 15, 30, 60, 60 s.
+  struct Run {
+    re4gx::SmoothPacer q;
+    std::vector<std::string> lines;
+    double t = 0.0;
+    unsigned n = 0;
+    // a chunk at 30 a second, the renderer behind with `share` of them (in twentieths, spread evenly)
+    void Step(double share) {
+      const bool behind = static_cast<double>(n++ % 20) < share * 20.0 - 0.5;
+      // (two pictures a chunk while on: 20 % of them 22 ms, the others 12 ms)
+      for (int k = 0; k < 2; k++)
+        q.Picture(t + k / 60.0, (n * 2 + k) % 5 == 0 ? 22.0 : 12.0);
+      std::string why;
+      q.Chunk(t, behind, &why);
+      if (!why.empty())
+        lines.push_back(why);
+      t += 1.0 / 30.0;
+    }
+    double UntilOff(double share, double most) {
+      const double from = t;
+      while (!q.Off() && t - from < most)
+        Step(share);
+      return t - from;
+    }
+    double UntilOn(double most) {
+      const double from = t;
+      while (q.Off() && t - from < most)
+        Step(0.45);
+      return t - from;
+    }
+    bool Last(const char *text) const { return !lines.empty() && lines.back().find(text) != std::string::npos; }
+    bool Any(const char *text) const {
+      for (const std::string &l : lines)
+        if (l.find(text) != std::string::npos)
+          return true;
+      return false;
+    }
+  };
+  {
+    Run r;
+    r.UntilOff(0.45, 10.0);
+    Check(r.q.Off() && r.Last("for 5 s (an even 30, step 1 of 4, 1 times so far; 60 FPS ran 2 s since it started"),
+          "pacer steps: the first pause 5 s (step 1)");
+    Check(r.Last("; pictures 14.0 ms, 90 % within 22.0 ms)"), "pacer steps: the give-up line tells the pictures' times");
+    const double first = r.UntilOn(100.0);
+    Check(first > 4.9 && first < 5.1 && r.Last("on again (the 5 s are over; behind again within 30 s: 15 s at an even 30, "
+                                               "step 2 of 4)"),
+          "pacer steps: on again after 5 s, the line tells the next step");
+    double pauses[5] = {};
+    bool soon = true;
+    for (double &pause : pauses) {
+      const double on = r.UntilOff(0.45, 60.0);
+      soon = soon && on > 3.5 && on < 4.5;  // (2 s of grace, 2 s to count 60 chunks)
+      pause = r.UntilOn(100.0);
+    }
+    Check(soon, "pacer steps: behind again 4 s after each pause");
+    const bool steps = pauses[0] > 14.9 && pauses[0] < 15.1 && pauses[1] > 29.9 && pauses[1] < 30.1 &&
+                       pauses[2] > 59.9 && pauses[2] < 60.1 && pauses[3] > 59.9 && pauses[3] < 60.1;
+    Check(steps && r.Any("for 15 s (an even 30, step 2 of 4") && r.Any("for 30 s (an even 30, step 3 of 4") &&
+              r.Any("for 60 s (an even 30, step 4 of 4") && r.Any("since it came back"),
+          "pacer steps: 15, 30, 60 s, then 60 s again");
+    // 60 FPS without a pause for 30 s after it came back: the first step again
+    r.lines.clear();
+    for (int i = 0; i < 31 * 30; i++)
+      r.Step(0.0);
+    Check(r.q.Step() == 1 && r.Any("30 s without a pause since it came back: the next pause is 5 s again"),
+          "pacer steps: 30 s of 60 FPS end the steps, with a line");
+    r.UntilOff(0.45, 10.0);
+    Check(r.Last("for 5 s (an even 30, step 1 of 4"), "pacer steps: the pause after that 5 s again");
+  }
+  {
+    // a strong phone: behind only now and then, minutes apart: every pause 5 s, as before 1.0.0
+    Run r;
+    bool five = true;
+    for (int k = 0; k < 4; k++) {
+      for (int i = 0; i < 120 * 30; i++)
+        r.Step(0.0);
+      r.UntilOff(0.35, 10.0);
+      five = five && r.Last("for 5 s (an even 30, step 1 of 4");
+      r.UntilOn(10.0);
+    }
+    Check(five && r.q.Offs() == 4, "pacer steps: give-ups minutes apart stay at 5 s");
+  }
+  {
+    // breaks while a pause of step 2 runs: the app menu closing and a stall leave it, a new room ends it (the step
+    // stays: behind again soon, step 3)
+    Run r;
+    r.UntilOff(0.45, 10.0);
+    r.UntilOn(10.0);
+    r.UntilOff(0.45, 10.0);
+    Check(r.q.Off() && r.q.Step() == 2, "pacer breaks: a pause of 15 s (step 2)");
+    for (int i = 0; i < 90; i++)
+      r.Step(0.45);
+    std::string why;
+    r.q.Break(r.t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kMenu, &why);
+    Check(r.q.Off() && why.empty(), "pacer breaks: the app menu closed: a pause of step 2 goes on");
+    r.q.Break(r.t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kStall, &why);
+    Check(r.q.Off() && why.empty(), "pacer breaks: a stall: a pause of step 2 goes on");
+    r.q.Break(r.t, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kRoom, &why);
+    Check(!r.q.Off() && why.find("on again (a new room, 12 s early;") != std::string::npos && r.q.Step() == 2,
+          "pacer breaks: a new room: on again at once, the step stays");
+    const double on = r.UntilOff(0.45, 20.0);
+    Check(on > 5.5 && on < 6.5 && r.Last("for 30 s (an even 30, step 3 of 4"),
+          "pacer breaks: behind again after the room's 4 s of grace: step 3");
+    // the benchmark's new start: the first step again
+    r.q.Restart(r.t);
+    Check(!r.q.Off() && r.q.Step() == 1, "pacer breaks: Restart (the benchmark): on, step 1");
+    r.UntilOff(0.45, 10.0);
+    Check(r.Last("for 5 s (an even 30, step 1 of 4"), "pacer breaks: after Restart the pause is 5 s");
+    // the app menu closing in a pause of the first step ends it, as before 1.0.0
+    why.clear();
+    r.q.Break(r.t + 1.0, re4gx::AutoLevel::kQuiet, re4gx::SmoothPacer::BreakKind::kMenu, &why);
+    Check(!r.q.Off() && why.find("on again (the app menu closed;") != std::string::npos,
+          "pacer breaks: the app menu closed in a pause of 5 s: on again");
+  }
+  {
+    // the tester's 10 minutes (behind with 45 % all the while): before 1.0.0 66 pauses, 5 of every 9 s at 30 and the
+    // other 4 s uneven; now about 12, more than 85 % of the time an even 30
+    Run r;
+    r.q.TakeMinute();
+    for (int i = 0; i < 600 * 30; i++)
+      r.Step(0.45);
+    const re4gx::SmoothPacer::Minute m = r.q.TakeMinute();
+    const double even = m.even / (m.sixty + m.even);
+    Check(m.switches >= 10 && m.switches <= 14 && m.switches == r.q.Offs() && even > 0.85 &&
+              m.sixty + m.even > 599.0 && m.sixty + m.even < 601.0,
+          "pacer steps: 10 minutes behind with 45 %: about 12 switches to 30, an even 30 most of the time");
+    const re4gx::SmoothPacer::Minute none = r.q.TakeMinute();
+    Check(none.sixty == 0.0 && none.even == 0.0 && none.switches == 0, "pacer: TakeMinute starts from 0 again");
+  }
 }
 
 // Larger draws of the same look keep the game's order (Retroid report 26.10.2026: with fast turns
@@ -5052,11 +5552,17 @@ void TestVkAhead() {
     return made;
   };
   Check(run(false, "first") == count, "vk ahead: every pipeline of the list made ahead");
+  Check(re4gx::ShaderPrep().state.load() == 2 && re4gx::ShaderPrep().total.load() == count &&
+            re4gx::ShaderPrep().done.load() == count,
+        "vk ahead: the preparation's progress through, every pipeline counted");
   FILE *mark = std::fopen((dirB + "/vk-ahead.done").c_str(), "rb");
   Check(mark != nullptr, "vk ahead: the list marked as made");
   if (mark)
     std::fclose(mark);
+  re4gx::ShaderPrep().state = 0;
   Check(run(false, "again") == 0, "vk ahead: a list made on this driver before is left out");
+  Check(re4gx::ShaderPrep().state.load() == 2 && re4gx::ShaderPrep().done.load() == count,
+        "vk ahead: made before: the preparation's progress through at once");
   Check(run(true, "merged draws on") == count, "vk ahead: another setting (merged draws) goes through it again");
   Check(run(true, "PSone demake on", true) == count, "vk ahead: the PSone demake's keys made too (another mark)");
   unsetenv("RE4_GX_VK_PIPE_LIST");
@@ -5141,6 +5647,11 @@ void TestPrewarm() {
     Check(w.keys == made + 2 && w.listed == 1 && w.linked == 2 && w.had == made && w.failed == 0 && w.stale == 1,
           "warm: the old key and the list's key linked on a thread of its own, the rest had binaries");
     Check(!warmingSeen, "warm: not warming once it returned");
+    // "Prepare shaders at start" (1.1.0): the progress went through every entry looked at (core_mode.cpp marks it
+    // through, state 2, when its thread ends)
+    Check(re4gx::ShaderPrep().state.load() == 1 && re4gx::ShaderPrep().total.load() >= w.keys &&
+              re4gx::ShaderPrep().done.load() == re4gx::ShaderPrep().total.load(),
+          "warm: the preparation's progress counted every entry");
   }
   Check(access((dir + "/0123456789abcdef.key").c_str(), F_OK) != 0 &&
             access((dir + "/0123456789abcdef.bin").c_str(), F_OK) != 0,
@@ -5657,6 +6168,7 @@ int main() {
       TestPictureCadence();  // (1.0.0: the pictures' pacing, no GPU either)
       TestVsyncPeriod();
       TestPictureHold();
+      TestSmoothPacer();  // (1.0.0: the pauses' steps of 60 FPS, no GPU either)
       std::fprintf(stderr, "gx_gl_check (rules): %d failed\n", gFailures);
       return gFailures ? 1 : 0;
     }
@@ -5685,6 +6197,16 @@ int main() {
     TestShadows(gr, "GL 2x");
     gr.Release();
   }
+  TestMipFunctions();
+  TestWideLines();
+  TestMadeMips(re4gx::GxApi::kGl, "GL");
+  TestSoftAlpha(re4gx::GxApi::kGl, "GL");
+#ifdef RE4_GX_VULKAN
+  if (VulkanStarts()) {
+    TestMadeMips(re4gx::GxApi::kVulkan, "Vulkan");
+    TestSoftAlpha(re4gx::GxApi::kVulkan, "Vulkan");
+  }
+#endif
   TestAutoLevel();
   TestAutoLevelGpu();
   TestBenchSteps();
@@ -5751,8 +6273,10 @@ int main() {
     TestPictureCadence();
     TestVsyncPeriod();
     TestPictureHold();
-    if (!poison)
+    if (!poison) {
       TestPresentPacer();
+      TestAutoSkip();
+    }
     TestFrameSkip(renderer);
     TestFog(renderer);
     TestShaderVariety(renderer);

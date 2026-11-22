@@ -2,7 +2,7 @@
 <!-- Indonesian (Bahasa Indonesia): the texts of values/strings_ingame.xml, same names and placeholders.
      The folder is values-in, the code every Android version uses for Indonesian (locales_config: id). -->
 <resources>
-    <string name="ingame_title">Menu Dalam Game CubeEvil4</string>
+    <string name="ingame_title">Opsi CubeEvil4</string>
     <string name="ingame_back">Kembali ke game</string>
 
     <string name="ingame_graphics">Grafis</string>
@@ -24,7 +24,33 @@
     <string name="ingame_laser_yellow">Kuning</string>
     <string name="ingame_postprocessing">Pascaproses</string>
     <string name="ingame_effects">Efek</string>
-    <string name="ingame_optional_features">Fitur opsional</string>
+    <string name="ingame_optional_features">Opsional</string>
+    <string name="ingame_side_filtering">Penyaringan</string>
+    <string name="ingame_side_features">Fitur</string>
+    <string name="ingame_side_levels">Level</string>
+    <string name="ingame_side_mute">Bisu</string>
+    <string name="ingame_side_touch_style">Gaya sentuh</string>
+    <string name="ingame_side_gyro">Giroskop</string>
+    <string name="ingame_side_axes">Sumbu</string>
+    <string name="ingame_side_control_type">Jenis kontrol</string>
+    <string name="ingame_side_assists">Bantuan</string>
+    <string name="ingame_side_aim_with">Bidik dengan</string>
+    <string name="ingame_side_view">Tampilan</string>
+    <string name="ingame_side_stick">Opsi stik</string>
+    <string name="ingame_mapping_section">Atur tombol dan tuts</string>
+    <string name="ingame_side_assign">Atur</string>
+    <string name="ingame_side_profile">Profil</string>
+    <string name="ingame_side_options">Opsi</string>
+    <string name="ingame_side_basic_weapons">Senjata dasar</string>
+    <string name="ingame_side_explosive_weapons">Senjata peledak</string>
+    <string name="ingame_side_unlocks">Buka kunci</string>
+    <string name="ingame_side_stacking">Tumpukan</string>
+    <string name="ingame_side_random">Acak</string>
+    <string name="ingame_side_advanced">Lanjutan</string>
+    <string name="ingame_side_main_character">Tokoh utama</string>
+    <string name="ingame_side_mercenaries">Mercenaries</string>
+    <string name="ingame_side_manage">Kelola</string>
+    <string name="ingame_side_texture_options">Opsi tekstur</string>
     <string name="ingame_perf_section">Performa</string>
     <string name="ingame_minimap">Peta mini</string>
     <string name="ingame_flares">Pantulan lensa (lens flare)</string>
@@ -39,6 +65,26 @@
     <string name="ingame_hud_hz">Hz layar</string>
     <string name="ingame_hud_time">J:M:D sejak awal permainan</string>
     <string name="ingame_hud_help">J:M:D adalah waktu bermain milik game itu sendiri, disimpan di setiap simpanan seperti di GameCube. Waktu di menu ini atau di latar belakang tidak dihitung.</string>
+    <string name="ingame_skip_intro">Lewati intro</string>
+    <string name="ingame_skip_intro_help">Lewati intro: saat mulai, game langsung ke menu judul tanpa logo dan peringatan kesehatan (mulai saat berikutnya dijalankan).</string>
+    <string name="ingame_photo_mode">Mode foto</string>
+    <string name="ingame_photo_mode_help">Mode foto: L3 (tekan stik kiri) di kontroler, P di keyboard, atau tombol \"Mode foto\" di atas menu ini membekukan permainan dan membebaskan kamera; kamera bisa bergerak ke seluruh ruangan dan berhenti di dinding. HUD, Leon, Ashley, dan musuh bisa disembunyikan satu per satu, L dan R mengganti efek kamera. Dalam mode foto, SELECT membuka menu ini untuk filter dan efek. Jika ini aktif, L3 dan P dipakai mode foto. Tidak tersedia saat adegan, film, menu, atau menyimpan. Ambil gambar dengan tangkapan layar perangkatmu.</string>
+    <string name="ingame_photo_title">Mode foto</string>
+    <string name="ingame_photo_hud">HUD</string>
+    <string name="ingame_photo_leon">Leon</string>
+    <string name="ingame_photo_partner">Ashley</string>
+    <string name="ingame_photo_enemies">Musuh</string>
+    <string name="ingame_photo_hint_pad">Stik kiri: gerak · Stik kanan: putar, miringkan · D-pad: naik/turun · L/R: efek kamera · X HUD · Y Leon · A Ashley · Z musuh · START atur ulang · SELECT menu · B atau L3 keluar</string>
+    <string name="ingame_photo_hint_keys">WASD: gerak · Mouse: lihat · E/Q: naik/turun · Shift cepat · Alt lambat · Roda atau 5/6: efek kamera · 1 HUD · 2 Leon · 3 Ashley · 4 musuh · R atur ulang · F1 menu · Esc atau P keluar</string>
+    <string name="ingame_photo_hint_touch">Separuh kiri: geser untuk bergerak · Separuh kanan: geser untuk melihat · Jari kedua: naik/turun · ◆: efek kamera · Ketuk: tampilkan ini · ✕ keluar</string>
+    <string name="ingame_photo_not_here">Mode foto tidak tersedia di sini (adegan, film, menu, menyimpan).</string>
+    <string name="ingame_photo_start">Mode foto</string>
+    <string name="ingame_photo_fx_normal">Normal</string>
+    <string name="ingame_photo_fx_wide">Sudut lebar</string>
+    <string name="ingame_photo_fx_tele">Telefoto</string>
+    <string name="ingame_photo_fx_dolly">Dolly zoom</string>
+    <string name="ingame_photo_fx_dutch">Sudut miring</string>
+    <string name="ingame_photo_fx_orbit">Mengitari</string>
     <string name="ingame_fps_bottom_left">Kiri bawah</string>
     <string name="ingame_fps_bottom_centre">Tengah bawah</string>
     <string name="ingame_fps_top_left">Kiri atas</string>
@@ -116,6 +162,8 @@
     <string name="ingame_gyro_sensitivity">Sensitivitas giroskop</string>
     <string name="ingame_gyro_invert_v">Balik vertikal</string>
     <string name="ingame_gyro_invert_h">Balik horizontal</string>
+    <string name="ingame_gyro_source">Giroskop dari</string>
+    <string name="ingame_gyro_source_help">Giroskop dari: Otomatis memakai giroskop controller yang kamu pakai bermain jika ada (misalnya DualSense atau DualShock 4; Android 12 ke atas), jika tidak memakai milik perangkat ini. Perangkat atau Controller selalu memakai yang itu. Giroskop tetap hanya membidik saat Leon mengangkat senjata.</string>
     <string name="ingame_alternate_help">Kontrol Alternatif: L1 = Pisau, L2 = Bidik (bidik dengan stik kanan), R1 = Inventaris (Senjata/Pemulihan), R2 = Tembak / gunakan pisau, Y = Peta. A, B, X (Ashley) dan START seperti sebelumnya. Teropong senapan: stik kiri ke atas/bawah untuk zoom.</string>
     <string name="ingame_knife_swipe">Pisau dengan Usapan</string>
     <string name="ingame_knife_swipe_help">Pisau dengan Usapan: usapan cepat melintasi gambar mencabut pisau dan menebas; usap ke atas atau ke bawah untuk menebas tinggi atau rendah.</string>
@@ -227,7 +275,7 @@
     <string name="ingame_controls_page">Kontrol</string>
     <string name="ingame_performance">Performa</string>
     <string name="ingame_management">Pengelolaan</string>
-    <string name="ingame_navigation">D-pad: Navigasi  ·  A: Pilih  ·  B: Kembali  ·  SELECT / START: Kembali ke game</string>
+    <string name="ingame_navigation">D-pad: Navigasi  ·  A: Pilih / berikutnya  ·  L1/R1 (Q/E): Ubah nilai  ·  B: Kembali  ·  SELECT / START: Kembali ke game</string>
     <string name="ingame_instant">Simpan cepat</string>
     <string name="ingame_slot">Slot simpanan</string>
     <string name="ingame_slot_details">Bab %1$s  ·  %2$s  ·  Waktu bermain %3$s</string>
@@ -269,7 +317,9 @@
     <string name="ingame_skip_aggressive">Agresif</string>
     <string name="ingame_vk_bandwidth">Hemat bandwidth (Vulkan)</string>
     <string name="ingame_fxaa">FXAA</string>
-    <string name="ingame_tv_filter">Filter TV GameCube asli</string>
+    <string name="ingame_aa_msaa">Anti-aliasing MSAA</string>
+    <string name="ingame_aa_fxaa">Anti-aliasing FXAA</string>
+    <string name="ingame_tv_filter">Filter TV GameCube</string>
     <string name="ingame_fxaa_help">Menghaluskan tepi bergerigi pada langkah terakhir. Bekerja dengan atau tanpa MSAA; gambar menjadi sedikit lebih lembut.</string>
     <string name="ingame_sharper_text">Teks menu lebih tajam</string>
     <string name="ingame_sharper_text_help">Teks menu lebih tajam menggambar kata-kata menu bawaan game dengan tepi yang tajam pada resolusi tinggi, dalam semua bahasa.</string>
@@ -287,6 +337,14 @@
     <string name="ingame_colour_help">Film hangat menonjolkan warna cokelat dan emas; Survival horror memudarkan warna dan mempertajam kontras. Kekuatan mengatur seberapa banyak.</string>
     <string name="ingame_skip_normal_help">Lewati frame Normal: saat chip grafis tertinggal, satu gambar yang sudah jadi dilewati agar game tetap berjalan dengan kecepatan normal.</string>
     <string name="ingame_skip_aggressive_help">Lewati frame Agresif: game sendiri melewati paling banyak satu dari dua gambar saat tertinggal; jauh lebih cepat di ponsel dengan prosesor lambat.</string>
+    <string name="ingame_skip_auto">Otomatis</string>
+    <string name="ingame_fs_off">Tanpa lewati frame</string>
+    <string name="ingame_fs_auto">Lewati frame otomatis</string>
+    <string name="ingame_fs_normal">Lewati frame normal</string>
+    <string name="ingame_fs_aggressive">Lewati frame agresif</string>
+    <string name="ingame_skip_auto_help">Lewati frame Otomatis: selama game berjalan dengan kecepatan penuh, tidak ada yang dilewati; hanya saat game bertahan di bawah 30 gambar per detik selama sekitar setengah detik, kedua jenis lewati frame membantu (pertama milik renderer; milik game hanya jika tetap di bawah 24 selama dua detik, dan lebih lembut daripada Agresif), sampai game kembali berjalan dua detik dengan kecepatan penuh.</string>
+    <string name="ingame_even_pacing">Ritme gambar merata</string>
+    <string name="ingame_even_pacing_help">Ritme gambar merata: Nyala (bawaan) menahan satu gambar bila perlu agar setiap gambar tampil sama lama di layar (30 stabil, dan 60 di layar lebih cepat dari 60 Hz). Mati menampilkan setiap gambar begitu siap, seperti di versi lama: sedikit lebih langsung, tapi kurang merata.</string>
     <string name="ingame_vk_bandwidth_help">Hanya Vulkan: menghemat bandwidth memori pada chip Mali dan Adreno; gambar tetap sama.</string>
     <string name="ingame_skip_or_smooth">Lewati frame dan 60 FPS tidak bisa aktif bersamaan: mengaktifkan yang satu menonaktifkan yang lain.</string>
     <string name="ingame_merge_help">Menggabungkan beberapa objek menjadi satu panggilan ke driver grafis. Dapat membantu ponsel dengan driver lambat (mis. GPU Mali); tidak berpengaruh dengan 60 FPS.</string>
@@ -316,6 +374,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Koper L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
+    <string name="ingame_cheat_stack">Tumpuk amunisi</string>
+    <string name="ingame_cheat_stack_help">Tumpuk amunisi: amunisi bertumpuk hingga 250, 500, atau 999 dalam satu slot (Standar: batas permainan). Granat, item pemulih, dan harta karun tetap seperti di permainan. Jika nanti memilih lebih kecil, tumpukan besar tetap ada dan terpakai satu per satu; barang yang diambil sesudahnya menempati slot baru.</string>
+    <string name="ingame_stack_standard">Standar</string>
+    <string name="ingame_cheat_refill">Isi ulang amunisi</string>
+    <string name="ingame_cheat_refill_full">Tidak ada yang diisi: tidak ada amunisi di koper, atau semuanya sudah penuh.</string>
+    <string name="ingame_cheat_refill_help">Isi ulang amunisi: setiap tumpukan amunisi di koper diisi sampai nilai \"Tumpuk amunisi\" (Standar: batas normal jenisnya); tidak ada amunisi baru, peluru yang terisi di senjata tetap.</string>
     <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; simpanan tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tak terlihat: musuh mengabaikan Anda, tetapi bos dan adegan tertentu tidak. Bidikan stabil: laser dan teropong senapan tidak bergoyang. Kostum: Jaket Leon membuat Leon memakai jaket cokelatnya sepanjang permainan; Spesial memakaikan Leon dan Ashley kostum spesial mereka. Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul.</string>
     <string name="ingame_cheat_done">Selesai: %1$s.</string>
     <string name="ingame_cheat_already">Sudah ada: %1$s.</string>
@@ -345,6 +409,7 @@
     <string name="ingame_later">Nanti</string>
     <string name="ingame_controller_config">Pemetaan Tombol</string>
     <string name="ingame_controller_config_help">Pemetaan Tombol: tempatkan setiap aksi game pada tombol controller atau keyboard Anda.</string>
+    <string name="ingame_ashley_hold_help">Ashley tersangkut? Tekan tombolnya (Tunggu / Ikuti) dua kali dengan cepat: dia muncul tepat di belakang Leon dan mengikutinya.</string>
     <string name="ingame_stick_dead_zone">Zona mati stik</string>
     <string name="ingame_stick_range">Jangkauan stik</string>
     <string name="ingame_stick_help">Zona mati stik: gerakan kecil di sekitar tengah diabaikan (untuk stik yang bergeser sendiri). Jangkauan stik: stik yang ditekan sejauh ini sudah dihitung ditekan penuh, agar Leon berjalan dan berlari dengan mantap. Nilai bawaan membiarkan stik apa adanya; kontrol sentuh tidak terpengaruh.</string>
@@ -389,6 +454,10 @@
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
     <string name="ingame_mouse_help">Mouse (Android 8 ke atas) mengendalikan game selama game berjalan: memutar kamera dan menggerakkan bidikan; rodanya mengatur zoom teropong senapan dan teropong. Menu aplikasi (F1) melepaskan penunjuk.</string>
     <string name="ingame_keyboard_c_help">Pisau: tahan tombolnya dan bidik dengan mouse. Tombol stik C (bawaan I, K, J, L) memutar kamera dan melakukan zoom pada teropong senjata dan teropong.</string>
+    <string name="ingame_quick_reload">Isi ulang tanpa membidik</string>
+    <string name="ingame_quick_reload_help">Isi ulang tanpa membidik (keyboard): tombol isi ulang saja (bawaan R) mengisi ulang tanpa mengangkat senjata dulu.</string>
+    <string name="ingame_force_controller">Paksa deteksi kontroler</string>
+    <string name="ingame_force_controller_help">Paksa deteksi kontroler: gunakan jika gamepad tidak terdeteksi atau Android menganggapnya keyboard: setiap tombol perangkat eksternal lalu dihitung sebagai tombol kontroler dan bisa diatur di atas. Keyboard sungguhan juga dihitung sebagai kontroler, jadi matikan ini untuk bermain dengan keyboard dan mouse (mouse tetap berfungsi). Tombol perangkat sendiri, kontrol sentuh, dan tombol volume tetap seperti biasa.</string>
     <string name="ingame_mouse_sensitivity">Sensitivitas Mouse</string>
     <string name="ingame_map_controller">Controller</string>
     <string name="ingame_map_device">Perangkat</string>
@@ -398,6 +467,11 @@
     <string name="ingame_cheat_section_player">Pemain</string>
     <string name="ingame_cheat_section_weapons">Senjata</string>
     <string name="ingame_cheat_section_game">Umum &amp; inventaris</string>
+    <string name="ingame_cheat_section_world">Musuh dan lingkungan</string>
+    <string name="ingame_health_bars">Bar nyawa musuh</string>
+    <string name="ingame_health_bars_help">Bar nyawa musuh: bar kecil di atas setiap musuh menunjukkan nyawanya (hijau, kuning di bawah seperempat, merah di bawah sepersepuluh); tidak di adegan dan menu.</string>
+    <string name="ingame_more_enemies">Lebih banyak musuh</string>
+    <string name="ingame_more_enemies_help">Lebih banyak musuh: sekitar 40 persen lebih banyak Ganado biasa di sebuah ruangan, di tempat acak, di semua tingkat kesulitan; mulai ruangan berikutnya. Bos, musuh khusus, dan gelombang tetap seperti semula; hanya di cerita utama.</string>
     <string name="ingame_dof_light">Ringan</string>
     <string name="ingame_dof_strong">Kuat</string>
     <string name="ingame_player_view">Pandangan Pemain</string>
@@ -469,6 +543,17 @@
     <string name="ingame_shader_cache_help">Game menyimpan shader yang sudah dibuat agar adegan tidak tersendat lagi. Kosongkan hanya jika muncul kesalahan grafis setelah pembaruan; adegan pertama lalu bisa tersendat sekali.</string>
     <string name="ingame_shader_clear">Kosongkan cache shader</string>
     <string name="ingame_shader_clear_text">Game dimulai ulang dan menghapus shader yang sudah dibuat. Game membuatnya lagi saat Anda bermain, jadi adegan pertama bisa tersendat. Progres sejak penyimpanan terakhir akan hilang.</string>
+    <string name="ingame_shader_prep">Muat shader saat mulai</string>
+    <string name="ingame_shader_prep_help">Muat shader saat mulai: setiap mulai lebih dulu menyiapkan semua shader yang dikenal (program chip grafis) dan menunjukkan kemajuannya; setelah itu ruangan dan efek tidak tersendat saat pertama kali muncul. Pertama kali butuh sekitar satu menit dengan Vulkan dan hingga beberapa menit dengan OpenGL ES di ponsel lambat, setelahnya hanya detik. Tidak bisa dilewati. Butuh RAM 4 GB atau lebih.</string>
+    <string name="ingame_shader_prep_low_ram">Butuh RAM minimal 4 GB (perangkat ini punya %1$s GB).</string>
+    <string name="ingame_shader_prep_title">Menyiapkan shader…</string>
+    <string name="ingame_shader_prep_line">Setelah disiapkan, tidak akan tersendat lagi. Harap tunggu, ini tidak bisa dilewati.</string>
+    <string name="ingame_output_res">Resolusi tampilan</string>
+    <string name="ingame_output_res_help">Resolusi tampilan: ukuran gambar yang dikirim ke layar; layar meregangkannya ke pikselnya sendiri. Lebih rendah lebih cepat di ponsel dengan layar sangat tajam (di atas 1080p), terutama dengan CRT, bloom, FXAA, atau penajaman, dan sedikit lebih lembut. Asli: ukuran layar itu sendiri. Resolusi di atas (3D permainan) tetap sama.</string>
+    <string name="ingame_upscaler">Upscaler</string>
+    <string name="ingame_upscaler_sgsr">SGSR (ringan)</string>
+    <string name="ingame_upscaler_fsr">FSR (kuat)</string>
+    <string name="ingame_upscaler_help">Upscaler: cara gambar game diperbesar saat lebih kecil dari tempatnya di layar (resolusi di atas lebih rendah dari resolusi layar). Mati: peregangan biasa yang lembut. SGSR (Qualcomm Snapdragon Game Super Resolution): tepi lebih tajam, kerja ringan bagi ponsel; disarankan. FSR (AMD FidelityFX Super Resolution 1): paling tajam, sekitar dua kali kerja SGSR. Tidak ada yang berubah saat gambar sebesar tempatnya, juga dengan filter CRT.</string>
     <!-- textures: Cheats &amp; Mods, HD textures (port/docs/textur-lader-plan.md) -->
     <string name="ingame_mods">Mod</string>
     <string name="ingame_hd_textures">Tekstur HD</string>

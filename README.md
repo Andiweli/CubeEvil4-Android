@@ -2,17 +2,16 @@
 
 # CubeEvil4
 
-![Beta](https://img.shields.io/badge/Status-Beta-E67E22)
+![Release](https://img.shields.io/badge/Status-Release-2EA44F)
 ![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![ARM 32/64-bit](https://img.shields.io/badge/ARM-32%2F64--bit-0091BD?logo=arm&logoColor=white)
-![OpenGL ES 3.0+](https://img.shields.io/badge/OpenGL%20ES-3.0%2B-5586A4?logo=opengl&logoColor=white)
-![Vulkan](https://img.shields.io/badge/Vulkan-AC162C?logo=vulkan&logoColor=white)
+![API](https://img.shields.io/badge/API-OpenGL%20ES%203.0%2B%20/%20Vulkan-5586A4?logo=api&logoColor=white)
 ![Input](https://img.shields.io/badge/Input-Touch%2FGamepad%2FKeyb%2BMouse-9A1B1C)
 
 
 [![Join The Lair on Discord](https://img.shields.io/badge/Discord-The%20Lair-5865F2?logo=discord&logoColor=white)](https://discord.gg/AB3WVBqD5G)
 
-**[REQUIREMENTS](#requirements) | [STATUS](#status) | [HOW TO USE](#how-to-use) | [DISCORD](https://discord.gg/AB3WVBqD5G) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [BETA RELEASE](https://github.com/Andiweli/CubeEvil4-Android/releases)**
+**[REQUIREMENTS](#requirements) | [HOW TO](#how-to-use) | [WIKI](https://github.com/Andiweli/CubeEvil4-Android/wiki) | [RELEASES](https://github.com/Andiweli/CubeEvil4-Android/releases)**
 
 > [!NOTE]
 > There is also a fork that is more focused on modding the hell out of the game.  
@@ -67,7 +66,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   middleware with picture and ADX sound.
 - Releases: the European retail release (`G4BP08`) with its five languages, chosen in the app menu
   (default: your phone's language), the US retail release (`G4BE08`, English) and the Japanese retail
-  release (`G4BJ08`, in Japanese; the Korean fan translation in Korean). All use the same memory card.
+  release (`G4BJ08`, in Japanese). All use the same memory card.
 - Memory card as a file inside the app, with `.gci` import and export (Dolphin, GameCube); imports also
   take a whole Dolphin card (`.raw`, `.gcp`), a ZIP file and European saves.
 - Controller like the GameCube pad, with vibration, or a second layout (Alternate Controls,
@@ -103,7 +102,8 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | **E** | Dimensity 700 / 720 / 810 / 800U | Mali-G57 MC2–MC3 | with heavily reduced resolution (approx. 480–720p) and graphics, 30 fps not guaranteed |
 | **E** | Helio G99 / G96 | Mali-G57 MC2 | as above |
 | **E** | Helio G80 / G85 / G88, Exynos 850, Unisoc T606 / T610 / T618 | Mali-G52 MC1–MC2 | borderline, often stutters |
-| **E** | Snapdragon 4 series, Helio G35 and similar | Adreno 610 and below / Mali-G52 MC1 | not recommended |
+| **E** | Snapdragon 680 / 685 | Adreno 610 | 30 fps at low settings (the GameCube's resolution, Potato mode); with 60 fps on, 60 on quiet paths and 30–60 in the village (user report: Redmi Note 11) |
+| **E** | Snapdragon 4 series (older, e.g. 450 / 460), Helio G35 and similar | Adreno 506 / 610 with a slower processor / PowerVR GE8320 | not recommended |
 
 ### Here are the recommended minimum requirements for CubeEvil4...
 
@@ -116,7 +116,7 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
 | Free storage | about 3 GB, to import both discs | – |
 | Input | a game controller (built in, USB or Bluetooth) or the touch screen | a game controller |
 | Gyroscope | – | for gyro aiming (optional) |
-| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`, also the Korean fan translation) | – |
+| Game data | your own disc images (ISO, GCM or RVZ) of **both** discs of either the European retail release (`G4BP08`), the US retail release (`G4BE08`) or the Japanese retail release (`G4BJ08`) | – |
 
 
 ## How to use?
@@ -129,9 +129,8 @@ If you do not own the game, please buy it: the remake (see above) or one of the 
   on their own when no controller is connected, and after a tap on the screen (app menu → Touch
   Controls: Auto, Force or Suppress).
 - Your own disc images (ISO, GCM or RVZ) of **both** discs of the European retail release
-  (`G4BP08`), of the US retail release (`G4BE08`) or of the Japanese retail release (`G4BJ08`, also
-  the Korean fan translation), and enough free storage to import them. Both discs must be of the
-  same release.
+  (`G4BP08`), of the US retail release (`G4BE08`) or of the Japanese retail release (`G4BJ08`), and
+  enough free storage to import them. Both discs must be of the same release.
 
 **First start**
 
@@ -375,6 +374,39 @@ purpose. Constants use the PS2 build's enums. `docs/naming.md` has the details.
 See `CONTRIBUTING.md` for the build, the three checks a change has to pass and the rules. The main rule
 is that the output bytes never change.
 
+## Official sources and forks
+
+CubeEvil4 is developed by **Andiweli**. Official releases come only from:
+
+- this repository's [Releases](https://github.com/Andiweli/CubeEvil4-Android/releases)
+- the CubeEvil4 [Discord](https://discord.gg/AB3WVBqD5G)
+
+Forks are welcome, the license allows them. If you publish one:
+
+- keep "CubeEvil4 by Andiweli", the link to this repository and the license;
+- give your version a name of its own ("… based on CubeEvil4" is fine);
+- say what you changed;
+- do not present it as the official CubeEvil4 or as your own development.
+
+The exact terms are in [port/LICENSE](port/LICENSE), "Additional terms".
+
+## License
+
+| What | Whose | License |
+|---|---|---|
+| The Android port CubeEvil4 in `port/`: the app, the renderer, the runtime, the patches, the Texture Packer, the tools and the documents | Andiweli | GPL-3.0-or-later, with an additional permission for the game code and, from 20 November 2026, additional terms (attribution, modified versions, the name): [port/LICENSE](port/LICENSE) |
+| The decompilation's own tools, configuration and documentation (`configure.py`, `tools/`, `config/`, `docs/`) | the decompilation's authors | CC0 1.0: [LICENSE](LICENSE) |
+| The game code (`src/`, `include/`) | Capcom | none of these: Capcom's property |
+| The GameCube SDK and the CRI middleware (`src/lib/`) | Nintendo, CRI Middleware | none of these: their property |
+| Libraries and icons from others in `port/` (RetroTouch, zstd, glslang, Boost.Context, Lucide) | their authors | their own licenses (RetroTouch: MIT), see their notices |
+| Game data | Capcom | not included: you need your own copy of the game |
+
+The license covers only this project's own code. It does not cover Capcom's game, which you must
+own. In short: whoever shares a modified build of CubeEvil4 must share its source code too, under
+the same license; the additional permission lets that build contain the game code. Code
+published before 1.0.0, including earlier branches on GitHub, stays under the terms it was
+published with (CC0 for the project's own work).
+
 ## Legal
 
 - **Unofficial fan project.** CubeEvil4 is a non-commercial fan project. It is not affiliated with,
@@ -396,8 +428,9 @@ is that the output bytes never change.
   and the CubeEvil4 Texture Packer only read packs you converted yourself from material you obtained
   yourself, as in Dolphin. Texture packs are the work of their authors; they are not part of this project.
 - **No warranty.** The app is provided "as is", without any warranty. Use it at your own risk.
-- **Our own work.** The build scripts, tools, Android app shell, configuration and documentation
-  written for this project are released under CC0, see `LICENSE`. This does not extend to any
-  Capcom, Nintendo or CRI material.
+- **Our own work.** The Android port's own code and documents in `port/` are released under the
+  GPL-3.0-or-later with an additional permission for the game code (`port/LICENSE`); the
+  decompilation's own build scripts, tools, configuration and documentation are released under CC0
+  (`LICENSE`). Neither extends to any Capcom, Nintendo or CRI material.
 - **Rights holders.** If you represent Capcom, Nintendo or CRI Middleware and have concerns about this
   project, please open an issue or contact the maintainer; we will respond promptly.

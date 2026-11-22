@@ -34,7 +34,7 @@ NAME = "strings_ingame.xml"
 JAVA = [ROOT / "app/src/main/java/com/ast/re4decomp" / f for f in ("CoreMenu.java", "CoreActivity.java", "CoreBridge.java",
                                                                   "AppUpdate.java", "BenchmarkFlow.java",
                                                                   "PerfProfile.java", "TextureImportActivity.java",
-                                                                  "UnofficialWarning.java")]
+                                                                  "UnofficialWarning.java", "PhotoMode.java", "ShaderPrepScreen.java")]
 PREFIX = "ingame_"
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z]")
 LOCALES = "xml/locales_config.xml"

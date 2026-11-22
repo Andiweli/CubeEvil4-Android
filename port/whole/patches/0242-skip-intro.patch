@@ -1,0 +1,33 @@
+# Port patch (1.1.0, wish of the project owner, 19.11.2026): "Skip intro" (the app menu's Display, Optional features,
+# off by default; RE4_SKIP_INTRO=1). titleWait goes from the loaded title (memory card check, system file, title sound
+# bank and title.dat already waited for) straight to the main menu, the way the game itself does after a soft reset
+# (pRK->logo_skip_enable), starts the title music the skipped logos would start and fades the title in (0.6 s). Left out: the Nintendo logo,
+# the health warning, the Capcom, CRI and Dolby logos. Off: as the game.
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -150,6 +150,7 @@
+ // State 1: waits for the memory card check and the sound bank, loads "SS/<lang>/title.dat" and its
+ // textures, then goes to the Nintendo logo — or, when the title was already shown (pRK) straight
+ // to the main menu (or the omake menu after an Ada / Mercenaries session).
++extern "C" int re4_title_skip_logos(void); /* port (patch 0242): runtime/title_skip.cpp */
+ void titleWait(TITLE_WORK* w)
+ {
+     static char title_dat[] = "SS/___/title.dat";
+@@ -189,6 +190,17 @@
+                 w->counter = 0;
+                 w->dbg_mode = 0;
+             }
++            /* port (patch 0242): "Skip intro" (runtime/title_skip.cpp): on the first start too, as after a soft reset;
++               the title music the logos would start (titleLogo, LOGO_CALL_FRAME) at once */
++            if (pRK->logo_skip_enable == 0 && re4_title_skip_logos()) {
++                GXColor black = {0, 0, 0, 0xFF};  /* by its bytes: a new line, so no RE4_BE view of FadeColor.w */
++                GXColor clear = {0, 0, 0, 0};
++                SndCall(6, 4, 0, 0, 0, 0);
++                w->sndFlag = 0;
++                pRK->logo_skip_enable = 1;
++                /* the title fades in from black over 18 frames (0.6 s), as the Nintendo logo fades in */
++                FadeSet(0x80000000, &black, &clear, 18, 0, 0);
++            }
+             if (pRK->logo_skip_enable != 0) {
+                 w->Rno0 = 5;
+                 w->counter = TTL_START_BIO4;
