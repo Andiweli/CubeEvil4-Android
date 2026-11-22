@@ -79,7 +79,19 @@ final class OuyaMenu extends Dialog {
                 DETAILED_LIGHT = "detailedLight",
                 // 1.0.0 (wish of the project owner, 17.11.2026): "Invert vertical" (the game's own option, also with
                 // the keyboard), "Use performance cores" (old phones with fast and slow cores; the OUYA's are alike)
-                INVERT = "invertVertical", FAST_CORES = "fastCores";
+                INVERT = "invertVertical", FAST_CORES = "fastCores",
+                // 1.1.0 (the project owner, 22.11.2026): "Skip intro" (RE4_SKIP_INTRO at the start, patch 0242),
+                // "Reload without aiming" (the keyboard's R, re4ipc_quick_reload, patch 0241), the cheat "Stack ammo"
+                // (a slot's most: 0 Standard, 250, 500, 999; patch 0254)
+                SKIP_INTRO = "skipIntro", QUICK_RELOAD = "quickReload", STACK_MAX = "stackMax";
+        static final int[] STACK_STEPS = {0, 250, 500, 999};
+        static boolean skipIntro(SharedPreferences p) { return p.getBoolean(SKIP_INTRO, false); }
+        static boolean quickReload(SharedPreferences p) { return p.getBoolean(QUICK_RELOAD, false); }
+        /** "Stack ammo": the step 0..3 of STACK_STEPS (bits 21..22 of the aim bits, the main app's optStackItems). */
+        static int stackStep(SharedPreferences p) {
+            int max = p.getInt(STACK_MAX, 0);
+            return max >= 999 ? 3 : max >= 500 ? 2 : max >= 250 ? 1 : 0;
+        }
         // the first start's settings (wish of the project owner, 14.11.2026): resolution 75 %, view distance 35 %,
         // colours simplified, every Potato effect off, frame skip Normal
         static final int EIGHTHS_DEFAULT = 6, VIEW_DEFAULT = 35;
@@ -137,10 +149,11 @@ final class OuyaMenu extends Dialog {
                     | (particles(p) << 2) | (p.getBoolean(SHADOWS, false) ? 0 : 16);
         }
         /** re4_core_set_aim: speed 100 % << 8, bit 0 invert vertical, bit 1 auto aim, bit 2 always run, bit 3 far
-         *  camera. */
+         *  camera, bits 21..22 the cheat "Stack ammo" (1.1.0). */
         static int aim(SharedPreferences p) {
             return 100 << 8 | (p.getBoolean(INVERT, false) ? 1 : 0) | (p.getBoolean(AUTO_AIM, false) ? 2 : 0)
-                    | (p.getBoolean(ALWAYS_RUN, false) ? 4 : 0) | (p.getBoolean(FAR_CAMERA, false) ? 8 : 0);
+                    | (p.getBoolean(ALWAYS_RUN, false) ? 4 : 0) | (p.getBoolean(FAR_CAMERA, false) ? 8 : 0)
+                    | stackStep(p) << 21;
         }
         static boolean fastCores(SharedPreferences p) { return p.getBoolean(FAST_CORES, false); }
     }
@@ -280,17 +293,25 @@ final class OuyaMenu extends Dialog {
         LinearLayout camera = buttonsRow();
         toggle(camera, R.string.ingame_far_camera, Settings.FAR_CAMERA);
         toggle(camera, R.string.ingame_gentle_qte, Settings.GENTLE_QTE, true);
+        // beside "Invert vertical": "Skip intro" (1.1.0, from the next start)
         LinearLayout invert = buttonsRow();
         toggle(invert, R.string.ingame_aim_invert_v, Settings.INVERT);
-        invert.addView(new View(getContext()), cell());
+        toggle(invert, R.string.ingame_skip_intro, Settings.SKIP_INTRO);
         help(R.string.ingame_auto_aim_help);
         help(R.string.ingame_always_run_help);
         help(R.string.ingame_far_camera_help);
         help(R.string.ouya_gentle_qte_help);
         help(R.string.ouya_invert_help);
-        // keyboard and mouse (1.0.0): the main app's default keys (OuyaKeyboard)
+        help(R.string.ingame_skip_intro_help);
+        // Ashley's catch-up (1.1.0, runtime/ashley_catchup.cpp): no switch, the game always does it
+        help(R.string.ingame_ashley_hold_help);
+        // keyboard and mouse (1.0.0): the main app's default keys (OuyaKeyboard); "Reload without aiming" (1.1.0)
         subheading(R.string.ingame_map_keyboard);
+        LinearLayout reload = buttonsRow();
+        toggle(reload, R.string.ingame_quick_reload, Settings.QUICK_RELOAD);
+        reload.addView(new View(getContext()), cell());
         help(R.string.ouya_keyboard_help);
+        help(R.string.ingame_quick_reload_help);
         if (host.touchAvailable())
             touch();
         cheats();
@@ -411,6 +432,10 @@ final class OuyaMenu extends Dialog {
         LinearLayout inventory = buttonsRow();
         cheatButton(inventory, 2, R.string.ingame_cheat_case);
         cheatButton(inventory, 3, R.string.ingame_cheat_money);
+        // "Stack ammo" and "Refill ammo" beside it (1.1.0, the main app's GENERAL AND INVENTORY; action 10)
+        LinearLayout ammo = buttonsRow();
+        stackSwitch(ammo);
+        cheatButton(ammo, 10, R.string.ingame_cheat_refill);
         cheatStatus = text("", 15, false);
         cheatStatus.setTextColor(GOLD);
         cheatStatus.setPadding(dp(GAP), dp(6), dp(GAP), dp(2));
@@ -418,6 +443,30 @@ final class OuyaMenu extends Dialog {
         body.addView(cheatStatus);
         help(R.string.ingame_cheats_help);
         help(R.string.ingame_cheat_random_items_help);
+        help(R.string.ingame_cheat_stack_help);
+        help(R.string.ingame_cheat_refill_help);
+    }
+
+    /** "Stack ammo · Standard / 250 / 500 / 999" (1.1.0, the main app's selector): each press the next step. */
+    private void stackSwitch(LinearLayout parent) {
+        final Button b = button("", null);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int next = (Settings.stackStep(prefs) + 1) % Settings.STACK_STEPS.length;
+                prefs.edit().putInt(Settings.STACK_MAX, Settings.STACK_STEPS[next]).apply();
+                stackLabel(b, next);
+                host.settingsChanged();
+            }
+        });
+        stackLabel(b, Settings.stackStep(prefs));
+        parent.addView(b, cell());
+    }
+
+    private void stackLabel(Button b, int step) {
+        b.setSelected(step != 0);
+        b.setText(getContext().getString(R.string.ingame_toggle_value, s(R.string.ingame_cheat_stack),
+                step == 0 ? s(R.string.ingame_stack_standard) : String.valueOf(Settings.STACK_STEPS[step])));
     }
 
     /** "Costumes · Normal / Leon's jacket / Special" (the main app's CoreMenu.costumeSwitch, 1.0.0): each press the
@@ -574,7 +623,9 @@ final class OuyaMenu extends Dialog {
         if (!isShowing() || cheatStatus == null)
             return;
         final String text;
-        if (done == 1)
+        if (done == 2 && what == 10)
+            text = s(R.string.ingame_cheat_refill_full);
+        else if (done == 1)
             text = getContext().getString(R.string.ingame_cheat_done, s(label));
         else if (done == 2 && (what == 1 || what >= 5))
             text = getContext().getString(R.string.ingame_cheat_raised, s(label));

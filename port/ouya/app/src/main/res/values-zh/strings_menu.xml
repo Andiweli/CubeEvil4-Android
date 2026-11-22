@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato 游戏内菜单</string>
+    <string name="ingame_title">CubeEvil4 Potato 选项</string>
     <string name="ingame_back">返回游戏</string>
     <string name="ingame_graphics">图形</string>
     <string name="ingame_resolution">分辨率</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">使用性能核心</string>
     <string name="ingame_perf_help">性能核心：游戏在设备最快的核心上以更高频率运行。在许多手机上更流畅，但设备会更热。默认：由 Android 决定。</string>
     <string name="ingame_map_keyboard">键盘和鼠标</string>
+    <string name="ingame_skip_intro">跳过开场</string>
+    <string name="ingame_skip_intro_help">跳过开场：启动时游戏直接进入标题菜单，不显示标志和健康警告（下次启动起生效）。</string>
+    <string name="ingame_ashley_hold_help">Ashley 卡住了？快速按两下她的按钮（等待 / 跟随）：她会出现在里昂身后并跟随他。</string>
+    <string name="ingame_cheat_stack">弹药堆叠</string>
+    <string name="ingame_cheat_stack_help">弹药堆叠：弹药在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）。手榴弹、回复道具和宝物保持游戏原样。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
+    <string name="ingame_stack_standard">标准</string>
+    <string name="ingame_cheat_refill">补满弹药</string>
+    <string name="ingame_cheat_refill_full">没有可补充的：箱子里没有弹药，或已全部补满。</string>
+    <string name="ingame_cheat_refill_help">补满弹药：箱子里的每一堆弹药都会补到“弹药堆叠”的数值（标准：该种类的正常上限）；不会添加新弹药，武器中已装填的子弹不变。</string>
+    <string name="ingame_quick_reload">无需瞄准即可装弹</string>
+    <string name="ingame_quick_reload_help">无需瞄准即可装弹（键盘）：单按装弹键（默认 R）即可装弹，无需先举起武器。</string>
     <string name="ingame_cheat_extras_text">Assignment Ada 和 The Mercenaries 已解锁（还有 Professional，与通关后相同）。重新启动后，标题菜单会显示它们。自上次存档以来的进度将会丢失。</string>
     <string name="ingame_cheat_extras_later">已解锁：下次重新启动后，Assignment Ada 和 The Mercenaries 会出现在标题菜单中。</string>
     <string name="ingame_cheat_extras_already">已经解锁：Assignment Ada 和 The Mercenaries 已在标题菜单中。</string>
@@ -154,6 +165,6 @@
     <string name="ouya_light_help">精细光照：关闭后，环境按每个物体计算一次光照，而不是逐点计算（角色保持原样）；在 OUYA 上明显更快，地面和树木看起来略平。立即生效。</string>
     <string name="ouya_source_only">此版本以及 CubeEvil4 的完整 Android 版本仅在此处提供。\n请勿从其他网站或游戏平台下载。</string>
     <string name="ouya_invert_help">垂直反转：上下瞄准方向相反，适用于手柄、键盘和触屏操作（游戏自身的选项）。</string>
-    <string name="ouya_keyboard_help">键盘和鼠标：W A S D 移动（并瞄准），Shift 奔跑，E 互动，鼠标右键瞄准，左键射击，瞄准时按 R 装弹，C 拿出小刀，Q 呼叫阿什莉，Tab 打开手提箱，M 地图，Esc 选项，F1 本菜单。I J K L 转动镜头，鼠标滚轮缩放瞄准镜。方向键、Enter 和退格键可在游戏菜单中使用。鼠标指针不能瞄准。</string>
+    <string name="ouya_keyboard_help">键盘和鼠标：W A S D 移动（并瞄准），Shift 奔跑，E 互动，鼠标右键瞄准，左键射击，瞄准时按 R 装弹，C 拿出小刀，Q 呼叫阿什莉，Tab 打开手提箱，M 地图，Esc 选项，F1 本菜单。I J K L 转动镜头，鼠标滚轮缩放瞄准镜。方向键、Enter 和退格键可在游戏菜单中使用。鼠标指针不能瞄准。在游戏的标题菜单和选项菜单中，鼠标指针选择条目，单击左键确认。</string>
     <string name="ouya_gentle_qte_help">更宽松的 QTE：在 Professional 难度下，快速反应事件给出与 Normal 相同的时间和所需按键次数；伤害和敌人仍保持 Professional。</string>
 </resources>

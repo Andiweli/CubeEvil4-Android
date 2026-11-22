@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato · Menu en jeu</string>
+    <string name="ingame_title">Options CubeEvil4 Potato</string>
     <string name="ingame_back">Retour au jeu</string>
     <string name="ingame_graphics">Graphismes</string>
     <string name="ingame_resolution">Résolution</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">Utiliser les cœurs performants</string>
     <string name="ingame_perf_help">Cœurs performants\u00A0: le jeu tourne sur les cœurs les plus rapides de l’appareil, à des fréquences plus élevées. Plus fluide sur de nombreux téléphones, mais l’appareil chauffe davantage. Par défaut\u00A0: Android décide.</string>
     <string name="ingame_map_keyboard">Clavier et souris</string>
+    <string name="ingame_skip_intro">Passer l’intro</string>
+    <string name="ingame_skip_intro_help">Passer l’intro : au démarrage, le jeu va directement à son menu titre, sans les logos ni l’avertissement de santé (au prochain démarrage).</string>
+    <string name="ingame_ashley_hold_help">Ashley est bloquée ? Appuie deux fois vite sur son bouton (Attendre / Suivre) : elle apparaît juste derrière Leon et le suit.</string>
+    <string name="ingame_cheat_stack">Empiler les munitions</string>
+    <string name="ingame_cheat_stack_help">Empiler les munitions : les munitions s’empilent jusqu’à 250, 500 ou 999 dans une case (Standard : les limites du jeu). Les grenades, les objets de soin et les trésors restent comme dans le jeu. Si vous choisissez moins ensuite, les piles plus grandes restent et s’utilisent une par une ; ce que vous ramassez ensuite prend une nouvelle case.</string>
+    <string name="ingame_stack_standard">Standard</string>
+    <string name="ingame_cheat_refill">Recharger les munitions</string>
+    <string name="ingame_cheat_refill_full">Rien à remplir : pas de munitions dans la mallette, ou tout est plein.</string>
+    <string name="ingame_cheat_refill_help">Recharger les munitions : chaque pile de munitions de la mallette est remplie jusqu’à la valeur de « Empiler les munitions » (Standard : le maximum normal de son type) ; pas de nouvelles munitions, les balles chargées des armes restent.</string>
+    <string name="ingame_quick_reload">Recharger sans viser</string>
+    <string name="ingame_quick_reload_help">Recharger sans viser (clavier) : la touche de rechargement seule (R par défaut) recharge sans lever l’arme d’abord.</string>
     <string name="ingame_cheat_extras_text">Assignment Ada et The Mercenaries sont débloqués (Professional aussi, comme après avoir fini le jeu). Le menu titre les affiche après un redémarrage. La progression depuis votre dernière sauvegarde est perdue.</string>
     <string name="ingame_cheat_extras_later">Débloqués : Assignment Ada et The Mercenaries apparaîtront dans le menu titre au prochain redémarrage.</string>
     <string name="ingame_cheat_extras_already">Déjà débloqués : Assignment Ada et The Mercenaries sont dans le menu titre.</string>
@@ -156,6 +167,6 @@
     <string name="ouya_light_help">Éclairage détaillé : désactivé, l’environnement est éclairé une fois par objet au lieu de chaque point (les personnages gardent le leur) ; nettement plus rapide sur l’OUYA, le sol et les arbres paraissent un peu plus plats. S’applique aussitôt.</string>
     <string name="ouya_source_only">Cette version et la version Android complète de CubeEvil4 ne sont disponibles qu’ici.\nÉvitez les téléchargements depuis d’autres sites ou plateformes de jeux.</string>
     <string name="ouya_invert_help">Inverser l’axe vertical : viser vers le haut et vers le bas dans l’autre sens, avec la manette, le clavier et les commandes tactiles (l’option du jeu lui-même).</string>
-    <string name="ouya_keyboard_help">Clavier et souris : W A S D pour se déplacer (et viser), Maj pour courir, E pour agir, le bouton droit de la souris vise, le gauche tire, R recharge en visant, C sort le couteau, Q appelle Ashley, Tab ouvre la mallette, M la carte, Échap les options, F1 ce menu. I J K L tournent la caméra, la molette zoome la lunette. Flèches, Entrée et Retour arrière servent dans les menus du jeu. Le pointeur de la souris ne vise pas.</string>
+    <string name="ouya_keyboard_help">Clavier et souris : W A S D pour se déplacer (et viser), Maj pour courir, E pour agir, le bouton droit de la souris vise, le gauche tire, R recharge en visant, C sort le couteau, Q appelle Ashley, Tab ouvre la mallette, M la carte, Échap les options, F1 ce menu. I J K L tournent la caméra, la molette zoome la lunette. Flèches, Entrée et Retour arrière servent dans les menus du jeu. Le pointeur de la souris ne vise pas. Dans les menus titre et options du jeu, le pointeur choisit une entrée, un clic gauche la valide.</string>
     <string name="ouya_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional.</string>
 </resources>

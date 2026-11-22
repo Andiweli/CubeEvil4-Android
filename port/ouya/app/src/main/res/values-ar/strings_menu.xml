@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">‏قائمة CubeEvil4 Potato داخل اللعبة</string>
+    <string name="ingame_title">‏خيارات CubeEvil4 Potato</string>
     <string name="ingame_back">العودة إلى اللعبة</string>
     <string name="ingame_graphics">الرسومات</string>
     <string name="ingame_resolution">الدقة</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">استخدام أنوية الأداء</string>
     <string name="ingame_perf_help">أنوية الأداء: تعمل اللعبة على أسرع أنوية الجهاز بترددات أعلى. أكثر سلاسة على كثير من الهواتف، لكن الجهاز يصبح أكثر حرارة. افتراضي: يقرر Android.</string>
     <string name="ingame_map_keyboard">لوحة المفاتيح والفأرة</string>
+    <string name="ingame_skip_intro">&#x200F;تخطي المقدمة</string>
+    <string name="ingame_skip_intro_help">&#x200F;تخطي المقدمة: عند البدء تنتقل اللعبة مباشرةً إلى قائمة العنوان، دون الشعارات وتحذير الصحة (من التشغيل التالي).</string>
+    <string name="ingame_ashley_hold_help">&#x200F;هل علقت Ashley في مكان ما؟ اضغط زرّها (انتظري / اتبعيني) مرتين بسرعة: ستظهر خلف ليون مباشرةً وتتبعه.</string>
+    <string name="ingame_cheat_stack">تكديس الذخيرة</string>
+    <string name="ingame_cheat_stack_help">تكديس الذخيرة: تتكدس الذخيرة حتى 250 أو 500 أو 999 في خانة واحدة (قياسي: حدود اللعبة). تبقى القنابل وعناصر العلاج والكنوز كما في اللعبة. إذا اخترت قيمة أصغر لاحقًا تبقى الأكوام الأكبر وتُستهلك واحدًا تلو الآخر؛ وما تلتقطه بعدها يأخذ خانة جديدة.</string>
+    <string name="ingame_stack_standard">قياسي</string>
+    <string name="ingame_cheat_refill">إعادة ملء الذخيرة</string>
+    <string name="ingame_cheat_refill_full">لا شيء لإعادة ملئه: لا توجد ذخيرة في الحقيبة، أو كلها ممتلئة.</string>
+    <string name="ingame_cheat_refill_help">إعادة ملء الذخيرة: يُملأ كل كوم ذخيرة في الحقيبة حتى قيمة «تكديس الذخيرة» (قياسي: الحد الأقصى العادي لنوعه)؛ لا ذخيرة جديدة، والطلقات المحشوة في الأسلحة تبقى كما هي.</string>
+    <string name="ingame_quick_reload">&#x200F;إعادة التلقيم دون تصويب</string>
+    <string name="ingame_quick_reload_help">&#x200F;إعادة التلقيم دون تصويب (لوحة المفاتيح): مفتاح إعادة التلقيم وحده (R افتراضيًا) يعيد التلقيم دون رفع السلاح أولًا.</string>
     <string name="ingame_cheat_extras_text">تم فتح Assignment Ada و The Mercenaries (وProfessional أيضًا، كما بعد إنهاء اللعبة). تعرضها قائمة العنوان بعد إعادة التشغيل. سيضيع التقدم منذ آخر حفظ.</string>
     <string name="ingame_cheat_extras_later">تم الفتح: ستظهر Assignment Ada و The Mercenaries في قائمة العنوان بعد إعادة التشغيل التالية.</string>
     <string name="ingame_cheat_extras_already">مفتوحة بالفعل: Assignment Ada و The Mercenaries في قائمة العنوان.</string>
@@ -159,6 +170,6 @@
     <string name="ouya_light_help">إضاءة مفصلة: عند إيقافها تُضاء البيئة مرة واحدة لكل جسم بدل كل نقطة (تحتفظ الشخصيات بإضاءتها)؛ أسرع بوضوح على OUYA، وتبدو الأرض والأشجار أكثر تسطحًا قليلًا. يسري فورًا.</string>
     <string name="ouya_source_only">هذا الإصدار والإصدار الكامل لـ CubeEvil4 على Android متاحان هنا فقط.\nتجنّب التنزيل من مواقع أخرى أو منصات ألعاب.</string>
     <string name="ouya_invert_help">عكس الاتجاه العمودي: التصويب للأعلى وللأسفل بالعكس، مع وحدة التحكم ولوحة المفاتيح وأزرار اللمس (خيار اللعبة نفسها).</string>
-    <string name="ouya_keyboard_help">لوحة المفاتيح والفأرة: W A S D للحركة (وللتصويب)، Shift للجري، E للتفاعل، زر الفأرة الأيمن للتصويب والأيسر لإطلاق النار، R لإعادة التعبئة أثناء التصويب، C للسكين، Q لمناداة آشلي، Tab للحقيبة، M للخريطة، Esc للخيارات، F1 لهذه القائمة. I J K L لتدوير الكاميرا، وعجلة الفأرة لتقريب المنظار. الأسهم وEnter وBackspace تعمل في قوائم اللعبة. مؤشر الفأرة لا يصوّب.</string>
+    <string name="ouya_keyboard_help">لوحة المفاتيح والفأرة: W A S D للحركة (وللتصويب)، Shift للجري، E للتفاعل، زر الفأرة الأيمن للتصويب والأيسر لإطلاق النار، R لإعادة التعبئة أثناء التصويب، C للسكين، Q لمناداة آشلي، Tab للحقيبة، M للخريطة، Esc للخيارات، F1 لهذه القائمة. I J K L لتدوير الكاميرا، وعجلة الفأرة لتقريب المنظار. الأسهم وEnter وBackspace تعمل في قوائم اللعبة. مؤشر الفأرة لا يصوّب. في قائمة العنوان وقائمة الخيارات في اللعبة يختار مؤشر الفأرة عنصرًا، والنقر بالزر الأيسر يؤكده.</string>
     <string name="ouya_gentle_qte_help">أحداث QTE أسهل: في Professional تمنح أحداث الأزرار السريعة الوقت نفسه وتطلب عدد الضغطات نفسه كما في Normal؛ ويبقى الضرر والأعداء كما في Professional.</string>
 </resources>

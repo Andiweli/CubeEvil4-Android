@@ -59,7 +59,15 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     static native void nativeZoom(int notches);
     /** The menu's settings (OuyaMenu.Settings): before the start for the core's start, then at once. */
     static native void nativeSettings(int resolutionEighths, boolean fastTev, int viewPercent, int potato, int aim,
-            int frameSkip, int cheats, boolean gentleQte, boolean simpleLight, boolean leonJacket, boolean fastCores);
+            int frameSkip, int cheats, boolean gentleQte, boolean simpleLight, boolean leonJacket, boolean fastCores,
+            boolean skipIntro);
+    /** The mouse in the game's title and options menus (1.1.0, runtime/mouse_menu.cpp): the pointer across the game's
+     *  picture (u, v 0..1), `click` for a left click. */
+    static native void nativeMouseMenu(float u, float v, boolean click);
+    /** "Reload without aiming" (1.1.0, patch 0241): one reload, the game's own direct reload. */
+    static native void nativeQuickReload();
+    /** The game shows a menu (the core's bit 4 of its rumble word, as the main app's input.menu()). */
+    static native boolean nativeGameMenu();
     /** A cheat button of the menu (runtime/cheats.cpp); the answer as OuyaMenu.Host.cheatAction. */
     static native int nativeCheatAction(int what);
     /** The instant save (re4_core_instant): 0 its state, 1 save, 2 load; result, present, canSave, canLoad, room,
@@ -90,6 +98,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     // the keyboard and the mouse (1.0.0, wish of the project owner, 17.11.2026; the main app's default keys)
     private final OuyaKeyboard keyboard = new OuyaKeyboard();
     private boolean keyboardLogged;
+    private boolean quickReload;  // "Reload without aiming" (1.1.0, OuyaMenu.Settings.QUICK_RELOAD)
+    private int menuPointerLines; // log lines of the mouse in the game's menus
     private OuyaMenu menu;                  // the app's menu while it is open
     private OuyaInstaller installer;        // the disc installer while it is shown
     private FrameLayout root;
@@ -413,8 +423,7 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
     public boolean dispatchTouchEvent(MotionEvent event) {
         // the mouse's buttons (Android 4.1 sends a press as a touch of the mouse): the keyboard's, not RetroTouch's
         if (installer == null && OuyaKeyboard.fromMouse(event)) {
-            if (keyboard.mouse(event.getButtonState()))
-                keyboardChanged();
+            mouseEvent(event);
             return true;
         }
         if (touchControls == null)
@@ -455,7 +464,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         nativeSettings(OuyaMenu.Settings.eighths(p), OuyaMenu.Settings.fastTev(p), OuyaMenu.Settings.view(p),
                 OuyaMenu.Settings.potato(p), OuyaMenu.Settings.aim(p), OuyaMenu.Settings.frameSkip(p),
                 OuyaMenu.Settings.cheats(p), OuyaMenu.Settings.gentleQte(p), OuyaMenu.Settings.simpleLight(p),
-                OuyaMenu.Settings.leonJacket(p), OuyaMenu.Settings.fastCores(p));
+                OuyaMenu.Settings.leonJacket(p), OuyaMenu.Settings.fastCores(p), OuyaMenu.Settings.skipIntro(p));
+        quickReload = OuyaMenu.Settings.quickReload(p);
     }
 
     @Override
@@ -569,6 +579,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
             return true;
         }
         if (OuyaKeyboard.takes(event.getKeyCode())) {
+            if (down && event.getRepeatCount() == 0 && event.getKeyCode() == OuyaKeyboard.KEY_R)
+                quickReloadKey();
             if (event.getAction() != KeyEvent.ACTION_MULTIPLE && keyboard.key(event.getKeyCode(), down))
                 keyboardChanged();
             return true;
@@ -589,6 +601,54 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
         return true;
     }
 
+    /**
+     * A mouse event that is not its wheel (a press, a release, a move with or without a button): its buttons as the
+     * keyboard's; in a game menu (the title, the difficulty, the options; 1.1.0) its place for the entry under it and
+     * a left click to choose it (runtime/mouse_menu.cpp). The main app moves a pointer of its own, as it holds the mouse
+     * (pointer capture, Android 8); here Android's own pointer is on the screen, so its place goes over.
+     */
+    private void mouseEvent(MotionEvent event) {
+        final boolean leftBefore = keyboard.leftHeld();
+        if (keyboard.mouse(event.getButtonState()))
+            keyboardChanged();
+        final boolean click = !leftBefore && keyboard.leftHeld();
+        final int action = event.getActionMasked();
+        if (!running || menu != null || !(click || action == MotionEvent.ACTION_HOVER_MOVE
+                || action == MotionEvent.ACTION_MOVE) || !nativeGameMenu())
+            return;
+        // the game's picture: a 16:9 box in the middle of the window of its rows 56..391 of 448 (ouya_app.cpp
+        // nativeFrame, as the main app's full screen)
+        View root = getWindow().getDecorView();
+        float vw = root.getWidth(), vh = root.getHeight();
+        if (vw <= 0 || vh <= 0)
+            return;
+        float bw = vw, bh = vw * 9f / 16f;
+        if (bh > vh) {
+            bh = vh;
+            bw = vh * 16f / 9f;
+        }
+        float u = (event.getX() - (vw - bw) / 2f) / bw, inBox = (event.getY() - (vh - bh) / 2f) / bh;
+        if (u < 0f || u > 1f || inBox < 0f || inBox > 1f)
+            return;
+        float v = (56f + inBox * 336f) / 448f;
+        nativeMouseMenu(u, v, false);
+        if (click)
+            nativeMouseMenu(u, v, true);
+        if (click && menuPointerLines < 20) {
+            menuPointerLines++;
+            android.util.Log.i("RE4OUYA", String.format(java.util.Locale.ROOT, "mouse: click in a game menu at (%.2f %.2f)", u, v));
+        }
+    }
+
+    /** "Reload without aiming" (1.1.0, the main app's quickReloadKey): R alone, the right mouse button not held, in
+     *  play (not in a game menu, not in this app's). */
+    private void quickReloadKey() {
+        if (!quickReload || !running || menu != null || keyboard.aimHeld() || nativeGameMenu())
+            return;
+        nativeQuickReload();
+        android.util.Log.i("RE4OUYA", "reload without aiming: R");
+    }
+
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
         // the mouse: its wheel zooms, its buttons as the keyboard's (hover moves carry them too)
@@ -599,8 +659,8 @@ public class OuyaActivity extends Activity implements OuyaMenu.Host, OuyaInstall
                     nativeZoom(notches);
                     logKeyboard();
                 }
-            } else if (keyboard.mouse(event.getButtonState())) {
-                keyboardChanged();
+            } else {
+                mouseEvent(event);
             }
             return true;
         }

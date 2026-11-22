@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato Ingame Menu</string>
+    <string name="ingame_title">CubeEvil4 Potato Options</string>
     <string name="ingame_back">Back to the game</string>
     <string name="ingame_graphics">Graphics</string>
     <string name="ingame_resolution">Resolution</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">Use performance cores</string>
     <string name="ingame_perf_help">Performance cores: the game runs on the device\'s fastest cores at higher clocks. Smoother on many phones, but the device gets warmer. Default: Android decides.</string>
     <string name="ingame_map_keyboard">Keyboard &amp; Mouse</string>
+    <string name="ingame_skip_intro">Skip intro</string>
+    <string name="ingame_skip_intro_help">Skip intro: at the start the game goes straight to its title menu, without the logos and the health warning (from the next start).</string>
+    <string name="ingame_ashley_hold_help">Ashley stuck somewhere? Press her button (Wait / Follow) twice quickly: she appears right behind Leon and follows him.</string>
+    <string name="ingame_cheat_stack">Stack ammo</string>
+    <string name="ingame_cheat_stack_help">Stack ammo: ammo stacks up to 250, 500 or 999 in one slot (Standard: the game\'s own limits). Grenades, recovery items and treasures stay as in the game. A smaller choice later keeps larger stacks, they are used up one by one; new pick-ups then take a new slot.</string>
+    <string name="ingame_stack_standard">Standard</string>
+    <string name="ingame_cheat_refill">Refill ammo</string>
+    <string name="ingame_cheat_refill_full">Nothing to refill: no ammo in the case, or all of it is full.</string>
+    <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to the value of \"Stack ammo\" (Standard: its type\'s normal maximum); no new ammo, the weapons\' loaded rounds stay.</string>
+    <string name="ingame_quick_reload">Reload without aiming</string>
+    <string name="ingame_quick_reload_help">Reload without aiming (keyboard): the reload key alone (R by default) reloads, without raising the weapon first.</string>
     <string name="ingame_cheat_extras_text">Assignment Ada and The Mercenaries are unlocked (Professional as well, as after finishing the game). The title menu shows them after a restart. Progress since your last save is lost.</string>
     <string name="ingame_cheat_extras_later">Unlocked: Assignment Ada and The Mercenaries are in the title menu after the next restart.</string>
     <string name="ingame_cheat_extras_already">Already unlocked: Assignment Ada and The Mercenaries are in the title menu.</string>
@@ -155,6 +166,6 @@
     <string name="ouya_light_help">Detailed lighting: off lights the surroundings once per object instead of at every point (figures keep theirs); clearly faster on the OUYA, the ground and the trees look a little flatter. It takes effect at once.</string>
     <string name="ouya_source_only">This version and the full Android version of CubeEvil4 are only available here.\nAvoid downloads from other sites or game platforms.</string>
     <string name="ouya_invert_help">Invert vertical: aiming up and down the other way round, with the controller, the keyboard and the touch controls (the game’s own option).</string>
-    <string name="ouya_keyboard_help">Keyboard and mouse: W A S D move (and aim), Shift runs, E acts, the right mouse button aims, the left one fires, R reloads while aiming, C readies the knife, Q calls Ashley, Tab opens the case, M the map, Esc the options, F1 this menu. I J K L turn the camera, the mouse wheel zooms the scope. Arrows, Enter and Backspace work in the game’s menus. The mouse pointer does not aim.</string>
+    <string name="ouya_keyboard_help">Keyboard and mouse: W A S D move (and aim), Shift runs, E acts, the right mouse button aims, the left one fires, R reloads while aiming, C readies the knife, Q calls Ashley, Tab opens the case, M the map, Esc the options, F1 this menu. I J K L turn the camera, the mouse wheel zooms the scope. Arrows, Enter and Backspace work in the game’s menus. The mouse pointer does not aim. In the game’s title and options menus the mouse pointer picks an entry, a left click chooses it.</string>
     <string name="ouya_gentle_qte_help">Gentler QTEs: in Professional the quick-time events give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s.</string>
 </resources>

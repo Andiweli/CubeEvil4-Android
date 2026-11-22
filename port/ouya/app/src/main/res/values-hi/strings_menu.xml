@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato इन-गेम मेन्यू</string>
+    <string name="ingame_title">CubeEvil4 Potato विकल्प</string>
     <string name="ingame_back">गेम पर लौटें</string>
     <string name="ingame_graphics">ग्राफ़िक्स</string>
     <string name="ingame_resolution">रिज़ॉल्यूशन</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">परफ़ॉर्मेंस कोर इस्तेमाल करें</string>
     <string name="ingame_perf_help">परफ़ॉर्मेंस कोर: गेम डिवाइस के सबसे तेज़ कोर पर ऊँची क्लॉक पर चलता है। कई फ़ोन पर ज़्यादा स्मूद, लेकिन डिवाइस ज़्यादा गर्म होता है। डिफ़ॉल्ट: Android तय करता है।</string>
     <string name="ingame_map_keyboard">कीबोर्ड और माउस</string>
+    <string name="ingame_skip_intro">इंट्रो छोड़ें</string>
+    <string name="ingame_skip_intro_help">इंट्रो छोड़ें: शुरू होते ही गेम सीधे टाइटल मेनू पर जाता है, लोगो और स्वास्थ्य चेतावनी के बिना (अगली शुरुआत से)।</string>
+    <string name="ingame_ashley_hold_help">Ashley कहीं अटक गई? उसका बटन (रुको / साथ चलो) जल्दी से दो बार दबाएँ: वह लियोन के ठीक पीछे दिखेगी और उसके साथ चलेगी।</string>
+    <string name="ingame_cheat_stack">गोला-बारूद स्टैक करें</string>
+    <string name="ingame_cheat_stack_help">गोला-बारूद स्टैक करें: गोला-बारूद एक खाने में 250, 500 या 999 तक जमा होता है (मानक: खेल की अपनी सीमाएँ)। ग्रेनेड, उपचार आइटम और ख़ज़ाने खेल जैसे ही रहते हैं। बाद में कम चुनने पर बड़े ढेर बने रहते हैं और एक-एक करके इस्तेमाल होते हैं; बाद में उठाई चीज़ें नए खाने में जाती हैं।</string>
+    <string name="ingame_stack_standard">मानक</string>
+    <string name="ingame_cheat_refill">गोला-बारूद भरें</string>
+    <string name="ingame_cheat_refill_full">भरने को कुछ नहीं: केस में गोला-बारूद नहीं है, या सब भरा हुआ है।</string>
+    <string name="ingame_cheat_refill_help">गोला-बारूद भरें: केस का हर गोला-बारूद ढेर \"गोला-बारूद स्टैक करें\" के मान तक भरा जाता है (मानक: अपनी किस्म की सामान्य अधिकतम संख्या); नया गोला-बारूद नहीं मिलता, हथियारों में भरी गोलियाँ वैसी ही रहती हैं।</string>
+    <string name="ingame_quick_reload">बिना निशाना लगाए रीलोड</string>
+    <string name="ingame_quick_reload_help">बिना निशाना लगाए रीलोड (कीबोर्ड): सिर्फ़ रीलोड कुंजी (डिफ़ॉल्ट R) हथियार उठाए बिना रीलोड करती है।</string>
     <string name="ingame_cheat_extras_text">Assignment Ada और The Mercenaries अनलॉक हो गए हैं (साथ में Professional भी, जैसे गेम पूरा करने के बाद)। गेम फिर से शुरू करने के बाद टाइटल मेनू उन्हें दिखाता है। आपके आख़िरी सेव के बाद की प्रगति खो जाएगी।</string>
     <string name="ingame_cheat_extras_later">अनलॉक हो गए: गेम अगली बार फिर से शुरू होने के बाद Assignment Ada और The Mercenaries टाइटल मेनू में होंगे।</string>
     <string name="ingame_cheat_extras_already">पहले से अनलॉक: Assignment Ada और The Mercenaries टाइटल मेनू में हैं।</string>
@@ -155,6 +166,6 @@
     <string name="ouya_light_help">विस्तृत रोशनी: बंद होने पर आसपास का हिस्सा हर बिंदु के बजाय हर वस्तु पर एक बार रोशन होता है (किरदारों की रोशनी वैसी ही रहती है); OUYA पर साफ़ तौर पर तेज़, ज़मीन और पेड़ थोड़े सपाट दिखते हैं। यह तुरंत लागू होती है।</string>
     <string name="ouya_source_only">यह संस्करण और CubeEvil4 का पूरा Android संस्करण केवल यहीं उपलब्ध है।\nदूसरी साइटों या गेम प्लेटफ़ॉर्म से डाउनलोड करने से बचें।</string>
     <string name="ouya_invert_help">वर्टिकल उल्टा करें: ऊपर-नीचे निशाना उल्टी दिशा में, कंट्रोलर, कीबोर्ड और टच कंट्रोल के साथ (गेम का अपना विकल्प)।</string>
-    <string name="ouya_keyboard_help">कीबोर्ड और माउस: W A S D चलना (और निशाना), Shift दौड़ना, E एक्शन, माउस का दायां बटन निशाना लगाता है, बायां गोली चलाता है, निशाना लगाते समय R रीलोड करता है, C चाकू, Q एशली को बुलाता है, Tab ब्रीफ़केस, M नक्शा, Esc विकल्प, F1 यह मेनू। I J K L कैमरा घुमाते हैं, माउस व्हील स्कोप में ज़ूम करता है। तीर, Enter और Backspace गेम के मेनू में काम करते हैं। माउस पॉइंटर निशाना नहीं लगाता।</string>
+    <string name="ouya_keyboard_help">कीबोर्ड और माउस: W A S D चलना (और निशाना), Shift दौड़ना, E एक्शन, माउस का दायां बटन निशाना लगाता है, बायां गोली चलाता है, निशाना लगाते समय R रीलोड करता है, C चाकू, Q एशली को बुलाता है, Tab ब्रीफ़केस, M नक्शा, Esc विकल्प, F1 यह मेनू। I J K L कैमरा घुमाते हैं, माउस व्हील स्कोप में ज़ूम करता है। तीर, Enter और Backspace गेम के मेनू में काम करते हैं। माउस पॉइंटर निशाना नहीं लगाता। गेम के टाइटल और ऑप्शन मेनू में माउस पॉइंटर कोई प्रविष्टि चुनता है, बायाँ क्लिक उसे पुष्टि करता है।</string>
     <string name="ouya_gentle_qte_help">आसान QTE: Professional में क्विक-टाइम इवेंट उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं।</string>
 </resources>

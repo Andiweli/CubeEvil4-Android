@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato Ingame-Menü</string>
+    <string name="ingame_title">CubeEvil4 Potato Optionen</string>
     <string name="ingame_back">Zurück zum Spiel</string>
     <string name="ingame_graphics">Grafik</string>
     <string name="ingame_resolution">Auflösung</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">Leistungskerne nutzen</string>
     <string name="ingame_perf_help">Leistungskerne: Das Spiel läuft auf den schnellsten Kernen mit höherem Takt. Auf vielen Geräten flüssiger, aber das Gerät wird wärmer. Standard: Android entscheidet.</string>
     <string name="ingame_map_keyboard">Tastatur &amp; Maus</string>
+    <string name="ingame_skip_intro">Intro überspringen</string>
+    <string name="ingame_skip_intro_help">Intro überspringen: Beim Start geht das Spiel sofort ins Titelmenü, ohne Logos und Gesundheitshinweis (ab dem nächsten Start).</string>
+    <string name="ingame_ashley_hold_help">Ashley hängt irgendwo fest? Drücke ihren Knopf (Warten / Folgen) zweimal schnell: Sie erscheint direkt hinter Leon und folgt ihm.</string>
+    <string name="ingame_cheat_stack">Munition stapeln</string>
+    <string name="ingame_cheat_stack_help">Munition stapeln: Munition stapelt sich bis 250, 500 oder 999 auf einem Platz (Standard: die Grenzen des Spiels). Granaten, Heilmittel und Schätze bleiben wie im Spiel. Wählt man später weniger, bleiben größere Stapel erhalten und werden Stück für Stück verbraucht; Neues kommt dann auf einen neuen Platz.</string>
+    <string name="ingame_stack_standard">Standard</string>
+    <string name="ingame_cheat_refill">Munition auffüllen</string>
+    <string name="ingame_cheat_refill_full">Nichts aufzufüllen: keine Munition im Koffer, oder alles ist voll.</string>
+    <string name="ingame_cheat_refill_help">Munition auffüllen: Jeder Munitionsstapel im Koffer wird bis zum Wert von „Munition stapeln“ gefüllt (Standard: das normale Maximum seiner Sorte); keine neue Munition, die geladenen Patronen der Waffen bleiben.</string>
+    <string name="ingame_quick_reload">Nachladen ohne Zielen</string>
+    <string name="ingame_quick_reload_help">Nachladen ohne Zielen (Tastatur): Die Nachladetaste allein (Standard R) lädt nach, ohne erst die Waffe anzulegen.</string>
     <string name="ingame_cheat_extras_text">Assignment Ada und The Mercenaries sind freigeschaltet (dazu Professional, wie nach dem Durchspielen). Das Titelmenü zeigt sie nach einem Neustart. Fortschritt seit dem letzten Speichern geht verloren.</string>
     <string name="ingame_cheat_extras_later">Freigeschaltet: Assignment Ada und The Mercenaries stehen nach dem nächsten Neustart im Titelmenü.</string>
     <string name="ingame_cheat_extras_already">Schon freigeschaltet: Assignment Ada und The Mercenaries stehen im Titelmenü.</string>
@@ -155,6 +166,6 @@
     <string name="ouya_light_help">Detailliertes Licht: aus beleuchtet die Umgebung einmal je Objekt statt an jedem Punkt (Figuren behalten ihres); auf der OUYA deutlich schneller, Boden und Bäume wirken etwas flacher. Wirkt sofort.</string>
     <string name="ouya_source_only">Diese Version und auch die Android-Vollversion zu CubeEvil4 ist nur hier verfügbar.\nVermeide den Download von Fremdseiten oder Spieleplattformen.</string>
     <string name="ouya_invert_help">Vertikal umkehren: Zielen nach oben und unten andersherum, mit Controller, Tastatur und Touch-Steuerung (die Option des Spiels selbst).</string>
-    <string name="ouya_keyboard_help">Tastatur und Maus: W A S D laufen (und zielen), Umschalt rennt, E für Aktionen, die rechte Maustaste zielt, die linke schießt, R lädt beim Zielen nach, C zückt das Messer, Q ruft Ashley, Tab öffnet den Koffer, M die Karte, Esc die Optionen, F1 dieses Menü. I J K L drehen die Kamera, das Mausrad zoomt das Zielfernrohr. Pfeiltasten, Enter und Rücktaste gehen in den Menüs des Spiels. Der Mauszeiger zielt nicht.</string>
+    <string name="ouya_keyboard_help">Tastatur und Maus: W A S D laufen (und zielen), Umschalt rennt, E für Aktionen, die rechte Maustaste zielt, die linke schießt, R lädt beim Zielen nach, C zückt das Messer, Q ruft Ashley, Tab öffnet den Koffer, M die Karte, Esc die Optionen, F1 dieses Menü. I J K L drehen die Kamera, das Mausrad zoomt das Zielfernrohr. Pfeiltasten, Enter und Rücktaste gehen in den Menüs des Spiels. Der Mauszeiger zielt nicht. Im Titel- und Optionsmenü des Spiels wählt der Mauszeiger einen Eintrag, ein Linksklick bestätigt ihn.</string>
     <string name="ouya_gentle_qte_help">Sanftere QTEs: In Professional lassen die Tastenaufforderungen so viel Zeit und brauchen so viele Drücke wie in Normal; Schaden und Gegner bleiben wie in Professional.</string>
 </resources>

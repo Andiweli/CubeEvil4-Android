@@ -120,6 +120,12 @@ final class OuyaKeyboard {
 
     boolean used() { return used; }
 
+    /** The mouse's left button is down (its click in a game menu, OuyaActivity.mouseEvent). */
+    boolean leftHeld() { return is(MOUSE_LEFT); }
+
+    /** The aim's button (the right mouse button) is down ("Reload without aiming" then leaves R to the aim's reload). */
+    boolean aimHeld() { return is(MOUSE_RIGHT); }
+
     private boolean is(int key) { return held.contains(key); }
 
     /** The GameCube buttons held by the keyboard and the mouse now. */

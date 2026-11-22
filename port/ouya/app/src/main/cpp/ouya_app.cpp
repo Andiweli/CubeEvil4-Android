@@ -109,6 +109,7 @@ unsigned gChunksSecond = 0;  // GL thread: chunks taken since the last choice (f
 int gViewPercent = 50, gPotato = 3, gAim = 100 << 8, gCheats = 0;  // under gLock
 // the cheat "Costumes · Leon's jacket" (1.0.0, patches 0235/0236; re4ipc_set_leon_jacket), under gLock
 bool gLeonJacket = false;
+bool gSkipIntro = false;  // "Skip intro" (1.1.0, patch 0242): RE4_SKIP_INTRO at the start
 // "Use performance cores" (1.0.0 for old phones with fast and slow cores, wish of the project owner, 17.11.2026; the
 // main app's Force Performance): the core puts the game thread and the GX decoder on the fast cores
 // (re4_core_set_fast_cores), the GL thread goes there itself (nativeFrame); the OUYA's four cores are alike
@@ -444,6 +445,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_na
   snprintf(value, sizeof(value), "%u", static_cast<unsigned>(gCheats));  // bit 31: steady aim
   setenv("RE4_CHEATS", value, 1);  // the menu's cheat switches (runtime/cheats.cpp)
   setenv("RE4_LEON_JACKET", gLeonJacket ? "1" : "0", 1);  // runtime/cheats.cpp, patch 0235
+  setenv("RE4_SKIP_INTRO", gSkipIntro ? "1" : "0", 1);  // 1.1.0, patch 0242: straight to the title menu
   if (gameLanguage >= 2 && gameLanguage <= 6) {
     // the European discs: the game's language (the main app's RE4_GAME_LANGUAGE, retail-eu-plan.md R7)
     snprintf(value, sizeof(value), "%d", static_cast<int>(gameLanguage));
@@ -530,7 +532,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
                                                                                          jboolean gentleQte,
                                                                                          jboolean simpleLight,
                                                                                          jboolean leonJacket,
-                                                                                         jboolean fastCores) {
+                                                                                         jboolean fastCores,
+                                                                                         jboolean skipIntro) {
+  gSkipIntro = skipIntro == JNI_TRUE;  // taken at the start only (a change: from the next start)
   gWantSimpleLight = simpleLight == JNI_TRUE;
   // 0 off, 1 Normal (the renderer leaves out older pictures, the core pictures without draws), 2 Aggressive
   // (also the game's own frame skip)
@@ -821,6 +825,24 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativ
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeZoom(JNIEnv *, jclass, jint notches) {
   if (gRunning && notches != 0)
     re4ipc_zoom(notches);
+}
+
+// The mouse in the game's title and options menus (1.1.0, runtime/mouse_menu.cpp): the pointer, a left click
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeMouseMenu(JNIEnv *, jclass, jfloat u,
+                                                                                          jfloat v, jboolean click) {
+  if (gRunning)
+    re4ipc_mouse_menu(u, v, click == JNI_TRUE ? 1 : 0);
+}
+
+// "Reload without aiming" (1.1.0, patch 0241): one reload
+extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeQuickReload(JNIEnv *, jclass) {
+  if (gRunning)
+    re4ipc_quick_reload();
+}
+
+// The game shows a menu: bit 4 of the core's rumble word (the main app's CoreActivity.rumbleTick)
+extern "C" JNIEXPORT jboolean JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativeGameMenu(JNIEnv *, jclass) {
+  return gRunning && (re4ipc_rumble() & 0x10) != 0 ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_ast_cubeevil4_ouya_OuyaActivity_nativePause(JNIEnv *, jclass, jboolean on) {

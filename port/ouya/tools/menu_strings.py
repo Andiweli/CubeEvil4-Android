@@ -37,6 +37,11 @@ keys = ['ingame_title', 'ingame_back', 'ingame_graphics', 'ingame_resolution', '
         'ingame_cheat_costume_special',
         # invert vertical, the performance cores, the keyboard and mouse heading (1.0.0)
         'ingame_aim_invert_v', 'ingame_perf_cores', 'ingame_perf_help', 'ingame_map_keyboard',
+        # 1.1.0 (the project owner, 22.11.2026: groups 1-3): skip intro, Ashley's catch-up, stack and refill ammo,
+        # reload without aiming
+        'ingame_skip_intro', 'ingame_skip_intro_help', 'ingame_ashley_hold_help', 'ingame_cheat_stack',
+        'ingame_cheat_stack_help', 'ingame_stack_standard', 'ingame_cheat_refill', 'ingame_cheat_refill_full',
+        'ingame_cheat_refill_help', 'ingame_quick_reload', 'ingame_quick_reload_help',
         'ingame_cheat_extras_text', 'ingame_cheat_extras_later', 'ingame_cheat_extras_already',
         'ingame_language_restart_title', 'ingame_restart', 'ingame_later',
         'ingame_management', 'ingame_card_busy', 'ingame_card_none', 'ingame_export', 'ingame_export_zip',

@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato · Menu do jogo</string>
+    <string name="ingame_title">Opções do CubeEvil4 Potato</string>
     <string name="ingame_back">Voltar ao jogo</string>
     <string name="ingame_graphics">Gráficos</string>
     <string name="ingame_resolution">Resolução</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">Usar núcleos de desempenho</string>
     <string name="ingame_perf_help">Núcleos de desempenho: o jogo roda nos núcleos mais rápidos do aparelho com frequências mais altas. Mais fluido em muitos celulares, mas o aparelho esquenta mais. Padrão: o Android decide.</string>
     <string name="ingame_map_keyboard">Teclado e mouse</string>
+    <string name="ingame_skip_intro">Pular introdução</string>
+    <string name="ingame_skip_intro_help">Pular introdução: ao iniciar, o jogo vai direto ao menu de título, sem os logotipos e o aviso de saúde (a partir do próximo início).</string>
+    <string name="ingame_ashley_hold_help">Ashley ficou presa? Aperte o botão dela (Esperar / Seguir) duas vezes rápido: ela aparece logo atrás de Leon e o segue.</string>
+    <string name="ingame_cheat_stack">Empilhar munição</string>
+    <string name="ingame_cheat_stack_help">Empilhar munição: a munição se empilha até 250, 500 ou 999 em um espaço (Padrão: os limites do jogo). Granadas, itens de cura e tesouros ficam como no jogo. Se depois você escolher menos, pilhas maiores continuam e são usadas uma a uma; o que você pegar depois ocupa um espaço novo.</string>
+    <string name="ingame_stack_standard">Padrão</string>
+    <string name="ingame_cheat_refill">Reabastecer munição</string>
+    <string name="ingame_cheat_refill_full">Nada para reabastecer: não há munição na maleta, ou tudo já está cheio.</string>
+    <string name="ingame_cheat_refill_help">Reabastecer munição: cada pilha de munição da maleta é completada até o valor de \"Empilhar munição\" (Padrão: o máximo normal do seu tipo); nenhuma munição nova, as balas carregadas nas armas continuam.</string>
+    <string name="ingame_quick_reload">Recarregar sem mirar</string>
+    <string name="ingame_quick_reload_help">Recarregar sem mirar (teclado): a tecla de recarga sozinha (R por padrão) recarrega sem erguer a arma antes.</string>
     <string name="ingame_cheat_extras_text">Assignment Ada e The Mercenaries estão desbloqueados (Professional também, como depois de terminar o jogo). O menu principal os mostra depois de reiniciar. O progresso desde o seu último save será perdido.</string>
     <string name="ingame_cheat_extras_later">Desbloqueados: Assignment Ada e The Mercenaries aparecem no menu principal após o próximo reinício.</string>
     <string name="ingame_cheat_extras_already">Já desbloqueados: Assignment Ada e The Mercenaries estão no menu principal.</string>
@@ -156,6 +167,6 @@
     <string name="ouya_light_help">Iluminação detalhada: desligada, o ambiente é iluminado uma vez por objeto em vez de em cada ponto (os personagens mantêm a sua); bem mais rápido no OUYA, o chão e as árvores ficam um pouco mais planos. Vale de imediato.</string>
     <string name="ouya_source_only">Esta versão e a versão Android completa do CubeEvil4 só estão disponíveis aqui.\nEvite downloads de outros sites ou plataformas de jogos.</string>
     <string name="ouya_invert_help">Inverter vertical: mirar para cima e para baixo ao contrário, com o controle, o teclado e os controles de toque (a opção do próprio jogo).</string>
-    <string name="ouya_keyboard_help">Teclado e mouse: W A S D movem (e miram), Shift corre, E age, o botão direito do mouse mira, o esquerdo atira, R recarrega enquanto mira, C saca a faca, Q chama a Ashley, Tab abre a maleta, M o mapa, Esc as opções, F1 este menu. I J K L giram a câmera, a roda do mouse dá zoom na mira. Setas, Enter e Backspace funcionam nos menus do jogo. O ponteiro do mouse não mira.</string>
+    <string name="ouya_keyboard_help">Teclado e mouse: W A S D movem (e miram), Shift corre, E age, o botão direito do mouse mira, o esquerdo atira, R recarrega enquanto mira, C saca a faca, Q chama a Ashley, Tab abre a maleta, M o mapa, Esc as opções, F1 este menu. I J K L giram a câmera, a roda do mouse dá zoom na mira. Setas, Enter e Backspace funcionam nos menus do jogo. O ponteiro do mouse não mira. Nos menus de título e de opções do jogo, o ponteiro escolhe uma entrada e um clique esquerdo a confirma.</string>
     <string name="ouya_gentle_qte_help">QTEs mais suaves: no Professional, os eventos de botão dão tanto tempo e pedem tantos toques quanto no Normal; o dano e os inimigos continuam os do Professional.</string>
 </resources>

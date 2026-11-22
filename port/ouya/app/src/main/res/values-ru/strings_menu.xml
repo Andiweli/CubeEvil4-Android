@@ -3,7 +3,7 @@
      (port/android-decomp/app/src/main/res/values*/strings_ingame.xml, copied with their
      translations by a script) and the OUYA's own (port/ouya/tools/menu_strings.py). -->
 <resources>
-    <string name="ingame_title">CubeEvil4 Potato · Игровое меню</string>
+    <string name="ingame_title">Настройки CubeEvil4 Potato</string>
     <string name="ingame_back">Вернуться в игру</string>
     <string name="ingame_graphics">Графика</string>
     <string name="ingame_resolution">Разрешение</string>
@@ -93,6 +93,17 @@
     <string name="ingame_perf_cores">Производительные ядра</string>
     <string name="ingame_perf_help">Производительные ядра: игра работает на самых быстрых ядрах устройства на повышенных частотах. На многих телефонах плавнее, но устройство сильнее нагревается. По умолчанию: решает Android.</string>
     <string name="ingame_map_keyboard">Клавиатура и мышь</string>
+    <string name="ingame_skip_intro">Пропустить вступление</string>
+    <string name="ingame_skip_intro_help">Пропустить вступление: при запуске игра сразу открывает главное меню, без логотипов и предупреждения о здоровье (со следующего запуска).</string>
+    <string name="ingame_ashley_hold_help">Эшли где-то застряла? Быстро нажмите её кнопку (Ждать / Идти) дважды: она появится прямо за Леоном и пойдёт за ним.</string>
+    <string name="ingame_cheat_stack">Складывать патроны</string>
+    <string name="ingame_cheat_stack_help">Складывать патроны: патроны складываются до 250, 500 или 999 в одной ячейке (Стандарт: ограничения игры). Гранаты, лечебные предметы и сокровища остаются как в игре. Если потом выбрать меньше, большие стопки останутся и будут тратиться по одной; новые находки займут новую ячейку.</string>
+    <string name="ingame_stack_standard">Стандарт</string>
+    <string name="ingame_cheat_refill">Пополнить патроны</string>
+    <string name="ingame_cheat_refill_full">Нечего пополнять: в кейсе нет патронов или всё уже заполнено.</string>
+    <string name="ingame_cheat_refill_help">Пополнить патроны: каждая стопка патронов в кейсе заполняется до значения «Складывать патроны» (Стандарт: обычный максимум своего вида); новых патронов нет, заряженные в оружие патроны не меняются.</string>
+    <string name="ingame_quick_reload">Перезарядка без прицеливания</string>
+    <string name="ingame_quick_reload_help">Перезарядка без прицеливания (клавиатура): одна клавиша перезарядки (по умолчанию R) перезаряжает, не поднимая сначала оружие.</string>
     <string name="ingame_cheat_extras_text">Assignment Ada и The Mercenaries открыты (а также Professional, как после прохождения игры). Главное меню покажет их после перезапуска. Прогресс с последнего сохранения будет потерян.</string>
     <string name="ingame_cheat_extras_later">Открыто: Assignment Ada и The Mercenaries появятся в главном меню после следующего перезапуска.</string>
     <string name="ingame_cheat_extras_already">Уже открыто: Assignment Ada и The Mercenaries есть в главном меню.</string>
@@ -157,6 +168,6 @@
     <string name="ouya_light_help">Детальное освещение: если выключено, окружение освещается один раз на объект, а не в каждой точке (персонажи сохраняют своё); на OUYA заметно быстрее, земля и деревья выглядят немного более плоскими. Действует сразу.</string>
     <string name="ouya_source_only">Эта версия и полная Android-версия CubeEvil4 доступны только здесь.\nНе скачивайте их с других сайтов или игровых платформ.</string>
     <string name="ouya_invert_help">Инвертировать по вертикали: прицеливание вверх и вниз наоборот — с контроллером, клавиатурой и сенсорным управлением (собственная настройка игры).</string>
-    <string name="ouya_keyboard_help">Клавиатура и мышь: W A S D — ходьба (и прицеливание), Shift — бег, E — действие, правая кнопка мыши — прицел, левая — выстрел, R при прицеливании — перезарядка, C — нож, Q — позвать Эшли, Tab — кейс, M — карта, Esc — настройки, F1 — это меню. I J K L поворачивают камеру, колесо мыши приближает прицел. Стрелки, Enter и Backspace работают в меню игры. Указатель мыши не прицеливается.</string>
+    <string name="ouya_keyboard_help">Клавиатура и мышь: W A S D — ходьба (и прицеливание), Shift — бег, E — действие, правая кнопка мыши — прицел, левая — выстрел, R при прицеливании — перезарядка, C — нож, Q — позвать Эшли, Tab — кейс, M — карта, Esc — настройки, F1 — это меню. I J K L поворачивают камеру, колесо мыши приближает прицел. Стрелки, Enter и Backspace работают в меню игры. Указатель мыши не прицеливается. В титульном меню и в настройках игры указатель мыши выбирает пункт, щелчок левой кнопкой подтверждает его.</string>
     <string name="ouya_gentle_qte_help">Мягкие QTE: в Professional события с кнопками дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional.</string>
 </resources>
