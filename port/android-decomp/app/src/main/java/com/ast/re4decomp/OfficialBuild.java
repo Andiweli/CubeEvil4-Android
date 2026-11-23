@@ -34,6 +34,9 @@ final class OfficialBuild {
   static final String[] RELEASE_CERTS = {
       // the releases' key (read from the published CubeEvil4-0.99.18-Android.apk, 16.11.2026)
       "a3810c7ae720118333f68c55f49cd4145fd4a02ec01127f8cc6256d6a507f41a",
+      // Google Play app signing key, car flavour com.ast.re4decomp (Play signs the app it hands out with its own key;
+      // the owner's Play Console, 23.11.2026)
+      "c453588f3a36081083f65a0eec4467cafc63a23e2eef86cdb62beec5e456ec74",
   };
 
   /** The app's preferences of this check and the signature whose warning was confirmed (signerKey). */

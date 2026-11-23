@@ -40,6 +40,9 @@ import org.robolectric.shadows.ShadowSigningInfo;
 public class OfficialBuildTest {
   static final String OWNER = OfficialBuild.RELEASE_CERTS[0];
   static final String OTHER = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  /** Google Play's app signing key of the car flavour (the owner's Play Console "App signing key certificate"). */
+  static final String PLAY = "C4:53:58:8F:3A:36:08:10:83:F6:5A:0E:EC:44:67:CA:FC:63:A2:3E:2E:EF:86:CD:B6:2B:EE:C5:E4:56:EC:74"
+      .replace(":", "").toLowerCase(java.util.Locale.ROOT);
 
   @After public void forget() {
     OfficialBuild.forget();
@@ -50,6 +53,11 @@ public class OfficialBuildTest {
     assertFalse("a debug build never shows it", OfficialBuild.noticeFor(true, Collections.singletonList(OTHER)));
     assertFalse("a debug build never shows it", OfficialBuild.noticeFor(true, null));
     assertFalse("the owner's release", OfficialBuild.noticeFor(false, Collections.singletonList(OWNER)));
+    assertFalse("the car app from Google Play (Play's signing key)",
+        OfficialBuild.noticeFor(false, Collections.singletonList(PLAY)));
+    assertFalse("Play's key in upper case", OfficialBuild.noticeFor(false, Collections.singletonList(PLAY.toUpperCase())));
+    assertTrue("a key one digit off Play's", OfficialBuild.noticeFor(false,
+        Collections.singletonList(PLAY.substring(0, 63) + (PLAY.endsWith("4") ? "5" : "4"))));
     assertFalse("upper case is the same key", OfficialBuild.noticeFor(false, Collections.singletonList(OWNER.toUpperCase())));
     assertTrue("another key", OfficialBuild.noticeFor(false, Collections.singletonList(OTHER)));
     assertFalse("several signers or a rotation: any match counts", OfficialBuild.noticeFor(false, Arrays.asList(OTHER, OWNER)));
@@ -62,6 +70,8 @@ public class OfficialBuildTest {
     for (String cert : OfficialBuild.RELEASE_CERTS) assertTrue(cert, cert.matches("[0-9a-f]{64}"));
     assertTrue(OWNER.startsWith("a3810c7a"));
     assertTrue(OWNER.endsWith("f41a"));
+    assertEquals(64, PLAY.length());
+    assertTrue(java.util.Arrays.asList(OfficialBuild.RELEASE_CERTS).contains(PLAY));
   }
 
   private static void sign(Signature[] now, Signature[] past) {
