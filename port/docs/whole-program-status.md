@@ -899,10 +899,10 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
   Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
-## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
+## 1.1.2 (ab 23.11.2026, auf 1.1.1 = 4e13b97b; Punkt 39 = 24a32a8d)
 
-Version 1.1.1 (versionCode 125) auf Wunsch des Projektinhabers (23.11.2026: „mach bitte gleich 1.1.1 draus“): Punkte
-35–38, Releasetext `port/android-decomp/docs/releases/v1.1.1.md`. Release und Tag macht der Projektinhaber auf GitHub.
+Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
+`port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
 ### 39. Technische Notiz: Google-Play-Signaturschlüssel (Projektinhaber, 23.11.2026)
 
@@ -910,6 +910,11 @@ Version 1.1.1 (versionCode 125) auf Wunsch des Projektinhabers (23.11.2026: „m
   sie mit seinem eigenen App-Signaturschlüssel. Der Schlüssel (SHA-256 `c453588f…e456ec74`, aus der Play Console des
   Projektinhabers) steht jetzt als zweiter in `OfficialBuild.RELEASE_CERTS`; `OfficialBuildTest` prüft ihn.
   Nicht im Releasetext, README oder Wiki erwähnen (Regel des Projektinhabers). Nicht auf dem Gerät geprüft.
+
+## 1.1.1 (ab 22.11.2026, auf 1.1.0 = f0cd8d0e)
+
+Version 1.1.1 (versionCode 125) auf Wunsch des Projektinhabers (23.11.2026: „mach bitte gleich 1.1.1 draus“): Punkte
+35–38, Releasetext `port/android-decomp/docs/releases/v1.1.1.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
 ### 38. Ruckeln vivo V2426, zweiter Log: Kerne alle paar Sekunden zurückgesetzt (Nutzerbericht 23.11.2026)
 
