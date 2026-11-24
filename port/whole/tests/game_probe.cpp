@@ -8,6 +8,7 @@
 #include "types.h"
 #include "math_sub.h"
 #include "em.h"
+#include "em_sub.h"
 #include "dolphin/gx/GXStruct.h"
 #include "dolphin/gx/GXFifo.h"
 #include "global.h"
@@ -767,6 +768,76 @@ extern "C" int re4probe_partner_damage(void)
     gPartnerDamageArg = 0;
     sub->moveDamage();
     return gPartnerDamageArg == (cEm*) sub ? 0 : 1;
+}
+
+// Patch 0255 (Berserker, runtime/berserker.cpp): the game's own LifeDownSet2 on Professional (rank 10: the game takes
+// 0.85 of an enemy's damage) and Berserker (that and 0.8): the hits an enemy of `id` with `hp` life needs against a
+// weapon's `dm` per hit (no random spread). Rows: a Ganado and the handgun (Ganado life 400 here, dm 100), a Plaga dog,
+// a boss (Del Lago 0x2F) and the rifle, a cow (an animal: as Professional), one-hit kill. Returns the bits of the failed
+// checks; `out` the line of numbers.
+extern "C" int re4_berserker_on(void);
+extern "C" int re4probe_berserker(char* out, int size)
+{
+    struct Row {
+        u8 id;
+        int hp, dm, pro, bz;
+    } rows[] = {{0x10, 400, 100, 5, 6}, {0x22, 600, 100, 8, 9}, {0x2F, 30000, 1000, 36, 45}, {0x26, 300, 100, 4, 4}};
+    if (pLog == 0) {
+        LogInit();
+    }
+    alignas(16) static unsigned char mem[sizeof(cEm)];
+    cEm* em = (cEm*) mem;
+    const u8 keepMode = pG->game_mode, keepLevel = pG->Game_level;
+    u8 keepMark[3];
+    memcpy(keepMark, pG->pad_8355, 3);
+    const u32 keepSys = pG->System_flg;
+    const s32 keepPoint = pG->point;
+    pG->game_mode = 6;
+    pG->Game_level = 10;
+    SysFlagOff(pG, SYS_OMAKE_ADA_GAME);
+    SysFlagOff(pG, SYS_OMAKE_ETC_GAME);
+    int bad = 0, len = 0;
+    for (int bz = 0; bz < 2; bz++) {
+        pG->pad_8355[0] = bz ? 0xB5 : 0;
+        pG->pad_8355[1] = 0x12;
+        pG->pad_8355[2] = 0x34;
+        if (re4_berserker_on() != bz) {
+            bad |= 1;
+        }
+        for (unsigned r = 0; r < sizeof(rows) / sizeof(rows[0]); r++) {
+            memset(mem, 0, sizeof(mem));
+            em->id = rows[r].id;
+            em->hp = rows[r].hp;
+            int hits = 0;
+            while (em->hp > 0 && hits < 1000) {
+                LifeDownSet2(em, rows[r].dm, 0, 0);
+                pG->Game_level = 10;  // GameAddPoint keeps it at 10 on Professional anyway
+                hits++;
+            }
+            if (hits != (bz ? rows[r].bz : rows[r].pro)) {
+                bad |= 2 << r;
+            }
+            len += snprintf(out + len, size - len, "%s0x%02x %d/%d: %d", r ? ", " : (bz ? "; berserker " : "professional "),
+                            rows[r].id, rows[r].hp, rows[r].dm, hits);
+        }
+    }
+    // one-hit kill still wins
+    DbgFlagOn(pG, DBG_EM_WEAK);
+    memset(mem, 0, sizeof(mem));
+    em->id = 0x2F;
+    em->hp = 30000;
+    LifeDownSet2(em, 10, 0, 0);
+    if (em->hp != 0) {
+        bad |= 0x40;
+    }
+    DbgFlagOff(pG, DBG_EM_WEAK);
+    snprintf(out + len, size - len, "; one-hit kill: %d left", (int) em->hp);
+    pG->game_mode = keepMode;
+    pG->Game_level = keepLevel;
+    memcpy(pG->pad_8355, keepMark, 3);
+    pG->System_flg = keepSys;
+    pG->point = keepPoint;
+    return bad;
 }
 
 // Patch 0100: items whose saved place in the case is taken or outside the case get the first free

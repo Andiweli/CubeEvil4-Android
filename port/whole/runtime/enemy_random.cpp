@@ -76,6 +76,7 @@ extern "C" int re4_enemy_random_entry(int no, EM_LIST* out);
 extern "C" int re4_enemy_random_extra(EM_LIST* out);
 extern "C" void re4_enemy_random_extra_made(int ok);
 extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
+extern "C" int re4_berserker_more_seed(void);                 // runtime/berserker.cpp
 
 namespace {
 
@@ -100,6 +101,11 @@ int moreNow()
     if (gTestMore < 0) {
         const char* v = getenv("RE4_MORE_ENEMIES");
         gTestMore = v && *v ? (int) (strtol(v, 0, 0) & 0xFFFFF) : 0;
+    }
+    // the difficulty Berserker (1.1.2, runtime/berserker.cpp): always on, with the save's seed (with the switch on
+    // too still one +40 %)
+    if (const int b = re4_berserker_more_seed()) {
+        return b;
     }
     const int s = __atomic_load_n(&gMore, __ATOMIC_RELAXED);
     return s ? s : gTestMore;

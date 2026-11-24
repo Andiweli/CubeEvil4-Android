@@ -1246,6 +1246,7 @@ int re4probe_arc(void);
 int re4probe_arc_table(void);
 int re4probe_partner_damage(void);
 int re4probe_case_free_place(void);
+int re4probe_berserker(char* out, int size);
 int re4probe_menu_touch(void);
 int re4probe_letterbox(void);
 int re4probe_picture_still(void);
@@ -1957,6 +1958,16 @@ static void testMovieSubtitles()
     head[15] = 0xBE;  // the same bytes as padding: no table
     ok = ok && re4_movie_subtitles(head, sizeof head, 3) == 0;
     report("moviesubtitles", ok);
+}
+
+// Berserker (patch 0255, game_probe.cpp): the hits until death on Professional and Berserker through the game's own
+// LifeDownSet2
+static void testBerserker()
+{
+    char line[512] = "";
+    const int bad = re4probe_berserker(line, sizeof line);
+    re4_log("runtime-test berserker hits: %s (failed bits 0x%x)", line, bad);
+    report("berserker", bad == 0);
 }
 
 // Ashley's damage handler on the bulldozer gets Ashley (patch 0098, game_probe.cpp)
@@ -2797,6 +2808,7 @@ int re4_runtime_tests()
     testCpuInfo();
     testHealthBarFade();
     testPartnerDamage();
+    testBerserker();
     testCaseFreePlace();
     testMenuTouch();
     testLetterbox();

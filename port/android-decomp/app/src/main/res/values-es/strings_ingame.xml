@@ -478,7 +478,7 @@
     <string name="ingame_health_bars">Barras de vida de enemigos</string>
     <string name="ingame_health_bars_help">Barras de vida de enemigos: una pequeña barra sobre cada enemigo muestra su salud (verde, amarilla por debajo de un cuarto, roja por debajo de una décima parte); no en escenas ni menús.</string>
     <string name="ingame_more_enemies">Más enemigos</string>
-    <string name="ingame_more_enemies_help">Más enemigos: alrededor de un 40 por ciento más de los Ganados normales de una sala, en lugares aleatorios, en cualquier dificultad; desde la siguiente sala. Los jefes, los enemigos especiales y las oleadas no cambian; solo en la historia.</string>
+    <string name="ingame_more_enemies_help">Más enemigos: alrededor de un 40 por ciento más de los Ganados normales de una sala, en lugares aleatorios, en cualquier dificultad; desde la siguiente sala. Los jefes, los enemigos especiales y las oleadas no cambian; solo en la historia. La dificultad Berserker siempre los tiene.</string>
     <string name="ingame_dof_light">Suave</string>
     <string name="ingame_dof_strong">Fuerte</string>
     <string name="ingame_player_view">Vista del jugador</string>

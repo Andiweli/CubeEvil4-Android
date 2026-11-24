@@ -13,7 +13,7 @@
  *   0x80300000 .. 0x826F4000  the game: the fixed map up to 0x80974000, then the heaps
  *   0x826F4000 .. 0x82700000  the disc's file system table (FST, at most 48 KB; dvd.cpp puts it at the top)
  *   0x82700000 .. 0x82C00000  the cheats' places (cheats.cpp: Leon's archive, Krauser's weapon buffer, Ada's grips,
- *                             the stand-ins' Ganado entries)
+ *                             the stand-ins' Ganado entries; from +0x4F0000 the title's word BERSERKER, berserker.cpp)
  *   0x82C00000 .. 0x82F00000  a larger etc/core.das (the European release, patch 0117)
  *   0x82F00000 .. 0x83000000  a larger SS/<lang>/option.dat (the European discs, patch 0121)
  */

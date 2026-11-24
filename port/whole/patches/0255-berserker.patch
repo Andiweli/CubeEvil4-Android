@@ -1,0 +1,157 @@
+# The difficulty "Berserker" (1.1.2, wish and decisions of the project owner, 24.11.2026; runtime/berserker.cpp):
+# Professional (game_mode 6) with a marker in the save's three bytes after game_mode, "More enemies" always on with the
+# save's seed and enemies taking 0.8 of the damage (not the animals). Here:
+# - title.cpp: once Professional is unlocked, the row BERSERKER above it in the difficulty menu (debug and American
+#   discs, the European menu of patch 0139; not the Japanese discs): titleLevelInit adds it (the cursor's row 0, the
+#   cursor stays on Normal), titleLevelSelect takes row 0 as Berserker and counts the others one further down;
+# - game.cpp: gameInit gives a new game the marker when Berserker was chosen (else none; a loaded game keeps its
+#   save's), clearGlobalSaveData (a new round) keeps it like game_mode;
+# - em_sub.cpp: LifeDownSet2 takes 0.8 of an enemy's damage after the game's own rank factor;
+# - id_tex.cpp / id_sys.cpp: the word's texture (no TPL of the title) for IdTexSet, no texture animation for it.
+# Not a bug of the prototype: a port feature. Without Berserker chosen nothing changes.
+diff --git a/src/game/em_sub.cpp b/src/game/em_sub.cpp
+index e32d9fe..71c6b23 100644
+--- a/src/game/em_sub.cpp
++++ b/src/game/em_sub.cpp
+@@ -1873,6 +1873,8 @@ void EmScenario(cEm* pEm)
+     }
+ }
+ 
++extern "C" int re4_berserker_damage(int id, int dm_val, int hp, const void* em); /* port (patch 0255): runtime/berserker.cpp */
++
+ // LifeDownSet2 without the random spread: take `dmg` life from `em`, flag bit0 keeps 1 point.
+ int LifeDownSet(cEm* pEm, int dm_val, int rnd)
+ {
+@@ -1989,6 +1991,7 @@ int LifeDownSet2(cEm* pEm, int dm_val, int rnd, int flag)
+                 rate = 2.0f - (f32) pG->Game_level * 0.2f;
+             }
+             dm_val = (int) ((f32) dm_val * rate);
++            dm_val = re4_berserker_damage(pEm->id, dm_val, pEm->hp, pEm); /* port (patch 0255): Berserker, 0.8 */
+             if (pEm->id >= 0x10 && pEm->id <= 0x3F && dm_val > 100) {
+                 GameAddPoint(LVADD_EM_DAMAGE);
+             }
+diff --git a/src/game/game.cpp b/src/game/game.cpp
+index e95caa8..c4dccdb 100644
+--- a/src/game/game.cpp
++++ b/src/game/game.cpp
+@@ -276,7 +276,7 @@ void gameInit()
+     }
+     if (FlagChkSignW(pG->System_flg, SYS_OMAKE_ADA_GAME) || (SysFlagChk(pG, SYS_OMAKE_ETC_GAME))) {
+         pG->game_mode = 5;
+-    }
++    } { void re4_berserker_game_init(); re4_berserker_game_init(); } /* port (patch 0255): runtime/berserker.cpp */
+     if (SysFlagChk(pG, SYS_NEW_GAME) || pG->SaveKind == 3) {
+         GamePointInit(0);
+         DoorFlagInit();
+@@ -832,7 +832,7 @@ void clearGlobalSaveData()
+     u16 x4F8E = pG->game_cnt;
+     u32 x4F98 = pG->peseta;
+     u8 x4F93 = pG->game_country;
+-    u8 x8354 = pG->game_mode;
++    u8 x8354 = pG->game_mode, x8355[3] = {pG->pad_8355[0], pG->pad_8355[1], pG->pad_8355[2]}; /* port (patch 0255) */
+     s32 game_mode = pG->SaveKind;
+ 
+     memcpy(&keep2, &pG->shootingScore, sizeof(keep2));
+@@ -847,7 +847,7 @@ void clearGlobalSaveData()
+     pG->game_cnt = x4F8E;
+     pG->peseta = x4F98;
+     pG->game_country = x4F93;
+-    pG->game_mode = x8354;
++    pG->game_mode = x8354; memcpy(pG->pad_8355, x8355, 3); /* port (patch 0255): Berserker's marker stays */
+     pG->SaveKind = game_mode;
+     pG->pl_life = pG->pl_life_max;
+     pG->ashley_life = pG->ashley_life_max;
+diff --git a/src/game/id_sys.cpp b/src/game/id_sys.cpp
+index 50b3f15..c8dc821 100644
+--- a/src/game/id_sys.cpp
++++ b/src/game/id_sys.cpp
+@@ -949,6 +949,8 @@ void idSysMove03(ID_UNIT* u)
+     }
+ }
+ 
++extern "C" GXTexObj* re4_berserker_tex(u8 id); /* port (patch 0255): runtime/berserker.cpp */
++
+ // Mover 4: texture animation: steps texNo (and the mask frame) through the TexAnm pattern list every
+ // frame unless tex_flag holds them (0x2 / 0x4); hides the unit when the texture id is unknown.
+ void idSysMove04(ID_UNIT* u)
+@@ -958,6 +960,9 @@ void idSysMove04(ID_UNIT* u)
+     if (u->texId == 0xFF) {
+         return;
+     }
++    if (re4_berserker_tex(u->texId)) { /* port (patch 0255): the title's word BERSERKER, one picture */
++        return;
++    }
+     if (IdGetAnmAddr(u->texId, &anm) == 0) {
+         u->be_flag &= ~0x8;
+         pLog->err(0, 0, "idSysMove04():(c[%02x],u[%02x]) texId[%02x] No such Texture.", u->classNo, u->unitNo, u->texId);
+diff --git a/src/game/id_tex.cpp b/src/game/id_tex.cpp
+index 3fc0d09..d9c312a 100644
+--- a/src/game/id_tex.cpp
++++ b/src/game/id_tex.cpp
+@@ -81,6 +81,8 @@ int IdTexDataLoad(void* data, int id)
+ }
+ 
+ 
++extern "C" GXTexObj* re4_berserker_tex(u8 id); /* port (patch 0255): runtime/berserker.cpp */
++
+ // Loads frame `no` of texture `id` (and its TLUT when CI) into texture map 0 with an identity texture matrix.
+ void IdTexSet(u8 id, u8 no)
+ {
+@@ -93,8 +95,11 @@ void IdTexSet(u8 id, u8 no)
+ 
+     asm("" : "+r"(n));
+     if (g_pIdTexSys->GetTexObj(id, (u8) n, &tex) == 0) {
+-        pLog->err(0, 0, "IdTexSet: TexId[%x] no data", id);
+-        return;
++        tex = re4_berserker_tex(id); /* port (patch 0255): the title's word BERSERKER */
++        if (tex == 0) {
++            pLog->err(0, 0, "IdTexSet: TexId[%x] no data", id);
++            return;
++        }
+     }
+     GXLoadTexObj(tex, 0);
+     if (g_pIdTexSys->GetTlutObj(id, &tlut) != 0) {
+diff --git a/src/game/title.cpp b/src/game/title.cpp
+index 4b62c47..da2fbbb 100644
+--- a/src/game/title.cpp
++++ b/src/game/title.cpp
+@@ -77,6 +77,10 @@ int titleMenuSelect(TITLE_WORK* w);
+ void titleLevelInit(TITLE_WORK* w);
+ int titleLevelSelect(TITLE_WORK* w);
+ extern "C" unsigned long long re4_mouse_menu_keys(ID_UNIT** units, int n, int first, int cursor); /* patch 0239 */
++/* port (patch 0255): the difficulty Berserker (runtime/berserker.cpp) */
++extern "C" int re4_berserker_menu_init(ID_UNIT** menu, int num);
++extern "C" int re4_berserker_row(void);
++extern "C" void re4_berserker_title_choice(int berserker);
+ void titleLoop(TITLE_WORK* w);
+ void id_color_copy(int src, int dst, u8 type);
+ void stageSelectInit(TITLE_WORK* w);
+@@ -541,6 +545,11 @@ void titleLevelInit(TITLE_WORK* w)
+         IdSys.unitPtr(2, IDC_TITLE_MENU)->be_flag &= ~8;
+     }
+     w->cursor = 1;
++    /* port (patch 0255): once Professional is unlocked, the row BERSERKER above it (the cursor's row 0) */
++    w->menu_num = re4_berserker_menu_init(w->p_menu, w->menu_num);
++    if (re4_berserker_row()) {
++        w->cursor = 2;
++    }
+ }
+ 
+ /* port: the European difficulty menu (patch 0139): A or START chooses (0 professional, 1 normal,
+@@ -604,6 +613,16 @@ int titleLevelSelect(TITLE_WORK* w)
+     /* port (patch 0239): the mouse; the European menu hides Professional (entry 0) until it is unlocked */
+     Key.trg |= re4_mouse_menu_keys(w->p_menu, w->menu_num,
+                                    re4_disc_retail_eu() && !ExtFlagChk(pSys, EXT_HARD_MODE) ? 1 : 0, w->cursor);
++    /* port (patch 0255): with the row BERSERKER the cursor's row 0 is Berserker (Professional with the marker), the
++       other rows one further down than the code below counts them */
++    if (re4_berserker_row() && (Key.trg & (re4_disc_retail_eu() ? (KEY_A | KEY_START) : KEY_A))) {
++        re4_berserker_title_choice(w->cursor == 0);
++        if (w->cursor == 0) {
++            pG->game_mode = 6;
++            return 1;
++        }
++        w->cursor--;
++    }
+     if (re4_disc_retail_eu()) {  /* port: the European menu (patch 0139) */
+         return titleLevelSelectRetail(w);
+     }

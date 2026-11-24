@@ -478,7 +478,7 @@
     <string name="ingame_health_bars">Barre della vita dei nemici</string>
     <string name="ingame_health_bars_help">Barre della vita dei nemici: una piccola barra sopra ogni nemico mostra la sua salute (verde, gialla sotto un quarto, rossa sotto un decimo); non nelle scene e nei menu.</string>
     <string name="ingame_more_enemies">Più nemici</string>
-    <string name="ingame_more_enemies_help">Più nemici: circa il 40 per cento in più dei Ganados normali di una stanza, in punti casuali, a ogni difficoltà; dalla stanza successiva. Boss, nemici speciali e ondate restano come sono; solo nella storia.</string>
+    <string name="ingame_more_enemies_help">Più nemici: circa il 40 per cento in più dei Ganados normali di una stanza, in punti casuali, a ogni difficoltà; dalla stanza successiva. Boss, nemici speciali e ondate restano come sono; solo nella storia. La difficoltà Berserker li ha sempre.</string>
     <string name="ingame_dof_light">Leggera</string>
     <string name="ingame_dof_strong">Forte</string>
     <string name="ingame_player_view">Visuale del giocatore</string>

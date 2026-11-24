@@ -8,7 +8,7 @@ zuerst und aktualisiert sie am Ende (siehe `CLAUDE.md`).
 Der Feature-Freeze ist mit 1.0.0 vorbei: neue Wünsche kommen in 1.1.0. Alles bis zum Release 1.1.0 geht in den
 GitHub-Branch `workthread` (Worktree `E:\Development\Android\RE4-workthread`, WSL-Baum `~/re4-wt` mit
 `wt-sync_wsl.sh` im Notizordner der Sitzungen). Releasetext `port/android-decomp/docs/releases/v1.1.0.md`.
-Nächste freie Patch-Nummer: 0255 (0254 Cheat „Gegenstände stapeln“, 0248 Meldungszahl nicht gesetzt, 0247 Kappen-Vitrine ohne Debug-Taste, 0246 Schießstand wie das fertige Spiel; 0249–0253 frei; 0245 größerer Raum-Heap, 0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
+Nächste freie Patch-Nummer: 0256 (0255 Schwierigkeit „Berserker“, 0254 Cheat „Gegenstände stapeln“, 0248 Meldungszahl nicht gesetzt, 0247 Kappen-Vitrine ohne Debug-Taste, 0246 Schießstand wie das fertige Spiel; 0249–0253 frei; 0245 größerer Raum-Heap, 0244 Mehr Gegner ohne Listeneintrag, 0243 Fotomodus, 0242 Intro überspringen, 0238 Lebensbalken, 0239 Maus in den Menüs, 0241 Nachladen ohne Zielen; 0240 sind die Schatten).
 
 ### 1. Vibration: DualSense und Handy vibrierten nicht (Nutzerbericht 19.11.2026, Samsung S25, Android 16)
 
@@ -903,6 +903,44 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
 `port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
+
+### 41. Schwierigkeit „Berserker“ (Projektinhaber, 24.11.2026, Patch 0255)
+
+„sollte automatisch +40% mehr Gegner haben und sie sollen auch rund 25% schwerer zu töten sein“; Entscheidungen
+24.11.2026: eine 4. Zeile BERSERKER über Professional im eigenen Schwierigkeitsmenü des Spiels (frei mit Professional),
+Tiere nicht zäher, Wellen unverändert, mit den japanischen Discs nicht, kein App-Schalter.
+- Berserker ist Professional (`game_mode` 6 bleibt: alles, was Spiel und Port für Professional tun, Rang fest 10,
+  Bild in der Spielstandliste) plus Markierung im Spielstand: die drei Bytes nach `game_mode` (GLOBAL_WK 0x8355..0x8357,
+  Füllbytes vor `SaveKind`, im gespeicherten Block): 0xB5 und ein 16-bit-Seed. Kein Code des Debug-Builds und der
+  EU/US/JP-Veröffentlichungen liest oder schreibt sie (alle Lade-/Speicherbefehle auf diese Abstände in main.dol und
+  den RELs geprüft, Retail-Layout +0xC). Ältere Versionen, Dolphin und der GameCube laden so einen Spielstand als
+  Professional (geprüft: älterer Kern 504e728f lädt ihn, Rang 10).
+- `runtime/berserker.cpp`: „Mehr Gegner“ (`enemy_random.cpp moreNow`) immer an, Seed aus dem Spielstand (mit dem
+  App-Schalter zusammen bleibt es einmal +40 %); Gegner nehmen 0,8 des Schadens (`LifeDownSet2` nach dem Rangfaktor des
+  Spiels, Professional 0,85; aufgerundet, mindestens 1), nur die Ids, die das Spiel dort selbst skaliert (Ganados,
+  Bosse, Plaga-Hunde 0x22, Parasiten 0x25 …), ohne Tiere (0x21, 0x23, 0x24, 0x26, 0x28, 0x29). Leon, Ashley, Luis wie
+  Professional; One-Hit-Kill gewinnt weiter. Nicht in Adas Spiel und Mercenaries.
+- Patch 0255: `title.cpp` (Zeile BERSERKER: Kopie der zwei Professional-Einheiten eine Zeile höher, Textur aus
+  `runtime/berserker_word.inc`, eigene Textur-Id, die der Titel nicht benutzt; Cursor-Zeile 0 = Berserker, Start auf
+  Normal; Debug-/US-Menü und EU-Menü von Patch 0139), `game.cpp` (Markierung beim neuen Spiel setzen/löschen, ohne
+  neue Zeilen vor 1069 wegen `byte_views.json`; `clearGlobalSaveData` behält sie), `em_sub.cpp` (Schaden),
+  `id_tex.cpp`/`id_sys.cpp` (die Wort-Textur für `IdTexSet`, keine Texturanimation). Wortbild: DejaVu Serif Bold
+  (`port/tools/berserker_word.py`, IA8 124×14, schwarzer Rand), Platz in MEM1 `RE4_MEM1_CHEAT_ADDR + 0x4F0000`.
+  Testschalter `RE4_TEST_BERSERKER=1` (neues Spiel ist Berserker), `RE4_BERSERKER_LOG=1` (eine Zeile je Treffer).
+- Hilfe unter „Mehr Gegner“ in 11 Sprachen um einen Satz ergänzt.
+- **Geprüft (WSL, i686):** Laufzeittest `berserker` (die echte `LifeDownSet2`): Treffer bis zum Tod Professional →
+  Berserker: Ganado 400/100 5 → 6, Plaga-Hund 600/100 8 → 9, Del Lago 30000/1000 36 → 45, Kuh 4 → 4, One-Hit-Kill 1.
+  Rundgang 126 Räume (`112-bztour.sh`, Professional / Berserker / Normal mit „Mehr Gegner“, Leon schießt mit
+  Lock-on): Berserker in allen 126 Läufen an; Kopien in denselben 26 Räumen mit denselben Zahlen wie der Schalter
+  (164 → 228 Ganados, +39 %); Schaden 0,80 statt 1,00, auch an Bossen (r21d, r228, r332). 14 Abstürze in Läufen ohne
+  Berserker (r208, r400–r409 mit Debug-Start und Dauerfeuer, `TaskExec_hook`): mit dem älteren Kern genauso,
+  Altbefund. Speichern/Laden: neues Berserker-Spiel auf Karte gespeichert, neu gestartet, geladen: gleicher Seed.
+  Menü-Bilder mit Debug-, US- und EU-Discs (`builds/workthread-1.1.2/berserker-*.png`). x86_64 (LP64) und die
+  Android-Kerne armeabi-v7a/arm64-v8a bauen; LP64-Laufzeittest `berserker` und Menü geprüft. **Nicht geprüft:** auf
+  einem Gerät.
+- **Offener Befund** (nicht verfolgt, Koordinator 24.11.2026): Absturz in `TaskExec_hook` (Adresse 0x34) in r208 und
+  r400–r409 beim Debug-Start mit Dauerfeuer (Zielen + A alle 15 Bilder, Lock-on), auch ohne Berserker und im Kern
+  504e728f.
 
 ### 40. Shaderlisten aufgefrischt (GLES und Vulkan, Projektinhaber, 23.11.2026)
 
