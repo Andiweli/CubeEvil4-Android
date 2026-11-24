@@ -31,13 +31,17 @@
 // (patch 0255) asks re4_berserker_list_mark, which shows a copy of the PRO unit with the picture BZK (DejaVu Serif Bold,
 // berserker_word.inc). An older version shows PRO.
 //
-//   RE4_TEST_BERSERKER=1   (the PC checks) a new game is Berserker (game_mode 6 with the marker), as if chosen
+//   RE4_TEST_BERSERKER=1   (the PC checks) a new game is Berserker (game_mode 6 with the marker), as if chosen, with
+//                          the seed 0x4242 (the same copies every run)
+//   RE4_TEST_BLOOD_OFF=1   (the PC checks) Berserker without the bigger blood (patch 0256), for a comparison
 //   RE4_BERSERKER_LOG=1    (the PC checks) one line for every hit on an enemy the game scales: before and after
 #include "types.h"
 #include "global.h"
 #include "id_sys.h"
 #include "texture.h"
 #include "gx.h"
+#include "espgen.h"
+#include "em.h"
 #include "re4_mem1_map.h"
 
 #include <stdint.h>
@@ -340,7 +344,7 @@ void re4_berserker_game_init()
         const bool want = (gChosen == 1 || testOn()) && !extraGame();
         if (want) {
             pG->game_mode = 6;
-            u32 seed = 0;
+            u32 seed = testOn() && gChosen != 1 ? 0x4242u : 0;  // (the PC checks: the same copies every run)
             while ((seed & 0xFFFF) == 0) {
                 seed = (u32) rand() ^ (u32) pG->Frame_cnt * 0x9E3779B1u ^ (u32) (uintptr_t) &seed;
                 seed ^= seed >> 16;
@@ -360,3 +364,95 @@ void re4_berserker_game_init()
                 "of the damage", SysFlagChk(pG, SYS_LOAD_GAME) ? "loaded" : "new", seedOf());
     }
 }
+
+// Patch 0256, Berserker's bigger blood (the project owner, 24.11.2026: "größere Blutfontäne und größere Blutlache bei
+// Treffern, rund 1.5x"; no more bursts, no bigger or longer pools under the dead): while the game's blood helpers of a hit
+// run (EmDmBloodSet, EmDmBloodSet2, EmDmBloodSet3, em10BloodSet, em1cBloodSet: Re4BloodScope) for an enemy the game scales
+// the damage of (re4_berserker_damage's list, without the animals; not Ashley or Luis, not doors, barrels, boxes ...),
+// the effects they start get the game's own control block (ESPSEQ_CONTROL, as EstSet's last argument: copied into the
+// sequence and handed down to its sub-effects, so the floor blood of the drops gets it too) with the size multiplied by
+// 1.5 (Mul_flg bit 1), the speed as it is. EspSeqSet applies it only to the blood sprites (kBloodIds), not the
+// refraction or flash records of a hit. Nothing more is drawn and no random number is taken.
+struct Re4BloodScope {  // (patch 0256 declares it the same in em_sub.cpp and em10.cpp)
+    Re4BloodScope(void* em);
+    ~Re4BloodScope();
+};
+
+namespace {
+int gBloodDepth;
+const void* gBloodEm;
+ESPSEQ_CONTROL gBloodCtl;
+const u8 kBloodMark = 0xB5;  // ESPSEQ_CONTROL::pad: the control is Berserker's
+const f32 kBloodSize = 1.5f;
+
+bool bloodEnemy(const void* em)
+{
+    if (!em || !re4_berserker_on()) {
+        return false;
+    }
+    const int id = ((const cEm*) em)->id;
+    switch (id) {
+    case 0x21: case 0x23: case 0x24: case 0x26: case 0x27: case 0x28: case 0x29:  // the animals
+        return false;
+    }
+    return id >= 0x10 && id <= 0x3F;
+}
+}  // namespace
+
+Re4BloodScope::Re4BloodScope(void* em)
+{
+    if (gBloodDepth++ == 0) {
+        gBloodEm = bloodEnemy(em) ? em : 0;
+    }
+}
+
+Re4BloodScope::~Re4BloodScope()
+{
+    if (--gBloodDepth == 0) {
+        gBloodEm = 0;
+    }
+}
+
+extern "C" {
+
+// Patch 0256 (est.cpp EstSet, esp_sub.cpp EspEstSetSelect): Berserker's control block inside a blood helper, else 0
+ESPSEQ_CONTROL* re4_berserker_blood_ctl(void)
+{
+    static int off = -1;  // RE4_TEST_BLOOD_OFF=1 (the PC check): the same run with the game's blood, for a comparison
+    if (off < 0) {
+        const char* v = getenv("RE4_TEST_BLOOD_OFF");
+        off = v && strcmp(v, "1") == 0;
+    }
+    if (!gBloodEm || gBloodDepth <= 0 || off) {
+        return 0;
+    }
+    memset(&gBloodCtl, 0, sizeof(gBloodCtl));
+    gBloodCtl.Mul_flg = 2;  // the size
+    gBloodCtl.pad = kBloodMark;
+    gBloodCtl.Size_base_x = kBloodSize;
+    gBloodCtl.Size_base_y = kBloodSize;
+    return &gBloodCtl;
+}
+
+// Patch 0256 (esp_sub.cpp EspSeqSet): whether a sprite of effect id `id` takes the control block `pSct`: the game's
+// own blocks always, Berserker's only for the blood sprites (RE4_BERSERKER_LOG=1: one line for each id it meets)
+int re4_berserker_blood_rec(ESPSEQ_CONTROL* pSct, int id)
+{
+    if (!pSct || pSct->pad != kBloodMark) {
+        return 1;
+    }
+    bool blood = false;
+    switch (id) {
+    case 0x00: case 0x01: case 0x0B: case 0x10:  // blood drops, spray, splash, floor blood (esp10)
+        blood = true;
+        break;
+    }
+    static u32 seen[8];
+    if (logOn() && !(seen[(id >> 5) & 7] & (1u << (id & 31)))) {
+        seen[(id >> 5) & 7] |= 1u << (id & 31);
+        re4_log("berserker: blood control meets sprite id 0x%02x: %s", id, blood ? "size x1.5" : "left as it is");
+    }
+    return blood;
+}
+
+}  // extern "C"

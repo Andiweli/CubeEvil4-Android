@@ -1,0 +1,122 @@
+# Berserker's bigger blood (1.1.2, the project owner, 24.11.2026: "größere Blutfontäne und größere Blutlache bei
+# Treffern, rund 1.5x"; runtime/berserker.cpp): the blood of a hit on an enemy 1.5 times as big while Berserker plays.
+# - em_sub.cpp EmDmBloodSet / EmDmBloodSet2 / EmDmBloodSet3 and em10.cpp em10BloodSet / em1cBloodSet: a scope
+#   (Re4BloodScope) around the game's blood helpers of a hit (em10.cpp without new lines: byte_views.json and
+#   lp64_int_casts.json find their sites near the recorded lines);
+# - est.cpp EstSet and esp_sub.cpp EspEstSetSelect: inside that scope, for an enemy and on Berserker, the game's own
+#   ESPSEQ_CONTROL with the size multiplied by 1.5 (copied into the sequence and its sub-effects, the floor blood too);
+# - esp_sub.cpp EspSeqSet: Berserker's control only for the blood sprites (ids 0x00, 0x01, 0x0B, 0x10).
+# No more sprites, no random number; without Berserker nothing changes. Not a bug of the prototype: a port feature.
+diff --git a/src/em10/em10.cpp b/src/em10/em10.cpp
+index 53a00c4..7d6e137 100644
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -337,7 +337,7 @@ int em10SearchParasite(cEm10* em);
+ // Helpers of this unit used before their definition.
+ int em10CrashCk(cEm10* em);
+ int em10LostHead(cEm10* em, int a, int b);
+-void em10BloodSet(cEm10* em, int a);
++void em10BloodSet(cEm10* em, int a); struct Re4BloodScope { Re4BloodScope(void* em); ~Re4BloodScope(); }; /* port (patch 0256): runtime/berserker.cpp */
+ int em10SetDmVal(cEm10* em);
+ void em10CoreBreak(cEm10* em, int a);
+ void em10ParasiteGoOut(cEm10* em);
+@@ -1948,7 +1948,7 @@ static void em10DmSetWep23(cEm10* em)
+ 
+ // Damage blood / hit effect by weapon (near: the shot came from close range).
+ void em10BloodSet(cEm10* em, int near)
+-{
++{ Re4BloodScope re4_blood(em); /* port (patch 0256): Berserker's bigger blood */
+     FREE_EM10* w = EM10_WK(em);
+     CAMERA* cam = &pG->Camera;
+     YARARE_INFO* part;
+@@ -2194,7 +2194,7 @@ void em10BloodSet(cEm10* em, int near)
+ 
+ // Blood effect for the parasite-headed Ganados (types 0xA / 0xD): parts 0x25 is the parasite itself.
+ void em1cBloodSet(cEm10* em, int near)
+-{
++{ Re4BloodScope re4_blood(em); /* port (patch 0256) */
+     FREE_EM10* w = EM10_WK(em);
+     CAMERA* cam = &pG->Camera;
+     YARARE_INFO* part;
+diff --git a/src/game/em_sub.cpp b/src/game/em_sub.cpp
+index 71c6b23..fc8e25d 100644
+--- a/src/game/em_sub.cpp
++++ b/src/game/em_sub.cpp
+@@ -204,10 +204,13 @@ static void emGetDmPosDead(Vec* v)
+     v->z = 1.0f;
+ }
+ 
++struct Re4BloodScope { Re4BloodScope(void* em); ~Re4BloodScope(); }; /* port (patch 0256): runtime/berserker.cpp */
++
+ // Blood burst at the damage position: the small burst for blades / the shotgun family, three
+ // spread bursts for everything else.
+ void EmDmBloodSet(cEm* pEm)
+ {
++    Re4BloodScope re4_blood(pEm); /* port (patch 0256): Berserker's bigger blood */
+     Vec pos;
+     Vec dir;
+     Vec p;
+@@ -264,6 +267,7 @@ void EmDmBloodSet(cEm* pEm)
+ // Effect `no` at the damage position (scattered by 50 when `rnd` is set), owned by `em`.
+ void EmDmBloodSet2(cEm* pEm, u32 est_id, u32 est_no, u32 mode, u16 esp_core_flg, u32 core_kind)
+ {
++    Re4BloodScope re4_blood(pEm); /* port (patch 0256) */
+     Vec pos;
+     Vec dir;
+ 
+@@ -281,6 +285,7 @@ void EmDmBloodSet2(cEm* pEm, u32 est_id, u32 est_no, u32 mode, u16 esp_core_flg,
+ // EmDmBloodSet2 with the effect aligned to the enemy's rotation instead of the damage direction.
+ void EmDmBloodSet3(cEm* pEm, u32 est_id, u32 est_no, u32 mode, u16 esp_core_flg, u32 core_kind)
+ {
++    Re4BloodScope re4_blood(pEm); /* port (patch 0256) */
+     Vec pos;
+     Vec dir;
+ 
+diff --git a/src/game/esp_sub.cpp b/src/game/esp_sub.cpp
+index deb3ffa..ec966f2 100644
+--- a/src/game/esp_sub.cpp
++++ b/src/game/esp_sub.cpp
+@@ -1097,6 +1097,8 @@ void cEsp::Destruct()
+ // Spawns record `no` of est table (owner, id) as one esp at the origin (identity matrix, fixed seed),
+ // bypassing the sequence timing; only Kind 0 records are allowed. bNoSuspend == 1 marks it with
+ // Core_flg bit 0 (kept through pauses). Returns 1 with *out = the esp, 0 (with the dummy) on error.
++extern "C" ESPSEQ_CONTROL* re4_berserker_blood_ctl(void);            /* port (patch 0256): runtime/berserker.cpp */
++extern "C" int re4_berserker_blood_rec(ESPSEQ_CONTROL* pSct, int id); /* port (patch 0256) */
+ int EspEstSetSelect(int owner, int id, int no, cEsp** ppEsp, int bNoSuspend)
+ {
+     cEspSeqHead* head;
+@@ -1130,7 +1132,7 @@ int EspEstSetSelect(int owner, int id, int no, cEsp** ppEsp, int bNoSuspend)
+     if (bNoSuspend == 1) {
+         info.Core_flg |= 1;
+     }
+-    return EspSeqSet(rec, &info, &seed, 0, &m, 0, 0.0f, ppEsp, 0, 0) == 1;
++    return EspSeqSet(rec, &info, &seed, 0, &m, 0, 0.0f, ppEsp, re4_berserker_blood_ctl(), 0) == 1; /* port (patch 0256) */
+ }
+ 
+ // Creates one esp from an effect record (Id 0xFC..0xFF are effect models, made by EfmSeqSet): copies
+@@ -1340,7 +1342,7 @@ int EspSeqSet(cEspSeqTbl* pSeq, cEffectCore* pCore, u32* pRand_seed, cModel* pMo
+             break;
+         }
+         ret = e->SetFreeWork(pSeq, pRand_seed);
+-        if (pSct) {
++        if (pSct && re4_berserker_blood_rec(pSct, e->m_Id)) { /* port (patch 0256): Berserker's control, blood only */
+             if (pSct->OverWrite_flg & 1) {
+                 e->m_Speed = pSct->Speed;
+                 e->m_Speed.x += pSeq->R_speed.x * fRandSeed1_1(pRand_seed);
+diff --git a/src/game/est.cpp b/src/game/est.cpp
+index 7d141f4..3f73c3d 100644
+--- a/src/game/est.cpp
++++ b/src/game/est.cpp
+@@ -31,8 +31,12 @@ void EstSet(cModel* a, int b, Vec* pos, Vec* rot, int c, u8 d, u16 e, u8 f, void
+ // 0x2000 during a movie / bit 0 in the no-suspend mode from Status_flg[2]), the call number, parts,
+ // offset (pos != NULL sets Flg bit 1 = explicit position) and rotation (head->rot is in degrees),
+ // and a random seed. Debug_flg[1] 0x01000000 disables all effects.
++extern "C" ESPSEQ_CONTROL* re4_berserker_blood_ctl(void); /* port (patch 0256): runtime/berserker.cpp */
+ void EstSet(cModel* model, int no, Vec* pos, Vec* rot, cEspSeqHead* head, u16 e, u8 f, void* g, u32 owner, ESPSEQ_CONTROL* h)
+ {
++    if (h == NULL) {
++        h = re4_berserker_blood_ctl(); /* port (patch 0256): Berserker's bigger blood, 0 otherwise */
++    }
+     cEspgen* w;
+     ESPGEN10_WK* p;
+ 

@@ -904,6 +904,30 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
 `port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 44. Berserker: größeres Blut bei Treffern (Projektinhaber, 24.11.2026, Patch 0256)
+
+„größere Blutfontäne und größere Blutlache bei Treffern, rund 1.5x“; Entscheidungen: keine zusätzlichen Spritzer, keine
+größeren oder längeren Lachen unter Toten, nur mit Berserker. Abgenommen am 24.11.2026 („Ja“, Bilder `blood-*`).
+- Patch 0256: `em_sub.cpp` (`EmDmBloodSet`, `EmDmBloodSet2`, `EmDmBloodSet3`) und `em10.cpp` (`em10BloodSet`,
+  `em1cBloodSet`) öffnen einen `Re4BloodScope` (ohne neue Zeilen vor den Stellen von `byte_views.json` und
+  `lp64_int_casts.json`: Deklaration an die Prototypzeile gehängt, Scope auf der Zeile der öffnenden Klammer);
+  `est.cpp` (`EstSet` mit 10 Argumenten: ohne eigenen Steuerblock der von `re4_berserker_blood_ctl`), `esp_sub.cpp`
+  (`EspEstSetSelect` gibt ihn als 9. Argument weiter; `EspSeqSet` wendet ihn nur an, wenn
+  `re4_berserker_blood_rec` ja sagt).
+- `runtime/berserker.cpp`: innerhalb eines Blut-Helfers für einen Gegner, dessen Schaden Berserker skaliert (Ids
+  0x10..0x3F ohne die Tiere 0x21, 0x23, 0x24, 0x26–0x29; nicht Ashley, Luis, Türen, Fässer …), bekommen die Effekte
+  den eigenen Steuerblock des Spiels (`ESPSEQ_CONTROL`, `Mul_flg` Bit 1 = Größe, 1,5; Markierung `pad` 0xB5), der in
+  die Sequenz kopiert und an ihre Untereffekte weitergegeben wird (so auch das Bodenblut der Tropfen). Angewandt nur
+  auf die Blut-Sprites (Ids 0x00, 0x01, 0x0B, 0x10), nicht auf Brechungs- oder Blitz-Einträge eines Treffers. Nichts
+  wird zusätzlich gezeichnet, keine Zufallszahl mehr gezogen.
+  Testschalter `RE4_TEST_BLOOD_OFF=1` (Berserker mit dem Blut des Spiels, zum Vergleich); `RE4_TEST_BERSERKER=1` nimmt
+  jetzt den festen Seed 0x4242 (gleiche Gegnerkopien in jedem Lauf).
+- **Geprüft (WSL, i686, Debug-Disc):** Läufe mit und ohne (`112-blood.sh`, Leon schießt mit Lock-on): gleiche Treffer
+  (Pistole 78, Schrotflinte 55), gleiche Zeichenaufrufe mit der Pistole, mit der Schrotflinte in einigen Bildern 1–3
+  mehr (größere Bodenflecken); dieselben 46 Shader-Schlüssel; GLES und Vulkan gezeichnet; Bilder
+  `builds/workthread-1.1.2/blood-*`. x86_64 und die Android-Kerne bauen. **Nicht geprüft:** auf einem Gerät; Gewehr (keine
+  Treffer im Lauf), Treppen.
+
 ### 43. Shader-Vorbereitung: Leiste braun statt cyan (Projektinhaber, 24.11.2026)
 
 „nicht Cyan sondern auch in dem Braunton wie im Spiel die Touchbuttons“. `ShaderPrepScreen`: die Leiste (auch die noch
