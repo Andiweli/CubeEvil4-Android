@@ -904,6 +904,32 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
 `port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 40. Shaderlisten aufgefrischt (GLES und Vulkan, Projektinhaber, 23.11.2026)
+
+- Neue Raum-Rundgänge am PC mit dem Stand von 1.1.2 (126 Räume je Rundgang, alle exit 0): Debug-Disc, EU-Disc mit
+  Cheats und Spezialkostüm, die vier anderen Spielfiguren (Ada, HUNK, Krauser, Wesker), mehr und zufällige Gegner mit
+  Leon-Jacke und Schattenmarken, Söldner-Modus (4 Räume × 5 Figuren); jeweils mit Lebensbalken. Skripte
+  `112-keytour.sh`/`112-alltours.sh` im Notizordner der Sitzungen. Je Raum: Kern-Dumps, dann `gx_chunk_render` mit
+  GLES und Vulkan (ohne und mit gebündelten Draws) in einen leeren Cache.
+- `gx-programs.keys` (GLES): 9 174 → 11 287 Schlüssel. Alle alten bleiben (das Schlüssel-Layout ist seit 15.10.2026
+  gleich, nichts ist unmöglich geworden); dazu 1 829 neue der Rundgänge und 284 Schlüssel aus Fehlerberichten, die auf
+  mindestens 6 verschiedenen Geräten vorkamen (alle Berichte zusammen wären 22 669, zu viel für die Grenze von etwa
+  11 000; Berichtschlüssel von weniger Geräten bleiben draußen).
+- `gx-vkpipes.keys` (Vulkan): 2 822 → 4 872 Pipelines (743 davon gebündelte Draws), 126 Räume; alle Berichte und
+  alle Rundgänge; größter Raum r203 mit 522 (Grenze 3 000).
+- Die 1.1-Nachbearbeitung (CRT, Bloom, FXAA, Schärfen, SGSR/FSR, TV-Filter, Tiefenschärfe, Lichtreflexe) und die
+  RT-Schatten sind feste Shader, nicht in den Listen; Alpha-to-Coverage ändert nur den Quelltext, nicht den Schlüssel.
+  Neu in den Listen sind vor allem Lebensbalken, Kostüme, Ersatzfiguren und zufällige Gegner.
+- `gx_chunk_render`: neue Umgebungsvariable `RE4_GX_WARM_LIST=<gx-programs.keys>` (mit `RE4_GX_PROGRAM_CACHE`) lässt
+  vorher `WarmProgramCache` über die ganze Liste laufen, wie die App beim Start (`RE4_GX_SAMPLES` > 1 für MSAA).
+- **Geprüft (WSL, Mesa/lavapipe):** GLES-Vorbereitung über die ganze neue Liste ohne und mit MSAA 4: 11 287
+  Schlüssel, 9 280 Programme gelinkt, 0 Fehler (107 s / 69 s); `vk_shader_check` über die neue GLES-Liste: 33 861
+  Shader, 0 Fehler; Vulkan-Vorbereitung (`RE4_GX_AHEAD_WAIT=1`, Validierung an) ohne Bündeln 4 129 von 4 872 (743
+  gebündelte ausgelassen), mit Bündeln 4 872 von 4 872, 0 Fehler, 0 Validierungsmeldungen, danach r100 gezeichnet.
+- Erwartete Dauer des ersten Vorbereitens: GLES etwa ein Viertel länger als mit der 1.1.1-Liste (auf dem langsamsten
+  gemessenen Handy grob 0,26 s je Programm); Vulkan etwa 1,5- bis 1,7-mal so lang (Retroid vorher 68 s, jetzt grob
+  1,5 bis 2 Minuten). Danach wie bisher nur Sekunden. Nicht auf einem Gerät geprüft.
+
 ### 39. Technische Notiz: Google-Play-Signaturschlüssel (Projektinhaber, 23.11.2026)
 
 - Die Auto-App (AAOS, `com.ast.re4decomp`) aus Google Play zeigte die Warnung für inoffizielle Builds: Play signiert

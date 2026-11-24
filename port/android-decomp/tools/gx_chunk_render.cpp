@@ -108,6 +108,21 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "no EGL/GLES3 context (Mesa packages: port/tools/whole_setup_linux.sh)\n");
     return 1;
   }
+  // RE4_GX_WARM_LIST=<gx-programs.keys> (OpenGL ES, with RE4_GX_PROGRAM_CACHE): first the app's preparation of the
+  // shaders (WarmProgramCache, as core_mode.cpp runs it at the start) over that key list into the cache, on this
+  // thread's context; RE4_GX_SAMPLES > 1 makes them for MSAA (the check of a new list, 1.1.2)
+  if (const char *warmList = std::getenv("RE4_GX_WARM_LIST")) {
+    const char *cache = std::getenv("RE4_GX_PROGRAM_CACHE");
+    const char *samples = std::getenv("RE4_GX_SAMPLES");
+    if (!vulkan && *warmList && cache && *cache) {
+      const re4gx::GxWarmResult w =
+          re4gx::WarmProgramCache(cache, warmList, samples && std::atoi(samples) > 1 ? 1u : 0u, nullptr);
+      std::printf("warm: %u keys (%u from the list), %u linked, %u had a binary, %u failed, %u old removed, %.0f ms\n",
+                  w.keys, w.listed, w.linked, w.had, w.failed, w.stale, w.ms);
+      if (w.failed)
+        return 1;
+    }
+  }
   const std::string out = argv[1];
   int failures = 0;
   std::unique_ptr<re4gx::GxRenderer> renderer;
