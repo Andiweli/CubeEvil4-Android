@@ -410,7 +410,7 @@
     <string name="ingame_cheat_costume_normal">Normal</string>
     <string name="ingame_cheat_costume_jacket">Chaqueta de Leon</string>
     <string name="ingame_cheat_costume_special">Especial</string>
-    <string name="ingame_cheat_character_help">El personaje ocupa al instante el lugar de Leon (la sala se vuelve a cargar donde estás). El maletín, la vida y el dinero de Leon se mantienen; las escenas y las llamadas de radio siguen mostrando a Leon, y la parte de Ashley sigue siendo de Ashley. Krauser trae su arco y Wesker su silenciador mientras estén elegidos. Tus partidas guardadas siempre conservan a Leon. Los personajes distintos de Leon no están pensados para el juego principal, así que antes aparece un aviso.</string>
+    <string name="ingame_cheat_character_help">El personaje ocupa al instante el lugar de Leon (la sala se vuelve a cargar donde estás). El maletín, la vida y el dinero de Leon se mantienen; las escenas y las llamadas de radio siguen mostrando a Leon, y la parte de Ashley sigue siendo de Ashley. Krauser trae su arco y Wesker su silenciador mientras estén elegidos. Tus partidas guardadas siempre conservan a Leon. Los personajes distintos de Leon no están pensados para el juego principal, así que antes aparece un aviso. Con Ashley, Krauser usa su brazo con apuntar + X; X solo da órdenes a Ashley.</string>
     <string name="ingame_cheat_character_warning">Atención: este personaje no está pensado para el juego principal. ¡Pueden aparecer y aparecerán errores, y son inevitables!</string>
     <string name="ingame_understood">Entendido</string>
     <string name="ingame_later">Más tarde</string>

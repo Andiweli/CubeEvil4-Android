@@ -405,7 +405,7 @@
     <string name="ingame_cheat_costume_normal">普通</string>
     <string name="ingame_cheat_costume_jacket">里昂的夹克</string>
     <string name="ingame_cheat_costume_special">特别</string>
-    <string name="ingame_cheat_character_help">该角色立即取代里昂（房间会在你所在的位置重新载入）。里昂的手提箱、生命值和金钱保持不变；过场动画和无线电通话仍显示里昂，阿什莉的部分仍由阿什莉进行。被选中期间，克劳萨带着他的弓，威斯克带着他的消音器。你的存档始终保存为里昂。里昂以外的角色并非为主线游戏设计，因此会先显示警告。</string>
+    <string name="ingame_cheat_character_help">该角色立即取代里昂（房间会在你所在的位置重新载入）。里昂的手提箱、生命值和金钱保持不变；过场动画和无线电通话仍显示里昂，阿什莉的部分仍由阿什莉进行。被选中期间，克劳萨带着他的弓，威斯克带着他的消音器。你的存档始终保存为里昂。里昂以外的角色并非为主线游戏设计，因此会先显示警告。有阿什莉同行时，克劳萨用瞄准 + X 使用手臂；单按 X 向阿什莉下令。</string>
     <string name="ingame_cheat_character_warning">注意：此角色并非为主线游戏设计，可能并且一定会出现错误，这些错误无法避免！</string>
     <string name="ingame_understood">我已了解</string>
     <string name="ingame_later">稍后</string>

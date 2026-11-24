@@ -904,6 +904,18 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
 `port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 42. Krauser als Stellvertreter: Zielen + X ist sein Arm (Nutzerwunsch, Projektinhaber 24.11.2026)
+
+Nutzerbericht: mit Ashley ging Krausers Arm nicht mehr, X gab ihr Befehle (Patch 0197: ein Stellvertreter befiehlt
+Ashley mit X, Krausers `checkXbutton` fragte das zuerst). Entscheidung des Projektinhabers: „Zielen + X“, keine eigene
+Taste. `runtime/cheats.cpp re4_story_char_xbutton`: Krauser mit gehaltener Zieltaste (`joyKamae`) behält X für seinen
+Arm, auch wenn Ashley folgt (Logzeile „Krauser aims: X is his arm“); X allein gibt Ashley weiter Befehle, ohne Ashley ist
+X allein wie bisher der Arm. Leon, Ada, HUNK, Wesker unverändert. Hilfe der Figurenwahl in 11 Sprachen um einen Satz
+ergänzt.
+- **Geprüft (WSL, i686, Debug-Start):** r203 mit Ashley: X, X → „wait“, „follow“; Zielen + X → Arm; A schlägt; X, X →
+  wieder „wait“, „follow“. r208 mit Ashley: Zielen + X → Arm (Bild: verwandelter Arm). Ada und Wesker in r203: alle X
+  (auch mit Zielen) geben Ashley Befehle wie bisher. **Nicht geprüft:** auf einem Gerät, Touch.
+
 ### 41. Schwierigkeit „Berserker“ (Projektinhaber, 24.11.2026, Patch 0255)
 
 „sollte automatisch +40% mehr Gegner haben und sie sollen auch rund 25% schwerer zu töten sein“; Entscheidungen

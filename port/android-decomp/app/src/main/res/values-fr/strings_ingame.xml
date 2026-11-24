@@ -412,7 +412,7 @@
     <string name="ingame_cheat_costume_normal">Normal</string>
     <string name="ingame_cheat_costume_jacket">Veste de Leon</string>
     <string name="ingame_cheat_costume_special">Spécial</string>
-    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon (la pièce se recharge là où vous vous trouvez). La mallette, la vie et l’argent de Leon restent\u00A0; les cinématiques et les appels radio montrent toujours Leon, et la partie d’Ashley reste à Ashley. Krauser apporte son arc et Wesker son silencieux tant qu’ils sont choisis. Vos sauvegardes gardent toujours Leon. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, un avertissement s’affiche donc d’abord.</string>
+    <string name="ingame_cheat_character_help">Le personnage prend aussitôt la place de Leon (la pièce se recharge là où vous vous trouvez). La mallette, la vie et l’argent de Leon restent\u00A0; les cinématiques et les appels radio montrent toujours Leon, et la partie d’Ashley reste à Ashley. Krauser apporte son arc et Wesker son silencieux tant qu’ils sont choisis. Vos sauvegardes gardent toujours Leon. Les personnages autres que Leon ne sont pas prévus pour le jeu principal, un avertissement s’affiche donc d’abord. Avec Ashley, Krauser utilise son bras avec viser + X ; X seul donne des ordres à Ashley.</string>
     <string name="ingame_cheat_character_warning">Attention\u00A0: ce personnage n\'est pas prévu pour le jeu principal. Des bugs peuvent survenir et surviendront, ils sont inévitables\u00A0!</string>
     <string name="ingame_understood">J\'ai compris</string>
     <string name="ingame_later">Plus tard</string>

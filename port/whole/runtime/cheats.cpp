@@ -1883,9 +1883,17 @@ void* re4_arc_stand_in(const void* arc, unsigned int no, unsigned int v)
 // most; the command flag on (the button's hint). Leon's call (SE 0x36 / 0x37 of the player's sound block) is
 // left out: that block holds the character's own sounds. -1 without a stand-in or without Ashley (Krauser's
 // arm attack keeps the button then), else 1 when a command was given.
+// 1.1.2 (a user's wish, the project owner's choice of 24.11.2026: "Aim + X"): Krauser aiming (the aim key held,
+// joyKamae) keeps his arm on X while Ashley follows too (-1); X alone commands her as before.
 int re4_story_char_xbutton(cPlayer* pl)
 {
     if (!pG || !standIn() || pSUB == 0 || pSUB->id != 3) {
+        return -1;
+    }
+    if (pG->pl_type == 4 && joyKamae()) {
+        if (Key.trg & 0x200) {
+            re4_log("cheat: Krauser aims: X is his arm (Ashley follows, aim + X)");
+        }
         return -1;
     }
     if (pl->m_CmdTimer) {

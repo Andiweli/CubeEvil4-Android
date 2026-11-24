@@ -403,7 +403,7 @@
     <string name="ingame_cheat_costume_normal">Normal</string>
     <string name="ingame_cheat_costume_jacket">Jaket Leon</string>
     <string name="ingame_cheat_costume_special">Spesial</string>
-    <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon (ruangan dimuat ulang di tempatmu berdiri). Koper, nyawa, dan uang Leon tetap; adegan film dan panggilan radio tetap menampilkan Leon, dan bagian Ashley tetap milik Ashley. Selama dipilih, Krauser membawa busurnya dan Wesker membawa peredamnya. Simpananmu selalu menyimpan Leon. Karakter selain Leon tidak dibuat untuk permainan utama, jadi peringatan muncul lebih dulu.</string>
+    <string name="ingame_cheat_character_help">Karakter ini langsung menggantikan Leon (ruangan dimuat ulang di tempatmu berdiri). Koper, nyawa, dan uang Leon tetap; adegan film dan panggilan radio tetap menampilkan Leon, dan bagian Ashley tetap milik Ashley. Selama dipilih, Krauser membawa busurnya dan Wesker membawa peredamnya. Simpananmu selalu menyimpan Leon. Karakter selain Leon tidak dibuat untuk permainan utama, jadi peringatan muncul lebih dulu. Bersama Ashley, Krauser memakai lengannya dengan bidik + X; X saja memberi perintah kepada Ashley.</string>
     <string name="ingame_cheat_character_warning">Perhatian: karakter ini tidak dibuat untuk permainan utama. Bug bisa dan akan terjadi, dan tidak bisa dihindari!</string>
     <string name="ingame_understood">Saya mengerti</string>
     <string name="ingame_later">Nanti</string>

@@ -425,7 +425,7 @@
     <string name="ingame_cheat_costume_normal">Normal</string>
     <string name="ingame_cheat_costume_jacket">Leon\'s jacket</string>
     <string name="ingame_cheat_costume_special">Special</string>
-    <string name="ingame_cheat_character_help">The character takes Leon\'s place at once (the room loads again where you stand). Leon\'s case, life and money stay; cutscenes and radio calls still show Leon, and Ashley\'s part stays Ashley\'s. Krauser brings his bow and Wesker his silencer while they are chosen. Your saves always keep Leon. Characters other than Leon are not made for the main game, so a warning comes first.</string>
+    <string name="ingame_cheat_character_help">The character takes Leon\'s place at once (the room loads again where you stand). Leon\'s case, life and money stay; cutscenes and radio calls still show Leon, and Ashley\'s part stays Ashley\'s. Krauser brings his bow and Wesker his silencer while they are chosen. Your saves always keep Leon. Characters other than Leon are not made for the main game, so a warning comes first. With Ashley along, Krauser uses his arm with aim + X; X alone commands Ashley.</string>
     <string name="ingame_cheat_character_warning">Warning: This character is not meant for the main game. Bugs can and will occur, and they cannot be avoided!</string>
     <string name="ingame_understood">I understand</string>
     <string name="ingame_later">Later</string>
