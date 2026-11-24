@@ -19,7 +19,7 @@ struct KeptTexture {
   std::uint8_t format;  // Dolphin's format number (2 IA4, 3 IA8, 6 RGBA8, 8 C4, 9 C8, 14 CMPR)
 };
 
-// 677 pictures, sorted by tex, width, height, format
+// 679 pictures, sorted by tex, width, height, format
 constexpr KeptTexture kMenuWords[] = {
     {0x006b279d64f4b0ffull, 105, 21, 3}, // save: jp eu G
     {0x00a5c9e305c65a9full, 184, 48, 8}, // id400: eu S
@@ -152,6 +152,7 @@ constexpr KeptTexture kMenuWords[] = {
     {0x2eb6c169aefffe6bull, 31, 31, 2}, // option: eu S
     {0x2ec167acb4e13dd9ull, 99, 14, 8}, // title: eu I
     {0x2edc747f6ef8c1d0ull, 400, 52, 14}, // id22c: eu S
+    {0x2f153af0a559c09eull, 120, 14, 3}, // berserker_word.py: kWord "BERSERKER" (the port's own, Berserker)
     {0x2fd6cc0db64d41b5ull, 376, 32, 8}, // id400: eu F
     {0x2ff20c73068d1ab0ull, 39, 20, 8}, // ss_cmmn: jp; title: jp
     {0x2ffbe0320ad8d63cull, 58, 20, 8}, // ss_cmmn: jp; title: jp
@@ -570,6 +571,7 @@ constexpr KeptTexture kMenuWords[] = {
     {0xd61b47ec8f9c6cc6ull, 112, 24, 8}, // ss_map: eu S
     {0xd61e99a4ad9cb4ceull, 154, 21, 3}, // save: jp eu G
     {0xd675dbea58c10722ull, 104, 24, 8}, // ss_shop: eu S
+    {0xd6d19697f58838acull, 44, 21, 3}, // berserker_word.py: kMark "BSK" (the port's own, Berserker)
     {0xd6f3d6eb00486bcaull, 191, 26, 2}, // option: eu I
     {0xd7227e782976e114ull, 600, 101, 9}, // save: jp eu I
     {0xd7cfdf8a81741a30ull, 122, 22, 3}, // save: debug us jp eu EJ

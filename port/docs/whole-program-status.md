@@ -996,13 +996,17 @@ Tiere nicht zäher, Wellen unverändert, mit den japanischen Discs nicht, kein A
   Normal; Debug-/US-Menü und EU-Menü von Patch 0139), `game.cpp` (Markierung beim neuen Spiel setzen/löschen, ohne
   neue Zeilen vor 1069 wegen `byte_views.json`; `clearGlobalSaveData` behält sie), `em_sub.cpp` (Schaden),
   `id_tex.cpp`/`id_sys.cpp` (die Wort-Textur für `IdTexSet`, keine Texturanimation). Wortbild: DejaVu Serif Bold
-  (`port/tools/berserker_word.py`, IA8 124×14; nach den Gerätetests des Projektinhabers 24.11.2026 Texel für Texel an die
+  (`port/tools/berserker_word.py`, IA8 120×14; nach den Gerätetests des Projektinhabers 24.11.2026 Texel für Texel an die
   Wörter des Spiels angeglichen, gemessen an deren Texturen (nur am PC ausgelesen, nichts davon im Repository): 14
   Texel hoch, helle Zeilen 3..10 mit halbhellen Serifenzeilen 2 und 11, Hauptstämme auf Texelkanten, Stämme etwa 2
   Texel, Buchstaben 9–12 Texel breit und 3 Texel auseinander, schwarze deckende Fläche Zeilen 1..12 (wie das Spiel,
   das die Wörter auf einer dunklen Fläche hat); im Maßstab des Professional-Worts gezeichnet; Bilder `font4-*.png`; nach
   dem Gerätetest „links nicht bündig“: der erste Stamm des B auf Texelspalte 4 wie bei den Wörtern des Spiels, Serife 2,
-  hell ab 3, Bilder `font5-*`), Platz in
+  hell ab 3, Bilder `font5-*`; nach dem Gerätetest „seitlich gestreckt“: Serifen und Ausläufer reichten je Buchstabe
+  etwa 1 Texel weiter als beim Spiel (mit halbhellem Rand E 11 statt 9–10, R 13 statt 10–11), jetzt 1,12 statt 1,22
+  verbreitert: E 9, R 11, S 9, B 10 (P 10), Lücken 2–3 Texel, 120×14; und die App schärfte mit „Sharper menu text“ (Standard an)
+  nur die Wörter des Spiels, die sie am Texel-Hash erkennt (`tex_pack_words.h`): BERSERKER und BSK stehen jetzt mit
+  in der Liste (`berserker_word.py` trägt ihre Hashes selbst ein), so werden sie genauso geschärft; Bilder `font6-*`), Platz in
   MEM1 `RE4_MEM1_CHEAT_ADDR + 0x4F0000` (BSK + 0x4F8000).
   Testschalter `RE4_TEST_BERSERKER=1` (neues Spiel ist Berserker), `RE4_BERSERKER_LOG=1` (eine Zeile je Treffer).
 - Spielstandliste (Wunsch des Projektinhabers 24.11.2026, „Eigenes Zeichen BZK“, nach dem Gerätetest „von BZK auf

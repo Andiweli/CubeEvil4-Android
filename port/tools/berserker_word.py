@@ -15,6 +15,7 @@ OUT.inc: for each picture NAME: NAMEW, NAMEH (texels; the width a multiple of 4)
 with the height rounded up to 4).
 """
 import os
+import struct
 import sys
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
@@ -26,8 +27,12 @@ PICS = [
     # Bold drawn at 12 px with its hinting (capitals 9 texels, stems of whole texels), letters 2 texels further apart
     # (font5, the owner's device test 24.11.2026 "links nicht bündig": the game's words start alike, plate column 1,
     # half-bright serif 2, bright 3, first stem 4: stem0=4 puts B's stem there)
-    dict(name="kWord", word="BERSERKER", font="DejaVuSerif-Bold.ttf", height=14, cap=9.25, track=0, stretch=1.22,
-         edge=(0, 0), shadow=False, top=2.25, weight=0, gain=1.0, level=1.0, hinted=0, texel=dict(gap=1.4, plate=1.6, thin=0.25, stem0=4)),
+    # (font6, the owner's device test 24.11.2026 "seitlich gestreckt": the stems were right, but the serifs and legs
+    # reached about a texel further than the game's letters, counted with their half-bright edge: E 11 texels (the
+    # game's 9-10), R 13 (10-11), B 11 (P 10); widened 1.12 instead of 1.22 they are E 9, R 11, B 10, S 9 (the game's
+    # 8-9), letters 2-3 texels apart like the game's (gap 1.7))
+    dict(name="kWord", word="BERSERKER", font="DejaVuSerif-Bold.ttf", height=14, cap=9.25, track=0, stretch=1.12,
+         edge=(0, 0), shadow=False, top=2.25, weight=0, gain=1.0, level=1.0, hinted=0, texel=dict(gap=1.7, plate=1.6, thin=0.25, stem0=4)),
     # the save list's column words (measured on the game's PRO texture, 24.11.2026: 38x21 IA8, capitals 11 texels from row
     # 1, crisp stems 2 texels, letters about 1 texel apart, no edge but a soft black shadow down-right; tinted light yellow)
     # (font5, the owner 24.11.2026 "bei PRO ist zwischen den Buchstaben mehr Platz": P-R and R-O measured per row, 2
@@ -182,11 +187,84 @@ def tiles(w, rows, height):
     return data
 
 
+# XXH64 with seed 0, as tex_pack.cpp Xxh64 (the first part of Dolphin's texture name): the key the app knows a
+# menu word by
+_M = (1 << 64) - 1
+_P1, _P2, _P3, _P4, _P5 = (11400714785074694791, 14029467366897019727, 1609587929392839161, 9650029242287828579,
+                           2870177450012600261)
+
+
+def _rotl(x, r):
+    return ((x << r) | (x >> (64 - r))) & _M
+
+
+def _round(acc, v):
+    return (_rotl((acc + v * _P2) & _M, 31) * _P1) & _M
+
+
+def xxh64(data):
+    n, i = len(data), 0
+    if n >= 32:
+        v = [(_P1 + _P2) & _M, _P2, 0, (-_P1) & _M]
+        while i + 32 <= n:
+            v = [_round(v[k], struct.unpack_from("<Q", data, i + 8 * k)[0]) for k in range(4)]
+            i += 32
+        h = (_rotl(v[0], 1) + _rotl(v[1], 7) + _rotl(v[2], 12) + _rotl(v[3], 18)) & _M
+        for x in v:
+            h = ((h ^ _round(0, x)) * _P1 + _P4) & _M
+    else:
+        h = _P5
+    h = (h + n) & _M
+    while i + 8 <= n:
+        h = (_rotl(h ^ _round(0, struct.unpack_from("<Q", data, i)[0]), 27) * _P1 + _P4) & _M
+        i += 8
+    if i + 4 <= n:
+        h = (_rotl(h ^ (struct.unpack_from("<I", data, i)[0] * _P1 & _M), 23) * _P2 + _P3) & _M
+        i += 4
+    while i < n:
+        h = (_rotl(h ^ (data[i] * _P5 & _M), 11) * _P1) & _M
+        i += 1
+    h ^= h >> 33
+    h = (h * _P2) & _M
+    h ^= h >> 29
+    h = (h * _P3) & _M
+    return h ^ (h >> 32)
+
+
+WORDS_H = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "android-decomp", "app", "src", "main", "cpp",
+                       "tex_pack_words.h")
+MARK = "// berserker_word.py: "
+
+
+def menu_words(entries):
+    """font6 (the owner's device test 24.11.2026: BERSERKER looked wider than the game's words): the app's "Sharper menu
+    text" (on by default) and the HD packs know the game's words by their texels' hash (tex_pack_words.h kMenuWords);
+    ours, on no disc, were not there, so only the game's words were drawn sharper at high resolutions. Our pictures'
+    lines there (marked), sorted by the hash like the rest and kept up to date with the pictures."""
+    with open(WORDS_H, encoding="utf-8") as f:
+        text = f.read()
+    start = "constexpr KeptTexture kMenuWords[] = {\n"
+    head, rest = text.split(start, 1)
+    body, tail = rest.split("\n};", 1)
+    lines = [line for line in body.split("\n") if line and MARK not in line]
+    for name, word, tex, w, h in entries:
+        lines.append(f"    {{0x{tex:016x}ull, {w}, {h}, 3}}, {MARK}{name} \"{word}\" (the port's own, Berserker)")
+    lines.sort(key=lambda line: int(line.split("0x", 1)[1].split("ull", 1)[0], 16))
+    head_lines = head.rstrip("\n").split("\n")
+    head_lines[-1] = f"// {len(lines)} pictures, sorted by tex, width, height, format"
+    out = "\n".join(head_lines) + "\n" + start + "\n".join(lines) + "\n};" + tail
+    if out != text:
+        with open(WORDS_H, "w", newline="\n", encoding="utf-8") as f:
+            f.write(out)
+        print(f"tex_pack_words.h: {len(lines)} pictures, ours updated")
+
+
 def main(argv):
     if len(argv) < 3:
         print(__doc__)
         return 2
     lines = ["// generated by port/tools/berserker_word.py from DejaVu Serif (Bold); do not edit"]
+    words = []
     for p in PICS:
         name, word, height = p["name"], p["word"], p["height"]
         if p["texel"]:
@@ -215,9 +293,11 @@ def main(argv):
             bg = Image.new("RGBA", (w, height), (60, 55, 45, 255))
             bg.alpha_composite(prev)
             bg.resize((w * 6, height * 6), Image.NEAREST).save(f"{argv[3]}-{word.lower()}.png")
-        print(f"{name} \"{word}\": {w}x{height}, {len(data)} bytes")
+        words.append((name, word, xxh64(bytes(data)), w, height))
+        print(f"{name} \"{word}\": {w}x{height}, {len(data)} bytes, texels' hash 0x{words[-1][2]:016x}")
     with open(argv[2], "w", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
+    menu_words(words)
     return 0
 
 
