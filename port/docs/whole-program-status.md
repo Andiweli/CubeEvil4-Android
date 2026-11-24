@@ -904,6 +904,15 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
 `port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 43. Shader-Vorbereitung: Leiste braun statt cyan (Projektinhaber, 24.11.2026)
+
+„nicht Cyan sondern auch in dem Braunton wie im Spiel die Touchbuttons“. `ShaderPrepScreen`: die Leiste (auch die noch
+unbestimmte und die Spur) im Braun des Rings der Touch-Buttons des RE-Skins (`TouchStyle.BORDER` 0xFFB58B55) statt der
+Akzentfarbe des Material-Themes; Texte unverändert. Gleicher Bildschirm für GLES und Vulkan. **Geprüft:**
+`ShaderPrepShotTest` (Robolectric, Farben; mit `RE4_PREP_SHOTS` Bilder vorher/nachher, 640×360 dp), Bilder
+`builds/workthread-1.1.2/shader-prep-*.png` vom Projektinhaber abgenommen. Kein Releasetext. **Nicht geprüft:** auf einem
+Gerät.
+
 ### 42. Krauser als Stellvertreter: Zielen + X ist sein Arm (Nutzerwunsch, Projektinhaber 24.11.2026)
 
 Nutzerbericht: mit Ashley ging Krausers Arm nicht mehr, X gab ihr Befehle (Patch 0197: ein Stellvertreter befiehlt

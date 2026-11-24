@@ -1,7 +1,9 @@
 package com.ast.re4decomp;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -41,6 +43,14 @@ final class ShaderPrepScreen {
     bar = new ProgressBar(c, null, android.R.attr.progressBarStyleHorizontal);
     bar.setMax(1000);
     bar.setIndeterminate(true);
+    // (1.1.2, the project owner, 24.11.2026: "nicht Cyan sondern auch in dem Braunton wie im Spiel die Touchbuttons")
+    // the brown of the RE touch skin (TouchStyle.BORDER, the buttons' ring) instead of the theme's cyan: the bar in it,
+    // the track too, which the theme's drawable shows faint (as it showed its grey)
+    ColorStateList brown = ColorStateList.valueOf(TouchStyle.BORDER);
+    bar.setProgressTintList(brown);
+    bar.setIndeterminateTintList(brown);
+    bar.setProgressBackgroundTintList(brown);
+    bar.setProgressBackgroundTintMode(PorterDuff.Mode.SRC_IN);
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Math.round(420 * d), Math.round(18 * d));
     lp.topMargin = Math.round(18 * d);
     column.addView(bar, lp);
