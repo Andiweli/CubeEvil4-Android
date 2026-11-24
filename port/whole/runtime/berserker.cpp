@@ -220,8 +220,20 @@ int re4_berserker_menu_init(ID_UNIT** menu, int num)
         return num;
     }
     const f32 step = pro->pos0.y - normal->pos0.y;  // the rows' distance (20)
+    // the game draws its word pictures at their own scale (the units' size against their texels): the same for ours
+    TEX_WK* wk = word->texId != 0xFF ? IdGetTexWk(word->texId, 1) : 0;
+    const f32 sx = wk && wk->texHdr->width ? word->size_W / wk->texHdr->width : 1.0f;
+    const f32 sy = wk && wk->texHdr->height ? word->size_H / wk->texHdr->height : 1.0f;
+    re4_log("berserker: Professional's word: texture %ux%u, drawn %.1fx%.1f", wk ? wk->texHdr->width : 0,
+            wk ? wk->texHdr->height : 0, word->size_W, word->size_H);
     gRow[0] = copyOf(&IdSys, pro, 0x21, texId, kWordW, kWordH);
     gRow[1] = copyOf(&IdSys, word, 0x22, texId, kWordW, kWordH);
+    for (ID_UNIT* u : gRow) {
+        if (u) {
+            u->size_W = kWordW * sx;
+            u->size_H = kWordH * sy;
+        }
+    }
     if (!gRow[0] || !gRow[1]) {
         re4_log("berserker: the id system is full, no menu row");
         if (gRow[0]) IdSys.unitPush(gRow[0]);
