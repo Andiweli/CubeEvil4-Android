@@ -1,63 +1,67 @@
 #!/usr/bin/env python3
-"""The word "BERSERKER" of the title's difficulty menu (1.1.2, patch 0255, runtime/berserker.cpp) as a GameCube IA8
-texture (format 3: an intensity and an alpha byte per texel, 4x4 tiles), drawn like the game's own menu words
-(PROFESSIONAL, NORMAL: 14 texels high, light capitals of a wide serif with a dark edge; the menu tints them, white or
-orange): DejaVu Serif Bold (free font, Bitstream Vera licence), its capitals, 2.4 texels between letters, a black
-edge (one texel full, a second one half). Nothing of the game: the font is DejaVu's.
+"""The pictures of the difficulty Berserker (1.1.2, patch 0255, runtime/berserker.cpp) as GameCube IA8 textures
+(format 3: an alpha and an intensity byte per texel, 4x4 tiles), drawn like the game's own words:
+  - kWord "BERSERKER", the title's difficulty menu (like PROFESSIONAL, NORMAL: 14 texels high, light capitals of a
+    wide serif with a black edge; the menu tints them, white or orange);
+  - kMark "BZK", the save list's Mode column (the project owner's choice, 24.11.2026; in the place of the game's
+    mode picture PRO, 21 texels high, light upright serif capitals with a faint dark edge, tinted light yellow).
+DejaVu Serif Bold and DejaVu Serif (free fonts, Bitstream Vera licence), their capitals, letters apart by a few texels,
+a dark edge. Nothing of the game: the fonts are DejaVu's.
 
-  berserker_word.py FONT.ttf OUT.inc [PREVIEW.png]
+  berserker_word.py FONT_DIR OUT.inc [PREVIEW_PREFIX]   (FONT_DIR: DejaVuSerif.ttf and DejaVuSerif-Bold.ttf)
 
-OUT.inc: kWordW, kWordH (texels; the width a multiple of 4) and kWord[] (the tiles, kWordW * kWordH * 2 bytes).
+OUT.inc: for each picture NAME: NAMEW, NAMEH (texels; the width a multiple of 4) and NAME[] (the tiles, W * H * 2 bytes
+with the height rounded up to 4).
 """
+import os
 import sys
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
-WORD = "BERSERKER"
-HEIGHT = 14          # the game's words: 14 texels
-CAP = 10.0           # their capitals' height in texels
-STRETCH = 1.0        # the width of the font's own capitals
-TRACK = 2.4          # texels between letters
-SS = 8               # supersampling
+SS = 8  # supersampling
+PICS = [
+    # name, word, font file, height, capitals' height, texels between letters, edge (near, far: the dark edge's alpha
+    # one and two texels around the letters), the capitals' top (texels; None: in the middle)
+    ("kWord", "BERSERKER", "DejaVuSerif-Bold.ttf", 14, 10.0, 2.4, (255, 128), None),
+    # the save list's column words (PRO: 38x21 texels, light upright serif capitals about 9.6 texels high from the top, a
+    # faint dark edge; tinted light yellow; measured on the PC's picture, 24.11.2026)
+    ("kMark", "BZK", "DejaVuSerif-Bold.ttf", 21, 9.6, 1.4, (96, 0), 1.0),
+]
 
 
-def render(font_path):
-    size = int(round(CAP * SS / 0.729))  # DejaVu Serif's capitals: 0.729 em
+def render(font_path, word, height, cap, track, edge_alpha, cap_top):
+    size = int(round(cap * SS / 0.729))  # DejaVu Serif's capitals: 0.729 em
     font = ImageFont.truetype(font_path, size)
-    widths = [font.getlength(c) * STRETCH for c in WORD]
-    total = sum(widths) + TRACK * SS * (len(WORD) - 1)
+    widths = [font.getlength(c) for c in word]
+    total = sum(widths) + track * SS * (len(word) - 1)
     w = int(total + 4 * SS)
-    big = Image.new("L", (w, HEIGHT * SS), 0)
+    big = Image.new("L", (w, height * SS), 0)
     x = 2 * SS
-    top = (HEIGHT * SS - CAP * SS) / 2
-    for c, cw in zip(WORD, widths):
-        g = Image.new("L", (int(font.getlength(c)) + 2 * SS, HEIGHT * SS * 2), 0)
+    top = (height * SS - cap * SS) / 2 if cap_top is None else cap_top * SS
+    for c, cw in zip(word, widths):
+        g = Image.new("L", (int(font.getlength(c)) + 2 * SS, height * SS * 2), 0)
         ImageDraw.Draw(g).text((SS, 0), c, font=font, fill=255)
         box = g.getbbox()
         g = g.crop((0, box[1], g.width, box[3]))
-        g = g.resize((int(g.width * STRETCH), int(round(CAP * SS))), Image.LANCZOS)
-        big.paste(g, (int(x - SS * STRETCH), int(top)), g)
-        x += cw + TRACK * SS
-    fill = big.resize((w // SS, HEIGHT), Image.LANCZOS)
+        g = g.resize((g.width, int(round(cap * SS))), Image.LANCZOS)
+        big.paste(g, (int(x - SS), int(top)), g)
+        x += cw + track * SS
+    fill = big.resize((w // SS, height), Image.LANCZOS)
     # the dark edge as the game's words have it: black, one texel around the letters at full strength and a second
     # one at half (the menu draws the words at 0.76 alpha over a dark picture)
-    near = fill.filter(ImageFilter.MaxFilter(3)).point(lambda v: min(255, v * 2))
-    far = fill.filter(ImageFilter.MaxFilter(5)).point(lambda v: min(128, v))
+    near = fill.filter(ImageFilter.MaxFilter(3)).point(lambda v: min(edge_alpha[0], v * 2))
+    far = fill.filter(ImageFilter.MaxFilter(5)).point(lambda v: min(edge_alpha[1], v))
     edge = ImageChops.lighter(near, far)
     box = edge.getbbox()
-    fill = fill.crop((0, 0, box[2] + 1, HEIGHT))
-    edge = edge.crop((0, 0, box[2] + 1, HEIGHT))
+    fill = fill.crop((0, 0, box[2] + 1, height))
+    edge = edge.crop((0, 0, box[2] + 1, height))
     return fill, edge
 
 
-def main(argv):
-    if len(argv) < 3:
-        print(__doc__)
-        return 2
-    fill, edge = render(argv[1])
+def texels_of(fill, edge, height):
     w = (fill.width + 3) // 4 * 4
-    texels = []
-    for y in range(HEIGHT):
+    rows = []
+    for y in range(height):
         row = []
         for x in range(w):
             f = fill.getpixel((x, y)) if x < fill.width else 0
@@ -65,33 +69,47 @@ def main(argv):
             a = max(f, e)
             i = 0 if a == 0 else min(255, round(0xFF * f / max(a, 1)))
             row.append((i, a))
-        texels.append(row)
+        rows.append(row)
+    return w, rows
+
+
+def tiles(w, rows, height):
     data = bytearray()
-    for ty in range(0, HEIGHT, 4):
+    for ty in range(0, height, 4):
         for tx in range(0, w, 4):
             for y in range(ty, ty + 4):
                 for x in range(tx, tx + 4):
-                    i, a = texels[y][x] if y < HEIGHT else (0, 0)
+                    i, a = rows[y][x] if y < height else (0, 0)
                     data += bytes((a, i))  # IA8: alpha first, then intensity (GX_TF_IA8)
-    h4 = (HEIGHT + 3) // 4 * 4
-    lines = [f"// generated by port/tools/berserker_word.py from DejaVu Serif Bold; do not edit",
-             f"static const int kWordW = {w}, kWordH = {HEIGHT}, kWordTileH = {h4};",
-             f"static const unsigned char kWord[{len(data)}] = {{"]
-    for k in range(0, len(data), 24):
-        lines.append("    " + ", ".join(f"0x{b:02x}" for b in data[k:k + 24]) + ",")
-    lines.append("};")
+    return data
+
+
+def main(argv):
+    if len(argv) < 3:
+        print(__doc__)
+        return 2
+    lines = ["// generated by port/tools/berserker_word.py from DejaVu Serif (Bold); do not edit"]
+    for name, word, font, height, cap, track, edge_alpha, cap_top in PICS:
+        fill, edge = render(os.path.join(argv[1], font), word, height, cap, track, edge_alpha, cap_top)
+        w, rows = texels_of(fill, edge, height)
+        data = tiles(w, rows, height)
+        lines.append(f"static const int {name}W = {w}, {name}H = {height};  // \"{word}\"")
+        lines.append(f"static const unsigned char {name}[{len(data)}] = {{")
+        for k in range(0, len(data), 24):
+            lines.append("    " + ", ".join(f"0x{b:02x}" for b in data[k:k + 24]) + ",")
+        lines.append("};")
+        if len(argv) > 3:
+            prev = Image.new("RGBA", (w, height))
+            for y in range(height):
+                for x in range(w):
+                    i, a = rows[y][x]
+                    prev.putpixel((x, y), (i, i, i, a))
+            bg = Image.new("RGBA", (w, height), (60, 55, 45, 255))
+            bg.alpha_composite(prev)
+            bg.resize((w * 6, height * 6), Image.NEAREST).save(f"{argv[3]}-{word.lower()}.png")
+        print(f"{name} \"{word}\": {w}x{height}, {len(data)} bytes")
     with open(argv[2], "w", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
-    if len(argv) > 3:
-        prev = Image.new("RGBA", (w, HEIGHT))
-        for y in range(HEIGHT):
-            for x in range(w):
-                i, a = texels[y][x]
-                prev.putpixel((x, y), (i, i, i, a))
-        bg = Image.new("RGBA", (w, HEIGHT), (60, 55, 45, 255))
-        bg.alpha_composite(prev)
-        bg.resize((w * 6, HEIGHT * 6), Image.NEAREST).save(argv[3])
-    print(f"{argv[2]}: {w}x{HEIGHT}, {len(data)} bytes")
     return 0
 
 

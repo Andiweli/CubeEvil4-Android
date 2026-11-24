@@ -937,8 +937,14 @@ Tiere nicht zäher, Wellen unverändert, mit den japanischen Discs nicht, kein A
   Normal; Debug-/US-Menü und EU-Menü von Patch 0139), `game.cpp` (Markierung beim neuen Spiel setzen/löschen, ohne
   neue Zeilen vor 1069 wegen `byte_views.json`; `clearGlobalSaveData` behält sie), `em_sub.cpp` (Schaden),
   `id_tex.cpp`/`id_sys.cpp` (die Wort-Textur für `IdTexSet`, keine Texturanimation). Wortbild: DejaVu Serif Bold
-  (`port/tools/berserker_word.py`, IA8 124×14, schwarzer Rand), Platz in MEM1 `RE4_MEM1_CHEAT_ADDR + 0x4F0000`.
+  (`port/tools/berserker_word.py`, IA8 124×14, schwarzer Rand), Platz in MEM1 `RE4_MEM1_CHEAT_ADDR + 0x4F0000` (BZK + 0x4F8000).
   Testschalter `RE4_TEST_BERSERKER=1` (neues Spiel ist Berserker), `RE4_BERSERKER_LOG=1` (eine Zeile je Treffer).
+- Spielstandliste (Wunsch des Projektinhabers 24.11.2026, „Eigenes Zeichen BZK“): ein Berserker-Spielstand zeigt in der
+  Spalte „Mode“ BZK statt PRO. Merker im Kopf des Spielstands: Byte 0x3F = GLOBAL_WK `pad_4F8B` (Füllbyte, von keinem
+  Code der vier Veröffentlichungen gelesen oder geschrieben), 0xB5, gesetzt beim Spielstart (`re4_berserker_game_init`).
+  `card.cpp dispSaveInfo` (Patch 0255) ruft `re4_berserker_list_mark`: Kopie der Einheit 0x18 (PRO, 38×21 Texel,
+  gezeichnet 38×23) mit eigenem Bild BZK (DejaVu Serif Bold, `berserker_word.inc` `kMark`, gleicher Maßstab).
+  Ältere Versionen zeigen PRO (geprüft mit Kern 504e728f: Bilder `berserker-save-list*.png`).
 - Hilfe unter „Mehr Gegner“ in 11 Sprachen um einen Satz ergänzt.
 - **Geprüft (WSL, i686):** Laufzeittest `berserker` (die echte `LifeDownSet2`): Treffer bis zum Tod Professional →
   Berserker: Ganado 400/100 5 → 6, Plaga-Hund 600/100 8 → 9, Del Lago 30000/1000 36 → 45, Kuh 4 → 4, One-Hit-Kill 1.

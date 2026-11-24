@@ -25,6 +25,12 @@
 // word in DejaVu Serif Bold, port/tools/berserker_word.py; nothing of the game) under a texture id the title does not
 // use: IdTexSet and idSysMove04 ask re4_berserker_tex for it. The cursor's row 0 is then Berserker, 1 Professional ...
 //
+// The save list (the project owner's wish of 24.11.2026, "Eigenes Zeichen BZK"): a Berserker save shows BZK in the
+// Mode column instead of PRO. The list reads only the save's header, whose byte 0x3F is GLOBAL_WK 0x4F8B (padding no
+// release reads or writes): 0xB5 there for a Berserker game (set by re4_berserker_game_init), and card.cpp dispSaveInfo
+// (patch 0255) asks re4_berserker_list_mark, which shows a copy of the PRO unit with the picture BZK (DejaVu Serif Bold,
+// berserker_word.inc). An older version shows PRO.
+//
 //   RE4_TEST_BERSERKER=1   (the PC checks) a new game is Berserker (game_mode 6 with the marker), as if chosen
 //   RE4_BERSERKER_LOG=1    (the PC checks) one line for every hit on an enemy the game scales: before and after
 #include "types.h"
@@ -51,13 +57,25 @@ namespace {
 #include "berserker_word.inc"
 
 const u8 kMagic = 0xB5;
-// the word's texels: in the cheats' place of MEM1 (re4_mem1_map.h; GX reads textures there like the game's own)
-const u32 kWordAddr = RE4_MEM1_CHEAT_ADDR + 0x4F0000u;
-static_assert(0x4F0000u + sizeof(kWord) <= RE4_MEM1_CHEAT_MAX, "the word's place runs past the cheats' places");
+
+// The two pictures (berserker_word.inc): the menu's word BERSERKER and the save list's mark BZK. Their texels lie in
+// the cheats' place of MEM1 (re4_mem1_map.h; GX reads textures there like the game's own), each under a texture id
+// the id texture system does not hold.
+struct Pic {
+    const unsigned char* data;
+    unsigned bytes;
+    int w, h;
+    u32 addr;
+    u8 id;  // 0: none yet
+    GXTexObj tex;
+};
+Pic gPics[2] = {{kWord, sizeof(kWord), kWordW, kWordH, RE4_MEM1_CHEAT_ADDR + 0x4F0000u, 0, {}},
+                {kMark, sizeof(kMark), kMarkW, kMarkH, RE4_MEM1_CHEAT_ADDR + 0x4F8000u, 0, {}}};
+static_assert(sizeof(kWord) <= 0x8000u && 0x4F8000u + sizeof(kMark) <= RE4_MEM1_CHEAT_MAX,
+              "the pictures' places run past the cheats' places");
+enum { kPicWord = 0, kPicMark = 1 };
 
 int gChosen;            // the title's choice for the next new game: 1 Berserker
-u8 gTexId;              // the word's texture id (0: none yet)
-GXTexObj gTex;
 ID_UNIT* gRow[2];       // the copies: [0] the cursor's (orange), [1] the word
 int gTest = -1;
 
@@ -90,32 +108,54 @@ int seedOf()
     return pG->pad_8355[1] << 8 | pG->pad_8355[2];
 }
 
-// a texture id the id texture system does not hold, from the top (0xFF is "none")
-u8 freeTexId()
+// a texture id the id texture system does not hold and the other picture does not use, from the top (0xFF: none)
+u8 freeTexId(const Pic& self)
 {
     for (int id = 0xFE; id > 0; id--) {
-        if (!IdGetTexWk((u8) id, 1)) {
+        bool other = false;
+        for (const Pic& p : gPics) {
+            other = other || (&p != &self && p.id == id);
+        }
+        if (!other && !IdGetTexWk((u8) id, 1)) {
             return (u8) id;
         }
     }
     return 0;
 }
 
-ID_UNIT* copyOf(const ID_UNIT* from, u8 mark)
+// the picture's texture id, made the first time (or anew when the game took its id since); 0 when none is free
+u8 picId(int which)
 {
-    ID_UNIT* u = IdSys.unitPull();
+    Pic& p = gPics[which];
+    if (p.id && !IdGetTexWk(p.id, 1)) {
+        return p.id;
+    }
+    p.id = freeTexId(p);
+    if (!p.id) {
+        re4_log("berserker: no free texture id");
+        return 0;
+    }
+    memcpy((void*) (uintptr_t) p.addr, p.data, p.bytes);
+    GXInitTexObj(&p.tex, (void*) (uintptr_t) p.addr, p.w, p.h, GX_TF_IA8, GX_CLAMP, GX_CLAMP, GX_FALSE);
+    GXInitTexObjLOD(&p.tex, GX_LINEAR, GX_LINEAR, 0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE, GX_ANISO_1);
+    return p.id;
+}
+
+ID_UNIT* copyOf(IDSystem* sys, const ID_UNIT* from, u8 mark, u8 texId, int w, int h)
+{
+    ID_UNIT* u = sys->unitPull();
     if (!u) {
         return 0;
     }
     memcpy(u, from, sizeof(ID_UNIT));
     u->markNo = mark;
     u->unitNo = mark;
-    u->texId = gTexId;
+    u->texId = texId;
     u->texNo = 0;
     u->tex_ptn_no = 0;
     u->tex_flag |= 2;  // no texture animation
-    u->size_W = (f32) kWordW;
-    u->size_H = (f32) kWordH;
+    u->size_W = (f32) w;
+    u->size_H = (f32) h;
     u->u0 = 0.0f;
     u->u1 = 1.0f;
     u->v0 = 0.0f;
@@ -175,24 +215,13 @@ int re4_berserker_menu_init(ID_UNIT** menu, int num)
     if (menu[0] != pro || pro->be_flag == 0xFF || word->be_flag == 0xFF || normal->be_flag == 0xFF) {
         return num;
     }
-    if (!gTexId) {
-        gTexId = freeTexId();
-        if (!gTexId) {
-            re4_log("berserker: no free texture id for the menu row");
-            return num;
-        }
-        memcpy((void*) (uintptr_t) kWordAddr, kWord, sizeof(kWord));
-        GXInitTexObj(&gTex, (void*) (uintptr_t) kWordAddr, kWordW, kWordH, GX_TF_IA8, GX_CLAMP, GX_CLAMP, GX_FALSE);
-        GXInitTexObjLOD(&gTex, GX_LINEAR, GX_LINEAR, 0.0f, 0.0f, 0.0f, GX_FALSE, GX_FALSE, GX_ANISO_1);
-    } else if (IdGetTexWk(gTexId, 1)) {
-        gTexId = freeTexId();  // the title took it since
-        if (!gTexId) {
-            return num;
-        }
+    const u8 texId = picId(kPicWord);
+    if (!texId) {
+        return num;
     }
     const f32 step = pro->pos0.y - normal->pos0.y;  // the rows' distance (20)
-    gRow[0] = copyOf(pro, 0x21);
-    gRow[1] = copyOf(word, 0x22);
+    gRow[0] = copyOf(&IdSys, pro, 0x21, texId, kWordW, kWordH);
+    gRow[1] = copyOf(&IdSys, word, 0x22, texId, kWordW, kWordH);
     if (!gRow[0] || !gRow[1]) {
         re4_log("berserker: the id system is full, no menu row");
         if (gRow[0]) IdSys.unitPush(gRow[0]);
@@ -209,7 +238,7 @@ int re4_berserker_menu_init(ID_UNIT** menu, int num)
         menu[i] = menu[i - 1];
     }
     menu[0] = gRow[0];
-    re4_log("berserker: menu row above Professional (texture id %02x, %dx%d, %d rows)", gTexId, kWordW, kWordH, num + 1);
+    re4_log("berserker: menu row above Professional (texture id %02x, %dx%d, %d rows)", texId, kWordW, kWordH, num + 1);
     return num + 1;
 }
 
@@ -228,10 +257,62 @@ void re4_berserker_title_choice(int berserker)
     }
 }
 
-// Patch 0255 (id_tex.cpp IdTexSet, id_sys.cpp idSysMove04): the word's texture for its id, else 0
+// Patch 0255 (card.cpp dispSaveInfo): the save list's Mode column of the entry of id class `type` (header bytes
+// `mode` 0x3D, the copy of game_mode, and `mark` 0x3F, GLOBAL_WK's pad_4F8B: 0xB5 for a Berserker save): BZK instead of
+// the game's mode picture (units 0x17, 0x18, 0x22), as a copy of unit 0x18 (mark 0x30) with the picture of
+// berserker_word.inc; `broken` or another save: the copy hidden
+void re4_berserker_list_mark(IDSystem* id, int type, int mode, int mark, int broken)
+{
+    const int max = *(const s32*) id;  // m_maxId (private, the first word)
+    ID_UNIT* copy = 0;
+    for (int i = 0; i < max && id->m_IdUnit; i++) {
+        ID_UNIT* u = &id->m_IdUnit[i];
+        if (u->be_flag != 0xFF && u->classNo == (u8) type && u->markNo == 0x30) {
+            copy = u;
+            break;
+        }
+    }
+    const bool bz = mark == kMagic && mode == 6 && !broken;
+    if (!bz) {
+        if (copy) {
+            copy->be_flag &= ~8;
+        }
+        return;
+    }
+    if (!copy) {
+        ID_UNIT* pro = id->unitPtr(0x18, (ID_CLASS) type);
+        const u8 texId = picId(kPicMark);
+        // the game draws its picture somewhat taller than its texels (PRO: 38x21 texels at 38x23): the same scale
+        TEX_WK* wk = pro->texId != 0xFF ? IdGetTexWk(pro->texId, 1) : 0;
+        const f32 sx = wk && wk->texHdr->width ? pro->size_W / wk->texHdr->width : 1.0f;
+        const f32 sy = wk && wk->texHdr->height ? pro->size_H / wk->texHdr->height : 1.0f;
+        if (pro->be_flag == 0xFF || !texId || !(copy = copyOf(id, pro, 0x30, texId, kMarkW, kMarkH))) {
+            return;
+        }
+        copy->size_W = kMarkW * sx;
+        copy->size_H = kMarkH * sy;
+        if (logOn()) {
+            re4_log("berserker: save list class %02x: unit 0x18 tex %02x/%u %ux%u fmt %u, size %.1f %.1f, pos %.1f %.1f, "
+                    "vtx %02x, col %02x%02x%02x%02x", type, pro->texId, pro->texNo, wk ? wk->texHdr->width : 0,
+                    wk ? wk->texHdr->height : 0, wk ? wk->texHdr->format : 0, pro->size_W, pro->size_H, pro->pos0.x,
+                    pro->pos0.y, pro->vtxType, pro->col0[0], pro->col0[1], pro->col0[2], pro->col0[3]);
+        }
+    }
+    id->unitPtr(0x17, (ID_CLASS) type)->be_flag &= ~8;
+    id->unitPtr(0x18, (ID_CLASS) type)->be_flag &= ~8;
+    id->unitPtr(0x22, (ID_CLASS) type)->be_flag &= ~8;
+    copy->be_flag |= 8;
+}
+
+// Patch 0255 (id_tex.cpp IdTexSet, id_sys.cpp idSysMove04): the texture of one of the two pictures for its id, else 0
 GXTexObj* re4_berserker_tex(u8 id)
 {
-    return gTexId && id == gTexId && !IdGetTexWk(id, 1) ? &gTex : 0;
+    for (Pic& p : gPics) {
+        if (p.id && id == p.id && !IdGetTexWk(id, 1)) {
+            return &p.tex;
+        }
+    }
+    return 0;
 }
 
 }  // extern "C"
@@ -260,6 +341,8 @@ void re4_berserker_game_init()
         }
         gChosen = 0;
     }
+    // the save list's mark (card.cpp reads the header's byte 0x3F: GLOBAL_WK 0x4F8B, padding nothing reads)
+    pG->pad_4F8B = re4_berserker_on() ? kMagic : 0;
     if (re4_berserker_on()) {
         re4_log("berserker: on (%s game, seed %04x): Professional, More enemies with the save's seed, enemies take 0.8 "
                 "of the damage", SysFlagChk(pG, SYS_LOAD_GAME) ? "loaded" : "new", seedOf());
