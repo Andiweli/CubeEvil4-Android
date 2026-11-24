@@ -50,6 +50,8 @@
 #include <new>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <math.h>
 
 // The SDK casts GXFifoObj (a byte array) to a struct of words (patch 0038).
 static_assert(__alignof__(GXFifoObj) >= 4, "GXFifoObj must be word aligned for ARM");
@@ -914,6 +916,8 @@ extern "C" int re4_touch_unit_hit(const ID_UNIT* unit, f32 u, f32 v);
 extern "C" void re4_touch_sscrn(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, SsPzzlMain* pzzl, SsItemMain* item,
                                 SsMapMain* map, SsFileMain* file);
 extern "C" void re4_core_touch(float u, float v);
+extern "C" int re4_log_tail(char* out, int size);
+extern "C" int re4_touch_case_swallow(void);
 extern "C" void re4_core_swipe(int dir);
 extern "C" void re4_touch_item_keys(int curCol, int col, int n, int combine, u64* keys, int* count);
 extern "C" void re4_touch_file_keys(int mode, int cursor, int target, u64* keys, int* count);
@@ -957,6 +961,14 @@ f32 unitU(f32 x) { return 0.5f + x / 640.0f; }
 f32 unitV(f32 y) { return 0.5f - y / 480.0f; }
 
 // one tap, one frame of the sub screen task: Key.trg afterwards
+const u64 kCrossKeys = 0x0F000000ull;
+char gMenuTouchTail[64 * 160];
+
+unsigned itemId(pzlPiece* p)
+{
+    return p && p->item ? p->item->id : 0;
+}
+
 u64 tapFrame(SsPzzlMain* main, f32 u, f32 v)
 {
     Key.trg = 0;
@@ -967,10 +979,17 @@ u64 tapFrame(SsPzzlMain* main, f32 u, f32 v)
 
 } // namespace
 
+// the log of the taps and swipes, kept before the drag tests
+extern "C" const char* re4probe_menu_touch_tail(void)
+{
+    return gMenuTouchTail;
+}
+
 extern "C" int re4probe_menu_touch(void)
 {
     const u64 kA = 0x80000000ull, kB = 0x40000000ull, kLeft = 0x08000000ull;
-    static cItem items[2];
+    // (1.1.2: the ammo too, a third item for the drag's place over two items)
+    static cItem items[3];
     memset(items, 0, sizeof(items));
     items[0].id = 0x23;
     items[0].x = 2;
@@ -978,7 +997,8 @@ extern "C" int re4probe_menu_touch(void)
     items[1].id = 0x05;
     items[1].x = 6;
     items[1].y = 3;
-    for (int i = 0; i < 2; i++) {
+    items[2].id = 0x20;
+    for (int i = 0; i < 3; i++) {
         items[i].num = 1;
         items[i].flags = 1;
         items[i].board = 1;
@@ -994,7 +1014,7 @@ extern "C" int re4probe_menu_touch(void)
     const int keepSeStop = DbgFlagChk(pG, DBG_SE_STOP) != 0;
     DbgFlagOn(pG, DBG_SE_STOP);  // no sound system here: SndCall returns at once
     ItemMgr.m_pItem = items;
-    ItemMgr.m_array_num = 2;
+    ItemMgr.m_array_num = 3;
     pG->pl_type = 0;
     if (pLog == 0) {
         LogInit();
@@ -1298,6 +1318,359 @@ extern "C" int re4probe_menu_touch(void)
             re4_touch_file_keys(1, 3, 1, keys, &n);  // the list: 2 up, A
             ok = ok && n == 3 && keys[0] == 0x01000000ull && keys[1] == 0x01000000ull && keys[2] == kA;
             bad |= ok ? 0 : 0x1000000;
+        }
+        // 1.1.2: an item dragged with a finger (runtime/menu_touch.cpp re4_touch_case_drag). The case's widgets never
+        // run here (their code is in the Sscrn module): the game's answers are done by hand: X in PieceSelect picks the
+        // item up (getPiece, PzzlThinking), the cross moves it (movePiece reads Key.rep), X in PzzlThinking puts it
+        // down, combines or swaps (putPiece / cmbPiece / chgPiece, as PzzlThinking::move)
+        {
+            // the log of the taps and swipes above for runtime_tests.cpp (the log keeps only its last lines)
+            re4_log_tail(gMenuTouchTail, (int) sizeof(gMenuTouchTail));
+            alignas(16) static unsigned char thinkMem[sizeof(PzzlThinking)];
+            memset(thinkMem, 0, sizeof(thinkMem));
+            main->thinking = (PzzlThinking*) thinkMem;
+            Widget<SUB_SCREEN>* thinkW = (Widget<SUB_SCREEN>*) thinkMem;
+            const u64 kX = 0x00020000ull, kY = 0x00100000ull;
+            u64 seen = 0;  // every key the drag gave
+            auto cellUv = [&](int cx, int cy, f32* cu, f32* cv) {
+                worldUv(-500.0f + 100.0f * cx + 50.0f, 300.0f - 100.0f * cy - 50.0f, cu, cv);
+            };
+            auto finger = [&](int phase, f32 fu, f32 fv) {
+                re4_core_touch(phase == 3 ? 10.0f : fu + 4.0f + 2.0f * (f32) phase, fv);
+            };
+            // one frame of the sub screen and the game's answer to its keys
+            auto gameFrame = [&]() -> u64 {
+                Key.trg = Key.on = Key.rep = 0;
+                Joy[0].trg = 0;
+                re4_touch_sscrn(wk, main, main, 0, 0, 0);
+                const u64 k = Key.trg | Key.rep;
+                seen |= k;
+                if (main->cur == sel && (k & kX) && pl->ptrPiece()) {
+                    pl->getPiece();
+                    main->cur = thinkW;
+                } else if (main->cur == thinkW && (k & kX)) {
+                    if (pl->putPiece()) {
+                        main->cur = sel;
+                    } else if (pl->cmbPiece(pl->m_p_active_board)) {
+                        pl->rehash();
+                        if (!pl->pieceInHand()) {
+                            main->cur = sel;
+                        }
+                    } else {
+                        pl->chgPiece(pl->m_p_active_board);
+                    }
+                } else if (main->cur == thinkW && (k & kCrossKeys)) {
+                    pl->movePiece();
+                }
+                return k;
+            };
+            auto sleepMs = [](int ms) {
+                timespec t = {0, ms * 1000000L};
+                nanosleep(&t, 0);
+            };
+            wk->open_flag = SS_OPEN_NORMAL;
+            main->state = 0;
+            main->cur = sel;
+            sel->state = 0;
+            pl->m_p_active_board = b;
+            b->m_cur_x = 0;
+            b->m_cur_y = 0;
+            for (int i = 0; i < 91; i++) {
+                gameFrame();  // the swipes' and taps' leftovers of the tests above
+            }
+            sleepMs(800);
+            // a long press on the spray: nothing until the time is up, then the cursor on it and X
+            f32 fu, fv;
+            cellUv(sx, sy, &fu, &fv);
+            finger(0, fu, fv);
+            u64 k = gameFrame();
+            bool held = false;
+            if (k != 0) {
+                bad |= 0x10000000;
+            }
+            for (int i = 0; i < 60 && !held; i++) {
+                sleepMs(20);
+                k = gameFrame();
+                held = pl->pieceInHand() != 0;
+            }
+            if (!held || b->m_cur_x != sx || b->m_cur_y != sy || itemId(pl->pieceInHand()) != 0x05) {
+                re4_log("  menutouch: drag: long press, held %d, cursor (%d %d)", held ? 1 : 0, (int) b->m_cur_x,
+                        (int) b->m_cur_y);
+                bad |= 0x10000000;
+            }
+            // the finger moves to (0 5): the item follows, one press a frame
+            int tx = 0, ty = 5;
+            cellUv(tx, ty, &fu, &fv);
+            finger(1, fu, fv);
+            for (int i = 0; i < 30; i++) {
+                gameFrame();
+            }
+            pzlPiece* sp = pl->pieceInHand();
+            int x0 = -1, y0 = -1, x1 = -1, y1 = -1;
+            if (sp) {
+                const int vx = (int) floorf(sp->ver0_x() + 0.01f), vy = (int) floorf(sp->ver0_y() + 0.01f);
+                x0 = sp->size_x() > 0 ? vx : vx + sp->size_x() + 1;
+                y0 = sp->size_y() > 0 ? vy : vy + sp->size_y() + 1;
+                x1 = sp->size_x() > 0 ? vx + sp->size_x() : vx + 1;
+                y1 = sp->size_y() > 0 ? vy + sp->size_y() : vy + 1;
+            }
+            if (!sp || !(tx >= x0 && tx < x1 && ty >= y0 && ty < y1)) {
+                re4_log("  menutouch: drag: the spray covers (%d..%d %d..%d), want (%d %d)", x0, x1 - 1, y0, y1 - 1, tx, ty);
+                bad |= 0x20000000;
+            }
+            // lifted on an empty place: X puts it down there
+            finger(2, fu, fv);
+            for (int i = 0; i < 6; i++) {
+                gameFrame();
+            }
+            if (pl->pieceInHand() || main->cur != sel || itemId(b->getPiece(tx, ty)) != 0x05) {
+                re4_log("  menutouch: drag: after the drop in hand 0x%02x, (%d %d) holds 0x%02x", itemId(pl->pieceInHand()),
+                        tx, ty, itemId(b->getPiece(tx, ty)));
+                bad |= 0x40000000;
+            }
+            {
+                static char tail[24 * 130];
+                re4_log_tail(tail, (int) sizeof(tail));
+                const char* want[] = {"touch: case: long press on item 0x05 at (", "): X picks it up",
+                                      "touch: case: finger lifted on (0 5) of the case: X puts item 0x05 down",
+                                      "touch: case: item placed"};
+                for (const char* w : want) {
+                    if (!strstr(tail, w)) {
+                        re4_log("  menutouch: drag: missing \"%s\"", w);
+                        bad |= 0x40000000;
+                    }
+                }
+            }
+            // the handgun long-pressed and dropped onto the spray: swapped as with a controller (the spray in hand)
+            int hx = -1, hy = -1;
+            for (int cy = 0; cy < b->size_y() && hx < 0; cy++) {
+                for (int cx = 0; cx < b->size_x() && hx < 0; cx++) {
+                    if (itemId(b->getPiece(cx, cy)) == 0x23) {
+                        hx = cx;
+                        hy = cy;
+                    }
+                }
+            }
+            sleepMs(800);
+            cellUv(hx, hy, &fu, &fv);
+            finger(0, fu, fv);
+            held = false;
+            for (int i = 0; i < 60 && !held; i++) {
+                sleepMs(20);
+                gameFrame();
+                held = pl->pieceInHand() != 0;
+            }
+            cellUv(tx, ty, &fu, &fv);
+            finger(1, fu, fv);
+            for (int i = 0; i < 30; i++) {
+                gameFrame();
+            }
+            finger(2, fu, fv);
+            for (int i = 0; i < 6; i++) {
+                gameFrame();
+            }
+            const bool swapped = held && itemId(pl->pieceInHand()) == 0x05;
+            if (!swapped) {
+                re4_log("  menutouch: drag: swap, held %d, in hand 0x%02x", held ? 1 : 0, itemId(pl->pieceInHand()));
+                bad |= 0x80000000;
+            }
+            // the spray in hand (as after the swap): a finger on it drags it at once (no long press), to the far
+            // corner (8 6): a place it does not fit there stays in hand, nothing forced
+            sleepMs(800);
+            if (pl->pieceInHand()) {
+                int ix0, iy0, ix1, iy1;
+                pzlPiece* ip = pl->pieceInHand();
+                const int vx = (int) floorf(ip->ver0_x() + 0.01f), vy = (int) floorf(ip->ver0_y() + 0.01f);
+                ix0 = ip->size_x() > 0 ? vx : vx + ip->size_x() + 1;
+                iy0 = ip->size_y() > 0 ? vy : vy + ip->size_y() + 1;
+                (void) ix1;
+                (void) iy1;
+                cellUv(ix0, iy0, &fu, &fv);
+                finger(0, fu, fv);
+                const u64 first = gameFrame();
+                cellUv(b->size_x() - 1, b->size_y() - 1, &fu, &fv);
+                finger(1, fu, fv);
+                u64 moved = first;
+                for (int i = 0; i < 30; i++) {
+                    moved |= gameFrame();
+                }
+                finger(2, fu, fv);
+                for (int i = 0; i < 6; i++) {
+                    gameFrame();
+                }
+                if (!(moved & kCrossKeys)) {
+                    re4_log("  menutouch: drag: the item in hand did not move at once");
+                    bad |= 0x08000000;
+                }
+            }
+            // the cells of an item: [x0, x1) x [y0, y1)
+            auto boxOf = [](pzlPiece* ip, int* x0, int* y0, int* x1, int* y1) {
+                const int vx = (int) floorf(ip->ver0_x() + 0.01f), vy = (int) floorf(ip->ver0_y() + 0.01f);
+                *x0 = ip->size_x() > 0 ? vx : vx + ip->size_x() + 1;
+                *x1 = ip->size_x() > 0 ? vx + ip->size_x() : vx + 1;
+                *y0 = ip->size_y() > 0 ? vy : vy + ip->size_y() + 1;
+                *y1 = ip->size_y() > 0 ? vy + ip->size_y() : vy + 1;
+            };
+            // a finger from (fx fy) to (tx2 ty2), held and lifted: frames until it is done
+            auto fingerDrag = [&](int fx, int fy, int tx2, int ty2, bool longPress) {
+                sleepMs(800);
+                for (int i = 0; i < 3; i++) {
+                    gameFrame();
+                }
+                cellUv(fx, fy, &fu, &fv);
+                finger(0, fu, fv);
+                gameFrame();
+                for (int i = 0; longPress && i < 60 && !pl->pieceInHand(); i++) {
+                    sleepMs(20);
+                    gameFrame();
+                }
+                cellUv(tx2, ty2, &fu, &fv);
+                finger(1, fu, fv);
+                for (int i = 0; i < 30; i++) {
+                    gameFrame();
+                }
+                finger(2, fu, fv);
+                for (int i = 0; i < 50; i++) {
+                    gameFrame();
+                }
+            };
+            // a place the game refuses (the handgun over the ammo and the spray): it stays in hand, nothing forced
+            auto findItem = [&](unsigned id) -> pzlPiece* {
+                for (int cy = 0; cy < b->size_y(); cy++) {
+                    for (int cx = 0; cx < b->size_x(); cx++) {
+                        if (itemId(b->getPiece(cx, cy)) == id) {
+                            return b->getPiece(cx, cy);
+                        }
+                    }
+                }
+                return 0;
+            };
+            {
+                pzlPiece* ammo = findItem(0x20);
+                pzlPiece* spray = findItem(0x05);
+                pzlPiece* gun = findItem(0x23);
+                if (!ammo || !spray || !gun) {
+                    re4_log("  menutouch: drag: ammo %d spray %d handgun %d", ammo ? 1 : 0, spray ? 1 : 0, gun ? 1 : 0);
+                    bad |= 0x02000000;
+                } else {
+                    int ax0, ay0, ax1, ay1, x0, y0, x1, y1;
+                    boxOf(ammo, &ax0, &ay0, &ax1, &ay1);
+                    // the spray (upright, two high) under the ammo's left cell first: a place the game takes
+                    boxOf(spray, &x0, &y0, &x1, &y1);
+                    const int sy = ay1 + 2 <= b->size_y() ? ay1 : ay0 - 2;
+                    fingerDrag(x0, y0, ax0, sy, true);
+                    if (itemId(b->getPiece(ax0, sy)) != 0x05 || pl->pieceInHand()) {
+                        re4_log("  menutouch: drag: the spray not under the ammo at (%d %d)", ax0, sy);
+                        bad |= 0x02000000;
+                    }
+                    // the handgun (three by two) over both, held by its top left cell
+                    boxOf(gun, &x0, &y0, &x1, &y1);
+                    const int gw = x1 - x0, gh = y1 - y0;
+                    int gx = ax0 + gw > b->size_x() ? b->size_x() - gw : ax0;
+                    int gy = sy < ay0 ? sy : ay0;
+                    gy = gy + gh > b->size_y() ? b->size_y() - gh : gy;
+                    fingerDrag(x0, y0, gx, gy, true);
+                    if (itemId(pl->pieceInHand()) != 0x23 || main->cur != thinkW) {
+                        re4_log("  menutouch: drag: handgun over (%d %d) (ammo at (%d %d), spray at (%d %d)): in hand 0x%02x, "
+                                "want the handgun still held", gx, gy, ax0, ay0, ax0, sy, itemId(pl->pieceInHand()));
+                        bad |= 0x02000000;
+                    }
+                }
+            }
+            // the placement screen (an item just picked up, open_flag PZZL): the item in hand follows the finger and
+            // goes down with X; never B or Y (they would leave it lying), never let go of
+            if (pl->pieceInHand()) {
+                wk->open_flag = SS_OPEN_PZZL;
+                const u64 seenBefore = seen;
+                seen = 0;
+                int x0, y0, x1, y1;
+                boxOf(pl->pieceInHand(), &x0, &y0, &x1, &y1);
+                const unsigned held = itemId(pl->pieceInHand());
+                int ex = -1, ey = -1;  // an empty place of the item's size
+                for (int cy = 0; cy + (y1 - y0) <= b->size_y() && ex < 0; cy++) {
+                    for (int cx = 0; cx + (x1 - x0) <= b->size_x() && ex < 0; cx++) {
+                        bool empty = true;
+                        for (int yy = cy; yy < cy + (y1 - y0); yy++) {
+                            for (int xx = cx; xx < cx + (x1 - x0); xx++) {
+                                empty = empty && !b->getPiece(xx, yy);
+                            }
+                        }
+                        if (empty) {
+                            ex = cx;
+                            ey = cy;
+                        }
+                    }
+                }
+                fingerDrag(x0, y0, ex, ey, false);
+                pzlPiece* there = b->getPiece(ex, ey);
+                if ((seen & (kB | kY)) || itemId(there) != held || pl->pieceInHand()) {
+                    re4_log("  menutouch: drag: placement screen: keys 0x%llx, (%d %d) holds 0x%02x, in hand 0x%02x",
+                            (unsigned long long) seen, ex, ey, itemId(there), itemId(pl->pieceInHand()));
+                    bad |= 0x01000000;
+                }
+                seen |= seenBefore;
+                wk->open_flag = SS_OPEN_NORMAL;
+            } else {
+                re4_log("  menutouch: drag: placement screen: nothing in hand to test with");
+                bad |= 0x01000000;
+            }
+            // never B or Y
+            if (seen & (kB | kY)) {
+                re4_log("  menutouch: drag: B or Y given (keys 0x%llx)", (unsigned long long) seen);
+                bad |= 0x08000000;
+            }
+            // a short tap still the old tap (the cursor moves), and a swipe still changes the tab
+            // the item in hand back into the case (the controller's B), or else put down on the first place it fits
+            for (int i = 0; i < 4 && pl->pieceInHand(); i++) {
+                pl->relPiece();
+            }
+            for (int cy = 0; cy < b->size_y() && pl->pieceInHand(); cy++) {
+                for (int cx = 0; cx < b->size_x() && pl->pieceInHand(); cx++) {
+                    pzlPiece* ip = pl->pieceInHand();
+                    ip->m_pos_x = cx + 0.5f * (f32) (ip->size_x() < 0 ? -ip->size_x() : ip->size_x());
+                    ip->m_pos_y = cy + 0.5f * (f32) (ip->size_y() < 0 ? -ip->size_y() : ip->size_y());
+                    pl->putPiece();
+                }
+            }
+            if (pl->pieceInHand()) {
+                re4_log("  menutouch: drag: item 0x%02x still in hand at the end", itemId(pl->pieceInHand()));
+                bad |= 0x04000000;
+                main->thinking = 0;
+                pl->quit();
+                return bad;
+            }
+            main->cur = sel;
+            sleepMs(800);
+            for (int i = 0; i < 5; i++) {
+                gameFrame();
+            }
+            // an empty cell away from the cursor: the finger's down and lift there, then its tap
+            int ex = -1, ey = -1;
+            for (int cy = b->size_y() - 1; cy >= 0 && ex < 0; cy--) {
+                for (int cx = 0; cx < b->size_x() && ex < 0; cx++) {
+                    if (!b->getPiece(cx, cy) && (cx != b->m_cur_x || cy != b->m_cur_y)) {
+                        ex = cx;
+                        ey = cy;
+                    }
+                }
+            }
+            cellUv(ex, ey, &fu, &fv);
+            finger(0, fu, fv);
+            finger(2, fu, fv);
+            if (re4_touch_case_swallow() || tapFrame(main, fu + 2.0f, fv) != 0 || b->m_cur_x != ex || b->m_cur_y != ey) {
+                re4_log("  menutouch: drag: the short tap did not move the cursor to (%d %d): (%d %d)", ex, ey,
+                        (int) b->m_cur_x, (int) b->m_cur_y);
+                bad |= 0x04000000;
+            }
+            re4_core_swipe(1);
+            if (gameFrame() != kB) {
+                re4_log("  menutouch: drag: the swipe gave no B");
+                bad |= 0x04000000;
+            }
+            for (int i = 0; i < 91; i++) {
+                gameFrame();
+            }
+            main->thinking = 0;
         }
         pl->quit();
     }

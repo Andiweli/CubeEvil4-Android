@@ -3581,6 +3581,20 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setThermal(J
   thermalHeadroom.store(headroom == headroom && headroom >= 0.f ? static_cast<int>(headroom * 100.f + 0.5f) : -1);
 }
 
+// The finger beside the touch controls as it moves (CoreActivity.watchTap, 1.1.2: dragging an item of the attache case):
+// phase 0 down, 1 moved, 2 lifted, 3 cancelled, as u + 4 + 2 * phase (10 for a cancel) to the core's touch, which an older
+// core ignores (runtime/menu_touch.cpp re4_core_touch); the place clamped to the game's picture
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_drag(JNIEnv *, jclass, jint phase, jfloat x,
+                                                                       jfloat y) {
+  const int w = picW.load(), h = picH.load();
+  if (!api.touch || w <= 0 || h <= 0 || phase < 0 || phase > 3) return;
+  float u = (x - static_cast<float>(picX.load())) / static_cast<float>(w);
+  float inBox = (y - static_cast<float>(picY.load())) / static_cast<float>(h);
+  u = u < 0.f ? 0.f : u > 0.999f ? 0.999f : u;
+  inBox = inBox < 0.f ? 0.f : inBox > 1.f ? 1.f : inBox;
+  api.touch(phase == 3 ? 10.f : u + 4.f + 2.f * static_cast<float>(phase), picTop.load() + inBox * picRows.load());
+}
+
 // A finger touching down beside the touch controls (CoreActivity.watchTap, 0.99.15): a quick-time prompt's press at
 // once, also a second finger and outside the picture's box (runtime/menu_touch.cpp re4_core_touch, u -2)
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_touchDown(JNIEnv *, jclass) {

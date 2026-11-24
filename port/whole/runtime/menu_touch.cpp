@@ -23,6 +23,12 @@
 //  - the files (SsFileMain, FileSelect): a tap on a row of the list opens that file: from the
 //    category row down into the list, up/down to the row, A (a file not found yet: the game's
 //    buzzer);
+//  - (1.1.2, the project owner, 24.11.2026) the case: a finger held still on an item picks it up (X
+//    after 450 ms), the item follows the finger (one cross press a frame towards its cell) and
+//    the finger's lift puts it down (X: placed, combined or swapped as with a controller, a place
+//    the game refuses keeps it in hand); an item already in hand follows a finger at once. The
+//    drag gives only X and the cross (never B or Y), takes the player's cross and C stick while
+//    it runs, keeps rotation, and its finger is no tap and no swipe (re4_touch_case_drag);
 // The cross presses go out one a frame (Key.trg and Key.rep, as a fresh press), and stop when the
 // screen changes.
 //
@@ -48,8 +54,8 @@
 // Positions: the sub screen draws its id units through IDSystem::m_scrn_mat and the 3D case
 // through the camera of sscrnCameraInit, both with pG->Camera.ProjMat (4:3) over the whole
 // picture (640 x 448 while the sub screen is open; u and v do not depend on the width); the map
-// through its own camera in its viewport (SsMapWork::vp). A piece in hand, the item examine, the
-// file reader, the map's whole view and mark menu and the merchant are not touched (their buttons
+// through its own camera in its viewport (SsMapWork::vp). A piece in hand (but for the drag), the
+// item examine, the file reader, the map's whole view and mark menu and the merchant are not touched (their buttons
 // as before). A tap on the tabs of the top row was taken out after the second device test
 // (decision of the project owner, 22.10.2026: they did not react); so was dragging the zoomed map
 // with a finger after the device test 21:22 (it kept swipes from leaving the map).
@@ -64,8 +70,12 @@
 #include "sscrn.h"
 #include "ss_main.h"
 #include "ss_pzzl.h"
+#include "joy.h"
 
+#include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 extern GLOBAL_WK* pG;
@@ -91,6 +101,11 @@ volatile u32 gTapU, gTapV, gTapWhen, gTapSeq;
 u32 gTapSeen;
 bool gAnnounced;
 
+// 1.1.2: the finger of a drag in the attache case (re4_core_touch, u 4..10: down, moves, up, cancel), the app's
+// thread writes, the game's reads: its phase (0 down, 1 move, 2 up, 3 cancel), place, when it touched down, counted
+volatile u32 gDragPhase, gDragU, gDragV, gDragDownMs, gDragSeq;
+u32 gDragSeen;
+
 // a tab waiting for the row's focus (after B)
 struct Tab {
     int no;  // -1: none
@@ -107,8 +122,16 @@ unsigned gLaterFrames;
 
 unsigned gLines;
 
+// RE4_TEST_CASE_TOUCH (the PC check of the drag): the clock goes by the sub screen's frames (33 ms each), so a long
+// press lasts as many frames on the PC (RE4_VI_FAST) as on a device
+bool gScriptClock;
+u32 gScriptMs;
+
 u32 nowMs()
 {
+    if (gScriptClock) {
+        return gScriptMs;
+    }
     timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return (u32) (t.tv_sec * 1000 + t.tv_nsec / 1000000);
@@ -340,6 +363,337 @@ void caseScreen(SUB_SCREEN* wk, SsPzzlMain* main, f32 u, f32 v)
         int x, y;
         commandMenu(wk, main->command, 6, false, cellAt(pl, u, v, &x, &y) != 0, u, v);
     }
+}
+
+// 1.1.2 (wish of the project owner, 24.11.2026: "mit längerem Druck auf ein Item dieses verschoben werden kann im Koffer
+// (wie X Taste und dann mit dem linken Stick verschieben). Ein Loslassen des Items lässt es dort wo man es im Koffer
+// loslässt platzieren, ist dort ein Item wird es wie bei der Nutzung mit Controller ausgetauscht."): an item of the case
+// dragged with a finger, through the game's own keys only:
+//  - a finger held still on an item (PieceSelect state 0, nothing in hand) for kHoldMs: the cursor goes to its cell and
+//    X picks it up (the game's pick-up, its sound; PzzlThinking from then on); the tap of that finger is dropped;
+//  - while an item is in hand (picked up by touch or by a button, also the placement of a new item, open_flag
+//    SS_OPEN_PZZL) a finger touching down on it drags it at once;
+//  - the finger's cell (the case or the spare board) is where the item goes: one press of the cross a frame (Key.rep,
+//    as pzlPlayer::movePiece reads it) towards it, keeping the cell the finger first held of the item under it; to the
+//    other board the press across, as the game moves an item over; a press that moves nothing is not repeated until the
+//    finger moves on;
+//  - the finger lifted: the last presses, then X: the game puts the item down, combines it or swaps it with the one
+//    there, exactly as with a controller; a place it refuses leaves the item in hand (drag it again, or the buttons);
+//  - never B or Y (B leaves a new item lying in the placement); while the finger drags, the stick's and the C stick's
+//    own presses are taken out (the look zone of the touch controls), the rotation keys stay (the touch button with a
+//    second finger); no tab swipe and no tap of that finger.
+namespace {
+
+const u64 kX = 0x00020000ull;
+const u64 kCross = 0x0F000000ull;
+const u32 kHoldMs = 450;          // Android's long-press timeout is 400..500 ms; the app's taps end at 500 ms
+const f32 kHoldSlop = 0.025f;     // the finger moved farther (of the picture's width / height): no long press
+const u32 kSwallowMs = 700;       // the app's tap or swipe of a drag's finger arrives that much later at most
+const unsigned kDropFrames = 40;  // presses after the lift at most, then X
+
+enum DragState { kIdle, kPress, kPick, kDrag, kDrop, kAfter };
+struct Drag {
+    DragState state;
+    f32 u, v, u0, v0;
+    u32 downMs;
+    bool fingerDown;
+    f32 grabX, grabY;     // the finger's cell centre minus the item's centre when the drag began (cells)
+    pzlBoard* lastBoard;  // the item's board and centre after the last press
+    f32 lastX, lastY;
+    u64 lastDir;
+    u64 blocked;          // presses that moved nothing, until the finger's cell changes
+    pzlBoard* fingerBoard;
+    int fingerX, fingerY;
+    unsigned frames;
+};
+Drag gDrag = {kIdle};
+u32 gSwallowUntil;
+
+// the cell under (u, v) of the case or of the spare board (empty or not: an item may go there)
+pzlBoard* dragCell(pzlPlayer* pl, f32 u, f32 v, int* x, int* y)
+{
+    if (re4_touch_board_cell(pl->boardPtr(), u, v, x, y)) {
+        return pl->boardPtr();
+    }
+    if (pl->spacePtr() && re4_touch_board_cell(pl->spacePtr(), u, v, x, y)) {
+        return pl->spacePtr();
+    }
+    return 0;
+}
+
+// the cells an item covers on its board: [x0, x1) x [y0, y1)
+void pieceBox(pzlPiece* p, int* x0, int* y0, int* x1, int* y1)
+{
+    const int vx = (int) floorf(p->ver0_x() + 0.01f), vy = (int) floorf(p->ver0_y() + 0.01f);
+    const int sx = p->size_x(), sy = p->size_y();
+    *x0 = sx > 0 ? vx : vx + sx + 1;
+    *x1 = sx > 0 ? vx + sx : vx + 1;
+    *y0 = sy > 0 ? vy : vy + sy + 1;
+    *y1 = sy > 0 ? vy + sy : vy + 1;
+}
+
+// the item's centre on the screen (u across)
+f32 pieceU(pzlBoard* b, pzlPiece* p)
+{
+    Mtx m;
+    PSMTXConcat(pG->Camera.v_mat, *b->orientation(), m);
+    f32 u = 0.5f, v = 0.5f;
+    project(m, kCell * p->m_pos_x, -kCell * p->m_pos_y, 0.0f, &u, &v);
+    return u;
+}
+
+void dragLog(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void dragLog(const char* fmt, ...)
+{
+    if (!line()) {
+        return;
+    }
+    char text[256];
+    va_list a;
+    va_start(a, fmt);
+    vsnprintf(text, sizeof(text), fmt, a);
+    va_end(a);
+    re4_log("touch: case: %s", text);
+}
+
+// the drag begins with the item in hand: the finger keeps the cell it holds of it
+void beginDrag(pzlPlayer* pl, pzlPiece* p, pzlBoard* b, int x, int y)
+{
+    gDrag.state = kDrag;
+    gDrag.grabX = gDrag.grabY = 0.0f;
+    if (b == pl->m_p_active_board) {
+        gDrag.grabX = (x + 0.5f) - p->m_pos_x;
+        gDrag.grabY = (y + 0.5f) - p->m_pos_y;
+    }
+    gDrag.lastBoard = 0;
+    gDrag.lastDir = 0;
+    gDrag.blocked = 0;
+    gDrag.fingerBoard = b;
+    gDrag.fingerX = x;
+    gDrag.fingerY = y;
+    gDrag.frames = 0;
+}
+
+// one press of the cross towards the finger's cell, 0 when the item is there (or every press is blocked)
+u64 dragStep(pzlPlayer* pl, pzlPiece* p)
+{
+    int x, y;
+    pzlBoard* b = dragCell(pl, gDrag.u, gDrag.v, &x, &y);
+    if (b && (b != gDrag.fingerBoard || x != gDrag.fingerX || y != gDrag.fingerY)) {
+        gDrag.fingerBoard = b;
+        gDrag.fingerX = x;
+        gDrag.fingerY = y;
+        gDrag.blocked = 0;
+    }
+    pzlBoard* active = pl->m_p_active_board;
+    // the last press moved nothing: not again (a wall, another item's edge, the end of the board)
+    if (gDrag.lastDir && gDrag.lastBoard == active && gDrag.lastX == p->m_pos_x && gDrag.lastY == p->m_pos_y) {
+        gDrag.blocked |= gDrag.lastDir;
+    }
+    gDrag.lastBoard = active;
+    gDrag.lastX = p->m_pos_x;
+    gDrag.lastY = p->m_pos_y;
+    gDrag.lastDir = 0;
+    if (!gDrag.fingerBoard) {
+        return 0;
+    }
+    u64 dir = 0;
+    if (gDrag.fingerBoard != active) {
+        // to the other board: across, as the game moves an item over at the board's side
+        dir = gDrag.u < pieceU(active, p) ? kLeft : kRight;
+    } else {
+        // the finger's cell under the cell it holds of the item, but the whole item inside the board (an item held by
+        // its right half and drawn to the left edge stops there: the game would refuse it half outside)
+        // (m_pos is the item's turning point; its cells are [x0, x1) x [y0, y1) at the same offset from it)
+        int x0, y0, x1, y1;
+        pieceBox(p, &x0, &y0, &x1, &y1);
+        f32 dx = (gDrag.fingerX + 0.5f - gDrag.grabX) - p->m_pos_x;
+        f32 dy = (gDrag.fingerY + 0.5f - gDrag.grabY) - p->m_pos_y;
+        const f32 left = (f32) -x0, right = (f32) (active->size_x() - x1);
+        const f32 top = (f32) -y0, bottom = (f32) (active->size_y() - y1);
+        dx = dx < left ? left : dx > right ? right : dx;
+        dy = dy < top ? top : dy > bottom ? bottom : dy;
+        if (dx <= -0.5f && !(gDrag.blocked & kLeft)) {
+            dir = kLeft;
+        } else if (dx >= 0.5f && !(gDrag.blocked & kRight)) {
+            dir = kRight;
+        } else if (dy <= -0.5f && !(gDrag.blocked & kUp)) {
+            dir = kUp;
+        } else if (dy >= 0.5f && !(gDrag.blocked & kDown)) {
+            dir = kDown;
+        }
+    }
+    if (dir & gDrag.blocked) {
+        dir = 0;
+    }
+    gDrag.lastDir = dir;
+    return dir;
+}
+
+// the finger's events since the last frame (the newest place wins; a touch down and its lift in one frame both count)
+void dragInput()
+{
+    const u32 seq = __atomic_load_n(&gDragSeq, __ATOMIC_ACQUIRE);
+    if (seq == gDragSeen) {
+        return;
+    }
+    gDragSeen = seq;
+    const u32 phase = __atomic_load_n(&gDragPhase, __ATOMIC_RELAXED);
+    const u32 down = __atomic_load_n(&gDragDownMs, __ATOMIC_RELAXED);
+    gDrag.u = value(__atomic_load_n(&gDragU, __ATOMIC_RELAXED));
+    gDrag.v = value(__atomic_load_n(&gDragV, __ATOMIC_RELAXED));
+    if (down != gDrag.downMs) {  // a new finger
+        gDrag.downMs = down;
+        gDrag.u0 = gDrag.u;
+        gDrag.v0 = gDrag.v;
+        gDrag.fingerDown = true;
+        if (gDrag.state == kPress) {
+            gDrag.state = kIdle;
+        }
+    }
+    if (phase >= 2) {
+        gDrag.fingerDown = false;
+    }
+}
+
+}  // namespace
+
+// Through re4_touch_sscrn (patch 0106), every frame of the sub screen: the drag in the case. 1 while it owns the
+// finger (no tap and no swipe of it in this frame).
+extern "C" int re4_touch_case_drag(SUB_SCREEN* wk, SsPzzlMain* main)
+{
+    dragInput();
+    pzlPlayer* pl = wk ? wk->puzzlePlayer : 0;
+    const bool caseOk = pl && main && main->state == 0 && wk->board_size == wk->board_next && caseResting() &&
+                        (wk->open_flag == SS_OPEN_NORMAL || wk->open_flag == SS_OPEN_PZZL);
+    const bool selecting = caseOk && main->cur == main->select && main->select->state == 0 && !pl->pieceInHand();
+    const bool holding = caseOk && main->cur == main->thinking && pl->pieceInHand();
+    const u32 now = nowMs();
+    switch (gDrag.state) {
+    case kIdle:
+        if (!gDrag.fingerDown || !caseOk) {
+            break;
+        }
+        {
+            int x, y;
+            pzlBoard* b = dragCell(pl, gDrag.u0, gDrag.v0, &x, &y);
+            if (!b) {
+                break;
+            }
+            if (holding) {
+                // an item in hand: a finger on it drags it at once
+                int x0, y0, x1, y1;
+                pieceBox(pl->pieceInHand(), &x0, &y0, &x1, &y1);
+                if (b == pl->m_p_active_board && x >= x0 && x < x1 && y >= y0 && y < y1) {
+                    beginDrag(pl, pl->pieceInHand(), b, x, y);
+                    dragLog("drag of item 0x%02x in hand from (%d %d)", itemId(pl->pieceInHand()), x, y);
+                }
+            } else if (selecting && b->getPiece(x, y)) {
+                gDrag.state = kPress;
+            }
+        }
+        break;
+    case kPress:
+        if (!gDrag.fingerDown || !selecting) {
+            gDrag.state = kIdle;
+            break;
+        }
+        if (__builtin_fabsf(gDrag.u - gDrag.u0) > kHoldSlop || __builtin_fabsf(gDrag.v - gDrag.v0) > kHoldSlop) {
+            gDrag.state = kIdle;  // moved: a swipe or nothing, not a long press
+            gDrag.fingerDown = false;
+            break;
+        }
+        if (now - gDrag.downMs >= kHoldMs) {
+            int x, y;
+            pzlBoard* b = dragCell(pl, gDrag.u0, gDrag.v0, &x, &y);
+            pzlPiece* p = b ? b->getPiece(x, y) : 0;
+            if (!p) {
+                gDrag.state = kIdle;
+                break;
+            }
+            // the cursor on the item's cell, then the game's own pick-up (X) in this frame
+            pl->m_p_active_board = b;
+            b->m_cur_x = (s8) x;
+            b->m_cur_y = (s8) y;
+            Key.trg |= kX;
+            Key.on |= kX;
+            gSwallowUntil = now + kSwallowMs;
+            gDrag.state = kPick;
+            gDrag.fingerBoard = b;
+            gDrag.fingerX = x;
+            gDrag.fingerY = y;
+            gDrag.frames = 0;
+            dragLog("long press on item 0x%02x at (%d %d): X picks it up", itemId(p), x, y);
+        }
+        break;
+    case kPick:
+        // the game picks it up in this frame's move: the next frame has it in hand
+        if (holding) {
+            const bool down = gDrag.fingerDown;
+            beginDrag(pl, pl->pieceInHand(), gDrag.fingerBoard, gDrag.fingerX, gDrag.fingerY);
+            if (!down) {
+                gDrag.state = kDrop;
+            }
+        } else if (++gDrag.frames > 10) {
+            dragLog("the pick-up did not happen");
+            gDrag.state = kIdle;
+        }
+        gSwallowUntil = now + kSwallowMs;
+        break;
+    case kDrag:
+    case kDrop:
+        if (!holding) {
+            gDrag.state = kIdle;  // the screen changed, or the item left the hand some other way
+            break;
+        }
+        if (gDrag.state == kDrag && !gDrag.fingerDown) {
+            gDrag.state = kDrop;
+            gDrag.frames = 0;
+        }
+        {
+            // the player's own cross, stick and C stick are not the item's way now (the look zone); rotation stays
+            Key.on &= ~kCross;
+            Key.trg &= ~kCross;
+            Key.rep &= ~kCross;
+            Joy[0].trg &= ~0x00F00000u;
+            const u64 dir = dragStep(pl, pl->pieceInHand());
+            if (dir) {
+                Key.on |= dir;
+                Key.trg |= dir;
+                Key.rep |= dir;
+            }
+            if (gDrag.state == kDrop && (!dir || ++gDrag.frames > kDropFrames)) {
+                Key.on |= kX;
+                Key.trg |= kX;
+                gDrag.state = kAfter;
+                gDrag.frames = 0;
+                dragLog("finger lifted on (%d %d) %s: X puts item 0x%02x down", gDrag.fingerX, gDrag.fingerY,
+                        gDrag.fingerBoard == pl->spacePtr() ? "of the spare board" : "of the case",
+                        itemId(pl->pieceInHand()));
+            }
+        }
+        gSwallowUntil = now + kSwallowMs;
+        break;
+    case kAfter:
+        if (++gDrag.frames >= 2) {
+            pzlPiece* p = pl ? pl->pieceInHand() : 0;
+            if (p) {
+                dragLog("item 0x%02x in hand after the drop (swapped, or the place was refused)", itemId(p));
+            } else {
+                dragLog("item placed");
+            }
+            gDrag.state = kIdle;
+        }
+        gSwallowUntil = now + kSwallowMs;
+        break;
+    }
+    return gDrag.state != kIdle && gDrag.state != kPress ? 1 : 0;
+}
+
+// The tap or the swipe of a finger that dragged (or long-pressed) arrives after it: not a tap, not a tab change.
+extern "C" int re4_touch_case_swallow(void)
+{
+    return gDrag.state != kIdle && gDrag.state != kPress ? 1 : (int) (nowMs() - gSwallowUntil) < 0;
 }
 
 // The tab of the screen the player is in (0 key items, 1 attache case, 2 map, 3 files), -1 none.
@@ -642,6 +996,101 @@ extern "C" void re4_touch_file_keys(int mode, int cursor, int target, u64* keys,
     *count = k;
 }
 
+extern "C" void re4_core_touch(float u, float v);
+
+namespace {
+
+// RE4_TEST_CASE_TOUCH="d3,1@0 m0,5@20 u@40 t2,4@80" (PC only): a finger on cells of the case, frames counted from the
+// first frame the case shows with its cursor: d down, m moved, u lifted, t a tap (down and lift), as the app sends them
+struct ScriptStep {
+    char kind;
+    int x, y;
+    u32 frame;
+};
+ScriptStep gScript[32];
+int gScriptLen = -1, gScriptPos;
+u32 gScriptFrame;
+int gScriptX, gScriptY;
+
+void scriptLoad()
+{
+    gScriptLen = 0;
+    const char* s = getenv("RE4_TEST_CASE_TOUCH");
+    while (s && *s && gScriptLen < 32) {
+        while (*s == ' ') {
+            s++;
+        }
+        ScriptStep st = {*s, -1, -1, 0};
+        if (st.kind != 'd' && st.kind != 'm' && st.kind != 'u' && st.kind != 't') {
+            break;
+        }
+        char* end = (char*) s + 1;
+        if (st.kind != 'u') {
+            st.x = (int) strtol(end, &end, 10);
+            st.y = *end == ',' ? (int) strtol(end + 1, &end, 10) : -1;
+        }
+        if (*end != '@') {
+            break;
+        }
+        st.frame = (u32) strtoul(end + 1, &end, 10);
+        gScript[gScriptLen++] = st;
+        s = end;
+    }
+    gScriptClock = gScriptLen > 0;
+    if (gScriptClock) {
+        re4_log("touch: case script of %d steps (RE4_TEST_CASE_TOUCH)", gScriptLen);
+    }
+}
+
+// the centre of a cell of the case in the picture
+bool scriptCell(pzlBoard* b, int x, int y, f32* u, f32* v)
+{
+    Mtx m;
+    PSMTXConcat(pG->Camera.v_mat, *b->orientation(), m);
+    return project(m, kCell * (x + 0.5f), -kCell * (y + 0.5f), 0.0f, u, v);
+}
+
+void scriptFrame(SUB_SCREEN* wk, SsPzzlMain* main)
+{
+    if (gScriptLen < 0) {
+        scriptLoad();
+    }
+    if (!gScriptClock) {
+        return;
+    }
+    gScriptMs += 33;
+    pzlPlayer* pl = wk->puzzlePlayer;
+    if (gScriptPos == 0 && gScriptFrame == 0 &&
+        !(main && pl && main->state == 0 && main->cur == main->select && caseResting())) {
+        return;  // not yet: the case with its cursor
+    }
+    for (; gScriptPos < gScriptLen && gScript[gScriptPos].frame <= gScriptFrame; gScriptPos++) {
+        const ScriptStep& st = gScript[gScriptPos];
+        if (st.kind != 'u') {
+            gScriptX = st.x;
+            gScriptY = st.y;
+        }
+        f32 u = 0.5f, v = 0.5f;
+        if (!pl || !scriptCell(pl->boardPtr(), gScriptX, gScriptY, &u, &v)) {
+            continue;
+        }
+        re4_log("touch: case script frame %u: %c at (%d %d)", gScriptFrame, st.kind, gScriptX, gScriptY);
+        if (st.kind == 't') {
+            re4_core_touch(u + 4.0f, v);
+            re4_core_touch(u + 8.0f, v);
+            re4_core_touch(u + 2.0f, v);
+        } else {
+            re4_core_touch(u + (st.kind == 'd' ? 4.0f : st.kind == 'm' ? 6.0f : 8.0f), v);
+            if (st.kind == 'u') {
+                re4_core_touch(u + 2.0f, v);  // the app's tap of the lift (too long: not a tap; the core decides)
+            }
+        }
+    }
+    gScriptFrame++;
+}
+
+}  // namespace
+
 // Patch 0106 (src/Sscrn/ss_main.cpp SubScreenTask), every frame before cur->move: the screens'
 // main widgets (0 outside the normal inventory) to tell where the player is.
 extern "C" void re4_touch_sscrn(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, SsPzzlMain* pzzl, SsItemMain* item,
@@ -670,6 +1119,13 @@ extern "C" void re4_touch_sscrn(SUB_SCREEN* wk, Widget<SUB_SCREEN>* cur, SsPzzlM
         gLater = 0;
         gKeys.len = gKeys.pos = 0;
         return;
+    }
+    scriptFrame(wk, pzzl && cur == pzzl ? pzzl : 0);
+    // 1.1.2: an item of the case dragged with a finger; that finger's tap and swipe are not taps or tab changes
+    re4_touch_case_drag(wk, pzzl && cur == pzzl ? pzzl : 0);
+    if (re4_touch_case_swallow()) {
+        tap = false;
+        swipe = 0;
     }
     const bool row = onRow(cur, pzzl, item, map, file);
     // here -1: a screen still loads (its init widget); the frames of a change wait for it
@@ -776,6 +1232,19 @@ extern "C" void re4_core_touch(float u, float v)
     // An older app's tap (u 0..1) does both, as before.
     if (u <= -1.5f) {
         re4_qte_tap();
+        return;
+    }
+    // 1.1.2: the finger of a drag (the app's CoreBridge.drag): u + 4 down, + 6 moved, + 8 lifted, 10 cancelled
+    if (u >= 3.5f) {
+        const int phase = u >= 9.5f ? 3 : (int) ((u - 4.0f) * 0.5f);
+        const f32 du = phase == 3 ? 0.5f : u - 4.0f - 2.0f * (f32) phase;
+        __atomic_store_n(&gDragU, bits(du < 0.0f ? 0.0f : du > 1.0f ? 1.0f : du), __ATOMIC_RELAXED);
+        __atomic_store_n(&gDragV, bits(v), __ATOMIC_RELAXED);
+        if (phase == 0) {
+            __atomic_store_n(&gDragDownMs, nowMs() | 1u, __ATOMIC_RELAXED);
+        }
+        __atomic_store_n(&gDragPhase, (u32) phase, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&gDragSeq, 1, __ATOMIC_RELEASE);
         return;
     }
     if (u >= 1.5f) {

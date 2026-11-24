@@ -904,6 +904,32 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
 `port/android-decomp/docs/releases/v1.1.2.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 45. Koffer: Gegenstand mit dem Finger ziehen (Projektinhaber, 24.11.2026)
+
+Lange auf einen Gegenstand im Koffer drücken nimmt ihn auf, er folgt dem Finger, Loslassen legt ihn ab; liegt dort schon
+etwas, tauscht er wie mit dem Controller. Nur Tasten des Spiels, keine eigene Kofferlogik:
+- `runtime/menu_touch.cpp re4_touch_case_drag` (aus `re4_touch_sscrn`, Patch 0106, jedes Bild des Untermenüs): ein
+  Finger 450 ms still auf einem Gegenstand (PieceSelect Zustand 0, nichts in der Hand) setzt den Cursor auf seine Zelle
+  und gibt X (das Aufnehmen des Spiels); danach je Bild ein Druck des Steuerkreuzes zur Zelle des Fingers (der Finger
+  behält die Zelle, an der er den Gegenstand hält; der ganze Gegenstand bleibt im Brett; ein Druck, der nichts bewegt,
+  wird nicht wiederholt; zum Ersatzbrett über die Seite, wie das Spiel es tut); beim Loslassen X (Ablegen, Kombinieren
+  oder Tauschen in `PzzlThinking::move`; ein Platz, den das Spiel ablehnt, lässt ihn in der Hand). Ein Gegenstand, der
+  schon in der Hand ist (auch im Ablageschirm beim Aufheben), folgt einem Finger sofort. Nie B oder Y; Drehen und
+  Spiegeln bleiben; Steuerkreuz, Stick und C-Stick des Spielers zählen während des Ziehens nicht. Tap und Wischen dieses
+  Fingers werden geschluckt (bis 700 ms nach dem Ende), ein kurzer Tap und Wischen ohne Ziehen wie bisher.
+- App: `CoreActivity.watchTap` meldet den Finger neben den Touch-Tasten (`CoreBridge.drag`: unten, bewegt, oben,
+  abgebrochen; derselbe Finger auch, wenn ein zweiter eine Taste drückt), `core_mode.cpp` gibt ihn als u + 4 + 2·Phase
+  (10 = abgebrochen) an `re4_core_touch`. RetroTouch unverändert.
+- Testschalter `RE4_TEST_CASE_TOUCH="d3,1@4 m8,4@30 u@44 t6,1@195"` (nur PC): Finger auf Kofferzellen, Bilder ab dem
+  ersten Bild mit Koffer-Cursor; die Uhr der Berührung läuft dann mit den Bildern (33 ms).
+- **Geprüft (WSL):** Laufzeittest `menutouch` (i686 und x86_64): langes Drücken → X und Cursor, Ziehen → Kreuz bis zur
+  Zelle, Loslassen auf frei → abgelegt, auf die Pistole → getauscht, Gegenstand in der Hand folgt sofort, Pistole über
+  Munition und Spray (vom Spiel abgelehnt) → bleibt in der Hand, Ablageschirm (`open_flag` PZZL) → abgelegt, nie B/Y,
+  kurzer Tap und Wischen danach wie bisher (der Test-Koffer hat dafür zusätzlich Munition 0x20). PC-Lauf mit Debug-Disc r100 (`112-drag.sh`): Spray aufgenommen, nach (8 4)
+  gezogen und abgelegt, Pistole aufs Spray → getauscht, Spray in der Hand weitergezogen und abgelegt, Tap danach setzt
+  den Cursor; Bilder `builds/workthread-1.1.2/drag-case-steps.jpg`. **Nicht geprüft:** auf einem Gerät (echter Finger,
+  Ablageschirm beim Aufheben mit Disc-Daten, Ersatzbrett, Drehen mit dem zweiten Finger).
+
 ### 44. Berserker: größeres Blut bei Treffern (Projektinhaber, 24.11.2026, Patch 0256)
 
 „größere Blutfontäne und größere Blutlache bei Treffern, rund 1.5x“; Entscheidungen: keine zusätzlichen Spritzer, keine

@@ -1248,6 +1248,7 @@ int re4probe_partner_damage(void);
 int re4probe_case_free_place(void);
 int re4probe_berserker(char* out, int size);
 int re4probe_menu_touch(void);
+const char* re4probe_menu_touch_tail(void);
 int re4probe_letterbox(void);
 int re4probe_picture_still(void);
 int re4probe_knife_swipe(void);
@@ -2011,8 +2012,8 @@ static void testMenuTouch()
         re4_log("  menutouch: failed checks 0x%x", bad);
         ok = false;
     }
-    static char tail[64 * 160];
-    re4_log_tail(tail, sizeof tail);
+    // (the drag tests at its end log too: their own checks; the lines of the taps are the ones before them)
+    const char* tail = re4probe_menu_touch_tail();
     const char* want[] = {
         "touch: case: cursor to (", ") in the case, item 0x05",
         "touch: case: A on item 0x05 at (",

@@ -2783,12 +2783,28 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private float tapX, tapY;
   private long tapTime;
   private final int[] surfaceAt = new int[2];
+  // 1.1.2: the finger beside the touch controls as it moves (CoreBridge.drag; the core drags an item of the attache case
+  // with it, runtime/menu_touch.cpp). It stays the same finger while a second one presses a control (the rotation).
+  private int dragFinger = -1;
+  private float dragSentX, dragSentY;
+
+  private void drag(int phase, float x, float y) {
+    if (surface == null) return;
+    surface.getLocationInWindow(surfaceAt);
+    float tsx = outputW > 0 && surface.getWidth() > 0 ? (float) outputW / surface.getWidth() : 1f;
+    float tsy = outputH > 0 && surface.getHeight() > 0 ? (float) outputH / surface.getHeight() : 1f;
+    CoreBridge.drag(phase, (x - surfaceAt[0]) * tsx, (y - surfaceAt[1]) * tsy);
+    dragSentX = x;
+    dragSentY = y;
+  }
 
   private void watchTap(MotionEvent e) {
     int i = e.getActionIndex();
     switch (e.getActionMasked()) {
       case MotionEvent.ACTION_DOWN: {
         boolean control = touchControls != null && touchControls.onControl(e.getX(), e.getY());
+        dragFinger = control || surface == null ? -1 : e.getPointerId(0);
+        if (dragFinger >= 0) drag(0, e.getX(), e.getY());
         tapFinger = control ? -1 : e.getPointerId(0);
         tapMoved = false;
         tapX = e.getX();
@@ -2807,12 +2823,22 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         }
         break;
       case MotionEvent.ACTION_MOVE: {
+        int d = dragFinger >= 0 ? e.findPointerIndex(dragFinger) : -1;
+        if (d >= 0 && Math.hypot(e.getX(d) - dragSentX, e.getY(d) - dragSentY) >= 1f) drag(1, e.getX(d), e.getY(d));
         int k = tapFinger >= 0 ? e.findPointerIndex(tapFinger) : -1;
         float slop = 2 * ViewConfiguration.get(this).getScaledTouchSlop();
         if (k >= 0 && Math.hypot(e.getX(k) - tapX, e.getY(k) - tapY) > slop) tapMoved = true;
         break;
       }
+      case MotionEvent.ACTION_POINTER_UP:
+        if (dragFinger >= 0 && dragFinger == e.getPointerId(i)) {
+          drag(2, e.getX(i), e.getY(i));
+          dragFinger = -1;
+        }
+        break;
       case MotionEvent.ACTION_UP:
+        if (dragFinger >= 0 && dragFinger == e.getPointerId(i)) drag(2, e.getX(i), e.getY(i));
+        dragFinger = -1;
         if (tapFinger >= 0 && tapFinger == e.getPointerId(i) && surface != null) {
           long time = e.getEventTime() - tapTime;
           float dx = e.getX(i) - tapX, dy = e.getY(i) - tapY;
@@ -2835,6 +2861,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         tapFinger = -1;
         break;
       case MotionEvent.ACTION_CANCEL:
+        if (dragFinger >= 0) drag(3, dragSentX, dragSentY);
+        dragFinger = -1;
         tapFinger = -1;
         break;
       default:
