@@ -7,12 +7,12 @@
 # - game.cpp: gameInit gives a new game the marker when Berserker was chosen (else none; a loaded game keeps its
 #   save's), clearGlobalSaveData (a new round) keeps it like game_mode;
 # - em_sub.cpp: LifeDownSet2 takes 0.8 of an enemy's damage after the game's own rank factor;
-# - card.cpp: dispSaveInfo shows BZK in the save list's Mode column for a Berserker save (header byte 0x3F, GLOBAL_WK
+# - card.cpp: dispSaveInfo shows BSK in the save list's Mode column for a Berserker save (header byte 0x3F, GLOBAL_WK
 #   pad_4F8B, set by gameInit; an older version shows Professional);
 # - id_tex.cpp / id_sys.cpp: the pictures' textures (no TPL of the game) for IdTexSet, no texture animation for them.
 # Not a bug of the prototype: a port feature. Without Berserker chosen nothing changes.
 diff --git a/src/game/card.cpp b/src/game/card.cpp
-index 2d50fb7..b428718 100644
+index 2d50fb7..fd6c707 100644
 --- a/src/game/card.cpp
 +++ b/src/game/card.cpp
 @@ -3180,6 +3180,8 @@ void CardDbgCacheSet()
@@ -28,7 +28,7 @@ index 2d50fb7..b428718 100644
              break;
          }
      }
-+    /* port (patch 0255): a Berserker save shows BZK in the Mode column (runtime/berserker.cpp) */
++    /* port (patch 0255): a Berserker save shows BSK in the Mode column (runtime/berserker.cpp) */
 +    re4_berserker_list_mark(id, type, p_info->game_mode_disp, p_info->pad_3F, flag);
  }
  

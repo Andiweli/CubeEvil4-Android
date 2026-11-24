@@ -996,16 +996,24 @@ Tiere nicht zäher, Wellen unverändert, mit den japanischen Discs nicht, kein A
   Normal; Debug-/US-Menü und EU-Menü von Patch 0139), `game.cpp` (Markierung beim neuen Spiel setzen/löschen, ohne
   neue Zeilen vor 1069 wegen `byte_views.json`; `clearGlobalSaveData` behält sie), `em_sub.cpp` (Schaden),
   `id_tex.cpp`/`id_sys.cpp` (die Wort-Textur für `IdTexSet`, keine Texturanimation). Wortbild: DejaVu Serif Bold
-  (`port/tools/berserker_word.py`, IA8 108×14; nach dem Gerätetest des Projektinhabers 24.11.2026 an die Menüwörter
-  des Spiels angeglichen: in 12 px mit Hinting gezeichnet, Großbuchstaben 8 Bildschirmzeilen ab Texelzeile 3, Stämme 2
-  Texel, Buchstaben 2 Texel auseinander, dünner dunkler Rand und Schatten rechts unten, Füllung wie das Spiel
-  (176,175,170); im Maßstab des Professional-Worts gezeichnet; Bilder `font3-*.png`, abgenommen „Schrift passt nun“), Platz in MEM1 `RE4_MEM1_CHEAT_ADDR + 0x4F0000` (BZK + 0x4F8000).
+  (`port/tools/berserker_word.py`, IA8 124×14; nach den Gerätetests des Projektinhabers 24.11.2026 Texel für Texel an die
+  Wörter des Spiels angeglichen, gemessen an deren Texturen (nur am PC ausgelesen, nichts davon im Repository): 14
+  Texel hoch, helle Zeilen 3..10 mit halbhellen Serifenzeilen 2 und 11, Hauptstämme auf Texelkanten, Stämme etwa 2
+  Texel, Buchstaben 9–12 Texel breit und 3 Texel auseinander, schwarze deckende Fläche Zeilen 1..12 (wie das Spiel,
+  das die Wörter auf einer dunklen Fläche hat); im Maßstab des Professional-Worts gezeichnet; Bilder `font4-*.png`; nach
+  dem Gerätetest „links nicht bündig“: der erste Stamm des B auf Texelspalte 4 wie bei den Wörtern des Spiels, Serife 2,
+  hell ab 3, Bilder `font5-*`), Platz in
+  MEM1 `RE4_MEM1_CHEAT_ADDR + 0x4F0000` (BSK + 0x4F8000).
   Testschalter `RE4_TEST_BERSERKER=1` (neues Spiel ist Berserker), `RE4_BERSERKER_LOG=1` (eine Zeile je Treffer).
-- Spielstandliste (Wunsch des Projektinhabers 24.11.2026, „Eigenes Zeichen BZK“): ein Berserker-Spielstand zeigt in der
-  Spalte „Mode“ BZK statt PRO. Merker im Kopf des Spielstands: Byte 0x3F = GLOBAL_WK `pad_4F8B` (Füllbyte, von keinem
+- Spielstandliste (Wunsch des Projektinhabers 24.11.2026, „Eigenes Zeichen BZK“, nach dem Gerätetest „von BZK auf
+  BSK“): ein Berserker-Spielstand zeigt in der Spalte „Mode“ BSK statt PRO. Merker im Kopf des Spielstands: Byte 0x3F = GLOBAL_WK `pad_4F8B` (Füllbyte, von keinem
   Code der vier Veröffentlichungen gelesen oder geschrieben), 0xB5, gesetzt beim Spielstart (`re4_berserker_game_init`).
   `card.cpp dispSaveInfo` (Patch 0255) ruft `re4_berserker_list_mark`: Kopie der Einheit 0x18 (PRO, 38×21 Texel,
-  gezeichnet 38×23) mit eigenem Bild BZK (DejaVu Serif Bold, `berserker_word.inc` `kMark`, gleicher Maßstab).
+  gezeichnet 38×23) mit eigenem Bild BSK (DejaVu Serif Bold, `berserker_word.inc` `kMark`, gleicher Maßstab; wie die PRO-Textur:
+  Großbuchstaben 11 Texel ab Zeile 1, Stämme 2 Texel, weicher Schatten rechts unten; nach dem Gerätetest „bei PRO ist
+  zwischen den Buchstaben mehr Platz“: B–S und S–K je 1 Texel weiter, an den Stämmen 2 Texel frei wie P–R, 44 Texel breit
+  mit dem ersten Stamm auf Spalte 4, so liegt die Mitte der Schrift auf dem Bildschirm genau dort, wo die von PRO liegt
+  (die Einheit ist mittig verankert; 1x x 610,5, 2,5x x 1528); Bilder `font5-save-list-*`).
   Ältere Versionen zeigen PRO (geprüft mit Kern 504e728f: Bilder `berserker-save-list*.png`).
 - Hilfe unter „Mehr Gegner“ in 11 Sprachen um einen Satz ergänzt.
 - **Geprüft (WSL, i686):** Laufzeittest `berserker` (die echte `LifeDownSet2`): Treffer bis zum Tod Professional →

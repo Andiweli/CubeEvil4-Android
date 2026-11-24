@@ -4,7 +4,7 @@
   - kWord "BERSERKER", the title's difficulty menu (like PROFESSIONAL, NORMAL, PROFI, LEICHT: 14 texels high, light
     capitals 8 texels high of a wide bold serif, letters well apart, a dark edge and a shadow down-right; the menu tints
     them, white or orange);
-  - kMark "BZK", the save list's Mode column (the project owner's choice, 24.11.2026; in the place of the game's
+  - kMark "BSK", the save list's Mode column (the project owner's choice, 24.11.2026; in the place of the game's
     mode picture PRO, 21 texels high, light upright serif capitals with a faint dark edge, tinted light yellow).
 DejaVu Serif Bold (free font, Bitstream Vera licence), its capitals widened and spaced to the game's measure, a dark
 edge. Nothing of the game: the font is DejaVu's.
@@ -24,12 +24,18 @@ PICS = [
     # the title menu's words (measured on the PC's pictures, 24.11.2026: capitals 8 screen rows from texel row 3 of 14,
     # crisp stems 2 texels wide, bold serif letters 2-4 texels apart, a dark edge and a shadow down-right): DejaVu Serif
     # Bold drawn at 12 px with its hinting (capitals 9 texels, stems of whole texels), letters 2 texels further apart
-    dict(name="kWord", word="BERSERKER", font="DejaVuSerif-Bold.ttf", height=14, cap=9.0, track=2.0, stretch=1.0,
-         edge=(255, 0), shadow=True, top=3.0, weight=0, gain=1.0, level=1.0, hinted=12),
-    # the save list's column words (PRO: 38x21 texels, light upright serif capitals about 9.6 texels high from the
-    # top, a faint dark edge; tinted light yellow; measured on the PC's picture, 24.11.2026)
-    dict(name="kMark", word="BZK", font="DejaVuSerif-Bold.ttf", height=21, cap=9.6, track=1.4, stretch=1.0,
-         edge=(96, 0), shadow=False, top=1.0, weight=0, gain=1.0, level=1.0, hinted=0),
+    # (font5, the owner's device test 24.11.2026 "links nicht bündig": the game's words start alike, plate column 1,
+    # half-bright serif 2, bright 3, first stem 4: stem0=4 puts B's stem there)
+    dict(name="kWord", word="BERSERKER", font="DejaVuSerif-Bold.ttf", height=14, cap=9.25, track=0, stretch=1.22,
+         edge=(0, 0), shadow=False, top=2.25, weight=0, gain=1.0, level=1.0, hinted=0, texel=dict(gap=1.4, plate=1.6, thin=0.25, stem0=4)),
+    # the save list's column words (measured on the game's PRO texture, 24.11.2026: 38x21 IA8, capitals 11 texels from row
+    # 1, crisp stems 2 texels, letters about 1 texel apart, no edge but a soft black shadow down-right; tinted light yellow)
+    # (font5, the owner 24.11.2026 "bei PRO ist zwischen den Buchstaben mehr Platz": P-R and R-O measured per row, 2
+    # texels at the stems (ink >= 60) and 3-4 bright; B-S and S-K one texel wider than round 4 for that; 44 texels wide so
+    # the ink centred on the screen where PRO's is, the unit being centred: first stem on column 4)
+    dict(name="kMark", word="BSK", font="DejaVuSerif-Bold.ttf", height=21, cap=11.0, track=0, stretch=1.0,
+         edge=(0, 0), shadow=False, top=1.0, weight=0, gain=1.0, level=1.0, hinted=0,
+         texel=dict(gap=-0.8, plate=0, thin=0.4, blur=(2, 3, 2.0, 130), gaps=[0.4, 0.0], width=44, stem0=4)),
 ]
 
 
@@ -48,6 +54,59 @@ def render_hinted(font_path, word, height, size, track, cap_top):
         d.text((x, int(cap_top) - cap_y), c, font=font, fill=255)
         x += round(font.getlength(c)) + track
     return fill
+
+
+def render_texel(font_path, word, height, cap, cap_top, stretch, gap, plate, thin=0.0, blur=None, stem0=None, gaps=None, only=None):
+    """The word on the game's texel grid (measured on its own menu words, 24.11.2026): capitals exactly `cap` texels
+    from row `cap_top`, each letter's main stem starting on a texel's edge (crisp stems), letters `gap` texels apart
+    (ink to ink), widened `stretch`; and the game's dark plate: black, opaque within `plate` texels of the letters."""
+    size = int(round(cap * SS / 0.729))
+    font = ImageFont.truetype(font_path, size)
+    glyphs = []
+    for c in word:
+        g = Image.new("L", (size * 2, size * 2), 0)
+        ImageDraw.Draw(g).text((size // 2, size // 4), c, font=font, fill=255)
+        g = g.crop(g.getbbox())
+        g = g.resize((max(1, int(round(g.width * stretch))), int(round(cap * SS))), Image.LANCZOS)
+        # the stems thinner by `thin` texels on each side (the game's: about 2 texels; the bars stay)
+        for k in range(1, int(round(thin * SS)) + 1):
+            left = Image.new("L", g.size, 0)
+            left.paste(g.crop((k, 0, g.width, g.height)), (0, 0))
+            right = Image.new("L", g.size, 0)
+            right.paste(g.crop((0, 0, g.width - k, g.height)), (k, 0))
+            g = ImageChops.darker(g, ImageChops.darker(left, right)) if k == int(round(thin * SS)) else g
+        # the main stem: the first column (from the left) inked over 90 % of the middle of the capitals
+        stem = 0
+        for x in range(g.width):
+            ink = sum(1 for y in range(g.height // 5, g.height * 4 // 5) if g.getpixel((x, y)) > 128)
+            if ink >= (g.height * 3 // 5) * 0.9:
+                stem = x
+                break
+        glyphs.append((g, stem))
+    w = int(sum(g.width for g, _ in glyphs) / SS + gap * len(word) + 2 * plate + 8)
+    big = Image.new("L", (w * SS, height * SS), 0)
+    x = int(round((plate + 1) * SS))
+    for i, (g, stem) in enumerate(glyphs):
+        if i == 0 and stem0 is not None:
+            x = stem0 * SS - stem  # (font5: the first stem on the texel column of the game's words: their left edge)
+        else:
+            x = ((x + stem + SS - 1) // SS) * SS - stem  # the stem on a texel's edge
+        if only is None or only == i:  # (`only`: one letter alone at its place, for measuring the gaps)
+            big.paste(g, (x, int(cap_top * SS)), g)
+        x += g.width + int((gaps[i] if gaps and i < len(gaps) else gap) * SS)
+    fill = big.resize((w, height), Image.BOX)
+    if plate:
+        edge = big.filter(ImageFilter.MaxFilter(2 * int(round(plate * SS)) + 1)).resize((w, height), Image.BOX)
+    else:
+        edge = Image.new("L", fill.size, 0)
+    if blur:  # a soft black shadow (dx, dy, radius in texels, its strongest alpha), as the save list's words have it
+        dx, dy, radius, amax = blur
+        sh = Image.new("L", fill.size, 0)
+        sh.paste(fill, (dx, dy))
+        sh = sh.filter(ImageFilter.GaussianBlur(radius)).point(lambda v: min(255, int(v * amax / 255 * 2.2)))
+        edge = ImageChops.lighter(edge, sh)
+    box = ImageChops.lighter(fill, edge).getbbox()
+    return fill.crop((0, 0, box[2] + 1, height)), edge.crop((0, 0, box[2] + 1, height))
 
 
 def render(font_path, word, height, cap, track, stretch, edge_alpha, shadow, cap_top, weight=0, gain=1.0, hinted=0):
@@ -130,8 +189,16 @@ def main(argv):
     lines = ["// generated by port/tools/berserker_word.py from DejaVu Serif (Bold); do not edit"]
     for p in PICS:
         name, word, height = p["name"], p["word"], p["height"]
-        fill, edge = render(os.path.join(argv[1], p["font"]), word, height, p["cap"], p["track"], p["stretch"],
-                            p["edge"], p["shadow"], p["top"], p["weight"], p["gain"], p["hinted"])
+        if p["texel"]:
+            fill, edge = render_texel(os.path.join(argv[1], p["font"]), word, height, p["cap"], p["top"], p["stretch"],
+                                      p["texel"]["gap"], p["texel"]["plate"], p["texel"]["thin"],
+                                      p["texel"].get("blur"), p["texel"].get("stem0"), p["texel"].get("gaps"))
+            if p["texel"].get("width", 0) > fill.width:  # (a fixed width: the ink as far off the middle as the game's)
+                fill = fill.crop((0, 0, p["texel"]["width"], height))
+                edge = edge.crop((0, 0, p["texel"]["width"], height))
+        else:
+            fill, edge = render(os.path.join(argv[1], p["font"]), word, height, p["cap"], p["track"], p["stretch"],
+                                p["edge"], p["shadow"], p["top"], p["weight"], p["gain"], p["hinted"])
         w, rows = texels_of(fill, edge, height, p["level"])
         data = tiles(w, rows, height)
         lines.append(f"static const int {name}W = {w}, {name}H = {height};  // \"{word}\"")

@@ -25,10 +25,10 @@
 // word in DejaVu Serif Bold, port/tools/berserker_word.py; nothing of the game) under a texture id the title does not
 // use: IdTexSet and idSysMove04 ask re4_berserker_tex for it. The cursor's row 0 is then Berserker, 1 Professional ...
 //
-// The save list (the project owner's wish of 24.11.2026, "Eigenes Zeichen BZK"): a Berserker save shows BZK in the
+// The save list (the project owner's wish of 24.11.2026, "Eigenes Zeichen BZK", then "BSK"): a Berserker save shows BSK in the
 // Mode column instead of PRO. The list reads only the save's header, whose byte 0x3F is GLOBAL_WK 0x4F8B (padding no
 // release reads or writes): 0xB5 there for a Berserker game (set by re4_berserker_game_init), and card.cpp dispSaveInfo
-// (patch 0255) asks re4_berserker_list_mark, which shows a copy of the PRO unit with the picture BZK (DejaVu Serif Bold,
+// (patch 0255) asks re4_berserker_list_mark, which shows a copy of the PRO unit with the picture BSK (DejaVu Serif Bold,
 // berserker_word.inc). An older version shows PRO.
 //
 //   RE4_TEST_BERSERKER=1   (the PC checks) a new game is Berserker (game_mode 6 with the marker), as if chosen, with
@@ -62,7 +62,7 @@ namespace {
 
 const u8 kMagic = 0xB5;
 
-// The two pictures (berserker_word.inc): the menu's word BERSERKER and the save list's mark BZK. Their texels lie in
+// The two pictures (berserker_word.inc): the menu's word BERSERKER and the save list's mark BSK. Their texels lie in
 // the cheats' place of MEM1 (re4_mem1_map.h; GX reads textures there like the game's own), each under a texture id
 // the id texture system does not hold.
 struct Pic {
@@ -274,7 +274,7 @@ void re4_berserker_title_choice(int berserker)
 }
 
 // Patch 0255 (card.cpp dispSaveInfo): the save list's Mode column of the entry of id class `type` (header bytes
-// `mode` 0x3D, the copy of game_mode, and `mark` 0x3F, GLOBAL_WK's pad_4F8B: 0xB5 for a Berserker save): BZK instead of
+// `mode` 0x3D, the copy of game_mode, and `mark` 0x3F, GLOBAL_WK's pad_4F8B: 0xB5 for a Berserker save): BSK instead of
 // the game's mode picture (units 0x17, 0x18, 0x22), as a copy of unit 0x18 (mark 0x30) with the picture of
 // berserker_word.inc; `broken` or another save: the copy hidden
 void re4_berserker_list_mark(IDSystem* id, int type, int mode, int mark, int broken)
