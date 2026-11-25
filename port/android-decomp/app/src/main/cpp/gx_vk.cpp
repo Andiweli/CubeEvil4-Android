@@ -407,6 +407,10 @@ const char kDepthResolveVs[] = "#version 450\n"
 const char kDepthResolveFs[] = "#version 450\n"
                                "layout(set = 0, binding = 0) uniform sampler2DMS src;\n"
                                "void main() { gl_FragDepth = texelFetch(src, ivec2(gl_FragCoord.xy), 0).r; }\n";
+// without MSAA: the EFB's depth into the real-time shadows' own copy of it (ShadowSceneDepth, 1.1.3)
+const char kDepthCopyFs[] = "#version 450\n"
+                            "layout(set = 0, binding = 0) uniform sampler2D src;\n"
+                            "void main() { gl_FragDepth = texelFetch(src, ivec2(gl_FragCoord.xy), 0).r; }\n";
 
 } // namespace
 
@@ -2510,6 +2514,16 @@ struct VkRenderer final : GxCore {
   VkImageView shadowMarkFbDepth = VK_NULL_HANDLE;  // the EFB depth view shadowMarkFb was made with
   VkSampler shadowCompare = VK_NULL_HANDLE;        // the map compared (sampler2DShadow), linear where it can
   VkFormat shadowFormat = VK_FORMAT_UNDEFINED;
+  // Without MSAA the marks' pass tests against a copy of the EFB's depth (1.1.3), never the EFB's own: with the
+  // EFB's depth image a depth attachment of the marks' framebuffer too, an Adreno 735 (Xiaomi Poco F6, driver
+  // 0.762, user report of 26.11.2026) gave the EFB pass after the shadows a depth as if cleared to the far plane:
+  // what the game draws after the shadow mark (the house's inside in r100, the fog's sheets) showed through the
+  // walls in front of it. The PC's lavapipe and the validation layers (also the synchronisation's) found nothing.
+  // The copy is drawn as the MSAA path resolves its depth (the EFB's depth sampled, as the autofocus and GXPeekZ
+  // read it in the middle of a picture on every GPU); with MSAA efbDepth is such a copy already.
+  Image shadowScene;
+  VkRenderPass shadowScenePass = VK_NULL_HANDLE;
+  Fixed shadowSceneFx;
 
   // a pipeline of the casters' triangles (three floats a corner at location 0): the depth maps' (test LESS, written,
   // pushed back) or the marks' (test LEQUAL against the EFB's depth, not written, pulled forward; blended by the
@@ -2639,6 +2653,17 @@ struct VkRenderer final : GxCore {
     std::string error;
     const VkColorComponentFlags rgb = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
     const VkColorComponentFlags all = rgb | VK_COLOR_COMPONENT_A_BIT;
+    {
+      // (made with MSAA too: the menu may turn it off while the shadows stay)
+      shadowScenePass = MakeDepthPass(depthFormat);
+      VkFixedLayout l;
+      l.samplers = {"src"};
+      if (!shadowScenePass ||
+          !MakeFixed(shadowSceneFx, kDepthResolveVs, kDepthCopyFs, shadowScenePass, 0, true, &error, true, &l)) {
+        GXLOG("real-time shadows (Vulkan): the depth's copy: %s", error.c_str());
+        return false;
+      }
+    }
     if (!MakeShadowPipe(shadowDepthFx, fixed::kShadowDepthVs, fixed::kShadowDepthFs, shadowMapPass, true, &error) ||
         !MakeShadowPipe(shadowMarkFx, fixed::kShadowMarkVs, fixed::kShadowMarkFs, shadowMarkPass, false, &error) ||
         !MakeFixed(shadowMaskFx, fixed::kQuadVs, fixed::kShadowMaskFs, copyPass, all, false, &error) ||
@@ -2681,7 +2706,22 @@ struct VkRenderer final : GxCore {
         !MakeImage(shadowMarks, efbColor.width, efbColor.height, 1, VK_FORMAT_R8G8B8A8_UNORM,
                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT))
       return false;
-    const VkImageView depthView = efbDepth.attach ? efbDepth.attach : efbDepth.view;
+    // the marks' depth: with MSAA the resolved one (efbDepth), else the shadows' own copy (shadowScene)
+    VkImageView depthView = efbDepth.attach ? efbDepth.attach : efbDepth.view;
+    if (samples <= 1) {
+      if (shadowScene.image && (shadowScene.width != efbDepth.width || shadowScene.height != efbDepth.height))
+        Trash(shadowScene);
+      if (!shadowScene.image) {
+        if (!MakeImage(shadowScene, efbDepth.width, efbDepth.height, 1, depthFormat,
+                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, efbDepth.aspect))
+          return false;
+        shadowScene.fb = MakeFb(shadowScenePass, {shadowScene.attach ? shadowScene.attach : shadowScene.view},
+                                shadowScene.width, shadowScene.height);
+        if (!shadowScene.fb)
+          return false;
+      }
+      depthView = shadowScene.attach ? shadowScene.attach : shadowScene.view;
+    }
     if (!shadowMarkFb || shadowMarkFbDepth != depthView) {
       if (shadowMarkFb) {
         const VkDevice d = dev;
@@ -2783,9 +2823,31 @@ struct VkRenderer final : GxCore {
       EndPass();
       map.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;  // the pass's final layout
     }
-    // 2. the casters' marks: where a figure (red) or an object (green) is the visible surface (the EFB's depth)
+    // 1b. without MSAA: the EFB's depth into the shadows' own copy (shadowScene: why there)
+    if (samples <= 1) {
+      Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+      Transition(cb, shadowScene, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
+      rbi.renderPass = shadowScenePass;
+      rbi.framebuffer = shadowScene.fb;
+      rbi.renderArea = {{0, 0}, {shadowScene.width, shadowScene.height}};
+      vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+      pass = kOtherPass;
+      const VkViewport vp{0.0f, 0.0f, float(shadowScene.width), float(shadowScene.height), 0.0f, 1.0f};
+      const VkRect2D sc{{0, 0}, {shadowScene.width, shadowScene.height}};
+      vkCmdSetViewport(cb, 0, 1, &vp);
+      vkCmdSetScissor(cb, 0, 1, &sc);
+      const VkImageView view = efbDepth.view;
+      BindFixed(shadowSceneFx, &view, &nearestClamp, 1, {});
+      vkCmdDraw(cb, 4, 1, 0, 0);
+      EndPass();
+      scissorValid = false;
+    }
+    // 2. the casters' marks: where a figure (red) or an object (green) is the visible surface (the EFB's depth, or
+    // its copy)
     {
-      Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      if (samples > 1)
+        Transition(cb, efbDepth, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
       auto rbi = Make<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
       rbi.renderPass = shadowMarkPass;
       rbi.framebuffer = shadowMarkFb;
@@ -2893,16 +2955,17 @@ struct VkRenderer final : GxCore {
   void ShadowRelease() {
     for (Fixed *f : {&shadowDepthFx, &shadowMarkFx, &shadowMaskFx, &shadowApplyFx})
       FreeFixed(*f);
-    for (Image *img : {&shadowAtlas, &shadowMarks, &shadowMask})
+    FreeFixed(shadowSceneFx);
+    for (Image *img : {&shadowAtlas, &shadowMarks, &shadowMask, &shadowScene})
       Destroy(*img);
     if (shadowMarkFb)
       vkDestroyFramebuffer(dev, shadowMarkFb, nullptr);
     shadowMarkFb = VK_NULL_HANDLE;
     shadowMarkFbDepth = VK_NULL_HANDLE;
-    for (VkRenderPass *p : {&shadowMapPass, &shadowMarkPass})
+    for (VkRenderPass *p : {&shadowMapPass, &shadowMarkPass, &shadowScenePass})
       if (*p)
         vkDestroyRenderPass(dev, *p, nullptr);
-    shadowMapPass = shadowMarkPass = VK_NULL_HANDLE;
+    shadowMapPass = shadowMarkPass = shadowScenePass = VK_NULL_HANDLE;
     if (shadowCompare)
       vkDestroySampler(dev, shadowCompare, nullptr);
     shadowCompare = VK_NULL_HANDLE;

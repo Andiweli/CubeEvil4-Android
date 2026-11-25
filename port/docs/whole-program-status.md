@@ -905,6 +905,25 @@ Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `R
 `port/android-decomp/docs/releases/v1.1.4.md`. 1.1.3 ist veröffentlicht (Projektinhaber, 26.11.2026); Release und Tag
 macht der Projektinhaber auf GitHub.
 
+### 9. Vulkan: Wände mit Echtzeitschatten durchsichtig (Nutzerbericht 26.11.2026, Xiaomi Poco F6, Adreno 735)
+
+**Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (der Projektinhaber kann es nicht selbst prüfen, 26.11.2026).
+
+- Bericht `builds/workthread-1.1.3/user-report-20261126-014925-shadows`: mit Echtzeitschatten (Figuren und Objekte)
+  verschwindet in r100 die Außenwand des ersten Hauses, man sieht Regal und Schrank innen.
+- Ursache: Auf diesem Adreno-Treiber kommt der Tiefenpuffer des EFB nach dem Schattenschritt wie „ganz fern“ zurück;
+  was das Spiel nach der Schattenmarke zeichnet (das Innere des Hauses, die Nebelflächen), liegt dann vor der Wand.
+  Auslöser: der Markierungs-Durchgang hängte das Tiefenbild des EFB selbst als Tiefen-Anhang an einen zweiten
+  Framebuffer. Am PC (lavapipe) korrekt; Validierung und Synchronisations-Validierung: 0 Fehler (gültiges Vulkan,
+  Treibereigenheit). Den Verlust am PC nachgestellt (Tiefe nach dem Schatten auf „fern“): Bild wie beim Nutzer
+  (`builds/workthread-1.1.3/shadow-walls`).
+- Lösung (`gx_vk.cpp`): ohne MSAA eine eigene Kopie der Tiefe für die Schatten (`shadowScene`, `kDepthCopyFs`, wie
+  die MSAA-Auflösung: die Tiefe gelesen wie Autofokus und GXPeekZ); das Tiefenbild des EFB verlässt seinen
+  Framebuffer nicht mehr. GLES unverändert. Platz: ein Tiefenbild mehr, solange die Schatten an sind (~10 MB bei 3,5×).
+- Prüfung am PC: Bilder vorher/nachher pixelgleich (8 Bilder r100, außen am ersten Haus und im Wald, Schatten
+  aus/an, FXAA, Tiefenschärfe stark, Linsenreflexe, 3,5×); mit absichtlich kaputter Kopie 117.103 Pixel anders;
+  Validierung 0 Fehler (auch MSAA 4). PC-Ort außen am Fenster: `RE4_TEST_PLACE=free+1:-86900,860,-37800,1.75`.
+
 ## 1.1.3 (ab 25.11.2026, auf 1.1.2 = dc745c44)
 
 Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
