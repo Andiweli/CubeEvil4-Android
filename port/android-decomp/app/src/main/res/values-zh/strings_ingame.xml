@@ -475,6 +475,8 @@
     <string name="ingame_health_bars_help">敌人血条：每个敌人头上的小条显示其生命值（绿色，低于四分之一为黄色，低于十分之一为红色）；过场动画和菜单中不显示。</string>
     <string name="ingame_more_enemies">更多敌人</string>
     <string name="ingame_more_enemies_help">更多敌人：房间里的普通 Ganado 增加约四成，位置随机，任何难度均有效；从下一个房间开始。头目、特殊敌人和敌人波次保持不变；仅限主线剧情。难度 Berserker 始终包含此效果。</string>
+    <string name="ingame_cheat_bloody">血腥模式</string>
+    <string name="ingame_cheat_bloody_help">血腥模式：命中和倒下敌人留下的血泊会一直留在地上，直到你离开房间，而不是几秒后消失。最多同时保留 160 个血泊（开启 土豆模式的减少特效时更少）；最旧的先消失，其他特效永远不会不够用。</string>
     <string name="ingame_dof_light">轻度</string>
     <string name="ingame_dof_strong">强烈</string>
     <string name="ingame_player_view">玩家视角</string>

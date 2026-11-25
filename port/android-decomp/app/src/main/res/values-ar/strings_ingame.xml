@@ -494,6 +494,8 @@
     <string name="ingame_health_bars_help">&#x200F;أشرطة صحة الأعداء: شريط صغير فوق كل عدو يُظهر صحته (أخضر، وأصفر تحت الربع، وأحمر تحت العُشر)؛ لا يظهر في المشاهد السينمائية والقوائم.</string>
     <string name="ingame_more_enemies">&#x200F;أعداء أكثر</string>
     <string name="ingame_more_enemies_help">&#x200F;أعداء أكثر: نحو 40 بالمئة أكثر من أعداء Ganado العاديين في الغرفة، في أماكن عشوائية، في كل مستويات الصعوبة؛ بدءًا من الغرفة التالية. يبقى الزعماء والأعداء الخاصون والموجات كما هي؛ في القصة فقط. مستوى الصعوبة Berserker يتضمنهم دائمًا.</string>
+    <string name="ingame_cheat_bloody">الوضع الدموي</string>
+    <string name="ingame_cheat_bloody_help">الوضع الدموي: تبقى برك الدم من الإصابات والأعداء الساقطين على الأرض حتى تغادر الغرفة، بدل أن تتلاشى بعد ثوانٍ قليلة. حتى 160 بركة في وقت واحد (أقل مع التأثيرات المخفّضة لوضع Potato)؛ تختفي الأقدم أولًا، كي لا تنقص التأثيرات الأخرى أبدًا.</string>
     <string name="ingame_dof_light">خفيف</string>
     <string name="ingame_dof_strong">قوي</string>
     <string name="ingame_player_view">رؤية اللاعب</string>

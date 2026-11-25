@@ -477,6 +477,8 @@
     <string name="ingame_health_bars_help">Lebensbalken bei Gegnern: Ein kleiner Balken über jedem Gegner zeigt seine Gesundheit (grün, unter einem Viertel gelb, unter einem Zehntel rot); nicht in Zwischensequenzen und Menüs.</string>
     <string name="ingame_more_enemies">Mehr Gegner</string>
     <string name="ingame_more_enemies_help">Mehr Gegner: Etwa 40 Prozent mehr der gewöhnlichen Ganados eines Raums, an zufälligen Stellen, auf jeder Schwierigkeitsstufe; ab dem nächsten Raum. Bosse, besondere Gegner und Wellen bleiben, wie sie sind; nur in der Geschichte. Die Schwierigkeitsstufe Berserker hat sie immer.</string>
+    <string name="ingame_cheat_bloody">Blutiger-Modus</string>
+    <string name="ingame_cheat_bloody_help">Blutiger-Modus: Die Blutlachen von Treffern und gefallenen Gegnern bleiben auf dem Boden liegen, bis du den Raum verlässt, statt nach ein paar Sekunden zu verblassen. Bis zu 160 Lachen gleichzeitig (weniger mit den reduzierten Effekten des Potato-Modus); die ältesten verschwinden zuerst, damit andere Effekte nie zu kurz kommen.</string>
     <string name="ingame_dof_light">Leicht</string>
     <string name="ingame_dof_strong">Stark</string>
     <string name="ingame_player_view">Spielersicht</string>

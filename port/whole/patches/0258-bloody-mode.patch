@@ -1,0 +1,71 @@
+# Port patch, a new cheat "Bloody mode" (1.1.3, the project owner: blood pools on the floor stay instead of vanishing
+# after a few seconds). The game's floor blood is the ground decal sprite (effect id 0x10, cEsp10): it grows, holds and
+# fades (cEsp::ColorUpdate), or ends with its life or its texture animation. Which decals are blood: the same textures and
+# sequences make dust, dirt and footprints, so the blood helpers' control block of patch 0256 marks them. With the switch
+# on, the blood helpers of a hit (patch 0256's Re4BloodScope) and the Ganados' death pool (em10.cpp EFF_EM10 0x18, here
+# in a scope without an enemy, so Berserker does not make it bigger) hand their effects a neutral block (no change) with
+# the blood mark; EspSeqSet (esp_sub.cpp) asks runtime/bloody.cpp re4_bloody_rec, which marks a floor decal made under it,
+# and then re4_berserker_blood_rec as before. cEsp10::move asks re4_bloody_move first: in a marked decal's first frame it
+# decides, and it moves a kept pool itself (the game's CommonMove without fade or end of life, the animation holding its
+# last picture). The room's next load clears the sprite pool and with it the pools. At most 160 pools are kept (64 and
+# 32 with Potato mode's fewer effects; each pool in sight is one more draw), the oldest released first, fewer while the pool of 1024 sprites has less than 256 free, and kept pools carry the game's own
+# low-priority mark (Tool_flg 0x40000), which the sprite pool takes first when it is full: muzzle flashes, sparks and the
+# rest never run short. Off: as the game.
+diff --git a/src/em10/em10.cpp b/src/em10/em10.cpp
+index 276a96a..b30d73c 100644
+--- a/src/em10/em10.cpp
++++ b/src/em10/em10.cpp
+@@ -16262,7 +16262,7 @@ static void em10_R1_Die_Normal(cEm10* em)
+             v = em->ang;
+             v.y += fRand1_1() * 3.1415927f;
+             v.y = LIMIT_ANGLE(v.y);
+-            EstSet(0, -1, &em->pos, &v, EFF_EM10, 0x18, 0, ESP_CORE_KIND_NONE, 0, 0);
++            { Re4BloodScope re4_blood(0); EstSet(0, -1, &em->pos, &v, EFF_EM10, 0x18, 0, ESP_CORE_KIND_NONE, 0, 0); } /* port (patch 0258): the death pool is blood for Bloody mode (not bigger with Berserker) */
+             if (ChkWaterEffectEnable(&em->pos)) {
+                 EstSet(em, -1, 0, 0, EFF_EM10, 0x32, 0, ESP_CORE_KIND_NONE, em, 0);
+             } else {
+diff --git a/src/game/esp10.cpp b/src/game/esp10.cpp
+index 3648752..25c27ec 100644
+--- a/src/game/esp10.cpp
++++ b/src/game/esp10.cpp
+@@ -6,6 +6,8 @@
+ #include "global.h"
+ #include "esp.h"
+ 
++extern "C" int re4_bloody_move(cEsp* e); /* port (patch 0258): runtime/bloody.cpp */
++
+ // Floor decal: dropped onto the ground (or the water surface) when created.
+ class cEsp10 : public cEsp {
+ public:
+@@ -25,6 +27,9 @@ cEsp* Esp10_Create()
+ // Standard sprite update; released when the animation ends.
+ void cEsp10::move()
+ {
++    if (re4_bloody_move(this)) { /* port (patch 0258): "Bloody mode" (a blood pool kept) */
++        return;
++    }
+     if (CommonMove()) {
+         if (!AnmMove()) {
+             PushEsp(this);
+diff --git a/src/game/esp_sub.cpp b/src/game/esp_sub.cpp
+index ec966f2..27363ab 100644
+--- a/src/game/esp_sub.cpp
++++ b/src/game/esp_sub.cpp
+@@ -1098,7 +1098,7 @@ void cEsp::Destruct()
+ // bypassing the sequence timing; only Kind 0 records are allowed. bNoSuspend == 1 marks it with
+ // Core_flg bit 0 (kept through pauses). Returns 1 with *out = the esp, 0 (with the dummy) on error.
+ extern "C" ESPSEQ_CONTROL* re4_berserker_blood_ctl(void);            /* port (patch 0256): runtime/berserker.cpp */
+-extern "C" int re4_berserker_blood_rec(ESPSEQ_CONTROL* pSct, int id); /* port (patch 0256) */
++extern "C" int re4_berserker_blood_rec(ESPSEQ_CONTROL* pSct, int id); /* port (patch 0256) */ extern "C" int re4_bloody_rec(ESPSEQ_CONTROL* pSct, cEsp* e); /* port (patch 0258): runtime/bloody.cpp */
+ int EspEstSetSelect(int owner, int id, int no, cEsp** ppEsp, int bNoSuspend)
+ {
+     cEspSeqHead* head;
+@@ -1342,7 +1342,7 @@ int EspSeqSet(cEspSeqTbl* pSeq, cEffectCore* pCore, u32* pRand_seed, cModel* pMo
+             break;
+         }
+         ret = e->SetFreeWork(pSeq, pRand_seed);
+-        if (pSct && re4_berserker_blood_rec(pSct, e->m_Id)) { /* port (patch 0256): Berserker's control, blood only */
++        if (pSct && re4_bloody_rec(pSct, e)) { /* port (patch 0256): Berserker's control, blood only; 0258: Bloody mode's blood decals */
+             if (pSct->OverWrite_flg & 1) {
+                 e->m_Speed = pSct->Speed;
+                 e->m_Speed.x += pSeq->R_speed.x * fRandSeed1_1(pRand_seed);

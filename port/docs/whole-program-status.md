@@ -904,6 +904,32 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
 `port/android-decomp/docs/releases/v1.1.3.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 4. Cheat „Blutiger-Modus“ / „Bloody mode“ (Projektinhaber, 25.11.2026, Patch 0258)
+
+Blutlachen bleiben liegen, bis der Raum wechselt. Abgenommen 25.11.2026 („nur Blut“, Name „Blutiger-Modus“). Tote Gegner liegen lassen geprüft und verworfen (Gegnerplätze der Wellen, Kosten je Leiche; Projektinhaber: dann weiter ausblenden). Das Bodenblut ist das Boden-Sprite (Effekt-Id 0x10, `cEsp10`): wächst,
+hält, blendet aus (`ColorUpdate`) oder endet mit Lebenszeit/Animation.
+- Welche Bodenflecken Blut sind: dieselben Texturen und Sequenzen machen auch Staub, Schmutz, Fußspuren (Farbe und Textur
+  taugen nicht, im Lauf gemessen). Deshalb geben die Blut-Helfer eines Treffers (Patch 0256 `Re4BloodScope`) und die
+  Todeslache der Ganados (`em10.cpp` EFF_EM10 0x18, in einem Scope ohne Gegner, Berserker vergrößert sie also nicht) mit
+  dem Schalter einen neutralen Steuerblock (`berserker.cpp`, `Mul_flg` 0) mit der Blut-Markierung weiter; `EspSeqSet`
+  fragt `bloody.cpp re4_bloody_rec`, das einen Bodenfleck darunter markiert (`cEsp::xF3`, vom Pool bei Neuvergabe
+  gelöscht).
+- `cEsp10::move` fragt `re4_bloody_move`: im ersten Bild entscheiden; eine behaltene Lache bewegt sich wie im Spiel
+  (`CommonMove`) ohne Ausblenden und Lebensende, die Animation hält das letzte Bild. Der nächste Raum leert den
+  Sprite-Pool.
+- Grenze: höchstens 160 Lachen (Potato-Modus Effekte „weniger“ 64, „keine“ 32; jede sichtbare Lache ist ein Zeichenauftrag
+  mehr: am PC 230 Lachen 308 → 538 Aufträge, 1,9 → 2,6 ms), die älteste geht zuerst; weniger, solange der Pool (1024)
+  weniger als 256 frei hat; behaltene tragen die Niedrig-Markierung des Spiels (`Tool_flg 0x40000`), die der Pool bei
+  Vollstand zuerst nimmt. Ausgeschaltet bleiben behaltene bis zum Raumwechsel, neue blenden aus.
+- App: Schalter unter „Gegner und Umgebung“ (`GAME_PREFS bloodyMode`, `CoreBridge.setBloody`, Bit 23 der Ziel-Bits), 11
+  Sprachen. Testschalter `RE4_TEST_BLOODY=1`, `RE4_BLOODY_LOG=1` (nur PC).
+- **Geprüft (WSL, i686, Debug-Disc):** Läufe mit Lock-on-Dauerfeuer (`113-blood.sh`) in r11d, r30c, r40b: Lachen bleiben
+  (r30c nach Minuten noch da), r40b über 600 Lachen, 160 behalten, älteste zuerst, höchstens 601 von 1024 Sprites belegt,
+  kein „ESP work full“; GLES und Vulkan zeichnen gleich (Bilder `builds/workthread-1.1.3/bloody/`). **Nicht geprüft:** auf
+  einem Gerät (schwache GPU), andere Gegnerarten (nur Ganados/Plagas der Läufe), Raumwechsel im Lauf (ein Raum legt
+  den Sprite-Pool neu an, `EspRoomInit`: die Liste leert sich, wenn sich seine Adresse ändert, und doppelte Plätze fallen
+  heraus).
+
 ### 5. Vulkan: Texturfilter nur noch bis zur zuletzt gewählten Stufe (Nutzerbericht 25.11.2026, nubia NX709S, Adreno 730)
 
 „Kann nicht höher als 4x … nach Neustart auch 4x weg“. Ursache: `core_mode.cpp` gab dem Menü als stärkste Anisotropie

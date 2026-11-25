@@ -148,6 +148,8 @@ final class CoreMenu extends Dialog {
     void stackItemsChanged(int max);
     /** "Enemy health bars" (1.1.0, ENEMIES AND WORLD; CoreActivity.HEALTH_BARS holds it). */
     void healthBarsChanged(boolean on);
+    /** The cheat "Bloody mode" (1.1.3, ENEMIES AND WORLD; CoreActivity.BLOODY holds it). */
+    void bloodyChanged(boolean on);
     /** "More enemies" (1.1.0, ENEMIES AND WORLD): a new seed each time it goes on, 0 off (CoreActivity.MORE_ENEMIES). */
     void moreEnemiesChanged(int seed);
     /** "Photo mode" switched on and photo mode not on yet: the header's button starts it (1.1.0, the way on touch). */
@@ -2211,16 +2213,22 @@ final class CoreMenu extends Dialog {
       game.edit().putInt(CoreActivity.ENEMY_SEED, seed).apply();
       host.enemyRandomChanged(seed);
     });
-    MenuLayout.Buttons world = cheatRow(labelledOptions(R.string.ingame_side_advanced));
+    LinearLayout advanced = labelledOptions(R.string.ingame_side_advanced);
+    MenuLayout.Buttons world = cheatRow(advanced);
     toggle(world, R.string.ingame_health_bars, game.getBoolean(CoreActivity.HEALTH_BARS, false),
         on -> host.healthBarsChanged(on));
     // "More enemies" beside it (1.1.0, wish of the project owner, 19.11.2026): a seed of its own, a new one each time
     toggle(world, R.string.ingame_more_enemies, game.getInt(CoreActivity.MORE_ENEMIES, 0) != 0, on ->
         host.moreEnemiesChanged(on ? 1 + new java.util.Random().nextInt((1 << 20) - 1) : 0));
+    // "Bloody mode" in the row under them (1.1.3, the project owner: the floor's blood pools stay)
+    MenuLayout.Buttons blood = cheatRow(advanced);
+    toggle(blood, R.string.ingame_cheat_bloody, game.getBoolean(CoreActivity.BLOODY, false),
+        on -> host.bloodyChanged(on));
     help(R.string.ingame_cheat_random_items_help);
     help(R.string.ingame_cheat_random_enemies_help);
     help(R.string.ingame_health_bars_help);
     help(R.string.ingame_more_enemies_help);
+    help(R.string.ingame_cheat_bloody_help);
     help(R.string.ingame_cheats_help);
     playerCharacter();
     mods();

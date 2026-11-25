@@ -481,6 +481,8 @@
     <string name="ingame_health_bars_help">Barras de vida dos inimigos: uma pequena barra acima de cada inimigo mostra a vida dele (verde, amarela abaixo de um quarto, vermelha abaixo de um décimo); não em cenas e menus.</string>
     <string name="ingame_more_enemies">Mais inimigos</string>
     <string name="ingame_more_enemies_help">Mais inimigos: cerca de 40 por cento a mais dos Ganados comuns de uma sala, em lugares aleatórios, em qualquer dificuldade; a partir da próxima sala. Chefes, inimigos especiais e ondas ficam como estão; só na história. A dificuldade Berserker sempre os tem.</string>
+    <string name="ingame_cheat_bloody">Modo sangrento</string>
+    <string name="ingame_cheat_bloody_help">Modo sangrento: as poças de sangue dos tiros e dos inimigos caídos ficam no chão até você sair da sala, em vez de sumirem após alguns segundos. Até 160 poças ao mesmo tempo (menos com os efeitos reduzidos do modo Potato); as mais antigas somem primeiro, para que os outros efeitos nunca fiquem sem espaço.</string>
     <string name="ingame_dof_light">Leve</string>
     <string name="ingame_dof_strong">Forte</string>
     <string name="ingame_player_view">Visão do jogador</string>

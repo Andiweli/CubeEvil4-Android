@@ -52,6 +52,7 @@
 extern "C" void re4_log(const char* fmt, ...);
 extern "C" int re4_disc_retail_eu(void);  // runtime/dvd.cpp
 extern "C" int re4_disc_retail_jp(void);  // runtime/dvd.cpp
+extern "C" int re4_bloody_on(void);       // runtime/bloody.cpp (1.1.3)
 extern GLOBAL_WK* pG;
 extern SYSTEM_SAVE_WORK* pSys;
 extern cTexSys* g_pIdTexSys;
@@ -423,11 +424,14 @@ ESPSEQ_CONTROL* re4_berserker_blood_ctl(void)
         const char* v = getenv("RE4_TEST_BLOOD_OFF");
         off = v && strcmp(v, "1") == 0;
     }
-    if (!gBloodEm || gBloodDepth <= 0 || off) {
+    // (1.1.3) with the cheat "Bloody mode" the blood of every hit and death gets the block too, without a change
+    // (Mul_flg 0): its mark tells runtime/bloody.cpp which floor decals are blood (re4_bloody_rec)
+    const bool bigger = gBloodEm != 0 && !off;
+    if (gBloodDepth <= 0 || (!bigger && !re4_bloody_on())) {
         return 0;
     }
     memset(&gBloodCtl, 0, sizeof(gBloodCtl));
-    gBloodCtl.Mul_flg = 2;  // the size
+    gBloodCtl.Mul_flg = bigger ? 2 : 0;  // the size
     gBloodCtl.pad = kBloodMark;
     gBloodCtl.Size_base_x = kBloodSize;
     gBloodCtl.Size_base_y = kBloodSize;

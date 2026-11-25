@@ -143,6 +143,9 @@ public final class CoreBridge {
   /** The cheat "Stack items" (1.1.0, Cheats & Mods): ammo, grenades and recovery items up to `max` a slot (0 Standard,
    *  250, 500, 999; patch 0254). */
   public static native void setStackItems(int max);
+  /** The cheat "Bloody mode" (1.1.3, Cheats & Mods): blood pools on the floor stay until the room changes (patch 0258,
+   *  runtime/bloody.cpp). */
+  public static native void setBloody(boolean on);
   /** The mouse in the game's title and options menus (1.1.0): the app's own pointer (u, v 0..1 over the game's
    *  picture) at each move, `click` for a left click (runtime/mouse_menu.cpp). */
   public static native void mouseMenu(float u, float v, boolean click);

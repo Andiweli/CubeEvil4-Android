@@ -1155,6 +1155,8 @@ std::atomic<int> optHealthBars{0};
 // the cheat "Stack items" (CoreBridge.setStackItems, 1.1.0): its step in bits 21..22 of the aim bits (0 Standard, 1 250,
 // 2 500, 3 999; runtime/cheats.cpp, patch 0254)
 std::atomic<int> optStackItems{0};
+// the cheat "Bloody mode" (CoreBridge.setBloody, 1.1.3): bit 23 of the aim bits (runtime/bloody.cpp, patch 0258)
+std::atomic<int> optBloody{0};
 // the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
 // degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
 std::atomic<int> optFov{0};
@@ -2851,6 +2853,7 @@ bool drawGx() {
                     | (vibration < 0 ? 0 : vibration ? 0x30 : 0x20)  // bits 4/5 the game's vibration (1.1.0)
                     | (optHealthBars.load() ? 1 << 20 : 0)            // bit 20 the enemy health bars (1.1.0)
                     | (optStackItems.load() & 3) << 21                 // bits 21..22 the cheat "Stack items" (1.1.0)
+                    | (optBloody.load() ? 1 << 23 : 0)                 // bit 23 the cheat "Bloody mode" (1.1.3)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
@@ -4003,6 +4006,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setHealthBar
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setStackItems(JNIEnv *, jclass, jint max) {
   const int want = max >= 999 ? 3 : max >= 500 ? 2 : max >= 250 ? 1 : 0;
   if (optStackItems.exchange(want) != want) LOG("stack items: step %d (the menu, %d a slot)", want, (int) max);
+}
+
+// The cheat "Bloody mode" (1.1.3, Cheats & Mods): drawGx tells the core (bit 23 of the aim bits, patch 0258).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setBloody(JNIEnv *, jclass, jboolean on) {
+  const int want = on == JNI_TRUE ? 1 : 0;
+  if (optBloody.exchange(want) != want) LOG("bloody mode: %s (the menu)", want ? "on" : "off");
 }
 
 // 1.1.0: "vibration" changed in the game's own options since the last call (-1: no; with the core in its own

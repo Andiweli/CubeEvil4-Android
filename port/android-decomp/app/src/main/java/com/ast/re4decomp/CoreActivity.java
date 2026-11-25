@@ -213,6 +213,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (g.contains(STACK_MAX)) return STACK_STEPS[CoreMenu.stepOf(STACK_STEPS, g.getInt(STACK_MAX, 0))];
     return g.getBoolean(STACK_ITEMS, false) ? 999 : 0;
   }
+  /** The cheat "Bloody mode" (1.1.3, GAME_PREFS; CoreBridge.setBloody, patch 0258): off by default. */
+  static final String BLOODY = "bloodyMode";
   /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
   static final String MORE_ENEMIES = "moreEnemiesSeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
@@ -616,6 +618,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       int stack = stackMax(getSharedPreferences(GAME_PREFS, MODE_PRIVATE));
       if (stack != 0) Log.i(TAG, "cheats: stack items up to " + stack);
       CoreBridge.setStackItems(stack);
+      boolean bloody = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(BLOODY, false);
+      if (bloody) Log.i(TAG, "cheats: bloody mode on");
+      CoreBridge.setBloody(bloody);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -1455,6 +1460,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(STACK_MAX, max).remove(STACK_ITEMS).apply();
       Log.i(TAG, "cheats: stack items " + (max == 0 ? "Standard" : "up to " + max));
       CoreBridge.setStackItems(max);
+    }
+
+    @Override public void bloodyChanged(boolean on) {
+      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putBoolean(BLOODY, on).apply();
+      Log.i(TAG, "cheats: bloody mode " + (on ? "on" : "off"));
+      CoreBridge.setBloody(on);
     }
 
     @Override public void healthBarsChanged(boolean on) {

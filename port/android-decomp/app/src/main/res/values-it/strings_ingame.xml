@@ -480,6 +480,8 @@
     <string name="ingame_health_bars_help">Barre della vita dei nemici: una piccola barra sopra ogni nemico mostra la sua salute (verde, gialla sotto un quarto, rossa sotto un decimo); non nelle scene e nei menu.</string>
     <string name="ingame_more_enemies">Più nemici</string>
     <string name="ingame_more_enemies_help">Più nemici: circa il 40 per cento in più dei Ganados normali di una stanza, in punti casuali, a ogni difficoltà; dalla stanza successiva. Boss, nemici speciali e ondate restano come sono; solo nella storia. La difficoltà Berserker li ha sempre.</string>
+    <string name="ingame_cheat_bloody">Modalità sanguinosa</string>
+    <string name="ingame_cheat_bloody_help">Modalità sanguinosa: le pozze di sangue dei colpi e dei nemici caduti restano a terra finché non lasci la stanza, invece di svanire dopo pochi secondi. Fino a 160 pozze insieme (meno con gli effetti ridotti della modalità Potato); le più vecchie spariscono per prime, così agli altri effetti non manca mai spazio.</string>
     <string name="ingame_dof_light">Leggera</string>
     <string name="ingame_dof_strong">Forte</string>
     <string name="ingame_player_view">Visuale del giocatore</string>

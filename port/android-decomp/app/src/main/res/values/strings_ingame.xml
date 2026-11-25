@@ -495,6 +495,8 @@
     <string name="ingame_health_bars_help">Enemy health bars: a small bar above each enemy shows its health (green, yellow below a quarter, red below a tenth); not in cutscenes and menus.</string>
     <string name="ingame_more_enemies">More enemies</string>
     <string name="ingame_more_enemies_help">More enemies: about 40 percent more of a room\'s ordinary Ganados, at random places, on every difficulty; from the next room. Bosses, special enemies and waves stay as they are; only in the story. The difficulty Berserker always has them.</string>
+    <string name="ingame_cheat_bloody">Bloody mode</string>
+    <string name="ingame_cheat_bloody_help">Bloody mode: the blood pools of hits and fallen enemies stay on the floor until you leave the room, instead of fading after a few seconds. Up to 160 pools at once (fewer with Potato mode\'s reduced effects); the oldest go first, so other effects never run short.</string>
     <string name="ingame_dof_light">Light</string>
     <string name="ingame_dof_strong">Strong</string>
     <string name="ingame_player_view">Player View</string>

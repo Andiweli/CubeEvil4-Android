@@ -477,6 +477,8 @@
     <string name="ingame_health_bars_help">दुश्मनों की हेल्थ बार: हर दुश्मन के ऊपर एक छोटी पट्टी उसकी सेहत दिखाती है (हरी, एक चौथाई से कम पर पीली, दसवें हिस्से से कम पर लाल); कटसीन और मेनू में नहीं।</string>
     <string name="ingame_more_enemies">ज़्यादा दुश्मन</string>
     <string name="ingame_more_enemies_help">ज़्यादा दुश्मन: किसी कमरे के सामान्य Ganado लगभग 40 प्रतिशत ज़्यादा, बेतरतीब जगहों पर, हर कठिनाई पर; अगले कमरे से। बॉस, ख़ास दुश्मन और लहरें वैसे ही रहते हैं; सिर्फ़ कहानी में। कठिनाई Berserker में ये हमेशा रहते हैं।</string>
+    <string name="ingame_cheat_bloody">खूनी मोड</string>
+    <string name="ingame_cheat_bloody_help">खूनी मोड: वार और गिरे हुए दुश्मनों के खून के धब्बे कुछ सेकंड बाद मिटने के बजाय कमरा छोड़ने तक फ़र्श पर बने रहते हैं। एक साथ 160 धब्बे तक (पोटैटो मोड के कम इफ़ेक्ट के साथ कम); सबसे पुराने पहले हटते हैं, ताकि दूसरे इफ़ेक्ट कभी कम न पड़ें।</string>
     <string name="ingame_dof_light">हल्का</string>
     <string name="ingame_dof_strong">तेज़</string>
     <string name="ingame_player_view">खिलाड़ी का दृश्य</string>
