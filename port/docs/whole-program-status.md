@@ -899,6 +899,11 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
   Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
+## 1.1.3 (ab 25.11.2026, auf 1.1.2 = dc745c44)
+
+Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
+`port/android-decomp/docs/releases/v1.1.3.md`. Release und Tag macht der Projektinhaber auf GitHub.
+
 ## 1.1.2 (ab 23.11.2026, auf 1.1.1 = 4e13b97b; Punkt 39 = 24a32a8d)
 
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext
