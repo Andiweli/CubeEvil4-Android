@@ -119,6 +119,8 @@ final class CoreMenu extends Dialog {
     void alwaysRunChanged(boolean on);
     /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn). */
     void bodyTurnChanged(boolean on);
+    /** "Turn speed" beside "Turn Leon with mouse / look area" (1.1.3; CoreActivity.BODY_TURN_SPEED holds it). */
+    void bodyTurnSpeedChanged(float value);
     /** "Reload without aiming" (1.1.0, keyboard; CoreActivity.QUICK_RELOAD holds it). */
     void quickReloadChanged(boolean on);
     /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's (CoreBridge.setGentleQte). */
@@ -1388,9 +1390,15 @@ final class CoreMenu extends Dialog {
         CoreActivity.clampAimSpeed(input.getFloat(CoreActivity.AIM_SPEED, 1f)), value -> host.aimSpeedChanged(value));
     // "Turn Leon with mouse / look area" (1.0, a player's wish the project owner took, 16.11.2026): off by default, under
     // aiming; since the project owner's third menu round (1.1.0) beside "Gentler QTEs"
-    MenuLayout.Buttons lastRow = buttonsRow(labelledOptions(R.string.ingame_side_assists));
-    toggle(lastRow, R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
-        on -> host.bodyTurnChanged(on));
+    // 1.1.3 (a player's wish: very slow on some devices): its "Turn speed" beside it, "Gentler QTEs" in the row below
+    LinearLayout assists = labelledOptions(R.string.ingame_side_assists);
+    into = buttonsRow(assists);
+    switchWithSlider(R.string.ingame_body_turn, input.getBoolean(CoreActivity.BODY_TURN, false),
+        on -> host.bodyTurnChanged(on), R.string.ingame_body_turn_speed, CoreActivity.BODY_TURN_MIN,
+        CoreActivity.BODY_TURN_MAX, CoreActivity.BODY_TURN_STEP,
+        CoreActivity.clampBodyTurn(input.getFloat(CoreActivity.BODY_TURN_SPEED, 1f)),
+        value -> host.bodyTurnSpeedChanged(value));
+    MenuLayout.Buttons lastRow = buttonsRow(assists);
     // "Gentler QTEs" (wish of the project owner, 14.11.2026: Professional's quick-time events "not to be done by touch,
     // just about with a controller"): on by default, at the comfort controls' end
     toggle(lastRow, R.string.ingame_gentle_qte,

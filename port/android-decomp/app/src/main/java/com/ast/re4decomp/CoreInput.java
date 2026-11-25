@@ -457,9 +457,19 @@ public final class CoreInput {
    * the aim's yaw, the camera then only up and down. {aim's yaw, aim's pitch, Leon's yaw (0 without the option)}.
    */
   public float[] mouseMoved(float dx, float dy, float aimK, float lookK, boolean invertVertical) {
+    return mouseMoved(dx, dy, dx, dy, aimK, lookK, invertVertical, 1f);
+  }
+
+  /**
+   * As above, the camera from `lookX`, `lookY` (the counts per a usual mouse report, MouseLookRate, 1.1.3: the camera
+   * no longer slower with a mouse that reports more often) and Leon's turn times `turnScale` (the menu's "Turn speed"
+   * beside "Turn Leon with mouse / look area", 1.1.3; 1 as before).
+   */
+  public float[] mouseMoved(float dx, float dy, float lookX, float lookY, float aimK, float lookK,
+      boolean invertVertical, float turnScale) {
     float[] aim = mouseAim(dx, dy, aimK, invertVertical);
-    mouseLook(bodyTurn ? 0 : dx * lookK, dy * lookK);
-    return new float[] {aim[0], aim[1], bodyTurn ? aim[0] : 0};
+    mouseLook(bodyTurn ? 0 : lookX * lookK, lookY * lookK);
+    return new float[] {aim[0], aim[1], bodyTurn ? aim[0] * turnScale : 0};
   }
 
   /**

@@ -904,6 +904,24 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
 `port/android-decomp/docs/releases/v1.1.3.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 2. „Leon mit Maus / Blickfeld drehen“: Drehgeschwindigkeit und die Maus-Kamera bei schnellen Mäusen (Nutzerwunsch, 25.11.2026)
+
+„Auf manchen Geräten sehr langsam“. Ursache gefunden: Android reicht die Bewegungen einer gefangenen Maus
+(`SOURCE_MOUSE_RELATIVE`) einzeln weiter, nicht je Bild gebündelt wie Finger. Die Kamera (in dieser Option hoch und
+runter, ohne sie auch seitwärts) nahm die Zählschritte jedes einzelnen Ereignisses als Stick-Ausschlag: eine Maus mit
+1000 Meldungen je Sekunde gab ein Achtel der Schritte je Ereignis einer üblichen 125-Hz-Maus, die Kamera lief ein Achtel
+so schnell, langsame Bewegungen blieben in der Totzone des Spiels. Leons Drehung selbst (und das Zielen) zählt alle
+Schritte zusammen und war nie langsamer.
+- `MouseLookRate.java`: die Schritte der letzten 32 ms je Ereignis mit seiner eigenen Zeit (auch die gebündelten), als
+  Schritte je 8 ms (eine 125-Hz-Meldung): eine übliche Maus wie bisher, eine schnellere genauso schnell; am Anfang einer
+  Bewegung eine Meldung, nach 60 ms Ruhe neu. `CoreInput.mouseMoved` nimmt die Kamera daraus.
+- Regler „Drehgeschwindigkeit“ / „Turn speed“ neben dem Schalter (0,25×–4×, Standard 1× = wie bisher; `INPUT_PREFS`
+  `bodyTurnSpeed`): auf die Maus-Empfindlichkeit (Maus) und die Zielgeschwindigkeit (Touch-Blickfeld) obendrauf. „Sanftere
+  QTEs“ in eine eigene Reihe darunter. Hilfe in 11 Sprachen um einen Satz ergänzt. DPI meldet Android nicht: der Standard
+  bleibt 1×, der Regler deckt Unterschiede ab.
+- **Geprüft:** `MouseLookRateTest` (125/250/500/1000/8000 Hz gleich schnell, Anfang, Ruhe), Menü-Tests, Bilder
+  `builds/workthread-1.1.3/turn-speed-*.png` (DE/EN). **Nicht geprüft:** auf einem Gerät mit echter Maus.
+
 ### 1. Absturz auf Android 7.0 (NVIDIA Shield Tablet, Nutzerbericht, Logcat `builds/workthread-1.1.3/user-shield-tablet-android7-logcat.txt`)
 
 - Ursache: `CoreActivity.cutoutInsets` (die Zeile „camera cutout“ im Fehlerprotokoll, nach jedem Einsatz der Fensterränder)

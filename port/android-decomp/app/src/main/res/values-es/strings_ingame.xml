@@ -148,7 +148,8 @@
     <string name="ingame_auto_aim_help">Apuntado automático: al levantar el arma, la mira salta al enemigo más cercano delante de ti y lo sigue un momento (la ayuda de puntería del propio juego).</string>
     <string name="ingame_always_run_help">Correr siempre: Leon corre siempre que te mueves; mantén el botón de correr (p. ej. B) para caminar.</string>
     <string name="ingame_body_turn">Girar a Leon con ratón / zona de vista</string>
-    <string name="ingame_body_turn_help">Girar a Leon con ratón / zona de vista: mover el ratón o deslizar de lado en la zona de vista táctil gira a Leon; arriba y abajo mueve la cámara como antes. Apuntar no cambia.</string>
+    <string name="ingame_body_turn_help">Girar a Leon con ratón / zona de vista: mover el ratón o deslizar de lado en la zona de vista táctil gira a Leon; arriba y abajo mueve la cámara como antes. Apuntar no cambia. «Velocidad de giro», a su lado, hace el giro de Leon más rápido o más lento (1× como antes).</string>
+    <string name="ingame_body_turn_speed">Velocidad de giro</string>
     <string name="ingame_gentle_qte">QTE más suaves (Professional)</string>
     <string name="ingame_gentle_qte_help">QTE más suaves: en Professional, los eventos de botones dan tanto tiempo y piden tantas pulsaciones como en Normal; el daño y los enemigos siguen como en Professional. Un dedo en la imagen pulsa al instante los botones de un aviso, en cualquier dificultad.</string>
     <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon; al apuntar y en sitios estrechos se acerca como antes.</string>

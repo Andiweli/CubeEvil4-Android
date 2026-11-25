@@ -154,6 +154,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static volatile boolean forceController;
   static final boolean GENTLE_QTE_DEFAULT = true;
   static final float AIM_SPEED_MIN = 0.5f, AIM_SPEED_MAX = 3f, AIM_SPEED_STEP = 0.25f;
+  // "Turn speed" beside "Turn Leon with mouse / look area" (1.1.3, a player's wish: the turn very slow on some
+  // devices): Leon's turn by the mouse (on top of its sensitivity) and by the look area (on top of "Aim speed")
+  static final String BODY_TURN_SPEED = "bodyTurnSpeed";
+  static final float BODY_TURN_MIN = 0.25f, BODY_TURN_MAX = 4f, BODY_TURN_STEP = 0.25f;
   // the menu's "Field of view" (PLAYER VIEW; wish of the project owner, 05.11.2026): degrees added to the shoulder
   // camera's vertical field of view, -FOV_RANGE .. FOV_RANGE, 0 as the game (CoreBridge.setFov, patch 0205)
   static final String FOV_OFFSET = "fovOffset";
@@ -497,7 +501,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     alwaysRun = inputPrefs.getBoolean(ALWAYS_RUN, false);
     input.setBodyTurn(inputPrefs.getBoolean(BODY_TURN, false));
     quickReload = inputPrefs.getBoolean(QUICK_RELOAD, false);
-    if (input.bodyTurn()) Log.i(TAG, "turn Leon with mouse / look area: on");
+    bodyTurnSpeed = clampBodyTurn(inputPrefs.getFloat(BODY_TURN_SPEED, 1f));
+    if (input.bodyTurn()) Log.i(TAG, "turn Leon with mouse / look area: on, turn speed " + bodyTurnSpeed);
     // "modernMove": a switch of a 0.99.7 test build, taken out again (decision of the project owner, 10.11.2026)
     if (inputPrefs.contains("modernMove")) inputPrefs.edit().remove("modernMove").apply();
     aimSpeed = clampAimSpeed(inputPrefs.getFloat(AIM_SPEED, 1f));
@@ -1369,6 +1374,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       rumbleMode = RumbleTarget.clampMode(mode);
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(VIBRATION, rumbleMode).apply();
       chooseRumble("the menu");
+    }
+
+    @Override public void bodyTurnSpeedChanged(float value) {
+      bodyTurnSpeed = clampBodyTurn(value);
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putFloat(BODY_TURN_SPEED, bodyTurnSpeed).apply();
+      Log.i(TAG, "turn Leon with mouse / look area: turn speed " + bodyTurnSpeed);
     }
 
     @Override public void aimSpeedChanged(float value) {
@@ -2368,7 +2379,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (turn != null) CoreBridge.aimTurn(turn[0] * aimSpeed, (aimInvert ? -turn[1] : turn[1]) * aimSpeed);
     // "Turn Leon with mouse / look area": the look zone's movement sideways, with the menu's "Aim speed"
     float body = input.takeBodyTurn();
-    if (body != 0) CoreBridge.bodyTurn(body * aimSpeed);
+    if (body != 0) CoreBridge.bodyTurn(body * aimSpeed * bodyTurnSpeed);
   }
 
   /** The keys the game maps or the app uses: which of them a device reports. */
@@ -3100,6 +3111,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   }
   private boolean aimInvert, autoAim, alwaysRun;
   private float aimSpeed = 1f;
+  private float bodyTurnSpeed = 1f;
+
+  /** The stored turn speed on the slider's steps (1 for anything else). */
+  static float clampBodyTurn(float v) {
+    if (Float.isNaN(v) || v < BODY_TURN_MIN || v > BODY_TURN_MAX) return 1f;
+    return Math.round(v / BODY_TURN_STEP) * BODY_TURN_STEP;
+  }
 
   /** The stored aim speed on the slider's steps (1 for anything else). */
   static float clampAimSpeed(float v) {
@@ -3142,7 +3160,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** The pointer's way across the picture per count of the captured mouse at sensitivity 1. */
   static final float MENU_POINTER_STEP = 0.0015f;
   private int mouseCaptures;
+  // the camera's look independent of the mouse's report rate (1.1.3)
+  private final MouseLookRate mouseLookRate = new MouseLookRate();
   private final Runnable mouseRest = () -> {
+    mouseLookRate.rest();
     input.mouseLook(0, 0);
     send();
   };
@@ -3235,12 +3256,19 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     int action = e.getActionMasked();
     if (action == MotionEvent.ACTION_SCROLL) wheel(e);
     if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_HOVER_MOVE) {
-      // relative counts, the batched ones too
-      float dx = e.getX(), dy = e.getY();
+      // relative counts, the batched ones too; the camera's look as counts per a usual mouse report over the last
+      // 32 ms, each count at its own time (MouseLookRate, 1.1.3: until then the last event's counts, an eighth as many
+      // with a mouse that reports 1000 times a second)
+      float dx = 0, dy = 0;
+      float[] look = null;
       for (int h = 0; h < e.getHistorySize(); h++) {
         dx += e.getHistoricalX(h);
         dy += e.getHistoricalY(h);
+        look = mouseLookRate.add(e.getHistoricalEventTime(h), e.getHistoricalX(h), e.getHistoricalY(h));
       }
+      dx += e.getX();
+      dy += e.getY();
+      look = mouseLookRate.add(e.getEventTime(), e.getX(), e.getY());
       if ((dx != 0 || dy != 0) && input.menu()) {
         // the menu's pointer (1.1.0): the entry under it gets the highlight
         menuPointer();
@@ -3256,9 +3284,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         // since 0.99.12: moving the mouse up and down zoomed there)
         // ("Invert vertical" for the mouse too, 0.99.12: aiming, the scope, the binoculars)
         // ("Turn Leon with mouse / look area", 1.0: the movement sideways turns Leon too, where he does not aim, and
-        // the camera only looks up and down)
-        float[] turn = input.mouseMoved(dx, dy, MOUSE_AIM_RADIANS * mouseSensitivity, MOUSE_LOOK * mouseSensitivity,
-            aimInvert);
+        // the camera only looks up and down; 1.1.3: the menu's "Turn speed" on top of the sensitivity)
+        float[] turn = input.mouseMoved(dx, dy, look[0], look[1], MOUSE_AIM_RADIANS * mouseSensitivity,
+            MOUSE_LOOK * mouseSensitivity, aimInvert, bodyTurnSpeed);
         CoreBridge.aimTurn(turn[0], turn[1]);
         if (turn[2] != 0) CoreBridge.bodyTurn(turn[2]);
         main.removeCallbacks(mouseRest);
