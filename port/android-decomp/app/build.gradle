@@ -196,6 +196,9 @@ android {
 dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.14.1'
+    // Android7Test (1.1.3): Robolectric's Android 7.0 framework lacks the javax.microedition.khronos classes of
+    // GLSurfaceView (the game window's OpenGL ES view); test classpath only
+    testImplementation 'org.khronos:opengl-api:gl1.1-android-2.1_r1'
     // RetroTouch (MIT, github.com/Andiweli/RetroTouch): the touch controls of the core mode
     // (TouchControls). An update replaces libs/retrotouch.aar; the file name carries no version.
     // Now 1.0.0-beta.9 (03.11.2026, the AAR as the project owner built it in the RetroTouch repository): beta.8

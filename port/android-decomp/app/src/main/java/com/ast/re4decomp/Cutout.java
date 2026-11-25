@@ -29,10 +29,19 @@ final class Cutout {
         : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
   }
 
+  /**
+   * The mode `window` has now; -1 before Android 9 (1.1.3: the field is API 28, reading it stopped the app on Android 7
+   * and 8 right after the start, NoSuchFieldError).
+   */
+  static int windowMode(Window window) {
+    if (window == null || Build.VERSION.SDK_INT < 28) return -1;
+    return window.getAttributes().layoutInDisplayCutoutMode;
+  }
+
   /** The window over the cutout's edge too (as StartupActivity's). */
   static void extend(Window window) {
     final int mode = mode(Build.VERSION.SDK_INT);
-    if (window == null || mode < 0) return;
+    if (window == null || mode < 0 || Build.VERSION.SDK_INT < 28) return;
     WindowManager.LayoutParams p = window.getAttributes();
     if (p.layoutInDisplayCutoutMode != mode) {
       p.layoutInDisplayCutoutMode = mode;

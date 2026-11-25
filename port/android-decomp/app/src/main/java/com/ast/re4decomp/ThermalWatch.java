@@ -98,10 +98,8 @@ final class ThermalWatch {
   synchronized void start(long now) {
     statusChanged(source.status(), now);
     if (power != null && Build.VERSION.SDK_INT >= 29 && listener == null) {
-      PowerManager.OnThermalStatusChangedListener l = s -> statusChanged(s, android.os.SystemClock.elapsedRealtime());
       try {
-        power.addThermalStatusListener(l);
-        listener = l;
+        listener = Api29.listen(power, this);
       } catch (RuntimeException e) {
         Log.w(TAG, "thermal: no listener (" + e + ")");
       }
@@ -111,11 +109,32 @@ final class ThermalWatch {
   synchronized void stop() {
     if (power != null && Build.VERSION.SDK_INT >= 29 && listener != null) {
       try {
-        power.removeThermalStatusListener((PowerManager.OnThermalStatusChangedListener) listener);
+        Api29.unlisten(power, listener);
       } catch (RuntimeException ignored) {
       }
     }
     listener = null;
+  }
+
+  /**
+   * Android 10's listener (PowerManager.OnThermalStatusChangedListener, API 29) in a class of its own (1.1.3): its
+   * lambda in ThermalWatch itself failed to load on Android 7 while the class was checked (harmless there, but the
+   * whole class then ran unchecked code paths slower). Only called from Android 10 on.
+   */
+  @android.annotation.TargetApi(29)
+  private static final class Api29 {
+    private Api29() {}
+
+    static Object listen(PowerManager power, ThermalWatch watch) {
+      PowerManager.OnThermalStatusChangedListener l =
+          s -> watch.statusChanged(s, android.os.SystemClock.elapsedRealtime());
+      power.addThermalStatusListener(l);
+      return l;
+    }
+
+    static void unlisten(PowerManager power, Object listener) {
+      power.removeThermalStatusListener((PowerManager.OnThermalStatusChangedListener) listener);
+    }
   }
 
   /** A new status (Android's call, or the start): a line and an entry for the report. */

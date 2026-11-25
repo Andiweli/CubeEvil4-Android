@@ -160,7 +160,7 @@ final class PlayerBackup {
     if (data == null || data.length < 2 || data.length > MAX_JSON) return false;
     String head = new String(data, 0, Math.min(data.length, 256), StandardCharsets.UTF_8);
     int i = 0;
-    while (i < head.length() && (Character.isWhitespace(head.charAt(i)) || head.charAt(i) == '﻿')) i++;
+    while (i < head.length() && (Character.isWhitespace(head.charAt(i)) || head.charAt(i) == '\uFEFF')) i++;
     return i < head.length() && head.charAt(i) == '{' && head.indexOf('"' + mark + '"') > i;
   }
 
@@ -187,7 +187,7 @@ final class PlayerBackup {
 
   private static String text(byte[] json) {
     String t = new String(json, StandardCharsets.UTF_8);
-    return t.startsWith("﻿") ? t.substring(1) : t;
+    return t.startsWith("\uFEFF") ? t.substring(1) : t;
   }
 
   // --- the instant save ------------------------------------------------------------------------------------------

@@ -112,7 +112,7 @@ final class GyroAim implements SensorEventListener {
   void setController(InputDevice d) {
     Sensor g = padGyroOf(d);
     SensorManager m = null;
-    if (g != null) {
+    if (g != null && Build.VERSION.SDK_INT >= 31) {
       try {
         m = d.getSensorManager();
       } catch (RuntimeException e) {

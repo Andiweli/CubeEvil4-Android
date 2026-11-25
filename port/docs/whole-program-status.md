@@ -904,6 +904,32 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
 `port/android-decomp/docs/releases/v1.1.3.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 1. Absturz auf Android 7.0 (NVIDIA Shield Tablet, Nutzerbericht, Logcat `builds/workthread-1.1.3/user-shield-tablet-android7-logcat.txt`)
+
+- Ursache: `CoreActivity.cutoutInsets` (die Zeile „camera cutout“ im Fehlerprotokoll, nach jedem Einsatz der Fensterränder)
+  las `WindowManager.LayoutParams.layoutInDisplayCutoutMode` (API 28) ohne Prüfung: `NoSuchFieldError` auf Android 7.0
+  bis 8.1 gleich nach dem Start. Jetzt `Cutout.windowMode` (−1 vor Android 9); `Cutout.extend` prüft API 28 selbst.
+- Durchsicht der ganzen App mit Lint (`lintCoreDebug`, `lintSideloadDebug`, `lintCarDebug`, NewApi): drei weitere echte
+  Abstürze behoben: `CoreActivity.systemKey` rief `KeyEvent.isMediaSessionKey` (API 31) mit „Force controller detection“
+  bei jeder Taste eines externen Geräts auf Android 7–11 (jetzt dieselben Medientasten als eigene Liste);
+  Controller-Vibration auf Android 12/12L rief `VibrationAttributes.createForUsage` (API 33; `NoSuchMethodError`, kein
+  `RuntimeException`, also nicht abgefangen; jetzt `vibrate(CombinedVibration)` ohne Attribute vor 13);
+  `GyroAim.setController` und `cancelBoth` jetzt ausdrücklich geprüft (waren durch null-Werte geschützt). Die Lambdas von
+  `View.OnCapturedPointerListener` (API 26, CoreActivity) und `PowerManager.OnThermalStatusChangedListener` (API 29,
+  ThermalWatch) liegen in eigenen Klassen (`CoreActivity.Api26`, `ThermalWatch.Api29`): Android 7 lehnte sie beim
+  Prüfen der Klassen ab („Rejecting re-init“, harmlos, aber die ganzen Klassen liefen dann langsamer). Zwei
+  Byte-Order-Marks in `PlayerBackup.java` als `﻿` geschrieben (Lint-Fehler). Lint jetzt ohne Fehler für alle drei
+  Varianten. Native Teile: Vulkan und ADPF werden zur Laufzeit gesucht, nichts zu tun.
+- Test `Android7Test` (Robolectric, Android 7.0 = API 24; Testabhängigkeit `org.khronos:opengl-api`, weil Robolectrics
+  API-24-Rahmen die GL-Klassen von GLSurfaceView nicht hat): das Spielfenster (onCreate mit „gestartetem“ Kern),
+  Fensterränder und die Fehlerprotokollzeile, alle 7 Seiten des App-Menüs, ThermalWatch, Gyro, Systemtasten. Mit der
+  alten Zeile scheitert er mit genau dem `NoSuchFieldError` des Shield.
+- **Geprüft im Emulator** (Android 7.0, `system-images;android-24;google_apis_playstore;x86`, AVD `CubeEvil4_Phone24`,
+  x86-Testbau der Hülle ohne Kern, Platzhalter-Discs ohne Spieldaten): Start → Spielfenster, Zeile „camera cutout: …
+  window has none (before Android 9)“, keine „Rejecting“-Zeilen der App; danach scheitert `eglChooseConfig`, weil das
+  API-24-Abbild nur OpenGL ES 2.0 bietet (das Spiel braucht ES 3; das Shield hat ES 3.1). **Nicht geprüft:** das Spiel
+  selbst auf Android 7 (kein Gerät, im Emulator kein ES 3 und kein x86-Kern).
+
 ## 1.1.2 (ab 23.11.2026, auf 1.1.1 = 4e13b97b; Punkt 39 = 24a32a8d)
 
 Version 1.1.2 (versionCode 126), Branch `workthread-112` (Worktree `RE4-wt112`), Releasetext

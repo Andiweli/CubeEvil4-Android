@@ -511,10 +511,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (Build.VERSION.SDK_INT >= 26) {
       surface.setFocusable(true);
       surface.setFocusableInTouchMode(true);
-      surface.setOnCapturedPointerListener((v, e) -> {
-        capturedMouse(e);
-        return true;
-      });
+      Api26.capturedPointer(surface, this);
     }
     gyroAim.setInvert(inputPrefs.getBoolean(GYRO_INVERT_V, false), inputPrefs.getBoolean(GYRO_INVERT_H, false));
     gyroAim.setSource(inputPrefs.getInt(GYRO_SOURCE, GyroAim.SOURCE_AUTO));
@@ -865,7 +862,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       screenHeight = p.y;
     }
     final String line = Cutout.describe(root.getWidth(), root.getHeight(), at[0], at[1], screenWidth, screenHeight,
-        safe, Cutout.mode(Build.VERSION.SDK_INT), getWindow().getAttributes().layoutInDisplayCutoutMode);
+        safe, Cutout.mode(Build.VERSION.SDK_INT), Cutout.windowMode(getWindow()));
     if (!line.equals(cutoutLine) && root.getWidth() > 0) {
       cutoutLine = line;
       Log.i(TAG, line);
@@ -2442,8 +2439,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       case KeyEvent.KEYCODE_CAMERA: case KeyEvent.KEYCODE_BRIGHTNESS_UP: case KeyEvent.KEYCODE_BRIGHTNESS_DOWN:
       case KeyEvent.KEYCODE_SLEEP: case KeyEvent.KEYCODE_WAKEUP:
         return true;
+      // the media keys: Android's own list from 12 on (KeyEvent.isMediaSessionKey, API 31), the same keys before
+      // (1.1.3: Android 7..11 stopped at the call with "Force controller detection")
+      case KeyEvent.KEYCODE_MEDIA_PLAY: case KeyEvent.KEYCODE_MEDIA_PAUSE: case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+      case KeyEvent.KEYCODE_MUTE: case KeyEvent.KEYCODE_HEADSETHOOK: case KeyEvent.KEYCODE_MEDIA_STOP:
+      case KeyEvent.KEYCODE_MEDIA_NEXT: case KeyEvent.KEYCODE_MEDIA_PREVIOUS: case KeyEvent.KEYCODE_MEDIA_REWIND:
+      case KeyEvent.KEYCODE_MEDIA_RECORD: case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+        return true;
       default:
-        return KeyEvent.isMediaSessionKey(code);
+        return Build.VERSION.SDK_INT >= 31 && KeyEvent.isMediaSessionKey(code);
     }
   }
 
@@ -3378,7 +3382,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   private void cancelBoth() {
     try {
       if (vibrator != null) vibrator.cancel();
-      if (padMotors != null) padMotors.cancel();
+      if (padMotors != null && Build.VERSION.SDK_INT >= RumbleTarget.PAD_SDK) padMotors.cancel();
     } catch (RuntimeException e) {
       Log.w(TAG, "rumble: cancel: " + e);
     }
@@ -3435,8 +3439,15 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       // pulses' length carries the level, as on a phone without it
       try {
         int strength = padAmplitude ? 230 + 25 * level / 4 : VibrationEffect.DEFAULT_AMPLITUDE;
-        padMotors.vibrate(CombinedVibration.createParallel(VibrationEffect.createOneShot(rumblePulseMs(level), strength)),
-            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
+        final CombinedVibration pulse =
+            CombinedVibration.createParallel(VibrationEffect.createOneShot(rumblePulseMs(level), strength));
+        // the media usage's attributes from Android 13 on (VibrationAttributes.createForUsage, API 33); on 12 and 12L
+        // without them (1.1.3: the call stopped the app there)
+        if (Build.VERSION.SDK_INT >= 33) {
+          padMotors.vibrate(pulse, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_MEDIA));
+        } else {
+          padMotors.vibrate(pulse);
+        }
       } catch (RuntimeException e) {
         Log.w(TAG, "rumble: the controller: " + e);
         padMotors = null;
@@ -3774,10 +3785,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (Build.VERSION.SDK_INT >= 26) {
       gl.setFocusable(true);
       gl.setFocusableInTouchMode(true);
-      gl.setOnCapturedPointerListener((v, e) -> {
-        capturedMouse(e);
-        return true;
-      });
+      Api26.capturedPointer(gl, this);
     }
     if (Build.VERSION.SDK_INT >= 30) gl.requestUnbufferedDispatch(InputDevice.SOURCE_CLASS_JOYSTICK);
     gl.setRenderMode(renderMode);
@@ -3962,5 +3970,22 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (beatThread != null) beatThread.quitSafely();
     rooms.shutdownNow();
     super.onDestroy();
+  }
+
+  /**
+   * The captured mouse's listener (Android 8, API 26) in a class of its own (1.1.3): Android 7 does not know
+   * View.OnCapturedPointerListener, and a lambda of it in CoreActivity itself failed to load while Android 7 checked
+   * the activity's code (the error log of an NVIDIA Shield Tablet). Only called from Android 8 on.
+   */
+  @android.annotation.TargetApi(26)
+  private static final class Api26 {
+    private Api26() {}
+
+    static void capturedPointer(View view, CoreActivity activity) {
+      view.setOnCapturedPointerListener((v, e) -> {
+        activity.capturedMouse(e);
+        return true;
+      });
+    }
   }
 }
