@@ -905,6 +905,26 @@ Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `R
 `port/android-decomp/docs/releases/v1.1.4.md`. 1.1.3 ist veröffentlicht (Projektinhaber, 26.11.2026); Release und Tag
 macht der Projektinhaber auf GitHub.
 
+### 11. Koffer: Ziehen mit dem Finger und L/R zugleich (Nutzerbericht 25.11.2026, Infinix X6882, Mali-G57; Projektinhaber: „OK, ich teste es dann“)
+
+**Wartet auf den Test des Projektinhabers auf seinem Gerät** (26.11.2026).
+
+- Bericht `builds/workthread-1.1.3/user-report-20261125-223104-case-drag-L`: viele „buttons 0x0020“ (R) während ein
+  Teil am Finger hängt, dazu C-Stick-Werte (Blickfeld unter dem Finger).
+- Im Koffer drehen R/L (Joy trg 0x20/0x40) das Teil in der Hand (`pzlPlayer::movePiece`), der C-Stick spiegelt es.
+  `movePiece` nimmt einen Druck des Kreuzes vor der Drehung: eine Drehung im selben Bild wie ein Druck des Ziehens
+  ging verloren. Nach einer Drehung liegt das Teil eine halbe Zelle neben dem Raster (Breite und Höhe getauscht);
+  das Ziehen zielte dann auf einen Platz, den kein Druck erreicht: das Teil sprang jedes Bild hin und her (alter
+  Code: 10 Drücke, 8 hin und zurück nach einer Drehung).
+- Lösung (`runtime/menu_touch.cpp`): eine Drehung bekommt ihr Bild allein (kein Druck des Ziehens); im Bild danach
+  hält der Finger das Teil neu (`regrab`), auf dem Raster eine halbe Zelle zum Finger hin; nach dem Loslassen keine
+  Drehung und kein Spiegeln mehr vor dem X; C-Stick-Drücke (Key) bleiben während des Ziehens und des Ablegens
+  draußen (C oben verlässt in der Auswahl sonst den Koffer). Ohne Ziehen (Controller, Tasten) unverändert.
+- Test im Kernprüfprogramm (`menutouch`, Bit 0x00800000): Drehung bei stillem Finger (einmal, höchstens 2 Drücke,
+  nach 3 Bildern ruhig, nie hin und her, im Koffer), Drehung im selben Bild wie ein Zug, C-Stick beim Ziehen, R nach
+  dem Loslassen. Mit altem Code schlägt er fehl, mit neuem: runtime-test 0 Fehler. PC-Lauf (Debugstart, Pistole
+  gezogen, R mitten im Ziehen): `builds/workthread-1.1.3/case-drag-turn-before-after.png`, `case-drag-turn-zoom.png`.
+
 ### 10. Gyro-Empfindlichkeit bis 6× (Nutzerwunsch; Projektinhaber 26.11.2026: „Können wir die Empfindlichkeit für den Gyro verdoppeln?“)
 
 **Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (dem Projektinhaber reicht 3×, 26.11.2026).

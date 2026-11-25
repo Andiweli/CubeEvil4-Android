@@ -382,10 +382,20 @@ void caseScreen(SUB_SCREEN* wk, SsPzzlMain* main, f32 u, f32 v)
 //  - never B or Y (B leaves a new item lying in the placement); while the finger drags, the stick's and the C stick's
 //    own presses are taken out (the look zone of the touch controls), the rotation keys stay (the touch button with a
 //    second finger); no tab swipe and no tap of that finger.
+// 1.1.4 (a user's report, 25.11.2026: glitches while dragging with a finger and pressing L at once; Infinix, Mali-G57):
+//  - a turn (R or L, Joy trg 0x20 / 0x40: pzlPlayer::movePiece) while the finger drags gets its frame to itself:
+//    movePiece takes a press of the cross before it, so a press of the drag in the same frame threw the turn away;
+//  - the frame after a turn the finger holds the item anew where the game left it (its centre moves half a cell when
+//    its width and height swap): the item turns under the finger and stays there, no hop of a cell;
+//  - once the finger is lifted (the last presses, then X) a turn and the mirror (C stick) are taken out, and the C
+//    stick's presses stay out until the drop is done (C stick up in PieceSelect leaves the case's screen): nothing of
+//    it is half done.
 namespace {
 
 const u64 kX = 0x00020000ull;
 const u64 kCross = 0x0F000000ull;
+const u64 kCStick = 0x00F00000ull;  // the C stick's presses in Key (PieceSelect: up leaves the case's screen)
+const u32 kTurnKeys = 0x60u;        // R, L in Joy trg: movePiece turns the item in hand
 const u32 kHoldMs = 450;          // Android's long-press timeout is 400..500 ms; the app's taps end at 500 ms
 const f32 kHoldSlop = 0.025f;     // the finger moved farther (of the picture's width / height): no long press
 const u32 kSwallowMs = 700;       // the app's tap or swipe of a drag's finger arrives that much later at most
@@ -405,6 +415,7 @@ struct Drag {
     pzlBoard* fingerBoard;
     int fingerX, fingerY;
     unsigned frames;
+    bool turned;          // 1.1.4: the game turns the item in hand this frame (the finger takes it anew after it)
 };
 Drag gDrag = {kIdle};
 u32 gSwallowUntil;
@@ -472,6 +483,39 @@ void beginDrag(pzlPlayer* pl, pzlPiece* p, pzlBoard* b, int x, int y)
     gDrag.fingerX = x;
     gDrag.fingerY = y;
     gDrag.frames = 0;
+    gDrag.turned = false;
+}
+
+// 1.1.4: after a turn the finger holds the item anew: the cell under it now, the item where the game left it (no press
+// follows until the finger moves on)
+void regrab(pzlPlayer* pl, pzlPiece* p)
+{
+    int x, y;
+    pzlBoard* b = dragCell(pl, gDrag.u, gDrag.v, &x, &y);
+    if (b) {
+        gDrag.fingerBoard = b;
+        gDrag.fingerX = x;
+        gDrag.fingerY = y;
+    }
+    if (p && gDrag.fingerBoard == pl->m_p_active_board) {
+        // a turn may leave the item half a cell off the board's grid (its corner ver0 not on a whole cell: width and
+        // height swapped); movePiece's next press puts it back on the grid by that half cell. The finger holds the
+        // place on the grid half a cell towards it, else the drag would ask for a place no press reaches (the item
+        // went to and fro between the two each frame, the PC check)
+        f32 ax = p->m_pos_x, ay = p->m_pos_y;
+        const f32 vx = p->ver0_x(), vy = p->ver0_y();
+        if (vx != (f32) (int) vx) {
+            ax += (gDrag.fingerX + 0.5f) > ax ? 0.5f : -0.5f;
+        }
+        if (vy != (f32) (int) vy) {
+            ay += (gDrag.fingerY + 0.5f) > ay ? 0.5f : -0.5f;
+        }
+        gDrag.grabX = (gDrag.fingerX + 0.5f) - ax;
+        gDrag.grabY = (gDrag.fingerY + 0.5f) - ay;
+    }
+    gDrag.lastBoard = 0;
+    gDrag.lastDir = 0;
+    gDrag.blocked = 0;
 }
 
 // one press of the cross towards the finger's cell, 0 when the item is there (or every press is blocked)
@@ -655,8 +699,21 @@ extern "C" int re4_touch_case_drag(SUB_SCREEN* wk, SsPzzlMain* main)
             Key.on &= ~kCross;
             Key.trg &= ~kCross;
             Key.rep &= ~kCross;
+            Key.trg &= ~kCStick;
+            Key.rep &= ~kCStick;
             Joy[0].trg &= ~0x00F00000u;
-            const u64 dir = dragStep(pl, pl->pieceInHand());
+            if (gDrag.turned) {
+                // the frame after a turn: the item where the game left it, held anew by the finger's cell
+                gDrag.turned = false;
+                regrab(pl, pl->pieceInHand());
+            }
+            if (gDrag.state == kDrop) {
+                Joy[0].trg &= ~kTurnKeys;  // the finger is lifted: no turn half done before the X
+            } else if (Joy[0].trg & kTurnKeys) {
+                gDrag.turned = true;  // this frame is the turn's (movePiece), no press of the drag
+                dragLog("item 0x%02x turned while dragged", itemId(pl->pieceInHand()));
+            }
+            const u64 dir = gDrag.turned ? 0 : dragStep(pl, pl->pieceInHand());
             if (dir) {
                 Key.on |= dir;
                 Key.trg |= dir;
@@ -675,6 +732,11 @@ extern "C" int re4_touch_case_drag(SUB_SCREEN* wk, SsPzzlMain* main)
         gSwallowUntil = now + kSwallowMs;
         break;
     case kAfter:
+        // the drop is done this frame and the next: the C stick (the look zone) neither leaves the screen nor mirrors,
+        // no turn of an item still in hand (a swap)
+        Key.trg &= ~kCStick;
+        Key.rep &= ~kCStick;
+        Joy[0].trg &= ~(0x00F00000u | kTurnKeys);
         if (++gDrag.frames >= 2) {
             pzlPiece* p = pl ? pl->pieceInHand() : 0;
             if (p) {

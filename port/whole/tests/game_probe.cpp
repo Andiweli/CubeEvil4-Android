@@ -1332,6 +1332,8 @@ extern "C" int re4probe_menu_touch(void)
             Widget<SUB_SCREEN>* thinkW = (Widget<SUB_SCREEN>*) thinkMem;
             const u64 kX = 0x00020000ull, kY = 0x00100000ull;
             u64 seen = 0;  // every key the drag gave
+            u32 joyNext = 0;  // 1.1.4: the player's R / L / C stick (Joy trg) in the next frame
+            u64 keyNext = 0;  // ... and his keys (Key trg, rep)
             auto cellUv = [&](int cx, int cy, f32* cu, f32* cv) {
                 worldUv(-500.0f + 100.0f * cx + 50.0f, 300.0f - 100.0f * cy - 50.0f, cu, cv);
             };
@@ -1340,8 +1342,10 @@ extern "C" int re4probe_menu_touch(void)
             };
             // one frame of the sub screen and the game's answer to its keys
             auto gameFrame = [&]() -> u64 {
-                Key.trg = Key.on = Key.rep = 0;
-                Joy[0].trg = 0;
+                Key.trg = Key.on = Key.rep = keyNext;
+                Joy[0].trg = joyNext;
+                keyNext = 0;
+                joyNext = 0;
                 re4_touch_sscrn(wk, main, main, 0, 0, 0);
                 const u64 k = Key.trg | Key.rep;
                 seen |= k;
@@ -1359,7 +1363,7 @@ extern "C" int re4probe_menu_touch(void)
                     } else {
                         pl->chgPiece(pl->m_p_active_board);
                     }
-                } else if (main->cur == thinkW && (k & kCrossKeys)) {
+                } else if (main->cur == thinkW && ((k & kCrossKeys) || (Joy[0].trg & 0x00F00060u))) {
                     pl->movePiece();
                 }
                 return k;
@@ -1613,6 +1617,125 @@ extern "C" int re4probe_menu_touch(void)
             } else {
                 re4_log("  menutouch: drag: placement screen: nothing in hand to test with");
                 bad |= 0x01000000;
+            }
+            // 1.1.4 (a user's report: dragging with a finger and pressing L at once): the handgun (three by two, its
+            // centre moves half a cell when it turns) long-pressed and held
+            for (int i = 0; i < 4 && pl->pieceInHand(); i++) {
+                pl->relPiece();
+            }
+            if (pzlPiece* gun = findItem(0x23)) {
+                int x0, y0, x1, y1;
+                boxOf(gun, &x0, &y0, &x1, &y1);
+                sleepMs(800);
+                for (int i = 0; i < 3; i++) {
+                    gameFrame();
+                }
+                cellUv(x0, y0, &fu, &fv);
+                finger(0, fu, fv);
+                gameFrame();
+                for (int i = 0; i < 60 && !pl->pieceInHand(); i++) {
+                    sleepMs(20);
+                    gameFrame();
+                }
+                for (int i = 0; i < 5; i++) {
+                    gameFrame();
+                }
+                pzlPiece* g = pl->pieceInHand();
+                if (itemId(g) != 0x23) {
+                    re4_log("  menutouch: turn: the handgun not in hand (0x%02x)", itemId(g));
+                    bad |= 0x00800000;
+                } else {
+                    // a. R with the finger still, the handgun at the case's corner: the item turns once; the game's grid
+                    // and the case's edge may want it back by up to a cell (half a cell when its width and height swap),
+                    // then it stays: never to and fro (before: left, right, left ... every frame), inside the case
+                    const int o0 = g->m_orientation;
+                    joyNext = 0x20;
+                    u64 k = gameFrame();
+                    const f32 px = g->m_pos_x, py = g->m_pos_y;
+                    u64 last = 0, settle = 0;
+                    int presses = 0, flips = 0;
+                    for (int i = 0; i < 10; i++) {
+                        const u64 fk = gameFrame() & kCrossKeys;
+                        presses += fk ? 1 : 0;
+                        flips += ((fk | last) & 0x0C000000ull) == 0x0C000000ull ||
+                                         ((fk | last) & 0x03000000ull) == 0x03000000ull
+                                     ? 1
+                                     : 0;
+                        if (i >= 3) {
+                            settle |= fk;
+                        }
+                        last = fk;
+                    }
+                    int a0, b0, a1, b1;
+                    boxOf(g, &a0, &b0, &a1, &b1);
+                    const bool inside = a0 >= 0 && b0 >= 0 && a1 <= b->size_x() && b1 <= b->size_y();
+                    if (g->m_orientation == o0 || (k & kCrossKeys) || presses > 2 || flips || settle || !inside ||
+                        fabsf(g->m_pos_x - px) > 1.0f || fabsf(g->m_pos_y - py) > 1.0f) {
+                        re4_log("  menutouch: turn: still finger: orientation %d -> %d, keys 0x%llx, %d presses, %d to and "
+                                "fro, after frame 3 0x%llx, centre (%.1f %.1f) -> (%.1f %.1f), cells (%d..%d %d..%d)", o0,
+                                g->m_orientation, (unsigned long long) k, presses, flips, (unsigned long long) settle,
+                                (double) px, (double) py, (double) g->m_pos_x, (double) g->m_pos_y, a0, a1 - 1, b0, b1 - 1);
+                        bad |= 0x00800000;
+                    }
+                    // b. the finger a cell on and L in the same frame: the turn is not lost, then the item follows
+                    int fx = -1, fy = -1;
+                    {
+                        boxOf(g, &a0, &b0, &a1, &b1);
+                        fx = a1 < b->size_x() ? a1 : a0 - 1;
+                        fy = b0;
+                    }
+                    const int o1 = g->m_orientation;
+                    cellUv(fx, fy, &fu, &fv);
+                    finger(1, fu, fv);
+                    joyNext = 0x40;
+                    gameFrame();
+                    const int o2 = g->m_orientation;
+                    for (int i = 0; i < 30; i++) {
+                        gameFrame();
+                    }
+                    boxOf(g, &a0, &b0, &a1, &b1);
+                    if (o2 == o1 || !(fx >= a0 && fx < a1 && fy >= b0 && fy < b1)) {
+                        re4_log("  menutouch: turn: with a move: orientation %d -> %d, item (%d..%d %d..%d), finger (%d %d)",
+                                o1, o2, a0, a1 - 1, b0, b1 - 1, fx, fy);
+                        bad |= 0x00800000;
+                    }
+                    // c. the C stick (the look zone under the finger) while it drags: no mirror, no C stick press
+                    const int o3 = g->m_orientation;
+                    seen = 0;
+                    for (int i = 0; i < 4; i++) {
+                        joyNext = 0x00C00000u;
+                        keyNext = 0x00400000ull;
+                        gameFrame();
+                    }
+                    if (g->m_orientation != o3 || (seen & 0x00F00000ull)) {
+                        re4_log("  menutouch: turn: C stick while dragged: orientation %d -> %d, keys 0x%llx", o3,
+                                g->m_orientation, (unsigned long long) seen);
+                        bad |= 0x00800000;
+                    }
+                    // d. lifted, R right after: no turn before the X (the item goes down as it was, or stays in hand
+                    // unturned)
+                    const int o4 = g->m_orientation;
+                    finger(2, fu, fv);
+                    pzlPiece* down = g;
+                    for (int i = 0; i < 6; i++) {
+                        joyNext = 0x20;
+                        keyNext = 0x00400000ull;
+                        gameFrame();
+                    }
+                    if (down->m_orientation != o4) {
+                        re4_log("  menutouch: turn: R after the lift: orientation %d -> %d", o4, down->m_orientation);
+                        bad |= 0x00800000;
+                    }
+                    static char tail[24 * 130];
+                    re4_log_tail(tail, (int) sizeof(tail));
+                    if (!strstr(tail, "touch: case: item 0x23 turned while dragged")) {
+                        re4_log("  menutouch: turn: missing \"item 0x23 turned while dragged\"");
+                        bad |= 0x00800000;
+                    }
+                }
+            } else {
+                re4_log("  menutouch: turn: no handgun in the case");
+                bad |= 0x00800000;
             }
             // never B or Y
             if (seen & (kB | kY)) {
