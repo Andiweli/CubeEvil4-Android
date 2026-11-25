@@ -411,7 +411,7 @@ const char kDepthResolveFs[] = "#version 450\n"
 const char kDepthCopyFs[] = "#version 450\n"
                             "layout(set = 0, binding = 0) uniform sampler2D src;\n"
                             "void main() { gl_FragDepth = texelFetch(src, ivec2(gl_FragCoord.xy), 0).r; }\n";
-// the EFB's depth back from that copy after the shadows (shadowRestoreFx, 1.1.4): two steps of the 24-bit depth
+// the EFB's depth back from that copy after the shadows (shadowRestoreFx, 1.1.5): two steps of the 24-bit depth
 // farther, written where the copy is nearer than the EFB's by more (the test LESS): where the EFB's held, it stays as
 // it is to the bit (the value read and written back may round a step apart); where it was lost (the far plane), the
 // copy goes in
@@ -419,7 +419,7 @@ const char kDepthRestoreFs[] =
     "#version 450\n"
     "layout(set = 0, binding = 0) uniform sampler2D src;\n"
     "void main() { gl_FragDepth = min(texelFetch(src, ivec2(gl_FragCoord.xy), 0).r + 2.0 / 16777215.0, 1.0); }\n";
-// the real-time shadows' depth check (ShadowCheck, 1.1.4): the EFB's depth at the copy after a picture's shadows
+// the real-time shadows' depth check (ShadowCheck, 1.1.5): the EFB's depth at the copy after a picture's shadows
 // against the copy of it made before them, on a grid of kShadowCheckW x kShadowCheckH points; red where the EFB's is
 // farther (lost: the game's draws only bring it nearer), green where nearer (drawn after the shadows), blue where the
 // copy is at the far plane (sky, or a copy that is lost itself)
@@ -2559,7 +2559,7 @@ struct VkRenderer final : GxCore {
   Fixed shadowSceneFx, shadowRestoreFx;
   bool shadowRestoreLogged = false;
   // The check for the error report (ShadowCheck): twice a run, at the copy after a picture's shadows, the EFB's depth
-  // against the copy before them; the first time without the putting back (that one picture as before 1.1.4), the
+  // against the copy before them; the first time without the putting back (that one picture as before 1.1.5), the
   // second with it. Its log line says whether this GPU loses the depth there and whether the putting back holds.
   Fixed shadowCheckFx;
   Image shadowCheck;
@@ -3019,7 +3019,7 @@ struct VkRenderer final : GxCore {
         if (!shadowRestoreLogged) {
           shadowRestoreLogged = true;
           GXLOG("real-time shadows (Vulkan): the EFB's depth put back from the shadows' copy after them (1 sample, "
-                "1.1.4)");
+                "1.1.5)");
         }
       }
       if (checkNow) {

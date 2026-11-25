@@ -899,6 +899,36 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
   Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
+## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
+
+Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
+`port/android-decomp/docs/releases/v1.1.5.md`. 1.1.4 ist veröffentlicht (Projektinhaber, 26.11.2026: origin/master und
+Tag 1.1.4 = 32f7816e); Release und Tag macht der Projektinhaber auf GitHub. Der zweite Versuch zu Punkt 1 (e6e5a968)
+liegt vor dem Versionscommit.
+
+### 1. Vulkan: Wände mit Echtzeitschatten durchsichtig, zweiter Versuch (Adreno 735, Poco F6; Punkt 9 von 1.1.4)
+
+**Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (Prüfzeilen im Log, siehe unten).
+
+- Zweiter Bericht (`builds/workthread-1.1.3/user-report-20261126-045839-shadows2`, Testbau 1.1.4 mit dem ersten
+  Versuch, ohne MSAA, FXAA an): Wände weiter durchsichtig. Das Log zeigt keine eigene Zeile des Wegs, aber ~30 MB mehr
+  Bildspeicher in r100 als im ersten Bericht (die Kopie). Was übrig bleibt: das Tiefenbild des EFB wird mitten im Bild
+  als Textur gelesen und danach wieder Anhang; nach diesem Wechsel kommt es auf dem Adreno wie „fern“ zurück.
+- Zweiter Versuch (`gx_vk.cpp`): ohne MSAA schreibt das EFB-Pass nach den Schatten die Tiefe aus der Kopie zurück
+  (`shadowRestoreFx`, `kDepthRestoreFs`, ein Zeichnen im Pass selbst, Test LESS, zwei 24-bit-Schritte ferner): wo die
+  Tiefe hielt, bleibt sie bitgleich; wo sie verloren ging (fern), kommt die Kopie hinein. Dazu ein Fehler des ersten
+  Versuchs behoben (die Kopier-Pipeline nannte einen Farbanhang, den ihr Pass nicht hat).
+- Prüfung für den nächsten Bericht: zweimal je Lauf vergleicht der Renderer an der ersten Kopie nach den Schatten die
+  Tiefe des EFB mit der Kopie (64×32 Punkte) und schreibt ins Log `real-time shadows (Vulkan): depth check 1 (without
+  the putting back) … N farther (lost) … the depth was lost|held` (Bild 150, nur dieses eine Bild ohne Zurückschreiben)
+  und `depth check 2 (with the putting back) …` (Bild 300), dazu einmal `the EFB's depth put back from the shadows'
+  copy after them (1 sample, 1.1.5)`. Auf dem Adreno 735 erwartet: Prüfung 1 „lost“, Prüfung 2 „held“.
+- Prüfung am PC (Folge von 4 Bildern außen am Haus, `RE4_GX_SERIES=1`, `RE4_GX_SHADOW_CHECK=1`): Bilder bitgleich mit
+  dem alten Code; Tiefe absichtlich nach den Schatten auf „fern“ gesetzt: ohne Zurückschreiben Regal und Tisch durch
+  die Wand wie beim Nutzer, Prüfung 1 „1000 farther (lost) … the depth was lost“, mit Zurückschreiben Wand wieder da
+  (≤ 214 Pixel um ≤ 6/255 anders), Prüfung 2 „0 farther … held“. Validierung und Synchronisations-Validierung 0 Fehler,
+  MSAA 4 0 Fehler. Bilder: `builds/workthread-1.1.3/shadow-walls2`. Auf einem Adreno-Gerät nicht geprüft.
+
 ## 1.1.4 (ab 26.11.2026, auf 1.1.3 = 6b95af43)
 
 Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
@@ -938,8 +968,8 @@ macht der Projektinhaber auf GitHub.
 
 ### 9. Vulkan: Wände mit Echtzeitschatten durchsichtig (Nutzerbericht 26.11.2026, Xiaomi Poco F6, Adreno 735)
 
-**Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (der Projektinhaber kann es nicht selbst prüfen, 26.11.2026;
-erster Versuch half nicht, zweiter Versuch siehe unten).
+**In 1.1.4 nicht behoben** (zweiter Bericht des Nutzers mit dem Testbau 1.1.4: weiter durchsichtig); zweiter Versuch
+e6e5a968 in 1.1.5 (dort Punkt 1).
 
 - Bericht `builds/workthread-1.1.3/user-report-20261126-014925-shadows`: mit Echtzeitschatten (Figuren und Objekte)
   verschwindet in r100 die Außenwand des ersten Hauses, man sieht Regal und Schrank innen.
@@ -955,24 +985,6 @@ erster Versuch half nicht, zweiter Versuch siehe unten).
 - Prüfung am PC: Bilder vorher/nachher pixelgleich (8 Bilder r100, außen am ersten Haus und im Wald, Schatten
   aus/an, FXAA, Tiefenschärfe stark, Linsenreflexe, 3,5×); mit absichtlich kaputter Kopie 117.103 Pixel anders;
   Validierung 0 Fehler (auch MSAA 4). PC-Ort außen am Fenster: `RE4_TEST_PLACE=free+1:-86900,860,-37800,1.75`.
-- Zweiter Bericht (`builds/workthread-1.1.3/user-report-20261126-045839-shadows2`, Testbau 1.1.4 mit dem ersten
-  Versuch, ohne MSAA, FXAA an): Wände weiter durchsichtig. Das Log zeigt keine eigene Zeile des Wegs, aber ~30 MB mehr
-  Bildspeicher in r100 als im ersten Bericht (die Kopie). Was übrig bleibt: das Tiefenbild des EFB wird mitten im Bild
-  als Textur gelesen und danach wieder Anhang; nach diesem Wechsel kommt es auf dem Adreno wie „fern“ zurück.
-- Zweiter Versuch (`gx_vk.cpp`): ohne MSAA schreibt das EFB-Pass nach den Schatten die Tiefe aus der Kopie zurück
-  (`shadowRestoreFx`, `kDepthRestoreFs`, ein Zeichnen im Pass selbst, Test LESS, zwei 24-bit-Schritte ferner): wo die
-  Tiefe hielt, bleibt sie bitgleich; wo sie verloren ging (fern), kommt die Kopie hinein. Dazu ein Fehler des ersten
-  Versuchs behoben (die Kopier-Pipeline nannte einen Farbanhang, den ihr Pass nicht hat).
-- Prüfung für den nächsten Bericht: zweimal je Lauf vergleicht der Renderer an der ersten Kopie nach den Schatten die
-  Tiefe des EFB mit der Kopie (64×32 Punkte) und schreibt ins Log `real-time shadows (Vulkan): depth check 1 (without
-  the putting back) … N farther (lost) … the depth was lost|held` (Bild 150, nur dieses eine Bild ohne Zurückschreiben)
-  und `depth check 2 (with the putting back) …` (Bild 300), dazu einmal `the EFB's depth put back from the shadows'
-  copy after them (1 sample, 1.1.4)`. Auf dem Adreno 735 erwartet: Prüfung 1 „lost“, Prüfung 2 „held“.
-- Prüfung am PC (Folge von 4 Bildern außen am Haus, `RE4_GX_SERIES=1`, `RE4_GX_SHADOW_CHECK=1`): Bilder bitgleich mit
-  dem alten Code; Tiefe absichtlich nach den Schatten auf „fern“ gesetzt: ohne Zurückschreiben Regal und Tisch durch
-  die Wand wie beim Nutzer, Prüfung 1 „1000 farther (lost) … the depth was lost“, mit Zurückschreiben Wand wieder da
-  (≤ 214 Pixel um ≤ 6/255 anders), Prüfung 2 „0 farther … held“. Validierung und Synchronisations-Validierung 0 Fehler,
-  MSAA 4 0 Fehler. Bilder: `builds/workthread-1.1.3/shadow-walls2`. Auf einem Adreno-Gerät nicht geprüft.
 
 ## 1.1.3 (ab 25.11.2026, auf 1.1.2 = dc745c44)
 
