@@ -411,6 +411,31 @@ const char kDepthResolveFs[] = "#version 450\n"
 const char kDepthCopyFs[] = "#version 450\n"
                             "layout(set = 0, binding = 0) uniform sampler2D src;\n"
                             "void main() { gl_FragDepth = texelFetch(src, ivec2(gl_FragCoord.xy), 0).r; }\n";
+// the EFB's depth back from that copy after the shadows (shadowRestoreFx, 1.1.4): two steps of the 24-bit depth
+// farther, written where the copy is nearer than the EFB's by more (the test LESS): where the EFB's held, it stays as
+// it is to the bit (the value read and written back may round a step apart); where it was lost (the far plane), the
+// copy goes in
+const char kDepthRestoreFs[] =
+    "#version 450\n"
+    "layout(set = 0, binding = 0) uniform sampler2D src;\n"
+    "void main() { gl_FragDepth = min(texelFetch(src, ivec2(gl_FragCoord.xy), 0).r + 2.0 / 16777215.0, 1.0); }\n";
+// the real-time shadows' depth check (ShadowCheck, 1.1.4): the EFB's depth at the copy after a picture's shadows
+// against the copy of it made before them, on a grid of kShadowCheckW x kShadowCheckH points; red where the EFB's is
+// farther (lost: the game's draws only bring it nearer), green where nearer (drawn after the shadows), blue where the
+// copy is at the far plane (sky, or a copy that is lost itself)
+const char kShadowCheckFs[] = "#version 450\n"
+                              "layout(set = 0, binding = 0) uniform sampler2D efb;\n"
+                              "layout(set = 0, binding = 1) uniform sampler2D before;\n"
+                              "layout(location = 0) out vec4 o;\n"
+                              "void main() {\n"
+                              "  ivec2 s = textureSize(efb, 0);\n"
+                              "  ivec2 p = min(ivec2(gl_FragCoord.xy * vec2(s) / vec2(64.0, 32.0)), s - 1);\n"
+                              "  float a = texelFetch(efb, p, 0).r, b = texelFetch(before, p, 0).r;\n"
+                              "  const float e = 1.0 / 65536.0;\n"
+                              "  o = vec4(a > b + e ? 1.0 : 0.0, a < b - e ? 1.0 : 0.0,\n"
+                              "           b >= 0.99999 ? 1.0 : 0.0, 1.0);\n"
+                              "}\n";
+constexpr unsigned kShadowCheckW = 64, kShadowCheckH = 32;
 
 } // namespace
 
@@ -1949,7 +1974,8 @@ struct VkRenderer final : GxCore {
     ms.rasterizationSamples =
         renderPass == efbPass && samples > 1 ? static_cast<VkSampleCountFlagBits>(samples) : VK_SAMPLE_COUNT_1_BIT;
     auto cb = Make<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
-    cb.attachmentCount = renderPass == depthResolvePass || renderPass == shadowMapPass ? 0 : 1;
+    cb.attachmentCount =
+        renderPass == depthResolvePass || renderPass == shadowMapPass || renderPass == shadowScenePass ? 0 : 1;
     cb.pAttachments = &cba;
     VkDynamicState dyn[3] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_LINE_WIDTH};
     auto dy = Make<VkPipelineDynamicStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
@@ -1978,7 +2004,8 @@ struct VkRenderer final : GxCore {
   bool MakeFixed(Fixed &f, const std::string &vsEs, const std::string &fsEs, VkRenderPass renderPass,
                  VkColorComponentFlags mask, bool depthWrite, std::string *error, bool vkGlsl = false,
                  const VkFixedLayout *given = nullptr, int blend = 0,
-                 VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP) {
+                 VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+                 VkCompareOp depthOp = VK_COMPARE_OP_ALWAYS) {
     VkFixedLayout fl;
     std::string vs = vsEs, fs = fsEs;
     if (!vkGlsl) {
@@ -2035,7 +2062,7 @@ struct VkRenderer final : GxCore {
     auto ds = Make<VkPipelineDepthStencilStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
     ds.depthTestEnable = depthWrite;
     ds.depthWriteEnable = depthWrite;
-    ds.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+    ds.depthCompareOp = depthOp;
     VkPipelineColorBlendAttachmentState cba{};
     cba.colorWriteMask = mask;
     if (blend == 1) {  // added to what is there (the lens flares)
@@ -2514,16 +2541,34 @@ struct VkRenderer final : GxCore {
   VkImageView shadowMarkFbDepth = VK_NULL_HANDLE;  // the EFB depth view shadowMarkFb was made with
   VkSampler shadowCompare = VK_NULL_HANDLE;        // the map compared (sampler2DShadow), linear where it can
   VkFormat shadowFormat = VK_FORMAT_UNDEFINED;
-  // Without MSAA the marks' pass tests against a copy of the EFB's depth (1.1.3), never the EFB's own: with the
-  // EFB's depth image a depth attachment of the marks' framebuffer too, an Adreno 735 (Xiaomi Poco F6, driver
-  // 0.762, user report of 26.11.2026) gave the EFB pass after the shadows a depth as if cleared to the far plane:
-  // what the game draws after the shadow mark (the house's inside in r100, the fog's sheets) showed through the
-  // walls in front of it. The PC's lavapipe and the validation layers (also the synchronisation's) found nothing.
-  // The copy is drawn as the MSAA path resolves its depth (the EFB's depth sampled, as the autofocus and GXPeekZ
-  // read it in the middle of a picture on every GPU); with MSAA efbDepth is such a copy already.
+  // Without MSAA the shadows read a copy of the EFB's depth (shadowScene, 1.1.4), and the EFB pass after them gets
+  // its depth back from that copy (shadowRestoreFx, where its own went farther; before the mask's apply). An Adreno
+  // 735 (Xiaomi Poco F6, driver 0.762, user reports of 26.11.2026) gave the EFB pass after the shadows a depth as if
+  // cleared to the far plane: what the game draws after the shadow mark (the house's inside in r100, the fog's
+  // sheets) showed through the walls in front of it. The first fix (the marks against the copy, so that the EFB's
+  // depth image is no other framebuffer's attachment) did not help there (second report, 1.1.4 test build): what is
+  // left is the EFB's depth read as a texture in the middle of the picture and an attachment again after it. Putting
+  // it back with a draw in the pass itself does not depend on what the driver keeps over that change. The PC's
+  // lavapipe and the validation layers (also the synchronisation's) find nothing either way; the pictures there stay
+  // the same to the bit. With the depth made far on purpose after the shadows (the PC's check of this), the walls
+  // turn see-through as on the Adreno, and the putting back brings them back.
+  // The copy is drawn as the MSAA path resolves its depth; with MSAA efbDepth is such a copy already (and the
+  // multisampled depth is not put back).
   Image shadowScene;
   VkRenderPass shadowScenePass = VK_NULL_HANDLE;
-  Fixed shadowSceneFx;
+  Fixed shadowSceneFx, shadowRestoreFx;
+  bool shadowRestoreLogged = false;
+  // The check for the error report (ShadowCheck): twice a run, at the copy after a picture's shadows, the EFB's depth
+  // against the copy before them; the first time without the putting back (that one picture as before 1.1.4), the
+  // second with it. Its log line says whether this GPU loses the depth there and whether the putting back holds.
+  Fixed shadowCheckFx;
+  Image shadowCheck;
+  Block shadowCheckBuf;
+  enum { kCheckNone, kCheckArmed, kCheckRead } shadowCheckState = kCheckNone;
+  bool shadowCheckRestored = false;  // the armed or read check's picture had its depth put back
+  std::uint64_t shadowCheckSerial = 0;
+  unsigned shadowChecks = 0;  // checks begun this run (at most 2)
+  unsigned shadowPictures = 0;
 
   // a pipeline of the casters' triangles (three floats a corner at location 0): the depth maps' (test LESS, written,
   // pushed back) or the marks' (test LEQUAL against the EFB's depth, not written, pulled forward; blended by the
@@ -2659,9 +2704,26 @@ struct VkRenderer final : GxCore {
       VkFixedLayout l;
       l.samplers = {"src"};
       if (!shadowScenePass ||
-          !MakeFixed(shadowSceneFx, kDepthResolveVs, kDepthCopyFs, shadowScenePass, 0, true, &error, true, &l)) {
+          !MakeFixed(shadowSceneFx, kDepthResolveVs, kDepthCopyFs, shadowScenePass, 0, true, &error, true, &l) ||
+          // the copy back into the EFB's depth (in the EFB pass: no colour, where the EFB's is farther)
+          !MakeFixed(shadowRestoreFx, kDepthResolveVs, kDepthRestoreFs, efbPass, 0, true, &error, true, &l, 0,
+                     VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, VK_COMPARE_OP_LESS)) {
         GXLOG("real-time shadows (Vulkan): the depth's copy: %s", error.c_str());
         return false;
+      }
+      VkFixedLayout c;
+      c.samplers = {"efb", "before"};
+      const VkColorComponentFlags rgba = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+      // (the check is a help only: without it the shadows go on)
+      if (!MakeFixed(shadowCheckFx, kDepthResolveVs, kShadowCheckFs, copyPass, rgba, false, &error, true, &c) ||
+          !MakeImage(shadowCheck, kShadowCheckW, kShadowCheckH, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                     VK_IMAGE_ASPECT_COLOR_BIT) ||
+          !MakeBuffer(VkDeviceSize(kShadowCheckW) * kShadowCheckH * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                      &shadowCheckBuf)) {
+        GXLOG("real-time shadows (Vulkan): the depth check left out: %s", error.c_str());
+        shadowChecks = 2;
       }
     }
     if (!MakeShadowPipe(shadowDepthFx, fixed::kShadowDepthVs, fixed::kShadowDepthFs, shadowMapPass, true, &error) ||
@@ -2713,7 +2775,7 @@ struct VkRenderer final : GxCore {
         Trash(shadowScene);
       if (!shadowScene.image) {
         if (!MakeImage(shadowScene, efbDepth.width, efbDepth.height, 1, depthFormat,
-                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, efbDepth.aspect))
+                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, efbDepth.aspect))
           return false;
         shadowScene.fb = MakeFb(shadowScenePass, {shadowScene.attach ? shadowScene.attach : shadowScene.view},
                                 shadowScene.width, shadowScene.height);
@@ -2749,6 +2811,17 @@ struct VkRenderer final : GxCore {
     Begin();
     EndPass();
     VkCommandBuffer cb = F().draw;
+    ShadowCheckRead();
+    if (shadowCheckState == kCheckArmed)
+      shadowCheckState = kCheckNone;  // no copy came between two pictures' shadows: the next one tries again
+    shadowPictures++;
+    // the check's pictures: the 150th (about 5 s) without the putting back, the 300th with it (RE4_GX_SHADOW_CHECK=N:
+    // the Nth and the 2Nth, the PC's check over a series of dumps)
+    static const char *const checkText = std::getenv("RE4_GX_SHADOW_CHECK");
+    static const unsigned checkAt = checkText ? static_cast<unsigned>(std::max(1, std::atoi(checkText))) : 150u;
+    const bool checkNow = samples <= 1 && shadowCheckState == kCheckNone && shadowChecks < 2 &&
+                          shadowPictures >= (shadowChecks ? 2 * checkAt : checkAt);
+    const bool restore = samples <= 1 && !(checkNow && shadowChecks == 0);
     // the casters' corners in the frame's vertex stream: the figures', then the objects' (when tile 1 casts)
     Frame &fr = F();
     std::size_t blk = 0;
@@ -2931,9 +3004,29 @@ struct VkRenderer final : GxCore {
       vkCmdDraw(cb, 4, 1, 0, 0);
       EndPass();
     }
-    // 4. the mask times the EFB's colour over the scene's part (the EFB pass goes on, as after the bloom)
+    // 4. without MSAA the EFB's depth back from its copy (shadowScene: why), then the mask times the EFB's colour over
+    // the scene's part (the EFB pass goes on, as after the bloom)
     {
+      if (samples <= 1)
+        Transition(cb, shadowScene, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
       BeginEfbPass();
+      if (restore) {
+        const VkRect2D all{{0, 0}, {efbColor.width, efbColor.height}};
+        vkCmdSetScissor(cb, 0, 1, &all);
+        const VkImageView view = shadowScene.view;
+        BindFixed(shadowRestoreFx, &view, &nearestClamp, 1, {});
+        vkCmdDraw(cb, 4, 1, 0, 0);
+        if (!shadowRestoreLogged) {
+          shadowRestoreLogged = true;
+          GXLOG("real-time shadows (Vulkan): the EFB's depth put back from the shadows' copy after them (1 sample, "
+                "1.1.4)");
+        }
+      }
+      if (checkNow) {
+        shadowChecks++;
+        shadowCheckState = kCheckArmed;
+        shadowCheckRestored = restore;
+      }
       const VkRect2D sc{{s.region[0], s.region[1]},
                         {static_cast<std::uint32_t>(s.region[2]), static_cast<std::uint32_t>(s.region[3])}};
       vkCmdSetScissor(cb, 0, 1, &sc);
@@ -2952,11 +3045,75 @@ struct VkRenderer final : GxCore {
             objTris, s.lights, s.atlas, s.maskW, s.maskH);
   }
 
+  // The check (shadowCheckFx): at the first copy after the armed picture's shadows (the game's draws after them are in
+  // the EFB's depth then), with the EFB pass ended; its grid into the buffer, read at a later picture's shadows
+  void ShadowCheckRun() {
+    if (shadowCheckState != kCheckArmed || samples > 1 || !shadowScene.image || !shadowCheck.image ||
+        shadowScene.width != efbDepth.width || shadowScene.height != efbDepth.height) {
+      if (shadowCheckState == kCheckArmed)
+        shadowCheckState = kCheckNone;
+      return;
+    }
+    VkCommandBuffer cb = F().draw;
+    Transition(cb, efbDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    Transition(cb, shadowScene, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    BeginTargetPass(copyPass, shadowCheck);
+    shadowCheck.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    const VkViewport vp{0.0f, 0.0f, float(kShadowCheckW), float(kShadowCheckH), 0.0f, 1.0f};
+    const VkRect2D sc{{0, 0}, {kShadowCheckW, kShadowCheckH}};
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
+    scissorValid = false;
+    const VkImageView views[2] = {efbDepth.view, shadowScene.view};
+    const VkSampler samp[2] = {nearestClamp, nearestClamp};
+    BindFixed(shadowCheckFx, views, samp, 2, {});
+    vkCmdDraw(cb, 4, 1, 0, 0);
+    EndPass();
+    Transition(cb, shadowCheck, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    VkBufferImageCopy region{};
+    region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    region.imageExtent = {kShadowCheckW, kShadowCheckH, 1};
+    vkCmdCopyImageToBuffer(cb, shadowCheck.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, shadowCheckBuf.buffer, 1,
+                           &region);
+    auto mb = Make<VkMemoryBarrier>(VK_STRUCTURE_TYPE_MEMORY_BARRIER);
+    mb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    mb.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &mb, 0, nullptr, 0,
+                         nullptr);
+    shadowCheckSerial = F().serial;
+    shadowCheckState = kCheckRead;
+  }
+  // the check's grid counted once the GPU is through with it: its line in the log
+  void ShadowCheckRead() {
+    if (shadowCheckState != kCheckRead)
+      return;
+    Poll();
+    if (shadowCheckSerial > done)
+      return;
+    shadowCheckState = kCheckNone;
+    unsigned farther = 0, nearer = 0, far = 0;
+    const std::uint8_t *px = shadowCheckBuf.map;
+    for (unsigned i = 0; i < kShadowCheckW * kShadowCheckH; i++, px += 4) {
+      farther += px[0] > 127;
+      nearer += px[1] > 127;
+      far += px[2] > 127;
+    }
+    const unsigned all = kShadowCheckW * kShadowCheckH, same = all - farther - nearer;
+    GXLOG("real-time shadows (Vulkan): depth check %u (%s the putting back): the EFB's depth at the copy after the "
+          "shadows against its copy before them, %u points: %u farther (lost), %u nearer (drawn after), %u the same; "
+          "%u at the far plane in the copy; %s",
+          shadowChecks, shadowCheckRestored ? "with" : "without", all, farther, nearer, same, far,
+          farther > all / 50 ? "the depth was lost" : "the depth held");
+  }
+
   void ShadowRelease() {
     for (Fixed *f : {&shadowDepthFx, &shadowMarkFx, &shadowMaskFx, &shadowApplyFx})
       FreeFixed(*f);
-    FreeFixed(shadowSceneFx);
-    for (Image *img : {&shadowAtlas, &shadowMarks, &shadowMask, &shadowScene})
+    for (Fixed *f : {&shadowSceneFx, &shadowRestoreFx, &shadowCheckFx})
+      FreeFixed(*f);
+    FreeBuffer(shadowCheckBuf);
+    shadowCheckState = kCheckNone;
+    for (Image *img : {&shadowAtlas, &shadowMarks, &shadowMask, &shadowScene, &shadowCheck})
       Destroy(*img);
     if (shadowMarkFb)
       vkDestroyFramebuffer(dev, shadowMarkFb, nullptr);
@@ -3606,6 +3763,11 @@ struct VkRenderer final : GxCore {
     Image *dst = ImageOf(p.target);
     if (!dst)
       return;
+    if (shadowCheckState == kCheckArmed) {
+      Begin();
+      EndPass();
+      ShadowCheckRun();
+    }
     FlushClear();
     if (p.depth)
       ResolveDepth();
