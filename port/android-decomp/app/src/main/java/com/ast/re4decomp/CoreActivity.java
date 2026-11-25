@@ -962,12 +962,25 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
    * gets where its thread is (a loop or a wait that never ends).
    */
   private boolean benchHeld;  // a benchmark popup holds the game (benchHost.hold)
+
+  /**
+   * Whether a standing game counts as a hang: not while the app holds it on purpose (1.1.3, a user's report: "hang: no
+   * game frame for 8 s" while "Load shaders at start" had the game stand). In the background, the app menu, the touch
+   * editor, a benchmark popup, the shader preparation at start (its screen up or the game paused for it), photo mode.
+   */
+  static boolean hangCounts(boolean resumed, boolean menuOpen, boolean touchEditing, boolean benchHeld,
+      boolean shaderPrep, boolean photoMode) {
+    return resumed && !menuOpen && !touchEditing && !benchHeld && !shaderPrep && !photoMode;
+  }
+
   private void checkHang() {
     if (!menuSupported) return;
     long now = SystemClock.uptimeMillis();
     long frames = CoreBridge.gameFrames();
     if (frames < 0) return;
-    if (frames != lastFrames || !resumed || menu != null || touchEditing || benchHeld) {
+    boolean counts = hangCounts(resumed, menu != null, touchEditing, benchHeld, prepScreen != null || prepPausedCore,
+        photo != null && photo.active());
+    if (frames != lastFrames || !counts) {
       if (frames != lastFrames) hangReported = false;  // the game moves (again)
       lastFrames = frames;
       framesSince = now;

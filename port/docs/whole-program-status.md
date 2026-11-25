@@ -930,6 +930,14 @@ hält, blendet aus (`ColorUpdate`) oder endet mit Lebenszeit/Animation.
   den Sprite-Pool neu an, `EspRoomInit`: die Liste leert sich, wenn sich seine Adresse ändert, und doppelte Plätze fallen
   heraus).
 
+### 7. Fehlalarm „hang“ während der Shader-Vorbereitung (Nutzerbericht 25.11.2026; Projektinhaber: „Ja bitte den Fehlalarm abstellen“)
+
+Im Bericht des nubia (Punkt 5) stand „hang: no game frame for 8 s“: „Shader beim Start laden“ hielt das Spiel absichtlich an
+(`prepPausedCore`), der Wächter `CoreActivity.checkHang` kannte nur Hintergrund, App-Menü, Touch-Editor und
+Benchmark-Popup. Jetzt eine Regel `CoreActivity.hangCounts`: kein Hang, solange die App das Spiel absichtlich hält
+(dazu Shader-Vorbereitung: Bildschirm da oder Spiel dafür angehalten, und der Fotomodus). Echte Hänger im Spiel werden
+weiter gemeldet. **Geprüft:** `HangRuleTest`. **Nicht geprüft:** auf einem Gerät.
+
 ### 5. Vulkan: Texturfilter nur noch bis zur zuletzt gewählten Stufe (Nutzerbericht 25.11.2026, nubia NX709S, Adreno 730)
 
 „Kann nicht höher als 4x … nach Neustart auch 4x weg“. Ursache: `core_mode.cpp` gab dem Menü als stärkste Anisotropie
