@@ -2388,7 +2388,9 @@ bool drawGx() {
     float maxAnisotropy = 1.0f;
     if (vulkan) {
       maxSamples = 4;  // every Vulkan device draws and samples 4 (the renderer takes fewer where it must)
-      maxAnisotropy = gx->Anisotropy();
+      // the device's strongest filtering (1.1.3: until 1.1.2 the level in use, so the menu offered nothing above the
+      // level chosen last; a user's nubia with Adreno 730 went from 16 down to 4 and stayed there after restarts)
+      maxAnisotropy = gx->MaxAnisotropy();
     } else
       re4gx::GxRenderer::Limits(&maxSamples, &maxAnisotropy);
     LOG("GX renderer: %s", gx->ApiInfo().c_str());

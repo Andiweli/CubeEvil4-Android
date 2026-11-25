@@ -38,6 +38,7 @@ void GxRenderer::HandOverCopies(GxRenderer &to) { impl_->HandOverCopies(*to.impl
 void GxRenderer::SetOptions(const GxOptions &options) { impl_->SetOptions(options); }
 int GxRenderer::Samples() const { return impl_->Samples(); }
 float GxRenderer::Anisotropy() const { return impl_->Anisotropy(); }
+float GxRenderer::MaxAnisotropy() const { return impl_->MaxAnisotropy(); }
 bool GxRenderer::Invalidates() const { return impl_->Invalidates(); }
 bool GxRenderer::TiledMsaa() const { return impl_->TiledMsaa(); }
 bool GxRenderer::HalfDof() const { return impl_->HalfDof(); }

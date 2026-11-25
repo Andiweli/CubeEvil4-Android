@@ -4620,9 +4620,8 @@ struct VkRenderer final : GxCore {
       *error = "no depth format that can be drawn into and sampled";
       return false;
     }
-    anisotropy = std::max(1.0f, std::min(options.anisotropy, vk.enabled.samplerAnisotropy
-                                                                 ? vk.properties.limits.maxSamplerAnisotropy
-                                                                 : 1.0f));
+    deviceAnisotropy = std::max(1.0f, vk.enabled.samplerAnisotropy ? vk.properties.limits.maxSamplerAnisotropy : 1.0f);
+    anisotropy = std::max(1.0f, std::min(options.anisotropy, deviceAnisotropy));
     // MSAA: the samples asked for where the device draws and samples them (colour, depth; 4 always can), else
     // fewer
     samples = 1;

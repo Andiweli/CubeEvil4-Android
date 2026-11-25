@@ -787,6 +787,33 @@ std::vector<std::uint8_t> XfbPixel(re4gx::GxRenderer &r, int x, int y, unsigned 
   return {rgba[at], rgba[at + 1], rgba[at + 2], rgba[at + 3]};
 }
 
+// The menu's "of N" (1.1.3, a user's report: with Vulkan the texture filter could not go above the level chosen last):
+// MaxAnisotropy is the device's strongest filtering whatever level is chosen, Anisotropy the level in use (at most it).
+void TestMaxAnisotropy(re4gx::GxApi api, const char *name) {
+  float most = 0.0f;
+  for (float want : {16.0f, 2.0f, 1.0f, 4.0f}) {
+    re4gx::GxRenderer r(api);
+    re4gx::GxOptions o;
+    o.anisotropy = want;
+    r.SetOptions(o);
+    std::string error;
+    Require(r.Init(1, &error), error.c_str());
+    const std::string at = std::string(name) + " anisotropy " + std::to_string(static_cast<int>(want));
+    if (most == 0.0f) most = r.MaxAnisotropy();
+    Check(r.MaxAnisotropy() == most, (at + ": the device's strongest stays the same").c_str());
+    Check(r.Anisotropy() == std::max(1.0f, std::min(want, most)), (at + ": the level in use").c_str());
+    if (api == re4gx::GxApi::kGl) {
+      int samples = 1;
+      float limit = 1.0f;
+      re4gx::GxRenderer::Limits(&samples, &limit);
+      Check(r.MaxAnisotropy() == std::max(1.0f, limit), (at + ": GL's limit").c_str());
+    }
+    r.Release();
+  }
+  std::fprintf(stderr, "%s: strongest anisotropy %.0f\n", name, most);
+  Check(most >= 2.0f, (std::string(name) + ": anisotropic filtering there (lavapipe and Mesa: 16)").c_str());
+}
+
 bool VulkanStarts() {
   re4gx::GxRenderer probe(re4gx::GxApi::kVulkan);
   std::string error = "not in this build";
@@ -6207,10 +6234,12 @@ int main() {
   TestMipFunctions();
   TestWideLines();
   TestMadeMips(re4gx::GxApi::kGl, "GL");
+  TestMaxAnisotropy(re4gx::GxApi::kGl, "GL");
   TestSoftAlpha(re4gx::GxApi::kGl, "GL");
 #ifdef RE4_GX_VULKAN
   if (VulkanStarts()) {
     TestMadeMips(re4gx::GxApi::kVulkan, "Vulkan");
+    TestMaxAnisotropy(re4gx::GxApi::kVulkan, "Vulkan");
     TestSoftAlpha(re4gx::GxApi::kVulkan, "Vulkan");
   }
 #endif

@@ -904,6 +904,20 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
 `port/android-decomp/docs/releases/v1.1.3.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 5. Vulkan: Texturfilter nur noch bis zur zuletzt gewählten Stufe (Nutzerbericht 25.11.2026, nubia NX709S, Adreno 730)
+
+„Kann nicht höher als 4x … nach Neustart auch 4x weg“. Ursache: `core_mode.cpp` gab dem Menü als stärkste Anisotropie
+(`graphicsInfo()[1]`, „of N“) mit Vulkan `gx->Anisotropy()`, die gewählte Stufe statt der Grenze des Geräts; jede
+niedrigere Wahl senkte nach dem Neustart des Renderers das Angebot (im Log 16 → 8 → 4), auch über Neustarts der App.
+GLES fragte schon immer die Grenze des Treibers (`GxRenderer::Limits`). Jetzt `GxRenderer::MaxAnisotropy()` (GL:
+`Limits`, Vulkan: `maxSamplerAnisotropy`, wenn `samplerAnisotropy` an ist), `Anisotropy()` bleibt die Stufe in Gebrauch.
+Gespeichert wird keine Grenze (die Profile `perfCustom.`/`perfApplied.` hatten 16; die Wahl des Spielers bleibt seine): mit
+dem neuen Kern bietet das Menü beim nächsten Start wieder bis 16 an. MSAA: mit Vulkan fest 4, mit GLES `Limits`, nicht
+betroffen; andere Optionen haben kein „of N“.
+- **Geprüft (WSL):** `gx_gl_check` neu `TestMaxAnisotropy` für GL (Mesa) und Vulkan (lavapipe): mit gewählten Stufen 16, 2,
+  1, 4 bleibt die Grenze 16, die Stufe in Gebrauch die gewählte; 0 Fehler. **Nicht geprüft:** auf dem Gerät des Nutzers.
+- Der „hang: no game frame for 8 s“ im selben Bericht (14:18, Spiel-Thread in PADRead) ist eine andere Sache, siehe Bericht.
+
 ### 3. Cheat „Gegenstände stapeln“ für Verbrauchsgegenstände (Projektinhaber, 25.11.2026, Patch 0257)
 
 Vorher „Munition stapeln“ (nur Munition seit 86e70cf2). Jetzt auch Granaten (Hand-, Brand-, Blendgranate 0x01, 0x02,

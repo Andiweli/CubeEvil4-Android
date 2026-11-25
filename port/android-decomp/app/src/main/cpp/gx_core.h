@@ -196,6 +196,8 @@ struct GxCore {
   GxOptions options;
   int samples = 1;
   float anisotropy = 1.0f;
+  // the strongest filtering the device can (1.1.3: the menu's "of N"; `anisotropy` is the level chosen, at most this)
+  float deviceAnisotropy = 1.0f;
   unsigned xfbWidth = 0, xfbHeight = 0;
   bool haveXfb = false;
   // FXAA (GxRenderer::SetFxaa): the smoothed copy of the XFB, shown instead of it while fxaaShown
@@ -962,6 +964,7 @@ struct GxCore {
   void SetOptions(const GxOptions &options);
   int Samples() const;
   float Anisotropy() const;
+  float MaxAnisotropy() const;
   bool Invalidates() const;
   virtual bool TiledMsaa() const = 0;
   bool HalfDof() const;

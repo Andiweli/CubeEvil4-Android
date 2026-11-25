@@ -1982,6 +1982,7 @@ void GxCore::SetShownRows(int top, int bottom) {
 }
 int GxCore::Samples() const { return this->samples; }
 float GxCore::Anisotropy() const { return this->anisotropy; }
+float GxCore::MaxAnisotropy() const { return this->deviceAnisotropy; }
 bool GxCore::Invalidates() const { return this->options.invalidate; }
 bool GxCore::HalfDof() const { return this->options.halfDof; }
 int GxCore::Scale() const { return this->halves / 2; }

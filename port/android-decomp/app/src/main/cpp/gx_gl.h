@@ -288,6 +288,8 @@ public:
   // After Init: the multisampling and the filtering in use.
   int Samples() const;
   float Anisotropy() const;
+  // After Init: the strongest filtering the device can (1.1.3; Anisotropy() is the level chosen, at most this)
+  float MaxAnisotropy() const;
   // the copy targets are forgotten before they are drawn over (GxOptions::invalidate)
   bool Invalidates() const;
   // the samples live in the GPU's tile memory (GxOptions::tiledMsaa and the device can)

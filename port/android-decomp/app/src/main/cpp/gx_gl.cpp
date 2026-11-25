@@ -3727,6 +3727,7 @@ bool GlRenderer::InitHalves(int halves, std::string *error) {
     int maxSamples = 1;
     float maxAnisotropy = 1.0f;
     GxRenderer::Limits(&maxSamples, &maxAnisotropy);
+    m.deviceAnisotropy = std::max(1.0f, maxAnisotropy);
     m.anisotropy = std::max(1.0f, std::min(m.options.anisotropy, maxAnisotropy));
     const int want = std::min(m.options.samples, maxSamples);
     // RE4_GX_DOF_HALF=0 / 1: the depth of field's blur at the full or half resolution (experiments)
