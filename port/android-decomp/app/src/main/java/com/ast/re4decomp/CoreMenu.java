@@ -1587,10 +1587,13 @@ final class CoreMenu extends Dialog {
     // controller detection" (1.1.0, the project owner, 20.11.2026: "Die Position bei 3 passt"; the idea from a fork),
     // with the keyboard "Reload without aiming" (the project owner, 20.11.2026: "nur zu sehen sein wenn 'Controller'
     // ... aktiviert ist. Hingegen sollte 'Nachladen ohne Zielen' oben sein wenn 'Tastatur & Maus' aktiviert ist")
-    MenuLayout.Buttons under = underDevice();
+    // (1.1.3, the project owner: "Nachladen ohne Zielen" under "Controller", "Maus-Empfindlichkeit" beside it under
+    // "Tastatur & Maus", one row; the help texts under it)
+    MenuLayout.Buttons under = underDevice(keyboard ? 2 : 1);
     if (keyboard) {
       toggle(under, R.string.ingame_quick_reload, input.getBoolean(CoreActivity.QUICK_RELOAD, false),
           on -> host.quickReloadChanged(on));
+      mouseSlider(under);
       help(R.string.ingame_quick_reload_help);
     } else {
       toggle(under, R.string.ingame_force_controller, input.getBoolean(CoreActivity.FORCE_CONTROLLER, false), on -> {
@@ -1602,7 +1605,10 @@ final class CoreMenu extends Dialog {
     }
     if (!keyboard && input.getBoolean(CoreActivity.ALT_CONTROLS, false)) help(R.string.ingame_controller_alternate_note);
     help(keyboard ? R.string.ingame_map_fixed_keyboard : R.string.ingame_map_fixed_controller);
-    if (keyboard) mouseSlider();
+    if (keyboard) {
+      help(R.string.ingame_mouse_help);
+      help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
+    }
     ActionMap def = ActionMap.defaults(mapKind), m = host == null ? null : host.mapping(mapKind);
     if (m == null) m = def;
     bindingButtons = new Button[ActionMap.ACTIONS];
@@ -1635,27 +1641,24 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_controller_help);
   }
 
-  /** The mouse's sensitivity (wish of the project owner, 29.10.2026), as the gyro's slider; its label in the
-   *  device row's quarter, the slider under the device's buttons (1.1.0, the project owner, 20.11.2026: "Der Regler
-   *  von 'Maus-Empfindlichkeit' beginnt zu weit links. Dadurch bricht 'Maus-Empfindlichkeit' um."). */
-  private void mouseSlider() {
+  /** The mouse's sensitivity (wish of the project owner, 29.10.2026), as the gyro's slider; since 1.1.3 the right cell
+   *  of the row under "Device", beside "Reload without aiming" (the project owner's wish after testing 1.1.3). */
+  private void mouseSlider(MenuLayout.Buttons row) {
     float min = CoreActivity.MOUSE_MIN, step = CoreActivity.MOUSE_STEP;
     float now = host == null ? 1f : host.mouseSensitivity();
-    sliderCell(buttonsRow(body), R.string.ingame_mouse_sensitivity, Math.round((CoreActivity.MOUSE_MAX - min) / step),
+    sliderCell(row, R.string.ingame_mouse_sensitivity, Math.round((CoreActivity.MOUSE_MAX - min) / step),
         Math.round((now - min) / step), p -> times(min + p * step), p -> {
           if (host != null) host.mouseSensitivityChanged(min + p * step);
         });
-    help(R.string.ingame_mouse_help);
-    help(R.string.ingame_keyboard_c_help);  // (0.99.15, GitHub #247: the knife by the mouse, the C stick's keys)
   }
 
   /** A row right under "Device" as wide as its two buttons (the project owner, 20.11.2026: "nur so breit sein wie die
    *  beiden Buttons darüber, also links eingerückt"): the device row's quarters, the label's quarter left empty. */
-  private MenuLayout.Buttons underDevice() {
+  private MenuLayout.Buttons underDevice(int columns) {
     MenuLayout.Columns under = new MenuLayout.Columns(getContext(), 0, 640, true);
     under.setWeights(1, 3);
     under.addView(new View(getContext()));
-    MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), 1);
+    MenuLayout.Buttons box = new MenuLayout.Buttons(getContext(), columns);
     under.addView(box);
     body.addView(under);
     return box;

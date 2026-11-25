@@ -951,6 +951,14 @@ Verkaufsfassungen setzt Patch 0187 in dieselben Felder).
   Bilder `builds/workthread-1.1.3/merchant/`. **Nicht geprüft:** US- und JP-Discs (kein Debug-Raumstart am PC; gleicher
   Code wie EU), ein zweiter Besuch nach dem Ausschalten im Lauf, Kauf bis zum Exklusiv-Upgrade, auf einem Gerät.
 
+### 8. Tastenbelegung mit „Tastatur & Maus“: Nachladen und Maus-Empfindlichkeit in einer Reihe (Projektinhaber, 25.11.2026)
+
+Nach dem Gerätetest von 7b4a4810 („Alles perfekt“): „Nachladen ohne Zielen“ links unter „Controller“, der Regler
+„Maus-Empfindlichkeit“ rechts unter „Tastatur & Maus“ in derselben Reihe (`CoreMenu.underDevice(2)`, `mouseSlider(row)`),
+die Hilfen darunter (Nachladen, feste Tasten, Maus, Messer/C-Stick). Controller-Ansicht unverändert; schmal untereinander.
+Abgenommen 25.11.2026 („Ja, passt so“), kein Releasetext. **Geprüft:** `CoreMenuLayoutTest` (beide Geräte, 11 Sprachen, 3
+Schriftgrößen, 320–960 dp), `MapPageShotTest` (Bilder `builds/workthread-1.1.3/mapping/`). **Nicht geprüft:** auf einem Gerät.
+
 ### 7. Fehlalarm „hang“ während der Shader-Vorbereitung (Nutzerbericht 25.11.2026; Projektinhaber: „Ja bitte den Fehlalarm abstellen“)
 
 Im Bericht des nubia (Punkt 5) stand „hang: no game frame for 8 s“: „Shader beim Start laden“ hielt das Spiel absichtlich an
