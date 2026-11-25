@@ -1580,6 +1580,44 @@ pzlPiece* re4_stack_case_placed(void)
     return p;
 }
 
+// Patch 0260 (cItemMgr::combine, its type 6 arm): two slots of one recovery item that the mixing table does not mix
+// with each other (a mixed herb, the red or the yellow herb, the spray, the eggs, the fish): `b` goes onto `a` up to the
+// slot's limit, as the ammo does; the rest stays in `b` (combine erases `b` when it is empty). 0: no room (the cheat
+// off: the limit is 1), or not such a pair; then nothing happens, as in the game.
+int re4_stack_merge(cItem* a, cItem* b)
+{
+    if (!a || !b || a == b || a->id != b->id || itemType(a->id) != 6 || b->num == 0) {
+        return 0;
+    }
+    const int room = itemMaxNum(a->id) - (int) a->num;
+    if (room <= 0) {
+        return 0;
+    }
+    const int moved = (int) b->num < room ? (int) b->num : room;
+    a->num = (u16) (a->num + moved);
+    b->num = (u16) (b->num - moved);
+    re4_log("cheat: stack items: 0x%02x stacked, %d moved, now %u (%u left in the other slot)", (unsigned) a->id, moved,
+            (unsigned) a->num, (unsigned) b->num);
+    return 1;
+}
+
+// Patch 0260 (ss_pzzl.cpp, the case's command type): Combine for a recovery item the mixing table has no mix for (G+G+G,
+// G+R+Y) when the cheat stacks it and the inventory holds a second slot of it (re4_stack_merge then has a pair).
+int re4_stack_merge_offer(int id)
+{
+    if (itemType((ITEM_ID) id) != 6 || itemMaxNum((ITEM_ID) id) <= 1) {
+        return 0;
+    }
+    int slots = 0;
+    cItem* s = ItemMgr.m_pItem;
+    for (int i = 0; s && i < ItemMgr.m_array_num; i++, s++) {
+        if (s->isAlive(pG->pl_type == 1) && s->id == id) {
+            slots++;
+        }
+    }
+    return slots >= 2;
+}
+
 // Patch 0233 (pl_wep.cpp, cam_extra.cpp): the cheat "Steady aim" (any thread; the game frames read it).
 int re4_steady_aim(void)
 {

@@ -2004,7 +2004,8 @@ static void testCaseFreePlace()
 }
 
 // The cheat "Stack items" in the case (1.1.3, patch 0257; game_probe.cpp re4probe_stack_combine): herbs mixed from
-// stacks (the mix into a free place, a full case: not mixed), a single herb as the game, stacks above the limit
+// stacks (the mix into a free place, a full case: not mixed), a single herb as the game, stacks above the limit;
+// 1.1.5 (patch 0260): two slots of one mix stack, green + green still mixes, the Combine offer
 static void testStackCombine()
 {
     int bad = re4probe_stack_combine();

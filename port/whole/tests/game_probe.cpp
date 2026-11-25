@@ -2650,6 +2650,7 @@ extern "C" int re4_stack_items(void);
 extern "C" void re4_stack_items_set(int step);
 extern "C" int re4_item_game_max(int id);
 extern "C" pzlPiece* re4_stack_case_placed(void);
+extern "C" int re4_stack_merge_offer(int id);  // runtime/cheats.cpp (patch 0260)
 struct Re4StackCase {  // runtime/cheats.cpp (patch 0254)
     Re4StackCase(pzlPlayer* pl);
     ~Re4StackCase();
@@ -2759,6 +2760,79 @@ extern "C" int re4probe_stack_combine(void)
             }
             pl->quit();
         }
+    }
+    // 1.1.5 (patch 0260): two slots of one mix stack (the table has no mix of the two); the Combine command is offered
+    // for G+R+Y then; green + green still mixes; at the limit the rest stays; a treasure pair as the game
+    {
+        static const u16 mixes[][4] = {{0x15, 3, 0, 0}, {0x15, 2, 2, 0}, {0x13, 998, 4, 0}, {0x13, 5, 0, 4},
+                                       {0x19, 2, 2, 4}, {0x19, 1, 4, 4}};
+        if (!setUp(mixes, 6)) {
+            bad |= 1;
+        } else {
+            const int offered = re4_stack_merge_offer(0x15);
+            int ok;
+            {
+                Re4StackCase stack(pl);
+                ok = ItemMgr.combine(&items[0], &items[1], 0);
+            }
+            if (!ok || !offered || items[0].id != 0x15 || items[0].num != 5 || ItemMgr.num(0x15) != 5 ||
+                re4_stack_merge_offer(0x15) || re4_stack_case_placed()) {
+                re4_log("  stack items: G+R+Y onto G+R+Y: ok %d, offered %d, %u, all %u, offered after %d", ok, offered,
+                        items[0].num, ItemMgr.num(0x15), re4_stack_merge_offer(0x15));
+                bad |= 0x100;
+            }
+            {
+                Re4StackCase stack(pl);
+                ok = ItemMgr.combine(&items[2], &items[3], 0);
+            }
+            if (!ok || items[2].num != 999 || items[3].num != 4 || ItemMgr.num(0x13) != 1003) {
+                re4_log("  stack items: G+G+G at the limit: ok %d, %u + %u", ok, items[2].num, items[3].num);
+                bad |= 0x200;
+            }
+            {
+                Re4StackCase stack(pl);
+                ok = ItemMgr.combine(&items[4], &items[5], 0);
+            }
+            if (!ok || items[4].num != 3 || ItemMgr.num(0x19) != 3) {
+                bad |= 0x400;
+            }
+            pl->quit();
+        }
+        // green + green: mixed as the game (one of each into a G+G), never stacked
+        static const u16 greens[][4] = {{0x06, 4, 0, 0}, {0x06, 2, 2, 0}};
+        if (!setUp(greens, 2)) {
+            bad |= 1;
+        } else {
+            int ok;
+            {
+                Re4StackCase stack(pl);
+                ok = ItemMgr.combine(&items[0], &items[1], 0);
+            }
+            if (!ok || items[0].num != 3 || items[1].num != 1 || ItemMgr.num(0x06) != 4 || ItemMgr.num(0x12) != 1) {
+                re4_log("  stack items: G onto G: ok %d, G %u + %u, G+G %u", ok, items[0].num, items[1].num,
+                        ItemMgr.num(0x12));
+                bad |= 0x800;
+            }
+            re4_stack_case_placed();
+            pl->quit();
+        }
+        // two treasures of one kind (type 12): as the game (not this arm)
+        static const u16 gems[][4] = {{0x56, 1, 0, 0}, {0x56, 1, 2, 0}};
+        setUp(gems, 2);
+        pl->quit();
+        if (ItemMgr.combine(&items[0], &items[1], 0) || items[0].num != 1 || items[1].num != 1) {
+            bad |= 0x1000;
+        }
+        // the cheat off: two single G+R+Y stay two (no room), no Combine offered
+        re4_stack_items_set(0);
+        static const u16 two[][4] = {{0x15, 1, 0, 0}, {0x15, 1, 2, 0}};
+        setUp(two, 2);
+        pl->quit();
+        if (re4_stack_merge_offer(0x15) || ItemMgr.combine(&items[0], &items[1], 0) || items[0].num != 1 ||
+            items[1].num != 1) {
+            bad |= 0x2000;
+        }
+        re4_stack_items_set(3);
     }
     // the cheat switched off with larger stacks: two handgun ammo stacks above 50 take nothing from each other; a
     // pick-up keeps the 999 and goes into a new slot

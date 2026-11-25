@@ -929,6 +929,31 @@ liegt vor dem Versionscommit.
   (≤ 214 Pixel um ≤ 6/255 anders), Prüfung 2 „0 farther … held“. Validierung und Synchronisations-Validierung 0 Fehler,
   MSAA 4 0 Fehler. Bilder: `builds/workthread-1.1.3/shadow-walls2`. Auf einem Adreno-Gerät nicht geprüft.
 
+### 2. Cheat „Gegenstände stapeln“: gemischte Kräuter stapeln (Projektinhaber 26.11.2026, Patch 0260)
+
+Frage des Projektinhabers: „Kann der Cheat auch gemischte Kräuter stapeln, z. B. G+R+Y voll oder G+G+G?“ Einzelne
+Kräuter müssen mischbar bleiben und dürfen beim Stapeln nie verloren gehen.
+
+- Stand mit 0257: jeder Heilgegenstand (Typ 6, auch die Mischungen) darf bis zum Wert des Cheats je Platz halten; eine
+  Mischung aus einem Stapel geht auf einen Stapel dieser Mischung (`re4_stack_combined`). Aber eine Mischung aus zwei
+  einzelnen Kräutern nimmt den Platz des ersten Krauts, und zwei Plätze derselben Mischung kamen nie zusammen: das Spiel
+  legt gleiche Gegenstände nur bei Munition und Granaten zusammen (Typ 2 und 3), ein Heilgegenstand geht nur an die
+  Mischtabelle. G+G+G und G+R+Y stehen in keiner Mischung: das Spiel bietet für sie nicht einmal „Kombinieren“ an.
+- Patch 0260: `cItemMgr::combine` legt zwei Plätze desselben Heilgegenstands, die die Tabelle nicht miteinander mischt
+  (jede Mischung, rotes und gelbes Kraut, Spray, Eier, Fisch), wie Munition zusammen (`runtime/cheats.cpp
+  re4_stack_merge`: bis zur Grenze des Platzes, der Rest bleibt im anderen Platz, nichts geht verloren). Ein Paar, das
+  die Tabelle mischt (grün + grün, Mischung + fehlendes Kraut), wird wie bisher gemischt. Der Befehl „Kombinieren“ im
+  Koffer erscheint für G+G+G und G+R+Y, wenn der Cheat sie stapelt und ein zweiter Platz derselben Mischung da ist
+  (`re4_stack_merge_offer`, das Wort des Spiels). Ohne Cheat: Grenze 1, kein Platz, nichts ändert sich.
+- Test im Kernprüfprogramm (`stack-combine`, Bits 0x100–0x2000): G+R+Y auf G+R+Y (5, „Kombinieren“ vorher angeboten,
+  danach nicht mehr), G+G+G 998 + 5 an der Grenze 999 (Rest 4), rot auf rot, grün auf grün mischt weiter zu G+G (3 +
+  1 grün übrig), zwei gleiche Schätze wie im Spiel, Cheat aus: zwei G+R+Y bleiben zwei, kein „Kombinieren“. Mit dem
+  Kern ohne Patch 0260 schlägt er fehl, mit Patch: runtime-test 0 Fehler.
+- PC im Spiel (Debugstart r100, Cheat 999, Fingerziehen und Befehlsmenü): G+R auf Y gemischt wie im Spiel (zweites
+  G+R+Y), dann G+R+Y auf G+R+Y gezogen: ein Platz „2“; „Kombinieren“ nur mit zweitem Platz im Menü, über das Menü
+  ebenso ein Platz „2“; rot vom Stapel auf grünen Stapel: G+R auf den vorhandenen G+R-Stapel (2), grün 2, rot 1 in der
+  Hand. Bilder: `builds/workthread-1.1.3/stack-mixes`.
+
 ## 1.1.4 (ab 26.11.2026, auf 1.1.3 = 6b95af43)
 
 Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

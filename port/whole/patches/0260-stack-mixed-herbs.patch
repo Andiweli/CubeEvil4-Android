@@ -1,0 +1,53 @@
+# Port patch, the cheat "Stack items" for mixed herbs (1.1.5, the project owner: "can the Stack items cheat also stack
+# mixed herbs, e.g. a full G+R+Y mix or G+G+G?"). Patch 0257 already lets a recovery item's slot hold up to the cheat's
+# value, and a mix made from a stack goes onto a stack of that mix (re4_stack_combined); but a mix made from two single
+# herbs takes the first herb's slot, and two slots of one mix never came together: the game merges same ids for the ammo
+# and the grenades only (types 2 and 3), a recovery item (type 6) goes to the mixing table alone.
+# - cItemMgr::combine, the type 6 arm: two slots of one id that the table does not mix with each other (every mix, the
+#   red and the yellow herb, the first aid spray, the eggs, the fish) go onto one stack as the ammo does
+#   (runtime/cheats.cpp re4_stack_merge: up to the slot's limit, the rest stays in the other slot; nothing is lost).
+#   A pair the table mixes (green + green, a mix + its missing herb) is mixed as before. Without the cheat the limit is
+#   1 and nothing changes (no room).
+# - The case's Combine command (its command type): G+G+G and G+R+Y are in no mix of the table, so the game offers no
+#   Combine for them; with the cheat stacking them and a second slot of the same mix in the inventory it is offered
+#   (re4_stack_merge_offer), the game's own word. A piece put onto another (pzlPlayer::cmbPiece) needs no command.
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -1324,7 +1324,7 @@
+     return 1;
+ }
+ 
+-extern "C" int re4_stack_items(void); extern "C" int re4_stack_kind(int id, int type); extern "C" int re4_stack_combined(cItem* a, cItem* item); /* port (patch 0254): runtime/cheats.cpp, the cheat "Stack items" */
++extern "C" int re4_stack_items(void); extern "C" int re4_stack_kind(int id, int type); extern "C" int re4_stack_combined(cItem* a, cItem* item); extern "C" int re4_stack_merge(cItem* a, cItem* b); /* port (patch 0254): runtime/cheats.cpp, the cheat "Stack items" */
+ 
+ // Static item table: type (1 weapon, 2 ammo, 3 knife-like, 5/12 treasure, 6 grenade, 7 map, 8 money,
+ // 9 weapon part, 10 file, 11 key, 13 gem, 14 ...), default pick-up count and max per slot for every id.
+@@ -2454,6 +2454,8 @@
+                 a->id = newId;
+                 a->num = 1;
+             }
++        } else if (ida == idb && a != b) {
++            ret = re4_stack_merge(a, b); /* port (patch 0260): two slots of one recovery item without a mix of the two (a mixed herb, a red or yellow herb, a spray) stack */
+         }
+     }
+     if (a->num == 0) {
+--- a/src/Sscrn/ss_pzzl.cpp
++++ b/src/Sscrn/ss_pzzl.cpp
+@@ -109,7 +109,7 @@
+ void pieceFrameDisp(cModel* m, u32 color, int type);
+ void getPieceVertex(pzlPiece* p, Vec* out, int corner);
+ void pieceModelDisp(SUB_SCREEN* wk);
+-void pieceModelSet(pzlPiece* p); extern "C" int re4_item_game_max(int id); extern "C" pzlPiece* re4_stack_case_placed(void); struct Re4StackCase { Re4StackCase(pzlPlayer* pl); ~Re4StackCase(); }; /* port (patch 0254): runtime/cheats.cpp */
++void pieceModelSet(pzlPiece* p); extern "C" int re4_item_game_max(int id); extern "C" int re4_stack_merge_offer(int id); extern "C" pzlPiece* re4_stack_case_placed(void); struct Re4StackCase { Re4StackCase(pzlPlayer* pl); ~Re4StackCase(); }; /* port (patch 0254): runtime/cheats.cpp */
+ void caseModelMove(int sw);
+ void tempSpaceDisp(int sw);
+ int checkWeaponChange(int id, int bullets);
+@@ -2797,7 +2797,7 @@
+         case 0xA8:
+             return 3;
+         }
+-        if (itemCombineCheck(item->id) == 0) {
++        if (itemCombineCheck(item->id) == 0 && !re4_stack_merge_offer(item->id)) { /* port (patch 0260): Combine for a mixed herb another slot of can stack with */
+             return 4;
+         }
+         return 5;
