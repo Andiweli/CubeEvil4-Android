@@ -2525,6 +2525,146 @@ extern EspTransFunc EspTransTbl[0xFF];
 // 500 and 999 for the ammo, the grenades and the recovery items; weapons and treasures as they are. 0: all as expected.
 extern "C" int re4_stack_items(void);
 extern "C" void re4_stack_items_set(int step);
+extern "C" int re4_item_game_max(int id);
+extern "C" pzlPiece* re4_stack_case_placed(void);
+struct Re4StackCase {  // runtime/cheats.cpp (patch 0254)
+    Re4StackCase(pzlPlayer* pl);
+    ~Re4StackCase();
+};
+
+// 1.1.3, patch 0257: herbs mixed from stacks in an open case (the mix into a free place, none: not mixed), a single herb
+// mixed as the game, a stack above the limit takes nothing (combine) and keeps its count (PutInCase). Bits: failed checks.
+extern "C" void re4_stack_items_set(int step);
+extern "C" int re4_stack_items(void);
+extern "C" int re4probe_stack_combine(void)
+{
+    const int keepMost = re4_stack_items();
+    re4_stack_items_set(3);
+    static cItem items[12];
+    static ITEM_ORDER order[12];
+    cItem* keepItems = ItemMgr.m_pItem;
+    s32 keepNum = ItemMgr.m_array_num;
+    ITEM_ORDER* keepOrder = ItemMgr.m_p_order_tbl;
+    u8 keepType = pG->pl_type;
+    if (pLog == 0) {
+        LogInit();
+    }
+    alignas(16) static unsigned char mem[sizeof(pzlPlayer)];
+    pzlPlayer* pl = (pzlPlayer*) mem;
+    int bad = 0;
+    auto setUp = [&](const u16 (*set)[4], int n) {
+        memset(items, 0, sizeof(items));
+        for (int i = 0; i < n; i++) {
+            items[i].id = set[i][0];
+            items[i].num = set[i][1];
+            items[i].flags = 1;
+            items[i].x = (s8) set[i][2];
+            items[i].y = (s8) set[i][3];
+            items[i].board = 1;
+        }
+        memset(mem, 0, sizeof(mem));
+        return pl->init(0);
+    };
+    ItemMgr.m_pItem = items;
+    ItemMgr.m_array_num = 12;
+    ItemMgr.m_p_order_tbl = order;
+    pG->pl_type = 0;
+    // (half cells) five green herbs at (0 0), three red at (2 0)
+    static const u16 herbs[][4] = {{0x06, 5, 0, 0}, {0x19, 3, 2, 0}};
+    if (!setUp(herbs, 2)) {
+        bad |= 1;
+    } else {
+        int ok;
+        {
+            Re4StackCase stack(pl);
+            ok = ItemMgr.combine(&items[0], &items[1], 0);
+        }
+        pzlPiece* mix = re4_stack_case_placed();
+        cItem* gr = ItemMgr.search(0x14);
+        if (!ok || items[0].num != 4 || items[1].num != 2 || !gr || gr->num != 1 || !mix || mix->item != gr ||
+            !mix->isOnBoard()) {
+            re4_log("  stack items: mix from stacks: ok %d, G %u, R %u, G+R %s, piece %s", ok, items[0].num,
+                    items[1].num, gr ? "yes" : "no", mix ? "yes" : "no");
+            bad |= 2;
+        }
+        // again: the mix goes onto the stack of that mix now there (no new slot, no new piece)
+        {
+            Re4StackCase stack(pl);
+            ok = ItemMgr.combine(&items[0], &items[1], 0);
+        }
+        if (!ok || items[0].num != 3 || items[1].num != 1 || !gr || gr->num != 2 || ItemMgr.num(0x14) != 2 ||
+            re4_stack_case_placed()) {
+            re4_log("  stack items: onto the mix's stack: ok %d, G %u, R %u, G+R %u", ok, items[0].num, items[1].num,
+                    ItemMgr.num(0x14));
+            bad |= 0x80;
+        }
+        items[1].num = 2;
+        // a single green herb on the stack of red ones: the herb becomes the mix (as the game), no new slot
+        items[0].num = 1;
+        if (gr) gr->flags = 0;
+        {
+            Re4StackCase stack(pl);
+            ok = ItemMgr.combine(&items[0], &items[1], 0);
+        }
+        if (!ok || items[0].id != 0x14 || items[0].num != 1 || items[1].num != 1 || ItemMgr.num(0x14) != 1 ||
+            re4_stack_case_placed()) {
+            bad |= 4;
+        }
+        pl->quit();
+    }
+    // a full case (6 x 10 cells): no place for the mix, nothing mixed, nothing lost
+    {
+        static const u16 full[][4] = {{0x06, 5, 0, 0}, {0x19, 3, 2, 0}};
+        if (!setUp(full, 2)) {
+            bad |= 1;
+        } else {
+            pzlBoard* b = pl->boardPtr();
+            for (int y = 0; y < b->size_y(); y++) {
+                for (int x = 0; x < b->size_x(); x++) {
+                    *b->cell(x, y) |= 1;
+                }
+            }
+            int ok;
+            {
+                Re4StackCase stack(pl);
+                ok = ItemMgr.combine(&items[0], &items[1], 0);
+            }
+            if (ok || items[0].num != 5 || items[1].num != 3 || ItemMgr.num(0x14) != 0 || re4_stack_case_placed()) {
+                re4_log("  stack items: full case: ok %d, G %u, R %u, G+R %u", ok, items[0].num, items[1].num,
+                        ItemMgr.num(0x14));
+                bad |= 8;
+            }
+            pl->quit();
+        }
+    }
+    // the cheat switched off with larger stacks: two handgun ammo stacks above 50 take nothing from each other; a
+    // pick-up keeps the 999 and goes into a new slot
+    re4_stack_items_set(0);
+    static const u16 ammo[][4] = {{0x04, 999, 0, 0}, {0x04, 120, 4, 0}};
+    setUp(ammo, 2);
+    pl->quit();
+    if (ItemMgr.combine(&items[0], &items[1], 0) || items[0].num != 999 || items[1].num != 120) {
+        bad |= 0x10;
+    }
+    if (PutInCase(0x04, 10, 0) != 1 || items[0].num != 999 || items[1].num != 120 || ItemMgr.num(0x04) != 999 + 120 + 10) {
+        re4_log("  stack items: pick-up with larger stacks: %u, %u, all %u", items[0].num, items[1].num, ItemMgr.num(0x04));
+        bad |= 0x20;
+    }
+    // ... and below the limit the pick-up fills it as the game does
+    static const u16 some[][4] = {{0x04, 45, 0, 0}};
+    setUp(some, 1);
+    pl->quit();
+    if (PutInCase(0x04, 10, 0) != 1 || items[0].num != 50 || ItemMgr.num(0x04) != 55) {
+        bad |= 0x40;
+    }
+    ItemMgr.m_pItem = keepItems;
+    ItemMgr.m_array_num = keepNum;
+    ItemMgr.m_p_order_tbl = keepOrder;
+    pG->pl_type = keepType;
+    re4_stack_items_set(keepMost >= 999 ? 3 : keepMost >= 500 ? 2 : keepMost >= 250 ? 1 : 0);
+    return bad;
+}
+
 extern "C" int re4probe_stack_items(void)
 {
     int bad = 0;
@@ -2537,19 +2677,28 @@ extern "C" int re4probe_stack_items(void)
     bad |= itemMaxNum(0x06) != 1 ? 0x8 : 0;     // green herb
     bad |= itemMaxNum(0x05) != 1 ? 0x10 : 0;    // first aid spray
     re4_stack_items_set(1);  // 250
-    // (only the ammo since the project owner's "Nur Munition", 21.11.2026: grenades and herbs one a slot as the game)
-    bad |= itemMaxNum(0x04) != 250 || itemMaxNum(0x20) != 250 || itemMaxNum(0x01) != 1 ? 0x2000 : 0;
+    bad |= itemMaxNum(0x04) != 250 || itemMaxNum(0x20) != 250 || itemMaxNum(0x01) != 250 ? 0x2000 : 0;
     re4_stack_items_set(2);  // 500
-    bad |= itemMaxNum(0x18) != 500 || itemMaxNum(0x06) != 1 ? 0x4000 : 0;
+    bad |= itemMaxNum(0x18) != 500 || itemMaxNum(0x06) != 500 ? 0x4000 : 0;
     re4_stack_items_set(3);  // 999
     bad |= itemMaxNum(0x04) != 999 ? 0x20 : 0;
     bad |= itemMaxNum(0x18) != 999 ? 0x40 : 0;
-    bad |= itemMaxNum(0x01) != 1 ? 0x80 : 0;    // hand grenade: as the game
-    bad |= itemMaxNum(0x06) != 1 ? 0x100 : 0;   // green herb: as the game
-    bad |= itemMaxNum(0x05) != 1 ? 0x200 : 0;   // first aid spray: as the game
+    // 1.1.3 (the project owner): the grenades, herbs and mixes, the spray, the eggs and the fish too
+    static const u16 kStack[] = {0x01, 0x02, 0x0E, 0x05, 0x06, 0x19, 0x1C, 0x12, 0x13, 0x14, 0x15, 0x16, 0xA8,
+                                 0x08, 0x09, 0x0A, 0x95, 0x97};
+    for (u16 id : kStack) {
+        if (itemMaxNum(id) != 999 || re4_item_game_max(id) != 1) {
+            re4_log("  stack items: 0x%02x most %d, game %d", id, itemMaxNum(id), re4_item_game_max(id));
+            bad |= 0x80;
+        }
+    }
+    // the rocket launchers (type 3 like the grenades), weapons, key items and treasures as the game
+    bad |= itemMaxNum(0x17) != 1 || itemMaxNum(0x35) != 1 || itemMaxNum(0x6D) != 1 || itemMaxNum(0x38) != 1 ? 0x100 : 0;
+    bad |= itemMaxNum(0x54) != 1 ? 0x200 : 0;   // a key item (type 11)
     bad |= itemMaxNum(0x03) != 0 ? 0x400 : 0;   // a weapon (type 1) stays
     bad |= itemMaxNum(0x56) != 999 ? 0x800 : 0; // a treasure (type 12) as before
     bad |= itemType(0x04) != 2 || itemType(0x01) != 3 || itemType(0x06) != 6 ? 0x1000 : 0;
+    bad |= re4_item_game_max(0x04) != 50 || re4_stack_items() != 999 ? 0x8000 : 0;
     re4_stack_items_set(keep);
     return bad;
 }

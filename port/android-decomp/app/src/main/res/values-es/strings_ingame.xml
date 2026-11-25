@@ -382,12 +382,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Maletín L</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
-    <string name="ingame_cheat_stack">Apilar munición</string>
-    <string name="ingame_cheat_stack_help">Apilar munición: la munición se apila hasta 250, 500 o 999 en una casilla (Estándar: los límites del juego). Las granadas, los objetos curativos y los tesoros quedan como en el juego. Si luego eliges menos, las pilas mayores se conservan y se gastan una a una; lo que recojas después ocupa una casilla nueva.</string>
+    <string name="ingame_cheat_stack">Apilar objetos</string>
+    <string name="ingame_cheat_stack_help">Apilar objetos: la munición, las granadas, las hierbas y sus mezclas, los sprays de primeros auxilios, los peces y los huevos se apilan hasta 250, 500 o 999 en una casilla (Estándar: los límites del juego). Una granada o una hierba sola no muestra número. Al mezclar una hierba tomada de una pila, la mezcla va a una pila de esa mezcla o a un hueco libre del maletín (sin hueco: no se mezcla nada). Las armas, los tesoros y los objetos clave quedan como en el juego. Si luego eliges menos, las pilas mayores se conservan y se gastan una a una; lo que recojas después ocupa una casilla nueva.</string>
     <string name="ingame_stack_standard">Estándar</string>
     <string name="ingame_cheat_refill">Rellenar munición</string>
     <string name="ingame_cheat_refill_full">Nada que rellenar: no hay munición en el maletín, o ya está llena.</string>
-    <string name="ingame_cheat_refill_help">Rellenar munición: cada pila de munición del maletín se llena hasta el valor de «Apilar munición» (Estándar: el máximo normal de su tipo); no se añade munición nueva y las balas cargadas en las armas no cambian.</string>
+    <string name="ingame_cheat_refill_help">Rellenar munición: cada pila de munición del maletín se llena hasta el valor de «Apilar objetos» (Estándar: el máximo normal de su tipo); no se añade munición nueva y las balas cargadas en las armas no cambian.</string>
     <string name="ingame_cheats_help">Los interruptores siguen activos hasta que los desactives; las partidas guardadas no los conservan. Algunos ataques siguen matando a Leon al instante (motosierra, agarre, roca). Invisibilidad: los enemigos te ignoran; los jefes y las escenas fijas, no. Puntería estable: el láser y la mira telescópica no oscilan. Trajes: Chaqueta de Leon mantiene a Leon con su chaqueta marrón todo el juego; Especial viste a Leon y Ashley con sus trajes especiales. Los botones cambian tu partida: las armas, el maletín y el dinero quedan en tu próxima partida guardada. Desbloquear juegos extra añade Assignment Ada y The Mercenaries al menú principal.</string>
     <string name="ingame_cheat_done">Hecho: %1$s.</string>
     <string name="ingame_cheat_already">Ya lo tienes: %1$s.</string>

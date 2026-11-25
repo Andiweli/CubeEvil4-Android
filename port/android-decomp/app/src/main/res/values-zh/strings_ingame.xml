@@ -377,12 +377,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">手提箱 L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheat_stack">弹药堆叠</string>
-    <string name="ingame_cheat_stack_help">弹药堆叠：弹药在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）。手榴弹、回复道具和宝物保持游戏原样。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
+    <string name="ingame_cheat_stack">物品堆叠</string>
+    <string name="ingame_cheat_stack_help">物品堆叠：弹药、手榴弹、草药及其混合、急救喷雾、鱼和蛋在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）。单个手榴弹或草药不显示数字。用堆叠中的草药混合时，混合物会叠到同种混合物上或放到箱子里的空位（没有空位：不混合）。武器、宝物和关键道具保持游戏原样。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
     <string name="ingame_stack_standard">标准</string>
     <string name="ingame_cheat_refill">补满弹药</string>
     <string name="ingame_cheat_refill_full">没有可补充的：箱子里没有弹药，或已全部补满。</string>
-    <string name="ingame_cheat_refill_help">补满弹药：箱子里的每一堆弹药都会补到“弹药堆叠”的数值（标准：该种类的正常上限）；不会添加新弹药，武器中已装填的子弹不变。</string>
+    <string name="ingame_cheat_refill_help">补满弹药：箱子里的每一堆弹药都会补到“物品堆叠”的数值（标准：该种类的正常上限）；不会添加新弹药，武器中已装填的子弹不变。</string>
     <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。隐身：敌人无视你，首领和固定剧情则不会。稳定瞄准：激光和瞄准镜不会晃动。服装：“里昂的夹克”让里昂整个游戏都穿着棕色夹克；“特别”让里昂和阿什莉穿上各自的特殊服装。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。解锁额外游戏会把 Assignment Ada 和 The Mercenaries 加入标题菜单。</string>
     <string name="ingame_cheat_done">完成：%1$s。</string>
     <string name="ingame_cheat_already">已经有了：%1$s。</string>

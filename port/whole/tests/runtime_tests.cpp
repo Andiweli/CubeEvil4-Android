@@ -1246,6 +1246,7 @@ int re4probe_arc(void);
 int re4probe_arc_table(void);
 int re4probe_partner_damage(void);
 int re4probe_case_free_place(void);
+int re4probe_stack_combine(void);
 int re4probe_berserker(char* out, int size);
 int re4probe_menu_touch(void);
 const char* re4probe_menu_touch_tail(void);
@@ -2000,6 +2001,17 @@ static void testCaseFreePlace()
         }
     }
     report("casefree", ok);
+}
+
+// The cheat "Stack items" in the case (1.1.3, patch 0257; game_probe.cpp re4probe_stack_combine): herbs mixed from
+// stacks (the mix into a free place, a full case: not mixed), a single herb as the game, stacks above the limit
+static void testStackCombine()
+{
+    int bad = re4probe_stack_combine();
+    if (bad) {
+        re4_log("  stack combine: failed checks 0x%x", bad);
+    }
+    report("stack-combine", bad == 0);
 }
 
 // Taps in the attache case (runtime/menu_touch.cpp, patch 0106; game_probe.cpp
@@ -2811,6 +2823,7 @@ int re4_runtime_tests()
     testPartnerDamage();
     testBerserker();
     testCaseFreePlace();
+    testStackCombine();
     testMenuTouch();
     testLetterbox();
     testKnifeSwipe();

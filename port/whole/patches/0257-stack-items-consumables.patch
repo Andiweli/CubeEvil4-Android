@@ -1,0 +1,153 @@
+# Port patch, the cheat "Stack items" for more items (1.1.3, the project owner: grenades of all kinds, herbs of all kinds
+# and their mixes, first aid sprays, fish and eggs as well; not weapons, treasures or key items). Patch 0254 made the ammo
+# stack; here itemInfo asks runtime/cheats.cpp re4_stack_kind (ammo, recovery items = type 6, the grenades 0x01, 0x02,
+# 0x0E; type 3 also holds the rocket launchers, which stay one a slot).
+# - The case (ss_pzzl.cpp) shows a count where the game does, and on a stack of an item the game keeps one a slot (a
+#   grenade, a herb) only when there is more than one: no "1" on a single grenade (re4_item_game_max: the game's limit).
+# - Mixing a herb taken from a stack (cItemMgr::combine, the type 6 arm): the game takes one of each and gets the mix as a
+#   new slot; with a stack left there the new slot had no place in the case. The case screen's two combines (the Combine
+#   command, PieceCombine; a piece in the hand put on another, pzlPlayer::cmbPiece) open a Re4StackCase, and
+#   re4_stack_combined puts the mix onto a stack of that mix with room, else into a free place of the case (upright,
+#   then turned, as PutInCase does); no room: the combine is undone (nothing mixed, nothing lost, the game's "can't" sound). The screen builds the new piece's model
+#   (re4_stack_case_placed). A single herb mixed as before (the mix takes its place).
+# - A stack above the item's limit (the cheat switched off, or a lower value chosen): PutInCase counted it as room of
+#   max - num (negative, or a wrap-around in u16) and its fill loop set it down to the limit (the rest of the stack was
+#   lost; with ammo since 1.1.0); now it has no room and keeps its count, a pick-up goes to the other stacks or a new
+#   slot. Combining two ammo or grenade stacks onto such a stack takes nothing (cItemMgr::combine, room <= 0).
+# Off (Standard): as the game, but for the two room fixes, which only matter for such a stack.
+diff --git a/src/Sscrn/ss_pzzl.cpp b/src/Sscrn/ss_pzzl.cpp
+index 9a0f9ae..4324186 100644
+--- a/src/Sscrn/ss_pzzl.cpp
++++ b/src/Sscrn/ss_pzzl.cpp
+@@ -109,7 +109,7 @@ void pieceModelOrientation(SUB_SCREEN* wk, pzlPiece* p);
+ void pieceFrameDisp(cModel* m, u32 color, int type);
+ void getPieceVertex(pzlPiece* p, Vec* out, int corner);
+ void pieceModelDisp(SUB_SCREEN* wk);
+-void pieceModelSet(pzlPiece* p);
++void pieceModelSet(pzlPiece* p); extern "C" int re4_item_game_max(int id); extern "C" pzlPiece* re4_stack_case_placed(void); struct Re4StackCase { Re4StackCase(pzlPlayer* pl); ~Re4StackCase(); }; /* port (patch 0254): runtime/cheats.cpp */
+ void caseModelMove(int sw);
+ void tempSpaceDisp(int sw);
+ int checkWeaponChange(int id, int bullets);
+@@ -1047,7 +1047,7 @@ void pieceModelDisp(SUB_SCREEN* wk)
+                 pzzlItemInfo(item->id, &info);
+                 if (info.type != 9) {
+                     pzzlItemInfo(item->id, &info);
+-                    if (info.maxNum != 1 || item->num != 1) {
++                    if (re4_item_game_max(item->id) != 1 || item->num != 1) { /* port (patch 0254): a single stacked grenade or herb shows no "1" */
+                         numDisp(id, item->num, &scr, 1);
+                         no++;
+                     }
+@@ -1781,6 +1781,7 @@ void PzzlThinking::move(SUB_SCREEN* wk)
+                 pieceModelSet(p);
+                 pieceModelOrientation(wk, p);
+                 wk->puzzlePlayer->rehash();
++                if (pzlPiece* n = re4_stack_case_placed()) { pieceModelSet(n); pieceModelOrientation(wk, n); } /* port (patch 0254) */
+                 if (wk->puzzlePlayer->pieceInHand() == 0) {
+                     transit(0, wk);
+                 }
+@@ -2150,6 +2151,7 @@ void PieceCombine::move(SUB_SCREEN* wk)
+                 idA = p->item->id;
+                 idB = sel->item->id;
+                 if (p != sel) {
++                    Re4StackCase stack(wk->puzzlePlayer); /* port (patch 0254): a herb mixed from a stack goes into the case */
+                     if (ItemMgr.combine(p->item, sel->item, 0)) {
+                         ITEM_INFO info;
+ 
+@@ -2165,6 +2167,7 @@ void PieceCombine::move(SUB_SCREEN* wk)
+                             pieceModelOrientation(wk, pzzl_sel);
+                         }
+                         wk->puzzlePlayer->rehash();
++                        if (pzlPiece* n = re4_stack_case_placed()) { pieceModelSet(n); pieceModelOrientation(wk, n); } /* port (patch 0254) */
+                         transit(0, wk);
+                         itemInfo(idB, &info);
+                         {
+diff --git a/src/game/item.cpp b/src/game/item.cpp
+index 2fdf991..1f24a40 100644
+--- a/src/game/item.cpp
++++ b/src/game/item.cpp
+@@ -1324,7 +1324,7 @@ int cItemMgr::init()
+     return 1;
+ }
+ 
+-extern "C" int re4_stack_items(void); /* port (patch 0254): runtime/cheats.cpp, the cheat "Stack items" */
++extern "C" int re4_stack_items(void); extern "C" int re4_stack_kind(int id, int type); extern "C" int re4_stack_combined(cItem* a, cItem* item); /* port (patch 0254): runtime/cheats.cpp, the cheat "Stack items" */
+ 
+ // Static item table: type (1 weapon, 2 ammo, 3 knife-like, 5/12 treasure, 6 grenade, 7 map, 8 money,
+ // 9 weapon part, 10 file, 11 key, 13 gem, 14 ...), default pick-up count and max per slot for every id.
+@@ -1668,8 +1668,8 @@ void itemInfo(ITEM_ID id, ITEM_INFO* info)
+             }
+         }
+     }
+-    /* port (patch 0254): "Stack items": only the ammo (type 2) up to its value a slot, the rest as the game */
+-    if (re4_stack_items() > info->maxNum && info->type == 2) {
++    /* port (patch 0254): "Stack items": the ammo, grenades and recovery items up to its value a slot (re4_stack_kind) */
++    if (re4_stack_items() > info->maxNum && re4_stack_kind(id, info->type)) {
+         info->maxNum = (u16) re4_stack_items();
+     }
+ }
+@@ -2428,7 +2428,7 @@ int cItemMgr::combine(cItem* a, cItem* b, int flag)
+             int room;
+ 
+             room = itemMaxNum(a->id) - a->num;
+-            if (room == 0) {
++            if (room <= 0) { /* port (patch 0254): a stack above the limit (the cheat switched off) takes nothing */
+                 ret = 0;
+             } else {
+                 if (b->num < room) {
+@@ -2448,6 +2448,7 @@ int cItemMgr::combine(cItem* a, cItem* b, int flag)
+             b->num--;
+             if (a->num != 0) {
+                 get(newId, 1);
++                if (!re4_stack_combined(a, m_pNew)) { if (m_pNew) erase(m_pNew); a->num++; b->num++; ret = 0; } /* port (patch 0254): the mix of a stacked herb into the case */
+             } else {
+                 itemType(newId);
+                 a->id = newId;
+diff --git a/src/game/puzzle.cpp b/src/game/puzzle.cpp
+index 11ac132..d2a7d56 100644
+--- a/src/game/puzzle.cpp
++++ b/src/game/puzzle.cpp
+@@ -27,7 +27,7 @@ void* __builtin_vec_new(unsigned int size);
+ void __builtin_vec_delete(void* p);
+ }
+ 
+-static u8 piece_max = 0x79;
++static u8 piece_max = 0x79; struct Re4StackCase { Re4StackCase(pzlPlayer* pl); ~Re4StackCase(); }; /* port (patch 0254): runtime/cheats.cpp */
+ static u8 space_w = 6;
+ static u8 space_h = 0xC;
+ 
+@@ -1357,6 +1357,7 @@ pzlPiece* pzlPlayer::cmbPiece(pzlBoard* b)
+             rel = 1;
+         }
+     }
++    Re4StackCase stack(this); /* port (patch 0254): a herb mixed from a stack goes into this case */
+     if (ItemMgr.combine(p->item, h->item, 0)) {
+         if (ex) {
+             giveupExtraPiece();
+@@ -1717,13 +1718,14 @@ int PutInCase(ITEM_ID item_id, u16 item_num, int size)
+     ItemMgr.ordering(item_id);
+     total = 0;
+     for (int i = 0; i < ItemMgr.m_order_tbl_num; i++) {
+-        total += max - ItemMgr.m_p_order_tbl[i].p_item->num;
++        total += max > ItemMgr.m_p_order_tbl[i].p_item->num ? max - ItemMgr.m_p_order_tbl[i].p_item->num : 0; /* port (patch 0254): a stack above the limit (the cheat switched off) has no room */
+     }
+     if (total >= item_num) {
+         u16 rest = item_num;
+         for (int i = 0; i < ItemMgr.m_order_tbl_num; i++) {
+             cItem* w = ItemMgr.m_p_order_tbl[i].p_item;
+-            u16 room = max - w->num;
++            u16 room = max > w->num ? max - w->num : 0; /* port (patch 0254): as above, and it keeps its count */
++            if (room == 0) continue;
+             if (room >= rest) {
+                 w->num = rest + w->num;
+                 break;
+@@ -1785,8 +1787,8 @@ placed:
+         if (ItemMgr.m_order_tbl_num > 0) {
+             do {
+                 cItem* w = ItemMgr.m_p_order_tbl[n].p_item;
+-                u16 room = max - w->num;
+-                w->num = max;
++                u16 room = max > w->num ? max - w->num : 0; /* port (patch 0254): as above */
++                if (room) w->num = max;
+                 rest -= room;
+                 n++;
+             } while (n < ItemMgr.m_order_tbl_num);

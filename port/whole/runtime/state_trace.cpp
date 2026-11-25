@@ -170,6 +170,9 @@
 //   RE4_TEST_FILL_CASE="free+N:ID[,ID...]"  N frames after the player is free, item ID (0x.., up to four kinds) put into the case as a found
 //                          item goes in (PutInCase) again and again until there is no room: a full case (the
 //                          app's own items into the case only where there is room, 0.99.10)
+//   RE4_TEST_CASE_PUT="free+N:ID*NUM[,ID*NUM...]"  N frames after the player is free, NUM of item ID put into the case
+//                          once each (PutInCase, as a found item: onto stacks with room, else a free place; up to
+//                          eight; 1.1.3, the cheat "Stack items")
 //   RE4_TEST_ITEM_GET="free+N:ID[,ID...]"  N frames after the player is free, the items ID (0x.., up to eight) are
 //                          got as the game gives a prize (cItemMgr::get(id, 0): key items and treasures too, the
 //                          shooting gallery's bottle caps 0xDC..0xF3; patch 0246, 21.11.2026); from then on a
@@ -750,6 +753,8 @@ long g_atExecAfter[4] = {-1, -1, -1, -1};  // RE4_TEST_AT_EXEC
 int g_atExecNo[4];
 int g_itemGetId[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
 int g_fillId[4] = {-1, -1, -1, -1};
+long g_putAfter = -1;  // RE4_TEST_CASE_PUT (1.1.3)
+int g_putId[8] = {-1, -1, -1, -1, -1, -1, -1, -1}, g_putNum[8];
 unsigned g_rsfRoom;          // RE4_TEST_RSF
 int g_sta[8], g_staCount;    // RE4_TEST_STA
 bool g_staDone;
@@ -2404,6 +2409,14 @@ void frame(unsigned n)
                     (unsigned) ItemMgr.num(g_itemGetId[k]));
         }
     }
+    if (g_putAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_putAfter) {
+        g_putAfter = -1;
+        for (int k = 0; k < 8 && g_putId[k] >= 0; k++) {
+            const int put = PutInCase((ITEM_ID) g_putId[k], (u16) g_putNum[k], (s8) SubScreenWk.board_size);
+            re4_log("run: %d of item 0x%02x put into the case: %s, now %u (RE4_TEST_CASE_PUT) at frame %u", g_putNum[k],
+                    g_putId[k], put == 1 ? "done" : "no room", (unsigned) ItemMgr.num((u16) g_putId[k]), n);
+        }
+    }
     if (g_fillAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_fillAfter) {
         g_fillAfter = -1;
         for (int k = 0; k < 4 && g_fillId[k] >= 0; k++) {
@@ -3093,6 +3106,20 @@ void configure()
             }
             if (g_fillId[0] < 0) {
                 g_fillAfter = -1;
+            }
+        }
+    }
+    if (const char* put = getenv("RE4_TEST_CASE_PUT")) {
+        if (strncmp(put, "free+", 5) == 0) {
+            char* end = 0;
+            g_putAfter = strtol(put + 5, &end, 10);
+            // ":ID*NUM[,ID*NUM...]": up to eight, each put once (PutInCase, as a found item; NUM up to the slot's limit)
+            for (int k = 0; k < 8 && end && (*end == ':' || *end == ','); k++) {
+                g_putId[k] = (int) strtol(end + 1, &end, 0);
+                g_putNum[k] = end && *end == '*' ? (int) strtol(end + 1, &end, 10) : 0;
+            }
+            if (g_putId[0] < 0) {
+                g_putAfter = -1;
             }
         }
     }

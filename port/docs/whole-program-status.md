@@ -904,6 +904,33 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
 Version 1.1.3 (versionCode 127), Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
 `port/android-decomp/docs/releases/v1.1.3.md`. Release und Tag macht der Projektinhaber auf GitHub.
 
+### 3. Cheat „Gegenstände stapeln“ für Verbrauchsgegenstände (Projektinhaber, 25.11.2026, Patch 0257)
+
+Vorher „Munition stapeln“ (nur Munition seit 86e70cf2). Jetzt auch Granaten (Hand-, Brand-, Blendgranate 0x01, 0x02,
+0x0E; Typ 3 enthält auch die Raketenwerfer, die bleiben), alle Heilmittel des Typs 6 (Kräuter und Mischungen,
+Erste-Hilfe-Spray, drei Eier, zwei Fische); nicht Waffen, Schätze, Schlüssel. Texte (Wahlfeld und Hilfe, Name in der
+Hilfe von „Munition auffüllen“) in 11 Sprachen; „Munition auffüllen“ bleibt nur Munition.
+- Patch 0257: `itemInfo` fragt `cheats.cpp re4_stack_kind`; der Koffer (`ss_pzzl.cpp`) zeigt die Zahl wie das Spiel, auf
+  Granaten und Kräutern nur ab 2 (`re4_item_game_max`: die Grenze des Spiels).
+- Mischen eines Krauts von einem Stapel (`cItemMgr::combine`, Typ 6): das Spiel nimmt je eins und bekam die Mischung als
+  neuen Platz ohne Ort im Koffer. Die zwei Kombinier-Stellen des Koffers (Befehl Kombinieren, `PieceCombine`; Stück in
+  der Hand auf ein anderes, `pzlPlayer::cmbPiece`, auch das Ziehen von 1.1.2) öffnen ein `Re4StackCase`;
+  `re4_stack_combined` legt die Mischung auf einen Stapel derselben Mischung mit Platz, sonst auf einen freien Platz im
+  Koffer (aufrecht, dann gedreht, wie `PutInCase`); kein Platz: rückgängig (nichts gemischt, nichts verloren). Ein
+  einzelnes Kraut wie im Spiel.
+- Älterer Fehler behoben (seit 1.1.0, auch Munition): mit ausgeschaltetem oder kleinerem Wert setzte `PutInCase` einen
+  größeren Stapel auf die Grenze zurück (der Rest war weg; Platz als `max - num`, negativ bzw. u16-Überlauf). Jetzt hat
+  so ein Stapel keinen Platz und behält seine Zahl; `combine` (Munition/Granaten auf so einen Stapel) nimmt nichts.
+- Geprüft im Code: Aufheben (`PutInCase` auf Stapel mit Platz), Benutzen (`use`: eins), Werfen (`trigger`/`dump`: eins),
+  Verkaufen (`ss_shop`: Anzahl über alle Plätze, `minimumSearch`/`dump`), Speichern (16 bit).
+- Testschalter `RE4_TEST_CASE_PUT="free+N:ID*NUM,..."` (nur PC).
+- **Geprüft (WSL, i686):** Kern 0 Fehler, `core-test stack-items` (Grenzen aller Gegenstände), neuer
+  `runtime-test stack-combine` (Mischung von Stapeln auf freien Platz, auf vorhandenen Stapel, voller Koffer, einzelnes
+  Kraut, übergroße Stapel bei Kombinieren und Aufheben). PC-Läufe mit Debug-Disc r100 (`113-case.sh`): Koffer mit 999er
+  Stapeln, Ei 1×1 mit „999“, einzelne Blendgranate ohne Zahl, HUD „999“ bei ausgerüsteten Handgranaten, Mischen per
+  Ziehen (Bilder `builds/workthread-1.1.3/stack/`). **Nicht geprüft:** auf einem Gerät; Verkaufen und Speichern/Laden in
+  einem Spiellauf (nur im Code).
+
 ### 2. „Leon mit Maus / Blickfeld drehen“: Drehgeschwindigkeit und die Maus-Kamera bei schnellen Mäusen (Nutzerwunsch, 25.11.2026)
 
 „Auf manchen Geräten sehr langsam“. Ursache gefunden: Android reicht die Bewegungen einer gefangenen Maus

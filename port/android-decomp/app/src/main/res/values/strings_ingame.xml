@@ -397,12 +397,12 @@
     <string name="ingame_cheat_matilda">Matilda</string>
     <string name="ingame_cheat_case">Attaché case L</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
-    <string name="ingame_cheat_stack">Stack ammo</string>
-    <string name="ingame_cheat_stack_help">Stack ammo: ammo stacks up to 250, 500 or 999 in one slot (Standard: the game\'s own limits). Grenades, recovery items and treasures stay as in the game. A smaller choice later keeps larger stacks, they are used up one by one; new pick-ups then take a new slot.</string>
+    <string name="ingame_cheat_stack">Stack items</string>
+    <string name="ingame_cheat_stack_help">Stack items: ammo, grenades, herbs and their mixes, first aid sprays, fish and eggs stack up to 250, 500 or 999 in one slot (Standard: the game\'s own limits). A single grenade or herb shows no number. Mixing a herb taken from a stack puts the mix onto a stack of that mix or into a free place in the case (no room: nothing is mixed). Weapons, treasures and key items stay as in the game. A smaller choice later keeps larger stacks, they are used up one by one; new pick-ups then take a new slot.</string>
     <string name="ingame_stack_standard">Standard</string>
     <string name="ingame_cheat_refill">Refill ammo</string>
     <string name="ingame_cheat_refill_full">Nothing to refill: no ammo in the case, or all of it is full.</string>
-    <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to the value of \"Stack ammo\" (Standard: its type\'s normal maximum); no new ammo, the weapons\' loaded rounds stay.</string>
+    <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to the value of \"Stack items\" (Standard: its type\'s normal maximum); no new ammo, the weapons\' loaded rounds stay.</string>
     <string name="ingame_cheats_help">The switches stay on until you switch them off; saves do not keep them. Some attacks still kill Leon at once (chainsaw, grab, boulder). Invisibility: enemies ignore you, bosses and scripted scenes do not. Steady aim: the laser and the scope do not sway. Costumes: Leon\'s jacket keeps Leon in his brown jacket for the whole game; Special dresses Leon and Ashley in their special outfits. The buttons change your game: weapons, the case and the money stay in your next save. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>

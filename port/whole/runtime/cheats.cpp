@@ -1423,18 +1423,21 @@ int re4_invisible(void)
     return wanted != -1 && (wanted & kInvisible) ? 1 : 0;
 }
 
-// Patch 0254 (item.cpp itemInfo, ss_item.cpp): the cheat "Stack items" (1.1.0, the project owner, 21.11.2026: "Gegenstaende
-// stapeln"): ammo, grenades and recovery items up to 250, 500 or 999 a slot (the arrow selector of 21.11.2026: Standard,
-// 250, 500, 999). The app's step comes in bits 21..22 of the aim bits (runtime/aim_options.cpp re4_aim_set, not a cheat
-// bit: those are all taken); any thread. re4_stack_items: the most a slot, 0 for Standard (the game's own limits).
+// Patch 0254 (item.cpp itemInfo and combine, puzzle.cpp, ss_pzzl.cpp, ss_item.cpp): the cheat "Stack items" (1.1.0, the
+// project owner, 21.11.2026: "Gegenstaende stapeln"; ammo only from 21.11.2026 on; 1.1.3, the project owner: also
+// grenades of all kinds, herbs of all kinds and mixes, first aid sprays, fish and eggs, not weapons, treasures or key
+// items) up to 250, 500 or 999 a slot (the arrow selector of 21.11.2026: Standard, 250, 500, 999). The app's step comes in
+// bits 21..22 of the aim bits (runtime/aim_options.cpp re4_aim_set, not a cheat bit: those are all taken); any thread.
+// re4_stack_items: the most a slot, 0 for Standard (the game's own limits).
 static std::atomic<int> gStackItems(0);
+static thread_local int gStackPlain;  // > 0: itemInfo gives the game's own limits (re4_item_game_max)
 void re4_stack_items_set(int step)
 {
     static const int kMost[4] = {0, 250, 500, 999};
     const int most = kMost[step & 3];
     if (gStackItems.exchange(most) != most) {
         if (most) {
-            re4_log("cheat: stack items up to %d a slot (ammo, grenades and recovery items)", most);
+            re4_log("cheat: stack items up to %d a slot (ammo, grenades, herbs, sprays, fish and eggs)", most);
         } else {
             re4_log("cheat: stack items Standard (the game's limits; larger stacks stay and are used up)");
         }
@@ -1443,7 +1446,120 @@ void re4_stack_items_set(int step)
 
 int re4_stack_items(void)
 {
-    return gStackItems.load(std::memory_order_relaxed);
+    return gStackPlain ? 0 : gStackItems.load(std::memory_order_relaxed);
+}
+
+// Patch 0254 (itemInfo): the items the cheat stacks: the ammo (type 2), the recovery items (type 6: herbs and their mixes,
+// first aid spray, the eggs, the fish) and the three grenades (hand 0x01, incendiary 0x02, flash 0x0E; type 3 also holds
+// the rocket launchers 0x17, 0x35, 0x6D and 0x38, which stay one a slot).
+int re4_stack_kind(int id, int type)
+{
+    return type == 2 || type == 6 || id == 0x01 || id == 0x02 || id == 0x0E;
+}
+
+// Patch 0254 (ss_pzzl.cpp): the most a slot as in the game, without the cheat: the case shows a count where the game
+// does (more than one fits a slot) and for a stack of an item the game keeps one a slot, not a "1" on a single grenade.
+int re4_item_game_max(int id)
+{
+    gStackPlain++;
+    const int most = itemMaxNum((ITEM_ID) id);
+    gStackPlain--;
+    return most;
+}
+
+}  // extern "C"
+
+// Patch 0254 (puzzle.cpp pzlPlayer::cmbPiece, ss_pzzl.cpp PieceCombine): the open case while two of its items are
+// combined (the game's own combine knows only the inventory). Mixing a herb taken from a stack leaves the rest of the
+// stack where it is: the mix is a new slot (cItemMgr::combine gets it), which re4_stack_combined puts into the case.
+struct Re4StackCase {
+    Re4StackCase(pzlPlayer* pl);
+    ~Re4StackCase();
+};
+static pzlPlayer* gStackCase;
+static pzlPiece* gStackPlaced;
+Re4StackCase::Re4StackCase(pzlPlayer* pl)
+{
+    gStackCase = pl;
+    gStackPlaced = 0;
+}
+Re4StackCase::~Re4StackCase()
+{
+    gStackCase = 0;
+}
+
+extern "C" {
+
+// Patch 0254 (cItemMgr::combine): `a` (still more than one after the combine took one) was mixed into `item`, the new
+// slot the game got for the mix (0: none was free). A recovery item in the open case: the mix goes onto a stack of that
+// mix with room (the new slot freed again), else into a free place of the case (as a found item goes in, PutInCase: each place upright, then turned); 0 when there is none (the combine is
+// undone: nothing mixed, nothing lost). Anything else (the treasures of the item screen) as the game: 1.
+int re4_stack_combined(cItem* a, cItem* item)
+{
+    if (itemType(a->id) != 6) {
+        return 1;
+    }
+    if (!item) {
+        re4_log("cheat: stack items: no free inventory slot for the mix, not mixed");
+        return 0;
+    }
+    pzlPlayer* pl = gStackCase;
+    if (!pl) {
+        return 1;
+    }
+    // a stack of the same mix with room takes it (as a found item goes onto a stack)
+    const int most = itemMaxNum(item->id);
+    cItem* s = ItemMgr.m_pItem;
+    for (int i = 0; s && i < ItemMgr.m_array_num; i++, s++) {
+        if (s != item && s->isAlive(pG->pl_type == 1) && s->id == item->id && s->num < most) {
+            s->num++;
+            ItemMgr.erase(item);
+            re4_log("cheat: stack items: mix 0x%02x from a stack of 0x%02x (%u left) onto its stack, now %u",
+                    (unsigned) s->id, (unsigned) a->id, (unsigned) a->num, (unsigned) s->num);
+            return 1;
+        }
+    }
+    pieceData* d = searchItemPieceData(item->id, piece_info);
+    pzlPiece* q = 0;
+    for (int i = 0; d && i < pl->pieceMax(); i++) {
+        if (pl->pieceAt(i)->isEmpty()) {
+            q = pl->pieceAt(i);
+            break;
+        }
+    }
+    if (!q) {
+        re4_log("cheat: stack items: no piece for the mix 0x%02x, not mixed", (unsigned) item->id);
+        return 0;
+    }
+    q->init(d);
+    q->item = item;
+    pzlBoard* b = pl->boardPtr();
+    for (int turn = 0; turn < 2; turn++) {
+        q->orientation(turn);
+        for (int y = 0; y < b->size_y(); y++) {
+            for (int x = 0; x < b->size_x(); x++) {
+                q->set_ver0_x((f32) x);
+                q->set_ver0_y((f32) y);
+                if (b->putPiece(q)) {
+                    gStackPlaced = q;
+                    re4_log("cheat: stack items: mix 0x%02x from a stack of 0x%02x (%u left) put at %d,%d%s",
+                            (unsigned) item->id, (unsigned) a->id, (unsigned) a->num, x, y, turn ? " turned" : "");
+                    return 1;
+                }
+            }
+        }
+    }
+    q->clear();
+    re4_log("cheat: stack items: no room in the case for the mix 0x%02x, not mixed", (unsigned) item->id);
+    return 0;
+}
+
+// Patch 0254 (ss_pzzl.cpp): the piece re4_stack_combined put into the case, once (the screen builds its model).
+pzlPiece* re4_stack_case_placed(void)
+{
+    pzlPiece* p = gStackPlaced;
+    gStackPlaced = 0;
+    return p;
 }
 
 // Patch 0233 (pl_wep.cpp, cam_extra.cpp): the cheat "Steady aim" (any thread; the game frames read it).
