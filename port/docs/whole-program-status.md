@@ -905,6 +905,17 @@ Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `R
 `port/android-decomp/docs/releases/v1.1.4.md`. 1.1.3 ist veröffentlicht (Projektinhaber, 26.11.2026); Release und Tag
 macht der Projektinhaber auf GitHub.
 
+### 10. Gyro-Empfindlichkeit bis 6× (Nutzerwunsch; Projektinhaber 26.11.2026: „Können wir die Empfindlichkeit für den Gyro verdoppeln?“)
+
+**Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (dem Projektinhaber reicht 3×, 26.11.2026).
+
+- Der Kern dreht das Zielen um 35 % der Drehung des Geräts mal Schieber (`runtime/gyro.cpp kGain`): 3× ≈ 1:1, wie
+  der Nutzer maß. Schieber jetzt 0,5×..6× in Schritten von 0,25 (`GyroAim.MAX_SENSITIVITY`); alte Werte bedeuten
+  dasselbe. Keine Begrenzung im Kern (PC mit `RE4_TEST_GYRO`: 1, 2, 4 rad/s drehen 0,35, 0,70, 1,40 rad je
+  Sekunde); der Gyro dreht nur das Zielen (Waffe, Zielfernrohr, Harpune). Totzone vor dem Faktor.
+- Neue Hilfezeile unter den Gyro-Reihen in 11 Sprachen (`ingame_gyro_sensitivity_help`). Test
+  `GyroSensitivityTest` (Bereich, alte Werte, Bilder mit `RE4_MENU_SHOTS`: `builds/workthread-1.1.3/gyro`).
+
 ### 9. Vulkan: Wände mit Echtzeitschatten durchsichtig (Nutzerbericht 26.11.2026, Xiaomi Poco F6, Adreno 735)
 
 **Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (der Projektinhaber kann es nicht selbst prüfen, 26.11.2026).

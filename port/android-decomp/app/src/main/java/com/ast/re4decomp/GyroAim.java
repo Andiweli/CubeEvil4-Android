@@ -24,7 +24,11 @@ import android.view.InputDevice;
  * older than 150 ms or not a number: nothing. Switched by the menu ("Use
  * Gyro-Aiming"); off while the app is not in front. The menu's slider
  * (setSensitivity, wish of the project owner, 22.10.2026) multiplies the
- * filtered rates by MIN_SENSITIVITY..MAX_SENSITIVITY (1: as before).
+ * filtered rates by MIN_SENSITIVITY..MAX_SENSITIVITY (1: as before). The core
+ * turns the aim by 35 % of them (runtime/gyro.cpp kGain), so 3x turns the aim
+ * about as far as the device; since 1.1.4 up to 6x, twice as far (a user's
+ * report, the project owner: "Können wir die Empfindlichkeit für den Gyro
+ * verdoppeln?"); 0.5x..3x mean what they meant before.
  *
  * <p>Since 1.1.0 (a DualSense user's wish, the project owner's choice "Gyro A", 19.11.2026) the gyroscope can also be
  * a controller's own (Android 12 and later: InputDevice.getSensorManager, as Dolphin reads it): the menu's "Gyro
@@ -50,7 +54,7 @@ final class GyroAim implements SensorEventListener {
   private boolean listenPad;
   private int padLines, padTurnLines;
   /** The slider's range and steps (1: the first port's gain). */
-  static final float MIN_SENSITIVITY = 0.5f, MAX_SENSITIVITY = 3f, SENSITIVITY_STEP = 0.25f;
+  static final float MIN_SENSITIVITY = 0.5f, MAX_SENSITIVITY = 6f, SENSITIVITY_STEP = 0.25f;
   private boolean enabled, listening, resumed;
   private float yaw, pitch;
   private volatile float sensitivity = 1f;

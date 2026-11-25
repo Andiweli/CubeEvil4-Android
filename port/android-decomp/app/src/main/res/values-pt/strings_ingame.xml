@@ -161,6 +161,7 @@
     <string name="ingame_touch_aim_help">Mira por toque: enquanto L ou R mantém uma arma, deslize na metade direita para mirar ou use o analógico C de toque (adicione-o com a engrenagem no canto superior direito). Analógico de movimento: como no GameCube. Analógicos AIM e KNIFE (engrenagem): um dedo sobre eles mantém R ou L, e a inclinação mira.</string>
     <string name="ingame_touch_zoom_help">Zoom na luneta ou nos binóculos por toque: arraste para cima ou para baixo na metade direita ou no analógico C de toque, ou adicione os botões de zoom + e − com a engrenagem no canto superior direito.</string>
     <string name="ingame_gyro_sensitivity">Sensibilidade do giroscópio</string>
+    <string name="ingame_gyro_sensitivity_help">Sensibilidade do giroscópio: em 3× a mira gira mais ou menos o mesmo que o aparelho, em 6× o dobro.</string>
     <string name="ingame_gyro_invert_v">Inverter vertical</string>
     <string name="ingame_gyro_invert_h">Inverter horizontal</string>
     <string name="ingame_gyro_source">Giroscópio de</string>

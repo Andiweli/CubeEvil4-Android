@@ -161,6 +161,7 @@
     <string name="ingame_touch_aim_help">触控瞄准：按住 L 或 R 举起武器时，在右半屏滑动即可瞄准，或使用触控 C 摇杆（用右上角的齿轮添加）。移动摇杆：与 GameCube 相同。AIM 与 KNIFE 摇杆（用齿轮添加）：手指按在上面即按住 R 或 L，倾斜即可瞄准。</string>
     <string name="ingame_touch_zoom_help">触控缩放瞄准镜或望远镜：在右半屏或触控 C 摇杆上上下拖动，或通过右上角的齿轮添加缩放按钮 + 和 −。</string>
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
+    <string name="ingame_gyro_sensitivity_help">陀螺仪灵敏度：3× 时准星的转动大约与设备转动相同，6× 时为两倍。</string>
     <string name="ingame_gyro_invert_v">反转垂直方向</string>
     <string name="ingame_gyro_invert_h">反转水平方向</string>
     <string name="ingame_gyro_source">陀螺仪来源</string>

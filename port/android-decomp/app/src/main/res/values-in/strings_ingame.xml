@@ -161,6 +161,7 @@
     <string name="ingame_touch_aim_help">Bidik Sentuh: selama L atau R menyiagakan senjata, usap di separuh kanan untuk membidik, atau gunakan stik C sentuh (tambahkan lewat roda gigi di kanan atas). Stik Gerak: seperti di GameCube. Stik AIM dan KNIFE (roda gigi): jari di atasnya menahan R atau L, kemiringannya membidik.</string>
     <string name="ingame_touch_zoom_help">Zoom di teropong senjata atau teropong dengan sentuhan: geser ke atas atau bawah di separuh kanan atau pada stik C sentuh, atau tambahkan tombol zoom + dan − lewat roda gigi di kanan atas.</string>
     <string name="ingame_gyro_sensitivity">Sensitivitas giroskop</string>
+    <string name="ingame_gyro_sensitivity_help">Sensitivitas giroskop: pada 3× bidikan berputar kira-kira sejauh perangkat diputar, pada 6× dua kali lipat.</string>
     <string name="ingame_gyro_invert_v">Balik vertikal</string>
     <string name="ingame_gyro_invert_h">Balik horizontal</string>
     <string name="ingame_gyro_source">Giroskop dari</string>

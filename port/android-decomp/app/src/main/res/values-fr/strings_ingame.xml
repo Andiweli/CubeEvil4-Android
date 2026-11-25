@@ -162,6 +162,7 @@
     <string name="ingame_touch_aim_help">Visée tactile\u00A0: tant que L ou R tient une arme, glissez sur la moitié droite pour viser, ou utilisez le stick C tactile (ajoutez-le avec l’engrenage en haut à droite). Stick de déplacement\u00A0: comme sur GameCube. Sticks AIM et KNIFE (engrenage)\u00A0: un doigt dessus maintient R ou L, leur inclinaison vise.</string>
     <string name="ingame_touch_zoom_help">Zoomer dans la lunette ou les jumelles au tactile\u00A0: glissez vers le haut ou le bas sur la moitié droite ou sur le stick C tactile, ou ajoutez les boutons de zoom + et − avec l’engrenage en haut à droite.</string>
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
+    <string name="ingame_gyro_sensitivity_help">Sensibilité du gyroscope\u00A0: à 3×, la visée tourne à peu près autant que l\'appareil, à 6× deux fois plus.</string>
     <string name="ingame_gyro_invert_v">Inverser la verticale</string>
     <string name="ingame_gyro_invert_h">Inverser l’horizontale</string>
     <string name="ingame_gyro_source">Gyro de</string>

@@ -160,6 +160,7 @@
     <string name="ingame_touch_aim_help">टच से निशाना: जब तक L या R हथियार तैयार रखता है, निशाना लगाने के लिए दाएँ आधे भाग पर स्वाइप करें, या टच C स्टिक इस्तेमाल करें (ऊपर दाईं ओर के गियर से जोड़ें)। मूव स्टिक: GameCube जैसा। AIM और KNIFE स्टिक (गियर): उन पर उंगली रहने तक R या L दबा रहता है, उनका झुकाव निशाना लगाता है।</string>
     <string name="ingame_touch_zoom_help">टच से स्कोप या दूरबीन में ज़ूम: दाएँ आधे हिस्से पर या टच C स्टिक पर ऊपर या नीचे खींचें, या ऊपर दाएँ गियर से ज़ूम बटन + और − जोड़ें।</string>
     <string name="ingame_gyro_sensitivity">जाइरो संवेदनशीलता</string>
+    <string name="ingame_gyro_sensitivity_help">जायरो संवेदनशीलता: 3× पर निशाना लगभग उतना ही घूमता है जितना आप डिवाइस घुमाते हैं, 6× पर दोगुना।</string>
     <string name="ingame_gyro_invert_v">वर्टिकल उलटें</string>
     <string name="ingame_gyro_invert_h">हॉरिज़ॉन्टल उलटें</string>
     <string name="ingame_gyro_source">जाइरो कहाँ से</string>

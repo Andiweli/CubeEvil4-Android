@@ -160,6 +160,7 @@
     <string name="ingame_touch_aim_help">Touch-Zielen: Solange L oder R eine Waffe hält, auf der rechten Hälfte wischen oder den Touch-C-Stick nutzen (über das Zahnrad oben rechts hinzufügen). Bewegungsstick: wie am GameCube. Sticks AIM und KNIFE (Zahnrad): Ein Finger darauf hält R bzw. L, ihre Neigung zielt.</string>
     <string name="ingame_touch_zoom_help">Zoomen in Zielfernrohr oder Fernglas per Touch: auf der rechten Hälfte oder am Touch-C-Stick nach oben oder unten ziehen, oder mit dem Zahnrad oben rechts die Zoom-Knöpfe + und − hinzufügen.</string>
     <string name="ingame_gyro_sensitivity">Gyro-Empfindlichkeit</string>
+    <string name="ingame_gyro_sensitivity_help">Gyro-Empfindlichkeit: Bei 3× dreht sich das Zielen etwa so weit wie das Gerät, bei 6× doppelt so weit.</string>
     <string name="ingame_gyro_invert_v">Vertikal umkehren</string>
     <string name="ingame_gyro_invert_h">Horizontal umkehren</string>
     <string name="ingame_gyro_source">Gyro von</string>

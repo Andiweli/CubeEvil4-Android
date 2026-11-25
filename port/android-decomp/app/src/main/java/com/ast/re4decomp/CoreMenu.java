@@ -1372,6 +1372,7 @@ final class CoreMenu extends Dialog {
     invert[1] = toggle(directions, R.string.ingame_gyro_invert_h, input.getBoolean(CoreActivity.GYRO_INVERT_H, false),
         value -> host.gyroInvertChanged(false, value));
     for (Button b : invert) b.setEnabled(gyroOn);
+    help(R.string.ingame_gyro_sensitivity_help);
     help(R.string.ingame_gyro_source_help);
     heading(R.string.ingame_comfort);
     // (the fourth menu round, 21.11.2026) "Control type": the four rows; "Assists": Turn Leon | gentler QTEs
