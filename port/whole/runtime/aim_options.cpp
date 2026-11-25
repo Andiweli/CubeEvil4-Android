@@ -41,6 +41,7 @@ extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" void re4_health_bars_set(int on);                 // runtime/health_bars.cpp (1.1.0)
 extern "C" void re4_stack_items_set(int step);               // runtime/cheats.cpp (1.1.0, patch 0254)
 extern "C" void re4_bloody_set(int on);                      // runtime/bloody.cpp (1.1.3, patch 0258)
+extern "C" void re4_merchant_all_set(int bits);              // runtime/cheats.cpp (1.1.3, patch 0259)
 
 namespace {
 
@@ -156,6 +157,7 @@ struct StartSetting {
             re4_health_bars_set((bits >> 20) & 1);
             re4_stack_items_set((bits >> 21) & 3);
             re4_bloody_set((bits >> 23) & 1);
+            re4_merchant_all_set((bits >> 6) & 3);
             gHooked = true;
             gPending = true;
             re4_add_frame_hook(hook);
@@ -197,7 +199,8 @@ struct QuickTest {
 extern "C" {
 
 // The app (core_api.cpp re4_core_set_aim): bit 0 "Invert vertical", bit 1 "Auto aim", bit 2 "Always run",
-// bit 3 "Far camera", bit 4 the game's vibration on with bit 5 set (1.1.0; bit 5 clear: the game's own switch),
+// bit 3 "Far camera", bit 4 the game's vibration on with bit 5 set (1.1.0; bit 5 clear: the game's own switch), bits 6/7
+// the cheats "All weapons" / "All tune-ups at the merchant" (1.1.3, runtime/cheats.cpp, patch 0259),
 // bits 8..19 the aim speed in percent, bit 20 "Enemy health bars" (1.1.0, runtime/health_bars.cpp), bits 21..22 the cheat
 // "Stack items" (1.1.0, runtime/cheats.cpp, patch 0254: 0 Standard, 1 250, 2 500, 3 999), bit 23 the cheat "Bloody mode"
 // (1.1.3, runtime/bloody.cpp, patch 0258), bits 24..29
@@ -207,6 +210,7 @@ void re4_aim_set(int bits)
     re4_health_bars_set((bits >> 20) & 1);
     re4_stack_items_set((bits >> 21) & 3);
     re4_bloody_set((bits >> 23) & 1);
+    re4_merchant_all_set((bits >> 6) & 3);
     int speed = (bits >> 8) & 0xFFF;
     if (speed < 50) speed = 50;
     if (speed > 300) speed = 300;

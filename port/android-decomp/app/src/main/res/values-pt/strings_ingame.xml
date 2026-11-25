@@ -389,6 +389,10 @@
     <string name="ingame_cheat_refill">Reabastecer munição</string>
     <string name="ingame_cheat_refill_full">Nada para reabastecer: não há munição na maleta, ou tudo já está cheio.</string>
     <string name="ingame_cheat_refill_help">Reabastecer munição: cada pilha de munição da maleta é completada até o valor de \"Empilhar itens\" (Padrão: o máximo normal do seu tipo); nenhuma munição nova, as balas carregadas nas armas continuam.</string>
+    <string name="ingame_side_merchant">Mercador</string>
+    <string name="ingame_cheat_merchant_weapons">Todas as armas no mercador</string>
+    <string name="ingame_cheat_merchant_tunes">Todas as melhorias no mercador</string>
+    <string name="ingame_cheat_merchant_help">Todas as armas / melhorias no mercador: a partir da próxima visita o mercador vende todas as armas e oferece todos os níveis de melhoria, os exclusivos incluídos, pelos preços normais (um nível de cada vez). O que você compra fica no seu save; a oferta em si não.</string>
     <string name="ingame_cheats_help">Os interruptores ficam ligados até você desligá-los; os saves não os guardam. Alguns ataques ainda matam Leon na hora (motosserra, agarrão, pedra). Invisibilidade: os inimigos ignoram você, chefes e cenas fixas não. Mira firme: o laser e a luneta não balançam. Trajes: Jaqueta do Leon mantém Leon com a jaqueta marrom o jogo todo; Especial veste Leon e Ashley com seus trajes especiais. Os botões mudam seu jogo: as armas, a maleta e o dinheiro ficam no seu próximo save. Desbloquear jogos extras coloca Assignment Ada e The Mercenaries no menu principal.</string>
     <string name="ingame_cheat_done">Feito: %1$s.</string>
     <string name="ingame_cheat_already">Já existe: %1$s.</string>

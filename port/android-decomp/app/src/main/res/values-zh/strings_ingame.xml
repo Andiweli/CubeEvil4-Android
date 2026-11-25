@@ -383,6 +383,10 @@
     <string name="ingame_cheat_refill">补满弹药</string>
     <string name="ingame_cheat_refill_full">没有可补充的：箱子里没有弹药，或已全部补满。</string>
     <string name="ingame_cheat_refill_help">补满弹药：箱子里的每一堆弹药都会补到“物品堆叠”的数值（标准：该种类的正常上限）；不会添加新弹药，武器中已装填的子弹不变。</string>
+    <string name="ingame_side_merchant">商人</string>
+    <string name="ingame_cheat_merchant_weapons">商人出售全部武器</string>
+    <string name="ingame_cheat_merchant_tunes">商人提供全部改造</string>
+    <string name="ingame_cheat_merchant_help">商人出售全部武器 / 提供全部改造：从你下一次光顾起，商人出售所有武器并提供所有改造等级（包括专属改造），价格照常（每次一级）。你买到的东西会保留在存档中；这份货单本身不会。</string>
     <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。隐身：敌人无视你，首领和固定剧情则不会。稳定瞄准：激光和瞄准镜不会晃动。服装：“里昂的夹克”让里昂整个游戏都穿着棕色夹克；“特别”让里昂和阿什莉穿上各自的特殊服装。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。解锁额外游戏会把 Assignment Ada 和 The Mercenaries 加入标题菜单。</string>
     <string name="ingame_cheat_done">完成：%1$s。</string>
     <string name="ingame_cheat_already">已经有了：%1$s。</string>

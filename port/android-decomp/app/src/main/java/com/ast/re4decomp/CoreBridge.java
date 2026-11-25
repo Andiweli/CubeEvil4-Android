@@ -146,6 +146,9 @@ public final class CoreBridge {
   /** The cheat "Bloody mode" (1.1.3, Cheats & Mods): blood pools on the floor stay until the room changes (patch 0258,
    *  runtime/bloody.cpp). */
   public static native void setBloody(boolean on);
+  /** The cheats "All weapons at the merchant" (bit 0) and "All tune-ups at the merchant" (bit 1) (1.1.3, Cheats & Mods;
+   *  patch 0259): the merchant offers them from the next shop visit, never saved with the game. */
+  public static native void setMerchantAll(int bits);
   /** The mouse in the game's title and options menus (1.1.0): the app's own pointer (u, v 0..1 over the game's
    *  picture) at each move, `click` for a left click (runtime/mouse_menu.cpp). */
   public static native void mouseMenu(float u, float v, boolean click);

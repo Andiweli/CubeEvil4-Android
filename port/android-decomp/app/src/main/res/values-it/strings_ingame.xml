@@ -388,6 +388,10 @@
     <string name="ingame_cheat_refill">Ricarica munizioni</string>
     <string name="ingame_cheat_refill_full">Niente da ricaricare: nessuna munizione nella valigetta, oppure è già tutto pieno.</string>
     <string name="ingame_cheat_refill_help">Ricarica munizioni: ogni pila di munizioni nella valigetta viene riempita fino al valore di «Impila oggetti» (Standard: il massimo normale del suo tipo); nessuna munizione nuova, i colpi caricati nelle armi restano.</string>
+    <string name="ingame_side_merchant">Mercante</string>
+    <string name="ingame_cheat_merchant_weapons">Tutte le armi dal mercante</string>
+    <string name="ingame_cheat_merchant_tunes">Tutti i potenziamenti dal mercante</string>
+    <string name="ingame_cheat_merchant_help">Tutte le armi / potenziamenti dal mercante: dalla prossima visita il mercante vende ogni arma e offre ogni livello di potenziamento, esclusivi compresi, ai suoi prezzi normali (un livello alla volta). Ciò che compri resta nel salvataggio; l’offerta in sé no.</string>
     <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; i salvataggi non li conservano. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). Invisibilità: i nemici ti ignorano, i boss e le scene fisse no. Mira stabile: il laser e il mirino telescopico non oscillano. Costumi: Giacca di Leon fa indossare a Leon la giacca marrone per tutto il gioco; Speciale veste Leon e Ashley con i loro costumi speciali. I pulsanti cambiano la partita: le armi, la valigetta e il denaro restano nel prossimo salvataggio. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale.</string>
     <string name="ingame_cheat_done">Fatto: %1$s.</string>
     <string name="ingame_cheat_already">Già presente: %1$s.</string>

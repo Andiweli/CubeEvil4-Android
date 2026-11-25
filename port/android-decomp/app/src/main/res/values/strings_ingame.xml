@@ -403,6 +403,10 @@
     <string name="ingame_cheat_refill">Refill ammo</string>
     <string name="ingame_cheat_refill_full">Nothing to refill: no ammo in the case, or all of it is full.</string>
     <string name="ingame_cheat_refill_help">Refill ammo: every ammo stack in the case is filled up to the value of \"Stack items\" (Standard: its type\'s normal maximum); no new ammo, the weapons\' loaded rounds stay.</string>
+    <string name="ingame_side_merchant">Merchant</string>
+    <string name="ingame_cheat_merchant_weapons">All weapons at the merchant</string>
+    <string name="ingame_cheat_merchant_tunes">All tune-ups at the merchant</string>
+    <string name="ingame_cheat_merchant_help">All weapons / tune-ups at the merchant: from your next visit the merchant sells every weapon and offers every tune-up level, exclusive upgrades included, at his normal prices (levels one at a time). What you buy stays in your save; the offer itself does not.</string>
     <string name="ingame_cheats_help">The switches stay on until you switch them off; saves do not keep them. Some attacks still kill Leon at once (chainsaw, grab, boulder). Invisibility: enemies ignore you, bosses and scripted scenes do not. Steady aim: the laser and the scope do not sway. Costumes: Leon\'s jacket keeps Leon in his brown jacket for the whole game; Special dresses Leon and Ashley in their special outfits. The buttons change your game: weapons, the case and the money stay in your next save. Unlock extra games adds Assignment Ada and The Mercenaries to the title menu.</string>
     <string name="ingame_cheat_done">Done: %1$s.</string>
     <string name="ingame_cheat_already">Already there: %1$s.</string>

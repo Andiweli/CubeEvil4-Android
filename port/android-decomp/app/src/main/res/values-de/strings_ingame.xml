@@ -385,6 +385,10 @@
     <string name="ingame_cheat_refill">Munition auffüllen</string>
     <string name="ingame_cheat_refill_full">Nichts aufzufüllen: keine Munition im Koffer, oder alles ist voll.</string>
     <string name="ingame_cheat_refill_help">Munition auffüllen: Jeder Munitionsstapel im Koffer wird bis zum Wert von „Gegenstände stapeln“ gefüllt (Standard: das normale Maximum seiner Sorte); keine neue Munition, die geladenen Patronen der Waffen bleiben.</string>
+    <string name="ingame_side_merchant">Händler</string>
+    <string name="ingame_cheat_merchant_weapons">Alle Waffen beim Händler</string>
+    <string name="ingame_cheat_merchant_tunes">Alle Tunings beim Händler</string>
+    <string name="ingame_cheat_merchant_help">Alle Waffen / Tunings beim Händler: Ab deinem nächsten Besuch verkauft der Händler jede Waffe und bietet jede Tuning-Stufe an, auch die Exklusiv-Upgrades, zu seinen normalen Preisen (Stufen einzeln). Was du kaufst, bleibt in deinem Spielstand; das Angebot selbst nicht.</string>
     <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; Spielstände merken sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Unsichtbarkeit: Gegner beachten dich nicht, Bosse und feste Szenen schon. Atemstopp beim Zielen: Laser und Zielfernrohr wackeln nicht. Kostüme: Leons Jacke lässt Leon das ganze Spiel über seine braune Jacke tragen; Spezial zieht Leon und Ashley ihre Spezialkostüme an. Die Knöpfe ändern dein Spiel: Waffen, Koffer und Geld bleiben im nächsten Spielstand. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü.</string>
     <string name="ingame_cheat_done">Erledigt: %1$s.</string>
     <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>

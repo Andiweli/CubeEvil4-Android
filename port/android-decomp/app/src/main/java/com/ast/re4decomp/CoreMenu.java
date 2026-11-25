@@ -148,6 +148,9 @@ final class CoreMenu extends Dialog {
     void stackItemsChanged(int max);
     /** "Enemy health bars" (1.1.0, ENEMIES AND WORLD; CoreActivity.HEALTH_BARS holds it). */
     void healthBarsChanged(boolean on);
+    /** The cheats "All weapons at the merchant" (`weapons`) and "All tune-ups at the merchant" (1.1.3; CoreActivity
+     *  MERCHANT_WEAPONS / MERCHANT_TUNES hold them). */
+    void merchantChanged(boolean weapons, boolean on);
     /** The cheat "Bloody mode" (1.1.3, ENEMIES AND WORLD; CoreActivity.BLOODY holds it). */
     void bloodyChanged(boolean on);
     /** "More enemies" (1.1.0, ENEMIES AND WORLD): a new seed each time it goes on, 0 off (CoreActivity.MORE_ENEMIES). */
@@ -2194,6 +2197,13 @@ final class CoreMenu extends Dialog {
     cheatButton(ammo, 10, R.string.ingame_cheat_refill);
     help(R.string.ingame_cheat_stack_help);
     help(R.string.ingame_cheat_refill_help);
+    // "Merchant" (1.1.3, the project owner: "Ja bitte die beiden Cheat Buttons einbauen"): all weapons | all tune-ups
+    MenuLayout.Buttons merchant = cheatRow(labelledOptions(R.string.ingame_side_merchant));
+    toggle(merchant, R.string.ingame_cheat_merchant_weapons, game.getBoolean(CoreActivity.MERCHANT_WEAPONS, false),
+        on -> host.merchantChanged(true, on));
+    toggle(merchant, R.string.ingame_cheat_merchant_tunes, game.getBoolean(CoreActivity.MERCHANT_TUNES, false),
+        on -> host.merchantChanged(false, on));
+    help(R.string.ingame_cheat_merchant_help);
     cheatStatus = text("", 15, false); cheatStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(2));
     cheatStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE); cheatStatus.setVisibility(View.GONE);
     indentedView(cheatStatus);

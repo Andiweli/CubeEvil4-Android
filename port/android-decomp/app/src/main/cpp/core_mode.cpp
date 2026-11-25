@@ -1157,6 +1157,9 @@ std::atomic<int> optHealthBars{0};
 std::atomic<int> optStackItems{0};
 // the cheat "Bloody mode" (CoreBridge.setBloody, 1.1.3): bit 23 of the aim bits (runtime/bloody.cpp, patch 0258)
 std::atomic<int> optBloody{0};
+// the cheats "All weapons" / "All tune-ups at the merchant" (CoreBridge.setMerchantAll, 1.1.3): bits 6/7 of the aim bits
+// (runtime/cheats.cpp re4_merchant_all, patch 0259)
+std::atomic<int> optMerchant{0};
 // the menu's "Field of view" (CoreBridge.setFov, -15 .. +15 degrees, patch 0205): bits 24..29 of the aim bits as
 // degrees + 32 (0: as the game; the core's runtime/aim_options.cpp)
 std::atomic<int> optFov{0};
@@ -2854,6 +2857,7 @@ bool drawGx() {
                     | (optHealthBars.load() ? 1 << 20 : 0)            // bit 20 the enemy health bars (1.1.0)
                     | (optStackItems.load() & 3) << 21                 // bits 21..22 the cheat "Stack items" (1.1.0)
                     | (optBloody.load() ? 1 << 23 : 0)                 // bit 23 the cheat "Bloody mode" (1.1.3)
+                    | (optMerchant.load() & 3) << 6                    // bits 6/7 the merchant cheats (1.1.3)
                     | (optFov.load() + 32) << 24;                     // bits 24.. "Field of view" (patch 0205)
     if (api.setAim && aim != aimSent) {
       api.setAim(aim);
@@ -4006,6 +4010,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setHealthBar
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setStackItems(JNIEnv *, jclass, jint max) {
   const int want = max >= 999 ? 3 : max >= 500 ? 2 : max >= 250 ? 1 : 0;
   if (optStackItems.exchange(want) != want) LOG("stack items: step %d (the menu, %d a slot)", want, (int) max);
+}
+
+// The cheats "All weapons" / "All tune-ups at the merchant" (1.1.3): drawGx tells the core (bits 6/7, patch 0259).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMerchantAll(JNIEnv *, jclass, jint bits) {
+  const int want = bits & 3;
+  if (optMerchant.exchange(want) != want) LOG("merchant cheats: weapons %s, tune-ups %s (the menu)", want & 1 ? "on" : "off",
+                                              want & 2 ? "on" : "off");
 }
 
 // The cheat "Bloody mode" (1.1.3, Cheats & Mods): drawGx tells the core (bit 23 of the aim bits, patch 0258).

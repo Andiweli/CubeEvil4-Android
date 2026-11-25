@@ -1,0 +1,189 @@
+# Port patch, two new cheats (1.1.3, the project owner: "Ja bitte die beiden Cheat Buttons einbauen"): "All weapons at
+# the merchant" and "All tune-ups at the merchant" (runtime/cheats.cpp re4_merchant_all, bits 6/7 of the app's aim
+# bits). Everything the merchant ever sells sits in this file's tables, on every disc (the retail discs' prices of patch
+# 0187 go into the same arrays). For the shop's session only (Merchant::Merchant after load): every weapon goes into the
+# session's stock (handgun, punisher, red9, blacktail, broken butterfly, killer7, matilda, handcannon, shotgun, striker,
+# riot gun, rifle, semi-auto rifle, tmp, mine thrower, rocket launcher, endless rocket launcher, chicago typewriter; not
+# the story's special rocket launcher 0x17, not the blue medallions' free punisher 0x40, no weapon with a part), with
+# the cleared game's prices (sell_price_ext / exer_price_ext) where the room's price tables have none or 0 (the debug
+# build's handcannon), the session's
+# tables padded to the length the shop's lists walk; every tune table's levels go into the session's tune table
+# (levelDataAdd: each type's highest, so the exclusive upgrades too; bought one level at a time at the game's prices).
+# The "new" marks stay as the merchant had them. Merchant::save (every frame of the shop) gives the data the merchant's own tables with the session's
+# counts and marks: a save never keeps the offer; weapons and levels bought stay. With "All weapons" the handcannon
+# sells back without its loaded ammo (the debug build's tables price it low enough for a money loop). Off: as the game.
+diff --git a/src/game/merchant.cpp b/src/game/merchant.cpp
+index b7a0ae0..6a3d9d1 100644
+--- a/src/game/merchant.cpp
++++ b/src/game/merchant.cpp
+@@ -1594,6 +1594,144 @@ void MerchantCharacter::setChar(MERCHANT_INFO* info, MERCHANT_DATA* data, PRICE_
+     m_p_lvup = lvup;
+ }
+ 
++/* PORT (patch 0259): the cheats "All weapons at the merchant" (bit 0) and "All tune-ups at the merchant" (bit 1) of
++   runtime/cheats.cpp re4_merchant_all (1.1.3, the project owner). For the shop's session only: the session gets every
++   weapon in stock (with the cleared game's prices, sell_price_ext / exer_price_ext, where the room's tables have none)
++   and every tune table's levels, the exclusive ones too; Merchant::save (every frame of the shop) gives the merchant's
++   data its own tables (with the session's counts and "new" marks), so a save never keeps the offer. Bought weapons and
++   levels stay. */
++extern "C" int re4_merchant_all(void);
++extern "C" void re4_log(const char* fmt, ...);
++static const u16 re4AllWeapons[] = {0x23, 0x21, 0x25, 0x27, 0x29, 0x2A, 0x03, 0x37, 0x2C, 0x2D,
++                                    0x94, 0x2E, 0x2F, 0x30, 0x36, 0x35, 0x6D, 0x34};
++static int re4MerchantOn;               // the session's cheat bits (0: as the game)
++static MERCHANT_DATA re4MerchantKeep;   // the merchant's own stock and tune tables of the session
++static PRICE_INFO re4MerchantSell[256];
++static PRICE_INFO re4MerchantExer[256];
++
++// `base` (the room's table) and, for each weapon it lacks, its entry of `more`; padded with ends to the length the
++// shop's lists walk (g_item_price_tbl_num).
++static PRICE_INFO* re4MerchantPrices(PRICE_INFO* out, PRICE_INFO* base, PRICE_INFO* more)
++{
++    int n = 0;
++    for (PRICE_INFO* p = base; p && p->id != 0xFFFF && n < 200; p++) {
++        out[n++] = *p;
++    }
++    for (unsigned w = 0; w < sizeof(re4AllWeapons) / sizeof(re4AllWeapons[0]); w++) {
++        int have = 0;
++        for (int i = 0; i < n; i++) {
++            if (out[i].id != re4AllWeapons[w]) {
++                continue;
++            }
++            have = 1;
++            // a price of 0 (the debug build's handcannon): the cleared game's
++            for (PRICE_INFO* p = more; out[i].price == 0 && p->id != 0xFFFF; p++) {
++                if (p->id == out[i].id) {
++                    out[i].price = p->price;
++                }
++            }
++        }
++        for (PRICE_INFO* p = more; !have && p->id != 0xFFFF && n < 200; p++) {
++            if (p->id == re4AllWeapons[w]) {
++                out[n++] = *p;
++                have = 1;
++            }
++        }
++    }
++    for (; n < 256; n++) {
++        out[n].id = 0xFFFF;
++        out[n].price = 0;
++        out[n].unit = 0;
++        out[n].pad_5 = 0;
++    }
++    return out;
++}
++
++static void re4MerchantOpen(STOCK_INFO* stock, LEVEL_INFO* level, PRICE_INFO** sell, PRICE_INFO** exer)
++{
++    re4MerchantOn = g_item_price_tbl_num <= 256 ? (re4_merchant_all() & 3) : 0;
++    if (!re4MerchantOn) {
++        return;
++    }
++    re4MerchantKeep.stock = *stock;
++    re4MerchantKeep.level = *level;
++    MERCHANT_DATA d;
++    d.stock = *stock;
++    d.level = *level;
++    if (re4MerchantOn & 1) {
++        static StockEntry all[sizeof(re4AllWeapons) / sizeof(re4AllWeapons[0]) + 1];
++        unsigned w;
++        for (w = 0; w < sizeof(re4AllWeapons) / sizeof(re4AllWeapons[0]); w++) {
++            all[w].id = re4AllWeapons[w];
++            all[w].num = 1;
++            all[w].isNew = 0;
++        }
++        all[w].id = 0xFFFF;
++        stockDataAdd(&d, all);
++        *sell = re4MerchantPrices(re4MerchantSell, *sell, sell_price_ext);
++        *exer = re4MerchantPrices(re4MerchantExer, *exer, exer_price_ext);
++    }
++    if (re4MerchantOn & 2) {
++        static LevelEntry* const tables[] = {level_first, level_styer, level_r10e_day, level_1st_night, level_r112,
++            level_r200, level_r202, level_r204, level_r20b, level_r211, level_r214, level_r229, level_r220, level_r225,
++            level_r227, level_r22a, level_r301, level_r305, level_r31a, level_r31d, level_r329, level_ext_normal,
++            level_ext_sw500, level_ext_tompson};
++        for (unsigned t = 0; t < sizeof(tables) / sizeof(tables[0]); t++) {
++            levelDataAdd(&d, tables[t]);
++        }
++    }
++    // the "new" marks as the merchant had them (none for what the cheat adds)
++    for (StockEntry* e = d.stock.e; e < d.stock.e + 64 && e->id != 0xFFFF; e++) {
++        u8 was = 0;
++        for (StockEntry* k = re4MerchantKeep.stock.e; k < re4MerchantKeep.stock.e + 64 && k->id != 0xFFFF; k++) {
++            if (k->id == e->id) {
++                was = k->isNew;
++            }
++        }
++        e->isNew = was;
++    }
++    for (LevelEntry* e = d.level.e; e < d.level.e + 32 && e->id != 0xFFFF; e++) {
++        u8 was = 0;
++        for (LevelEntry* k = re4MerchantKeep.level.e; k < re4MerchantKeep.level.e + 32 && k->id != 0xFFFF; k++) {
++            if (k->id == e->id) {
++                was = k->isNew;
++            }
++        }
++        e->isNew = was;
++    }
++    *stock = d.stock;
++    *level = d.level;
++    re4_log("cheat: the merchant offers %s%s%s (this visit only)", re4MerchantOn & 1 ? "every weapon" : "",
++            re4MerchantOn == 3 ? " and " : "", re4MerchantOn & 2 ? "every tune-up level" : "");
++}
++
++// Merchant::save (the shop calls it every frame): the data get the merchant's own tables with the session's counts and
++// "new" marks; the session keeps the offer.
++static void re4MerchantKeepOwn(MERCHANT_DATA* p_data, STOCK_INFO* stock, LEVEL_INFO* level)
++{
++    if (!re4MerchantOn || !p_data) {
++        return;
++    }
++    MERCHANT_DATA d = re4MerchantKeep;
++    for (StockEntry* e = d.stock.e; e < d.stock.e + 64 && e->id != 0xFFFF; e++) {
++        for (StockEntry* s = stock->e; s < stock->e + 64 && s->id != 0xFFFF; s++) {
++            if (s->id == e->id) {
++                e->num = s->num;
++                e->isNew = s->isNew;
++            }
++        }
++    }
++    for (LevelEntry* e = d.level.e; e < d.level.e + 32 && e->id != 0xFFFF; e++) {
++        for (LevelEntry* l = level->e; l < level->e + 32 && l->id != 0xFFFF; l++) {
++            if (l->id == e->id) {
++                e->isNew = l->isNew;
++            }
++        }
++    }
++    p_data->stock = d.stock;
++    p_data->level = d.level;
++}
++
+ // Shop session object (sub screen): copies the character's tables and loads its data.
+ Merchant::Merchant(MerchantCharacter* c)
+ {
+@@ -1604,6 +1742,7 @@ Merchant::Merchant(MerchantCharacter* c)
+     memclr_asm(&m_stock, sizeof(STOCK_INFO));
+     memclr_asm(&level, sizeof(LEVEL_INFO));
+     load(c->m_p_data);
++    re4MerchantOpen(&m_stock, &level, &m_p_sell, &m_p_exer); /* port (patch 0259) */
+ }
+ 
+ // Writes the session's stock/tune/favor/discount back into the merchant data.
+@@ -1611,6 +1750,7 @@ void Merchant::save(MERCHANT_DATA* p_data)
+ {
+     p_data->stock = m_stock;
+     p_data->level = level;
++    re4MerchantKeepOwn(p_data, &m_stock, &level); /* port (patch 0259): the merchant's own tables, never the offer */
+     p_data->friendship = m_friendship;
+     p_data->study_num = m_study_num;
+     p_data->reduction_ratio = m_reduction_ratio;
+@@ -2132,7 +2272,8 @@ int Merchant::buyupPrice(cItem* item, int num)
+         }
+     }
+     if (itemType(item->id) == 1 && num == 1) {
+-        if (!re4_disc_retail() || item->id != 0x37) {
++        /* port (patch 0259): with "All weapons at the merchant" the handcannon without its ammo (no money loop) */
++        if ((!re4_disc_retail() || item->id != 0x37) && !(item->id == 0x37 && (re4MerchantOn & 1))) {
+             price += buyupPrice(WeaponId2BulletId(item->id, item->getBulletType()), item->bullet & 0x1FFF);
+         }
+         for (type = 0; type <= 3; type++) {

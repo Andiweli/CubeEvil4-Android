@@ -213,6 +213,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     if (g.contains(STACK_MAX)) return STACK_STEPS[CoreMenu.stepOf(STACK_STEPS, g.getInt(STACK_MAX, 0))];
     return g.getBoolean(STACK_ITEMS, false) ? 999 : 0;
   }
+  /** The cheats "All weapons at the merchant" and "All tune-ups at the merchant" (1.1.3, GAME_PREFS;
+   *  CoreBridge.setMerchantAll, patch 0259): off by default. */
+  static final String MERCHANT_WEAPONS = "merchantAllWeapons", MERCHANT_TUNES = "merchantAllTunes";
+  static int merchantBits(android.content.SharedPreferences g) {
+    return (g.getBoolean(MERCHANT_WEAPONS, false) ? 1 : 0) | (g.getBoolean(MERCHANT_TUNES, false) ? 2 : 0);
+  }
   /** The cheat "Bloody mode" (1.1.3, GAME_PREFS; CoreBridge.setBloody, patch 0258): off by default. */
   static final String BLOODY = "bloodyMode";
   /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
@@ -621,6 +627,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       boolean bloody = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getBoolean(BLOODY, false);
       if (bloody) Log.i(TAG, "cheats: bloody mode on");
       CoreBridge.setBloody(bloody);
+      int merchant = merchantBits(getSharedPreferences(GAME_PREFS, MODE_PRIVATE));
+      if (merchant != 0) Log.i(TAG, "cheats: merchant bits " + merchant);
+      CoreBridge.setMerchantAll(merchant);
     }
     setContentView(root);
     // Android Automotive: the bars the car keeps stay off the picture (CarDisplay; nothing elsewhere)
@@ -1473,6 +1482,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(STACK_MAX, max).remove(STACK_ITEMS).apply();
       Log.i(TAG, "cheats: stack items " + (max == 0 ? "Standard" : "up to " + max));
       CoreBridge.setStackItems(max);
+    }
+
+    @Override public void merchantChanged(boolean weapons, boolean on) {
+      SharedPreferences g = getSharedPreferences(GAME_PREFS, MODE_PRIVATE);
+      g.edit().putBoolean(weapons ? MERCHANT_WEAPONS : MERCHANT_TUNES, on).apply();
+      Log.i(TAG, "cheats: all " + (weapons ? "weapons" : "tune-ups") + " at the merchant " + (on ? "on" : "off"));
+      CoreBridge.setMerchantAll(merchantBits(g));
     }
 
     @Override public void bloodyChanged(boolean on) {

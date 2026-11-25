@@ -1444,6 +1444,24 @@ void re4_stack_items_set(int step)
     }
 }
 
+// Patch 0259 (merchant.cpp Merchant::Merchant): the cheats "All weapons at the merchant" (bit 0) and "All tune-ups at the
+// merchant" (bit 1) (1.1.3, the project owner: "Ja bitte die beiden Cheat Buttons einbauen"), from bits 6 and 7 of the
+// app's aim bits (runtime/aim_options.cpp); read when a shop opens. Any thread.
+static std::atomic<int> gMerchantAll(0);
+void re4_merchant_all_set(int bits)
+{
+    bits &= 3;
+    if (gMerchantAll.exchange(bits) != bits) {
+        re4_log("cheat: merchant: all weapons %s, all tune-ups %s (from the next shop visit)", bits & 1 ? "on" : "off",
+                bits & 2 ? "on" : "off");
+    }
+}
+
+int re4_merchant_all(void)
+{
+    return gMerchantAll.load(std::memory_order_relaxed);
+}
+
 int re4_stack_items(void)
 {
     return gStackPlain ? 0 : gStackItems.load(std::memory_order_relaxed);

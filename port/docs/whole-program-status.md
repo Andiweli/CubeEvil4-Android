@@ -930,6 +930,27 @@ hält, blendet aus (`ColorUpdate`) oder endet mit Lebenszeit/Animation.
   den Sprite-Pool neu an, `EspRoomInit`: die Liste leert sich, wenn sich seine Adresse ändert, und doppelte Plätze fallen
   heraus).
 
+### 6. Cheats „Alle Waffen beim Händler“ und „Alle Tunings beim Händler“ (Projektinhaber, 25.11.2026, Patch 0259)
+
+„Ja bitte die beiden Cheat Buttons einbauen“; abgenommen 25.11.2026 („Ja, passt so“, mit Handcannon 300.000 auf der
+Debug-Disc). Alles, was der Händler je verkauft, steht in den Tabellen von `merchant.cpp` (auf allen Discs; die Preise der
+Verkaufsfassungen setzt Patch 0187 in dieselben Felder).
+- Patch 0259, nur für die Sitzung des Ladens (`Merchant::Merchant` nach `load`): alle 18 Waffen in den Vorrat der Sitzung
+  (nicht der Raketenwerfer der Geschichte 0x17, nicht die Gratis-Punisher 0x40 der blauen Medaillons, keine Waffe mit
+  Teil), Preise aus der Tabelle des Raums, wo sie fehlen oder 0 sind (Handcannon der Debug-Disc) die der zweiten Runde
+  (`sell_price_ext`/`exer_price_ext`; Tabelle der Sitzung auf die Länge aufgefüllt, die die Listen ablaufen); alle
+  Tuning-Tabellen über `levelDataAdd` (je Art die höchste, also auch die Exklusiv-Upgrades, Stufen einzeln zu den
+  Preisen des Spiels). „Neu“-Marken wie beim Händler. `Merchant::save` (der Laden ruft es jedes Bild) gibt den Daten die
+  eigenen Tabellen des Händlers mit den Zählern der Sitzung: ein Spielstand behält das Angebot nie, Gekauftes bleibt. Mit
+  „Alle Waffen“ zahlt der Rückkauf der Handcannon die geladene Munition nicht (Geldschleife).
+- Laufzeit `cheats.cpp re4_merchant_all` (Bits 6/7 der Ziel-Bits, `aim_options.cpp`), App: Reihe „Händler“ auf der
+  Cheat-Seite (`GAME_PREFS merchantAllWeapons`/`merchantAllTunes`, `CoreBridge.setMerchantAll`), 11 Sprachen.
+  Testschalter `RE4_TEST_SHOP_OPEN="free+N"` (nur PC: der Laden öffnet wie beim Händler).
+- **Geprüft (WSL, i686):** Kern 0 Fehler, Tests bestanden; PC-Läufe r10f (`113-shop.sh`) mit Debug- und EU-Disc:
+  Kaufliste mit allen Waffen samt Modell und Beschreibung, EU-Preise, Tuning-Liste mit allen Waffen, Tuning-Seite;
+  Bilder `builds/workthread-1.1.3/merchant/`. **Nicht geprüft:** US- und JP-Discs (kein Debug-Raumstart am PC; gleicher
+  Code wie EU), ein zweiter Besuch nach dem Ausschalten im Lauf, Kauf bis zum Exklusiv-Upgrade, auf einem Gerät.
+
 ### 7. Fehlalarm „hang“ während der Shader-Vorbereitung (Nutzerbericht 25.11.2026; Projektinhaber: „Ja bitte den Fehlalarm abstellen“)
 
 Im Bericht des nubia (Punkt 5) stand „hang: no game frame for 8 s“: „Shader beim Start laden“ hielt das Spiel absichtlich an

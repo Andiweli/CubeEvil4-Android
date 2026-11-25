@@ -170,6 +170,8 @@
 //   RE4_TEST_FILL_CASE="free+N:ID[,ID...]"  N frames after the player is free, item ID (0x.., up to four kinds) put into the case as a found
 //                          item goes in (PutInCase) again and again until there is no room: a full case (the
 //                          app's own items into the case only where there is room, 0.99.10)
+//   RE4_TEST_SHOP_OPEN="free+N"  N frames after the player is free, the shop's sub screen opens as the merchant opens it
+//                          (SubScreenOpen SS_OPEN_SHOP; 1.1.3, the merchant cheats of patch 0259)
 //   RE4_TEST_CASE_PUT="free+N:ID*NUM[,ID*NUM...]"  N frames after the player is free, NUM of item ID put into the case
 //                          once each (PutInCase, as a found item: onto stacks with room, else a free place; up to
 //                          eight; 1.1.3, the cheat "Stack items")
@@ -754,6 +756,7 @@ int g_atExecNo[4];
 int g_itemGetId[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
 int g_fillId[4] = {-1, -1, -1, -1};
 long g_putAfter = -1;  // RE4_TEST_CASE_PUT (1.1.3)
+long g_shopAfter = -1;  // RE4_TEST_SHOP_OPEN (1.1.3)
 int g_putId[8] = {-1, -1, -1, -1, -1, -1, -1, -1}, g_putNum[8];
 unsigned g_rsfRoom;          // RE4_TEST_RSF
 int g_sta[8], g_staCount;    // RE4_TEST_STA
@@ -2409,6 +2412,11 @@ void frame(unsigned n)
                     (unsigned) ItemMgr.num(g_itemGetId[k]));
         }
     }
+    if (g_shopAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_shopAfter) {
+        g_shopAfter = -1;
+        const int opened = SubScreenOpen(SS_OPEN_SHOP, 0);
+        re4_log("run: the shop opened (RE4_TEST_SHOP_OPEN): %d at frame %u", opened, n);
+    }
     if (g_putAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_putAfter) {
         g_putAfter = -1;
         for (int k = 0; k < 8 && g_putId[k] >= 0; k++) {
@@ -3107,6 +3115,11 @@ void configure()
             if (g_fillId[0] < 0) {
                 g_fillAfter = -1;
             }
+        }
+    }
+    if (const char* shop = getenv("RE4_TEST_SHOP_OPEN")) {
+        if (strncmp(shop, "free+", 5) == 0) {
+            g_shopAfter = strtol(shop + 5, 0, 10);
         }
     }
     if (const char* put = getenv("RE4_TEST_CASE_PUT")) {
