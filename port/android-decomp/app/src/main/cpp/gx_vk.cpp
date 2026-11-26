@@ -495,6 +495,17 @@ struct VkRenderer final : GxCore {
   VkDeviceSize boundVbOffset = 0, boundIbOffset = 0;
   VkDrawConstants boundConstants{};
   bool constantsValid = false, scissorValid = false;
+  // A fixed shader drew in the EFB pass since its viewport was set (the real-time shadows' mask times the colour, the
+  // bloom, the flares, a clear's quad): the next GX draw sets the same viewport again first (1.1.5). Those pipelines
+  // have GL's depth range off (VK_EXT_depth_clip_control), the GX pipelines on. An Adreno 735 (Xiaomi Poco F6, driver
+  // 0.762, user reports of 26.11.2026) turns a viewport into its depth mapping at the first draw after
+  // vkCmdSetViewport, with that draw's pipeline, and kept it when the GX pipelines came back: after the shadows' apply
+  // every GX draw went to the depth test with GL's z as Vulkan's (nearer than it is), and what the game draws after
+  // the shadow mark (the house's inside in r100, the fog's sheets) went over the walls in front of it. OpenGL ES, the
+  // PC's lavapipe and the validation layers: fine (a viewport and a pipeline are to be combined at each draw); the
+  // EFB's depth itself held there (the check of the 1.1.5 test build). After a new EFB pass the first draw is a GX
+  // draw, so only a fixed draw within the pass (the shadows' apply in the middle of the picture) shows it.
+  bool efbViewportStale = false;
   VkRect2D boundScissor{};
   float boundLineWidth = -1.0f;
   // where each uniform block lies now: the frame's uniform block and the offset per binding
@@ -1309,6 +1320,7 @@ struct VkRenderer final : GxCore {
     vkCmdBeginRenderPass(cb, &rbi, VK_SUBPASS_CONTENTS_INLINE);
     const VkViewport vp{0.0f, 0.0f, float(efbColor.width), float(efbColor.height), 0.0f, 1.0f};
     vkCmdSetViewport(cb, 0, 1, &vp);
+    efbViewportStale = false;
     pass = kEfbPass;
     boundPipeline = VK_NULL_HANDLE;
     scissorValid = false;
@@ -2206,6 +2218,8 @@ struct VkRenderer final : GxCore {
     VkCommandBuffer cb = F().draw;
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, f.pipeline);
     boundPipeline = VK_NULL_HANDLE;
+    if (pass == kEfbPass)
+      efbViewportStale = true;  // (the viewport again before the next GX draw: efbViewportStale)
     if (n || f.constants.ubo) {
       const VkDescriptorSet set = TexSet(f.setLayout);
       if (n)
@@ -3309,6 +3323,17 @@ struct VkRenderer final : GxCore {
       // (a pipeline of another layout before: the sets again)
       boundUbo = boundTex = VK_NULL_HANDLE;
       constantsValid = false;
+    }
+    if (efbViewportStale) {
+      // the EFB pass's viewport again, now with a GX pipeline bound (efbViewportStale: why)
+      const VkViewport vp{0.0f, 0.0f, float(efbColor.width), float(efbColor.height), 0.0f, 1.0f};
+      vkCmdSetViewport(cb, 0, 1, &vp);
+      efbViewportStale = false;
+      static bool logged = false;
+      if (!logged) {
+        logged = true;
+        GXLOG("Vulkan: the EFB pass's viewport set again for the GX draws after a fixed shader's draw in it (1.1.5)");
+      }
     }
     // the scissor within the pass's area (Vulkan: nothing may be drawn outside it)
     const int ax0 = efbArea.offset.x, ay0 = efbArea.offset.y, ax1 = ax0 + static_cast<int>(efbArea.extent.width),

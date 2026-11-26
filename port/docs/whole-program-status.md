@@ -908,9 +908,10 @@ liegt vor dem Versionscommit.
 
 ### 1. Vulkan: Wände mit Echtzeitschatten durchsichtig, zweiter Versuch (Adreno 735, Poco F6; Punkt 9 von 1.1.4)
 
-**Geparkt** (26.11.2026; der Projektinhaber: mit einer tragfähigen neuen Idee weitermachen, sonst parken). Der
-Testbau 1.1.5 mit dem Zurückschreiben und der Prüfung (e6e5a968) half nicht, die Prüfung schließt den Tiefenverlust
-aus; Zurückschreiben und Prüfung sind wieder draußen (eigener Commit), der Fehler der Kopier-Pipeline bleibt behoben.
+**Dritter Versuch, wartet auf Bestätigung durch den Nutzer auf dem Gerät** (26.11.2026, nach den drei Testberichten;
+vorher geparkt). Der Testbau 1.1.5 mit dem Zurückschreiben und der Prüfung (e6e5a968) half nicht, die Prüfung schließt
+den Tiefenverlust aus; Zurückschreiben und Prüfung sind wieder draußen (d6f74192), der Fehler der Kopier-Pipeline
+bleibt behoben.
 
 - Zweiter Bericht (`builds/workthread-1.1.3/user-report-20261126-045839-shadows2`, Testbau 1.1.4 mit dem ersten
   Versuch, ohne MSAA, FXAA an): Wände weiter durchsichtig. Das Log zeigt keine eigene Zeile des Wegs, aber ~30 MB mehr
@@ -942,6 +943,28 @@ aus; Zurückschreiben und Prüfung sind wieder draußen (eigener Commit), der Fe
   Echtzeitschatten „nur Figuren“; „60 FPS“ aus. Das trennt Vulkan/beide, Objekte/Figuren und Zwischenbilder.
 - Herausgenommen (eigener Commit): das Zurückschreiben (ein Zeichnen über das ganze EFB je Bild mit Schatten, ohne
   Nutzen) und die Prüfung. Am PC: Bilder bitgleich mit 1.1.4, Validierung 0 Fehler.
+- Drei Testberichte (`builds/workthread-1.1.3/shadows4-poco`, Testbau 1.1.5 noch mit dem Zurückschreiben, Log
+  `put back … (1 sample, 1.1.5)`): OpenGL ES **nicht** durchsichtig; Vulkan mit Schatten nur der Figuren durchsichtig;
+  Vulkan ohne „60 FPS“ durchsichtig. Also nur Vulkan, die Figuren allein reichen, Zwischenbilder unbeteiligt.
+- Vergleich mit GLES: gleiche Schritte und Shader; Vulkan zeichnet aber im EFB-Pass nach den Schatten mit einer
+  festen Pipeline (Maske mal Farbe), die GLs Tiefenbereich nicht nutzt (`VK_EXT_depth_clip_control` aus), danach die
+  GX-Pipelines mit ihm, ohne den Viewport neu zu setzen (nur `BeginEfbRaw` setzt ihn). Deskriptoren, Push-Konstanten,
+  Scissor, Linienbreite werden nach dem Schattenschritt richtig neu gesetzt.
+- Ursache (Annahme, passt zu allen vier Berichten): Der Adreno-Treiber macht aus dem Viewport beim ersten Zeichnen
+  danach die Tiefenabbildung, mit der Pipeline dieses Zeichnens, und behält sie beim Wechsel zurück zu den
+  GX-Pipelines. Nach dem Auftragen der Schatten gehen alle GX-Zeichnungen mit GLs z als Vulkans z in den Tiefentest:
+  näher als sie sind (bei z nahe 1: z statt (z + 1) / 2). Das Innere des Hauses und die Nebelflächen, die das Spiel
+  nach der Schattenmarke zeichnet, kommen vor die Wand; die gespeicherte Tiefe bleibt richtig („the depth held“). Nach
+  einem neuen EFB-Pass ist das erste Zeichnen immer ein GX-Zeichnen: darum nur mitten im Bild nach den Schatten
+  (Bloom, Linsenreflexe am Ende des Bildes: danach nur 2D ohne Tiefentest). lavapipe verbindet Viewport und Pipeline
+  bei jedem Zeichnen: am PC nicht nachstellbar.
+- Lösung (`gx_vk.cpp`, `efbViewportStale`): zeichnet eine feste Pipeline im EFB-Pass, setzt das nächste GX-Zeichnen
+  den Viewport des EFB-Passes erneut (mit gebundener GX-Pipeline). Gilt für alle festen Zeichnungen im Pass (Schatten,
+  Bloom, Linsenreflexe, Quader eines Löschens). Log einmal: `Vulkan: the EFB pass's viewport set again for the GX
+  draws after a fixed shader's draw in it (1.1.5)`.
+- Prüfung am PC: Bilder bitgleich (Folge außen am Haus), Validierung und Synchronisations-Validierung 0 Fehler, auch
+  MSAA 4 und mit Zwischenbildern; Log-Zeile erscheint. Auf dem Adreno-Gerät nicht geprüft: der nächste Bericht des
+  Nutzers (Vulkan, Schatten an, dieselbe Stelle) entscheidet. Zeile für v1.1.5.md erst nach seiner Bestätigung.
 
 ### 2. Cheat „Gegenstände stapeln“: gemischte Kräuter stapeln (Projektinhaber 26.11.2026, Patch 0260)
 
