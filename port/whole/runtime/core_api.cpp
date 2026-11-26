@@ -903,9 +903,17 @@ static int parseLanguage(const char* v)
 }
 
 void re4_game_restart(void);  // runtime/game_language.cpp
+void re4_language_pack_want(int on, int language);  // runtime/dvd.cpp
 
 void re4_core_restart_game(int language)
 {
+    // bit 0x200: the app says whether the player's language pack is in use from the restart on (bit 0x100); without
+    // it the pack stays as it is (port/docs/sprachpakete.md)
+    if (language & 0x200) {
+        re4_log("core: the language pack %s from the restart on", language & 0x100 ? "on" : "off");
+        re4_language_pack_want(language & 0x100, language & 0xFF);
+    }
+    language &= 0xFF;
     // 0: the language stays (the cheat menu's extra games, 29.10.2026)
     if (language == 0) {
         re4_log("core: restart asked by the app, the game language stays");

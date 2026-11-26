@@ -1,6 +1,7 @@
 #include "save_native.h"
 #include "item_rules.h"
 #include "asset_reader.h"
+#include "language_pack_files.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -359,7 +360,7 @@ OriginalSaveCardArt ParseOriginalSaveCardArt(const std::vector<std::uint8_t> &by
   return art;
 }
 OriginalSaveCardArt LoadOriginalSaveCardArt(const std::string &files,bool japanese) {
-  std::ifstream f(files+"/etc/memcard.das",std::ios::binary|std::ios::ate);
+  std::ifstream f(re4lang::DiscFile(files,"etc/memcard.das"),std::ios::binary|std::ios::ate);
   if(!f)throw std::runtime_error("Save artwork: etc/memcard.das is missing");
   const auto n=f.tellg();if(n<0x400 || n>1024*1024)throw std::runtime_error("Save artwork: DAS-Budget");
   std::vector<std::uint8_t> bytes(static_cast<std::size_t>(n));f.seekg(0);

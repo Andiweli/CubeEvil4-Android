@@ -15,6 +15,7 @@
 // file stays the same. RE4_CORE_PROCESS=1 asks for that on any 32-bit device
 // (tests).
 #include "core_scene.h"
+#include "language_pack_files.h"
 #include "gx_auto_level.h"
 #include "gx_bench_steps.h"
 #include "gx_core.h"
@@ -4050,6 +4051,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setSoundVolu
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_restartGame(JNIEnv *, jclass, jint language) {
   LOG("game language %d: restart", static_cast<int>(language));
   if (api.restartGame) api.restartGame(language);
+}
+
+// The language pack in use for the app's own readers of disc files (save artwork, start-up pictures; the core reads
+// the pack itself: RE4_LANGUAGE_PACK, port/docs/sprachpakete.md); "" none.
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setLanguagePack(JNIEnv *env, jclass, jstring dir) {
+  const auto pack = text(env, dir);
+  LOG("language pack for the app's readers: %s", pack.empty() ? "none" : pack.c_str());
+  re4lang::SetActivePack(pack);
 }
 
 // The first disc file the game could not read: "<disc>\t<path>\t<why>", "" while all went well.

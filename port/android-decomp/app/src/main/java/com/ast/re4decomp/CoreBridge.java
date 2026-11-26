@@ -234,9 +234,13 @@ public final class CoreBridge {
    * The menu's "Game language" with the European discs: 2 English, 3 German, 4 French, 5 Spanish,
    * 6 Italian. The core takes it and restarts the game (its own soft reset); the start setting
    * RE4_GAME_LANGUAGE holds the one at the start. 0: a restart with the language as it is (the cheat
-   * menu's extra games).
+   * menu's extra games). Bit 0x200: the player's language pack is on (bit 0x100) or off from the restart on
+   * (port/docs/sprachpakete.md); without it the pack stays as it is.
    */
   public static native void restartGame(int language);
+
+  /** The language pack in use for the app's own readers of disc files ("" none; the core has RE4_LANGUAGE_PACK). */
+  public static native void setLanguagePack(String dir);
   /**
    * The cheat menu's switches (port/docs/cheat-menu-plan.md): 1 infinite health, 2 infinite ammo,
    * 4 one-hit kill, 8 automatic QTEs, 16 the extra games kept unlocked; the game sets them in every

@@ -85,6 +85,8 @@ target_include_directories(re4_platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # HD texture packs of the player (port/docs/textur-lader-plan.md): the .c4tex reader; its layout c4tex.h is the PC
 # tool's (port/tools/texpack)
 target_sources(re4_platform PRIVATE tex_pack.cpp word_sharpen.cpp ../../../../../tools/texpack/etc2.cpp)
+# Language packs of the player (port/docs/sprachpakete.md): the pack in use for the app's own readers of disc files
+target_sources(re4_platform PRIVATE language_pack_files.cpp)
 target_include_directories(re4_platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../tools/texpack)
 # RVZ disc images at the import (disc_rvz.cpp): the zstd decompressor (third_party/zstd, BSD,
 # zstd 1.5.6 single-file decoder) and the reader
@@ -123,6 +125,10 @@ if(ANDROID)
     add_library(re4rvz SHARED disc_rvz_jni.cpp)
     target_link_libraries(re4rvz PRIVATE re4_rvz)
     target_link_options(re4rvz PRIVATE "-Wl,-z,max-page-size=16384")
+    # the language pack import (LanguagePacks.java, port/docs/sprachpakete.md): a library of its own as well
+    add_library(re4langpack SHARED language_pack_jni.cpp language_pack.cpp language_pack_zip.cpp ports/yz2.cpp)
+    target_compile_options(re4langpack PRIVATE -O2 -Wall -Wextra)
+    target_link_options(re4langpack PRIVATE "-Wl,-z,max-page-size=16384")
     # Test APKs otherwise build the native resource parsers and motion engine
     # with -O0. Keep symbols/assertions, and the original floating-point rules,
     # while preparing imported rooms and actors with optimized native code.

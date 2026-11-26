@@ -1,5 +1,6 @@
 #include "startup_data.h"
 #include "asset_reader.h"
+#include "language_pack_files.h"
 #include <algorithm>
 #include <fstream>
 #include <iomanip>
@@ -91,7 +92,7 @@ TitleData::TitleData(const std::string &discFiles,unsigned language) {
   f << "],\"sheets\":[";
   for(unsigned i=0;i<font.sheets.size();++i){if(i)f << ',';f << 2000+i;textures_.push_back({2000+i,0,font.sheets[i]});}
   messages_.emplace(3000,f.str()+"]}");
-  const auto das=read(discFiles+"/etc/core.das");AssetReader d{das};
+  const auto das=read(re4lang::DiscFile(discFiles,"etc/core.das"));AssetReader d{das};
   const auto coreOffset=d.u32(0x2c),coreLength=d.u32(0x24);d.range(coreOffset,coreLength);
   std::vector<std::uint8_t> core(das.begin()+coreOffset,das.begin()+coreOffset+coreLength);
   // Cockpit and death/continue use their own authored archives. Keep each
@@ -118,7 +119,7 @@ TitleData::TitleData(const std::string &discFiles,unsigned language) {
     for(unsigned i=0;i<glyphs.size();++i){if(i)text << ',';text << '[' << glyphs[i].glyph << ',' << glyphs[i].line << ',' << glyphs[i].color << ']';}
     messages_.emplace(4000+message,text.str()+"]}");
   }
-  const auto cardDas=read(discFiles+"/etc/memcard.das");AssetReader cd{cardDas};const auto off=cd.u32(0x2c),len=cd.u32(0x24);cd.range(off,len);
+  const auto cardDas=read(re4lang::DiscFile(discFiles,"etc/memcard.das"));AssetReader cd{cardDas};const auto off=cd.u32(0x2c),len=cd.u32(0x24);cd.range(off,len);
   const std::vector<std::uint8_t> cardBody(cardDas.begin()+off,cardDas.begin()+off+len);
   const auto cardMessages=CopySubscreenEntry(cardBody,5);
   for(unsigned number:{1u,11u,12u,13u,14u,15u,16u,17u,18u,19u,20u,22u,30u,31u,32u,36u,38u}) {
