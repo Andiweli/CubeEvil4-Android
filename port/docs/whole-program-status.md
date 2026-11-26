@@ -982,6 +982,29 @@ Items, darunter Fotomodus breit).
   `builds/workthread-1.1.6/minimap-pickups`. Kern 0 Fehler, Tests; 252 App-Unit-Tests, Lint. Nicht auf einem Gerät
   geprüft. Skripte `116-minimap.sh`, `116-spot.py`, `116-pickscan.sh`, `116-sheet.sh` im Notizordner.
 
+### 4. Ruckler in Kämpfen seit 1.1.5 (Nutzerbericht, Poco F5 / Adreno 725 mit eigenem Treiber 762.49, Android 16)
+
+**Kein Fehler im Code gefunden; neue Logzeile für den nächsten Bericht.**
+
+- Bericht `builds/workthread-1.1.6/user-report-20261126-152036-pocof5-perf`: GLES-Lauf (14:45–14:55, r104) und
+  Vulkan-Lauf (14:56–15:16, r104), 60 FPS mit Zwischenbildern, Auflösungsstufe 3, FXAA, Linsenreflexe, Leistungskerne an.
+- Zwischen 1.1.4 und 1.1.5 hat sich für GLES und den Kampf im Kern nichts geändert (nur Vulkan-Viewport 3eb97fc5,
+  Kräuter-/Händler-Stapel, Gyro-Logzeilen). 1.1.2 → 1.1.5 geprüft: Blutiger-Modus aus kostet je neuem Bodenfleck eine
+  Schleife von ≤ 96 Vergleichen; der Sprite-Vorrat (1024) ist der des Spiels, nicht vergrößert; 476ca3db ändert die
+  gezeichnete Anisotropie nicht (nur die Anzeige des Höchstwerts); Hang-Wächter und Mauskamera sind App-Seite ohne Bildkosten.
+- **Am PC gemessen** (i686, Debug-Discs, r11d, Schrotflinte mit Zielhilfe, 7 Gegner, 2400 Bilder, je 3 Läufe):
+  1.1.2 8,58/8,67/8,73 ms Prozessorzeit je Spielbild, 1.1.5 8,45/8,37/8,50 ms; GX-Kern 3,5–3,6 gegen 3,4–3,5 ms je
+  Bild, gleiche Zeichenmenge (30.764 Ecken). Kein Unterschied.
+- Sein Protokoll: das Spiel selbst bleibt bei 33,4 ms je Bild (16–22 ms frei, auch bei 633–883 MHz). Das Gerät hält die
+  Takte tief, obwohl Android „keine Hitze“ meldet: Kerne 4–6 erlaubt 883 von 2496 MHz (GLES-Lauf), Kern 7 (Render-Thread)
+  1401 von 2918 MHz; der Leistungshinweis (ADPF) bekommt keine Sitzung. Dann GX-Läufe von 30–40 ms zwischen 6-ms-Läufen,
+  Zwischenbilder ausgelassen und 6 Pausen (GLES); Vulkan im selben Raum Spitzen 10–19 ms, 0 Pausen. Keine neuen
+  Shader im Kampf (11.290 vorbereitet), Texturen 314 → 1303.
+- Neu (`core_mode.cpp` `longRunLine`): ein GX-Lauf über 25 ms im Spiel bekommt eine eigene Zeile „GX long run N“ mit
+  Zeichnungen, dekodierten Texturen (Mipmaps-, HD-Zeit), gebauten Programmen, Laden, EFB-Kopien, der Prozessorzeit des
+  Render-Threads neben der Wandzeit, der GPU-Zeit (wenn gemessen) und dem Takt seines Kerns jetzt/erlaubt (die ersten 40,
+  dann jeder 25.). Skripte `116-perftrees.sh`, `116-perf.sh`, `116-perfcheck.sh`, `116-gxstats.py` im Notizordner.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

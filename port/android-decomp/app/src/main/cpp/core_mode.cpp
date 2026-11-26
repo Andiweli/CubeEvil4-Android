@@ -2017,6 +2017,29 @@ void minimapDraw(int format, unsigned xh, bool wide) {
   glViewport(0, 0, width, height);
 }
 
+// 1.1.6 (a user's Poco F5 with drops in fights since 1.1.5): one line for a long Run of the renderer (over 25 ms while
+// playing, the first 40, then every 25th): its draws, the textures decoded in it and their time (mipmaps, HD), the
+// programs or pipelines made, the EFB copies, the render thread's processor time beside the wall time (much less:
+// it waited, for the GPU or the driver; about the same: it computed), the GPU's time when the driver measures it, and
+// its core's clock now and the clock it may reach. Which of them grows with the run says what to look at next.
+void longRunLine(double ms, long long cpuNs, const re4gx::GxStats &a, const re4gx::GxStats &b) {
+  static unsigned count = 0;
+  count++;
+  if (count > 40 && count % 25 != 0) return;
+  const int cpu = sched_getcpu();
+  const unsigned now = cpu >= 0 ? re4cpu::CurrentKHz(cpu) / 1000 : 0, allowed = cpu >= 0 ? re4cpu::AllowedKHz(cpu) / 1000 : 0;
+  char gpu[40] = "not measured";
+  if (b.gpuTimed > a.gpuTimed)
+    std::snprintf(gpu, sizeof(gpu), "%.1f ms", (b.gpuMicros - a.gpuMicros) / 1000.0 / (b.gpuTimed - a.gpuTimed));
+  LOG("GX long run %u: %.1f ms (the render thread computed %.1f ms of it) in r%03x, %u draws, %u textures decoded "
+      "(mipmaps %.1f ms, HD %.1f ms), %u programs made (%u from the cache), %.1f ms loading, %u EFB copies, GPU %s; "
+      "core %d at %u of %u MHz",
+      count, ms, cpuNs / 1e6, frame.room, b.draws - a.draws, b.textures - a.textures, (b.mipUs - a.mipUs) / 1000.0,
+      (b.hdUploadUs + b.hdReadUs + b.hdKeyUs - a.hdUploadUs - a.hdReadUs - a.hdKeyUs) / 1000.0, b.programs - a.programs,
+      b.programsLoaded - a.programsLoaded, (b.loadUs - a.loadUs) / 1000.0, b.textureCopies - a.textureCopies, gpu, cpu,
+      now, allowed);
+}
+
 // Runs the chunks the core has finished and shows the latest display copy.
 // False while there is nothing to show yet (the caller draws the bridge).
 // The benchmark's level on the renderer (no in-between picture across the change); each level gets its own chance
@@ -2473,6 +2496,8 @@ bool drawGx() {
   // instead of skipping pictures)
   const auto now = std::chrono::steady_clock::now();
   const long long cpuNow = re4cpu::ThreadNs();
+  // 1.1.6: the renderer's counters before this chunk, for the line of a long Run (longRunLine)
+  const re4gx::GxStats statsBefore = gx ? gx->Stats() : re4gx::GxStats{};
   if (gxSince.time_since_epoch().count() == 0) gxSince = now;
   gxFrames++;
   // diagnosis (RE4_GX_DUMP_DIR, RE4_GX_DUMP_EVERY seconds, at most 6): the
@@ -3028,6 +3053,10 @@ bool drawGx() {
     if (ms + 1.0 < kPrewarmMenuMs && gameMenuNow()) gx->Prewarm(kPrewarmMenuMs - ms);
     const long long cpuNs = re4cpu::ThreadNs() - cpuNow;
     gxRunCpuNs += cpuNs;
+    // 1.1.6 (a user's Poco F5, 1.1.5: drops in fights; the summary every 300 chunks showed runs of 30 to 40 ms between
+    // 6 ms ones, no new programs): a Run over 25 ms while playing gets a line of its own with what was in it
+    if (ms > 25.0 && ms <= 250.0 && !gameMenuNow() && !benchForcing() && !chunkStill)
+      longRunLine(ms, cpuNs, statsBefore, gx->Stats());
     if (cpuNow)  // (0: no thread clock on this device, no waiting known)
       gxRunWaitMs += std::max(0.0, ms - cpuNs / 1e6);
     gxRunOnKind[re4cpu::GetLayout().Kind(sched_getcpu())]++;
