@@ -177,6 +177,9 @@
 //   RE4_TEST_CASE_PUT="free+N:ID*NUM[,ID*NUM...]"  N frames after the player is free, NUM of item ID put into the case
 //                          once each (PutInCase, as a found item: onto stacks with room, else a free place; up to
 //                          eight; 1.1.3, the cheat "Stack items")
+//   RE4_TEST_CASE_SIZE="free+N:S"  N frames after the player is free, the case grows to size S (0 S .. 3 XL) when it is
+//                          opened next, as the shop sets it for a bought case (with RE4_TEST_ITEM_GET of its item: a
+//                          case L before the cheat "Attaché case XL", 1.1.6)
 //   RE4_TEST_ITEM_GET="free+N:ID[,ID...]"  N frames after the player is free, the items ID (0x.., up to eight) are
 //                          got as the game gives a prize (cItemMgr::get(id, 0): key items and treasures too, the
 //                          shooting gallery's bottle caps 0xDC..0xF3; patch 0246, 21.11.2026); from then on a
@@ -752,6 +755,8 @@ int g_itemUseId;
 long g_itemLoseAfter[8] = {-1, -1, -1, -1, -1, -1, -1, -1};  // RE4_TEST_ITEM_LOSE (up to eight)
 long g_fillAfter = -1;       // RE4_TEST_FILL_CASE
 long g_itemGetAfter = -1;    // RE4_TEST_ITEM_GET
+long g_caseSizeAfter = -1;   // RE4_TEST_CASE_SIZE (1.1.6)
+int g_caseSize = -1;
 bool g_itemGetWatch = false;  // (the scenario flag word 1 watched from then on)
 u32 g_itemGetFlags = 0;
 long g_atExecAfter[4] = {-1, -1, -1, -1};  // RE4_TEST_AT_EXEC
@@ -2417,6 +2422,13 @@ void frame(unsigned n)
                     (unsigned) ItemMgr.num(g_itemGetId[k]));
         }
     }
+    if (g_caseSizeAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_caseSizeAfter) {
+        // as the shop sets it for a bought case (ss_shop.cpp): the case grows when it is opened next
+        g_caseSizeAfter = -1;
+        SubScreenWk.board_next = (s8) g_caseSize;
+        re4_log("run: the case grows to %d when opened next (RE4_TEST_CASE_SIZE) at frame %u, now %d", g_caseSize, n,
+                (int) SubScreenWk.board_size);
+    }
     if (g_shopAfter >= 0 && g_freeAt >= 0 && (long) n >= g_freeAt + g_shopAfter) {
         g_shopAfter = -1;
         const int opened = SubScreenOpen(SS_OPEN_SHOP, 0);
@@ -3119,6 +3131,16 @@ void configure()
             }
             if (g_itemGetId[0] < 0) {
                 g_itemGetAfter = -1;
+            }
+        }
+    }
+    if (const char* cs = getenv("RE4_TEST_CASE_SIZE")) {
+        if (strncmp(cs, "free+", 5) == 0) {
+            char* end = 0;
+            g_caseSizeAfter = strtol(cs + 5, &end, 10);
+            g_caseSize = end && *end == ':' ? (int) strtol(end + 1, 0, 0) : -1;
+            if (g_caseSize < 0 || g_caseSize > 3) {
+                g_caseSizeAfter = -1;
             }
         }
     }

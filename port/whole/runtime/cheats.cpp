@@ -32,7 +32,8 @@
 //                       does not take it back; the next save writes it to the card (system file)
 // Three buttons (decision 1: they change what the next save holds), Leon only, outside sub screens:
 //   1 Killer7 with the highest levels 3/1/3/3 (item 0x2A, stored as level - 1), magazine full
-//   2 attache case L (item 0x7E; the case grows when it is opened next, as after buying it)
+//   2 attache case XL (item 0x7F, the largest; 1.1.6, the project owner: before, L; the smaller cases 0x7C..0x7E go;
+//     the case grows when it is opened next, as after buying it, its items keep their places)
 //   3 +1 000 000 pesetas (addMoney: at most 99 999 999; decision 2)
 //   5..9 more weapons at their highest levels (wish of the project owner, 01.11.2026; kGifts): Handcannon,
 //     Chicago Typewriter, the endless rocket launcher, the Mine Thrower with its scope, Matilda
@@ -163,7 +164,7 @@ const char* actionName(int what)
     }
     switch (what) {
     case 2:
-        return "attache case L";
+        return "attache case XL";
     case 3:
         return "+1000000 pesetas";
     case 4:
@@ -1370,19 +1371,20 @@ int re4CheatPerform(int what)
         break;
     }
     case 2:
-        if (ItemMgr.search(0x7E) || ItemMgr.search(0x7F)) {
-            re4_log("cheat: %s: the case is L or XL already", actionName(what));
+        if (ItemMgr.search(0x7F)) {
+            re4_log("cheat: %s: the case is XL already", actionName(what));
             return 2;
         }
         ItemMgr.dump(0x7C);
         ItemMgr.dump(0x7D);
-        if (!ItemMgr.get(0x7E, 0)) {
+        ItemMgr.dump(0x7E);
+        if (!ItemMgr.get(0x7F, 0)) {
             re4_log("cheat: %s: no free slot in the inventory", actionName(what));
             return -1;
         }
-        // as after buying it (ss_shop.cpp buyItem): the case grows when it is opened next
-        SubScreenWk.board_next = 2;
-        re4_log("cheat: %s added (case size %d, grows to 2 when opened)", actionName(what), SubScreenWk.board_size);
+        // as after buying it (ss_shop.cpp buyItem, 0x7F: board_next 3): the case grows to XL when it is opened next
+        SubScreenWk.board_next = 3;
+        re4_log("cheat: %s added (case size %d, grows to 3 when opened)", actionName(what), SubScreenWk.board_size);
         break;
     case 3:
         addMoney(1000000);

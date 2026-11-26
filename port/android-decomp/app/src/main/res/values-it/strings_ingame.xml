@@ -392,7 +392,7 @@
     <string name="ingame_cheat_rocket">Lanciarazzi</string>
     <string name="ingame_cheat_mine">Lanciamine</string>
     <string name="ingame_cheat_matilda">Matilda</string>
-    <string name="ingame_cheat_case">Valigetta L</string>
+    <string name="ingame_cheat_case">Valigetta XL</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Impila oggetti</string>
     <string name="ingame_cheat_stack_help">Impila oggetti: munizioni, granate, erbe e le loro miscele, spray di pronto soccorso, pesci e uova si impilano fino a 250, 500 o 999 in uno spazio (Standard: i limiti del gioco). Una granata o un’erba singola non mostra il numero. Mescolare un’erba presa da una pila mette la miscela su una pila di quella miscela o in uno spazio libero della valigetta (nessuno spazio: non si mescola nulla). Armi, tesori e oggetti chiave restano come nel gioco. Se poi scegli meno, le pile più grandi restano e si consumano una alla volta; ciò che raccogli dopo occupa uno spazio nuovo.</string>
@@ -404,7 +404,7 @@
     <string name="ingame_cheat_merchant_weapons">Tutte le armi dal mercante</string>
     <string name="ingame_cheat_merchant_tunes">Tutti i potenziamenti dal mercante</string>
     <string name="ingame_cheat_merchant_help">Tutte le armi / potenziamenti dal mercante: dalla prossima visita il mercante vende ogni arma e offre ogni livello di potenziamento, esclusivi compresi, ai suoi prezzi normali (un livello alla volta). Ciò che compri resta nel salvataggio; l’offerta in sé no.</string>
-    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; i salvataggi non li conservano. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). Invisibilità: i nemici ti ignorano, i boss e le scene fisse no. Mira stabile: il laser e il mirino telescopico non oscillano. Costumi: Giacca di Leon fa indossare a Leon la giacca marrone per tutto il gioco; Speciale veste Leon e Ashley con i loro costumi speciali. I pulsanti cambiano la partita: le armi, la valigetta e il denaro restano nel prossimo salvataggio. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale.</string>
+    <string name="ingame_cheats_help">Gli interruttori restano attivi finché non li spegni; i salvataggi non li conservano. Alcuni attacchi uccidono ancora Leon all’istante (motosega, presa, masso). Invisibilità: i nemici ti ignorano, i boss e le scene fisse no. Mira stabile: il laser e il mirino telescopico non oscillano. Costumi: Giacca di Leon fa indossare a Leon la giacca marrone per tutto il gioco; Speciale veste Leon e Ashley con i loro costumi speciali. I pulsanti cambiano la partita: le armi, la valigetta e il denaro restano nel prossimo salvataggio. Sblocca giochi extra aggiunge Assignment Ada e The Mercenaries al menu principale. Valigetta XL ti dà la valigetta più grande; i tuoi oggetti vi mantengono il loro posto.</string>
     <string name="ingame_cheat_done">Fatto: %1$s.</string>
     <string name="ingame_cheat_already">Già presente: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s già presente: ora ai livelli massimi.</string>

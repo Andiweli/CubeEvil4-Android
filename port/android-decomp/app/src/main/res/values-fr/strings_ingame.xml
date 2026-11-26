@@ -394,7 +394,7 @@
     <string name="ingame_cheat_rocket">Lance-roquettes</string>
     <string name="ingame_cheat_mine">Lance-mines</string>
     <string name="ingame_cheat_matilda">Matilda</string>
-    <string name="ingame_cheat_case">Mallette L</string>
+    <string name="ingame_cheat_case">Mallette XL</string>
     <string name="ingame_cheat_money">+1 000 000 PTAS</string>
     <string name="ingame_cheat_stack">Empiler les objets</string>
     <string name="ingame_cheat_stack_help">Empiler les objets\u00A0: les munitions, les grenades, les herbes et leurs mélanges, les sprays de premiers soins, les poissons et les œufs s’empilent jusqu’à 250, 500 ou 999 dans une case (Standard\u00A0: les limites du jeu). Une grenade ou une herbe seule n’affiche pas de nombre. Mélanger une herbe prise dans une pile place le mélange sur une pile de ce mélange ou dans une case libre de la mallette (pas de place\u00A0: rien n’est mélangé). Les armes, les trésors et les objets clés restent comme dans le jeu. Si vous choisissez moins ensuite, les piles plus grandes restent et s’utilisent une par une\u00A0; ce que vous ramassez ensuite prend une nouvelle case.</string>
@@ -406,7 +406,7 @@
     <string name="ingame_cheat_merchant_weapons">Toutes les armes chez le marchand</string>
     <string name="ingame_cheat_merchant_tunes">Toutes les améliorations chez le marchand</string>
     <string name="ingame_cheat_merchant_help">Toutes les armes / améliorations chez le marchand\u00A0: dès votre prochaine visite, le marchand vend toutes les armes et propose tous les niveaux d’amélioration, exclusifs compris, à ses prix normaux (un niveau à la fois). Ce que vous achetez reste dans votre sauvegarde\u00A0; l’offre elle-même non.</string>
-    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez\u00A0; les sauvegardes ne les gardent pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Invisibilité\u00A0: les ennemis vous ignorent, pas les boss ni les scènes scriptées. Visée stable\u00A0: le laser et la lunette n’oscillent pas. Costumes\u00A0: Veste de Leon garde à Leon sa veste marron pendant tout le jeu\u00A0; Spécial habille Leon et Ashley de leurs tenues spéciales. Les boutons modifient votre partie\u00A0: les armes, la mallette et l’argent restent dans votre prochaine sauvegarde. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre.</string>
+    <string name="ingame_cheats_help">Les interrupteurs restent actifs jusqu’à ce que vous les désactiviez\u00A0; les sauvegardes ne les gardent pas. Certaines attaques tuent toujours Leon sur le coup (tronçonneuse, étranglement, rocher). Invisibilité\u00A0: les ennemis vous ignorent, pas les boss ni les scènes scriptées. Visée stable\u00A0: le laser et la lunette n’oscillent pas. Costumes\u00A0: Veste de Leon garde à Leon sa veste marron pendant tout le jeu\u00A0; Spécial habille Leon et Ashley de leurs tenues spéciales. Les boutons modifient votre partie\u00A0: les armes, la mallette et l’argent restent dans votre prochaine sauvegarde. Débloquer les jeux bonus ajoute Assignment Ada et The Mercenaries au menu titre. Mallette XL vous donne la plus grande mallette\u00A0; vos objets y gardent leur place.</string>
     <string name="ingame_cheat_done">Fait : %1$s.</string>
     <string name="ingame_cheat_already">Déjà là : %1$s.</string>
     <string name="ingame_cheat_raised">%1$s déjà possédé : maintenant à ses niveaux maximaux.</string>

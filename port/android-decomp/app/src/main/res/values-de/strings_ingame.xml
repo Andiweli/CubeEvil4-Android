@@ -389,7 +389,7 @@
     <string name="ingame_cheat_rocket">Raketenwerfer</string>
     <string name="ingame_cheat_mine">Minenwerfer</string>
     <string name="ingame_cheat_matilda">Matilda</string>
-    <string name="ingame_cheat_case">Aktenkoffer L</string>
+    <string name="ingame_cheat_case">Aktenkoffer XL</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Gegenstände stapeln</string>
     <string name="ingame_cheat_stack_help">Gegenstände stapeln: Munition, Granaten, Kräuter und ihre Mischungen, Erste-Hilfe-Sprays, Fische und Eier stapeln sich bis 250, 500 oder 999 auf einem Platz (Standard: die Grenzen des Spiels). Eine einzelne Granate oder ein einzelnes Kraut zeigt keine Zahl. Mischt man ein Kraut von einem Stapel, kommt die Mischung auf einen Stapel dieser Mischung oder einen freien Platz im Koffer (kein Platz: es wird nichts gemischt). Waffen, Schätze und Schlüssel bleiben wie im Spiel. Wählt man später weniger, bleiben größere Stapel erhalten und werden Stück für Stück verbraucht; Neues kommt dann auf einen neuen Platz.</string>
@@ -401,7 +401,7 @@
     <string name="ingame_cheat_merchant_weapons">Alle Waffen beim Händler</string>
     <string name="ingame_cheat_merchant_tunes">Alle Tunings beim Händler</string>
     <string name="ingame_cheat_merchant_help">Alle Waffen / Tunings beim Händler: Ab deinem nächsten Besuch verkauft der Händler jede Waffe und bietet jede Tuning-Stufe an, auch die Exklusiv-Upgrades, zu seinen normalen Preisen (Stufen einzeln). Was du kaufst, bleibt in deinem Spielstand; das Angebot selbst nicht.</string>
-    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; Spielstände merken sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Unsichtbarkeit: Gegner beachten dich nicht, Bosse und feste Szenen schon. Atemstopp beim Zielen: Laser und Zielfernrohr wackeln nicht. Kostüme: Leons Jacke lässt Leon das ganze Spiel über seine braune Jacke tragen; Spezial zieht Leon und Ashley ihre Spezialkostüme an. Die Knöpfe ändern dein Spiel: Waffen, Koffer und Geld bleiben im nächsten Spielstand. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü.</string>
+    <string name="ingame_cheats_help">Die Schalter bleiben an, bis du sie ausschaltest; Spielstände merken sie sich nicht. Manche Angriffe töten Leon weiterhin sofort (Kettensäge, Würgegriff, Felsbrocken). Unsichtbarkeit: Gegner beachten dich nicht, Bosse und feste Szenen schon. Atemstopp beim Zielen: Laser und Zielfernrohr wackeln nicht. Kostüme: Leons Jacke lässt Leon das ganze Spiel über seine braune Jacke tragen; Spezial zieht Leon und Ashley ihre Spezialkostüme an. Die Knöpfe ändern dein Spiel: Waffen, Koffer und Geld bleiben im nächsten Spielstand. Extra-Spiele freischalten bringt Assignment Ada und The Mercenaries ins Titelmenü. Aktenkoffer XL gibt dir den größten Koffer; deine Gegenstände behalten darin ihren Platz.</string>
     <string name="ingame_cheat_done">Erledigt: %1$s.</string>
     <string name="ingame_cheat_already">Schon vorhanden: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s schon vorhanden: jetzt auf den höchsten Stufen.</string>

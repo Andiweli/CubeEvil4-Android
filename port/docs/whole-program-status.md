@@ -1085,6 +1085,20 @@ Items, darunter Fotomodus breit).
   19,1/4,7. Bildstreifen `builds/workthread-1.1.6/move-aim-lock/sideways-variant3-strip.png`. Skripte `116-legs.sh`,
   `116-legs-all.sh`, `116-legphoto.sh` im Notizordner.
 
+### 7. Cheat „Aktenkoffer XL“ statt L (Wunsch des Projektinhabers)
+
+**OK des Projektinhabers (27.11.2026, „XL Koffer passt“).**
+
+- `runtime/cheats.cpp` Knopf 2: gibt 0x7F (XL) statt 0x7E (L), nimmt 0x7C/0x7D/0x7E weg, `board_next = 3` wie
+  `ss_shop.cpp` für einen gekauften XL-Koffer; lehnt nur ab, wenn XL schon da ist. Raumstart (`SubScreenRoomInit`)
+  ordnet 0x7F Größe 3 zu, der Händler verkauft 0x7F: XL ist eine normale Größe. Wachsen baut das Gitter neu
+  (`CaseChange`), die Gegenstände behalten ihre Plätze.
+- Neuer PC-Schalter `RE4_TEST_CASE_SIZE="free+N:S"` (`state_trace.cpp`): die nächste Koffergröße wie nach einem Kauf.
+- **Geprüft am PC** (Debug-Start r10f, `RE4_TRACE_ITEMS`): von S (Größe 0) und von L (Größe 2) wird der Koffer beim
+  Öffnen XL; Pistole (2,1), Munition (7,0), Kraut (6,3) und die übrigen Gegenstände unverändert. Knopf und ein Satz
+  in der Hilfe in 11 Sprachen, Zeile in v1.1.6.md. Bilder `builds/workthread-1.1.6/case-xl`. Skripte `116-casexl.sh`,
+  `116-casesheet.sh`.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

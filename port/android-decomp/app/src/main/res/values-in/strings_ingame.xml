@@ -385,7 +385,7 @@
     <string name="ingame_cheat_rocket">Peluncur Roket</string>
     <string name="ingame_cheat_mine">Pelontar Ranjau</string>
     <string name="ingame_cheat_matilda">Matilda</string>
-    <string name="ingame_cheat_case">Koper L</string>
+    <string name="ingame_cheat_case">Koper XL</string>
     <string name="ingame_cheat_money">+1.000.000 PTAS</string>
     <string name="ingame_cheat_stack">Tumpuk item</string>
     <string name="ingame_cheat_stack_help">Tumpuk item: amunisi, granat, herba dan campurannya, semprotan P3K, ikan, dan telur bertumpuk hingga 250, 500, atau 999 dalam satu slot (Standar: batas permainan). Granat atau herba tunggal tidak menampilkan angka. Mencampur herba dari tumpukan menaruh campurannya di tumpukan campuran yang sama atau di tempat kosong di koper (tidak ada tempat: tidak dicampur). Senjata, harta karun, dan item kunci tetap seperti di permainan. Jika nanti memilih lebih kecil, tumpukan besar tetap ada dan terpakai satu per satu; barang yang diambil sesudahnya menempati slot baru.</string>
@@ -397,7 +397,7 @@
     <string name="ingame_cheat_merchant_weapons">Semua senjata di pedagang</string>
     <string name="ingame_cheat_merchant_tunes">Semua tuning di pedagang</string>
     <string name="ingame_cheat_merchant_help">Semua senjata / tuning di pedagang: mulai kunjungan berikutnya pedagang menjual semua senjata dan menawarkan semua level tuning, termasuk upgrade eksklusif, dengan harga biasanya (satu level setiap kali). Yang kamu beli tetap di save; penawarannya sendiri tidak.</string>
-    <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; simpanan tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tak terlihat: musuh mengabaikan Anda, tetapi bos dan adegan tertentu tidak. Bidikan stabil: laser dan teropong senapan tidak bergoyang. Kostum: Jaket Leon membuat Leon memakai jaket cokelatnya sepanjang permainan; Spesial memakaikan Leon dan Ashley kostum spesial mereka. Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul.</string>
+    <string name="ingame_cheats_help">Sakelar tetap aktif sampai Anda menonaktifkannya; simpanan tidak menyimpannya. Beberapa serangan tetap langsung membunuh Leon (gergaji mesin, cengkeraman, batu besar). Tak terlihat: musuh mengabaikan Anda, tetapi bos dan adegan tertentu tidak. Bidikan stabil: laser dan teropong senapan tidak bergoyang. Kostum: Jaket Leon membuat Leon memakai jaket cokelatnya sepanjang permainan; Spesial memakaikan Leon dan Ashley kostum spesial mereka. Tombol-tombol mengubah permainan Anda: senjata, koper, dan uang tetap ada di simpanan berikutnya. Buka game tambahan menambahkan Assignment Ada dan The Mercenaries ke menu judul. Koper XL memberimu koper terbesar; barang-barangmu tetap di tempatnya.</string>
     <string name="ingame_cheat_done">Selesai: %1$s.</string>
     <string name="ingame_cheat_already">Sudah ada: %1$s.</string>
     <string name="ingame_cheat_raised">%1$s sudah dimiliki: kini di tingkat tertingginya.</string>

@@ -387,7 +387,7 @@
     <string name="ingame_cheat_rocket">火箭筒</string>
     <string name="ingame_cheat_mine">地雷发射器</string>
     <string name="ingame_cheat_matilda">Matilda</string>
-    <string name="ingame_cheat_case">手提箱 L</string>
+    <string name="ingame_cheat_case">手提箱 XL</string>
     <string name="ingame_cheat_money">+1,000,000 PTAS</string>
     <string name="ingame_cheat_stack">物品堆叠</string>
     <string name="ingame_cheat_stack_help">物品堆叠：弹药、手榴弹、草药及其混合、急救喷雾、鱼和蛋在一格中最多堆叠 250、500 或 999 个（标准：游戏自身的上限）。单个手榴弹或草药不显示数字。用堆叠中的草药混合时，混合物会叠到同种混合物上或放到箱子里的空位（没有空位：不混合）。武器、宝物和关键道具保持游戏原样。之后选择较小的值时，较大的堆叠会保留并逐个消耗；之后拾取的物品会占用新格子。</string>
@@ -399,7 +399,7 @@
     <string name="ingame_cheat_merchant_weapons">商人出售全部武器</string>
     <string name="ingame_cheat_merchant_tunes">商人提供全部改造</string>
     <string name="ingame_cheat_merchant_help">商人出售全部武器 / 提供全部改造：从你下一次光顾起，商人出售所有武器并提供所有改造等级（包括专属改造），价格照常（每次一级）。你买到的东西会保留在存档中；这份货单本身不会。</string>
-    <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。隐身：敌人无视你，首领和固定剧情则不会。稳定瞄准：激光和瞄准镜不会晃动。服装：“里昂的夹克”让里昂整个游戏都穿着棕色夹克；“特别”让里昂和阿什莉穿上各自的特殊服装。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。解锁额外游戏会把 Assignment Ada 和 The Mercenaries 加入标题菜单。</string>
+    <string name="ingame_cheats_help">开关会一直保持开启，直到你关闭它们；存档不会记住它们。有些攻击仍会立即杀死里昂（电锯、擒抱、滚石）。隐身：敌人无视你，首领和固定剧情则不会。稳定瞄准：激光和瞄准镜不会晃动。服装：“里昂的夹克”让里昂整个游戏都穿着棕色夹克；“特别”让里昂和阿什莉穿上各自的特殊服装。按钮会改变你的游戏：武器、手提箱和金钱会保留在下一次存档中。解锁额外游戏会把 Assignment Ada 和 The Mercenaries 加入标题菜单。手提箱 XL 给你最大的手提箱；物品保持原来的位置。</string>
     <string name="ingame_cheat_done">完成：%1$s。</string>
     <string name="ingame_cheat_already">已经有了：%1$s。</string>
     <string name="ingame_cheat_raised">已有 %1$s：现已升到最高等级。</string>
