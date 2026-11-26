@@ -125,6 +125,8 @@ final class CoreMenu extends Dialog {
     void quickReloadChanged(boolean on);
     /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's (CoreBridge.setGentleQte). */
     void gentleQteChanged(boolean on);
+    /** "Rapid fire" (1.1.6, Assists; CoreActivity.RAPID_FIRE holds it): the guns fire twice as fast. */
+    void rapidFireChanged(boolean on);
     /** The cheat "Costumes · Leon's jacket" (1.0): Leon keeps his brown jacket (CoreBridge.setLeonJacket). */
     void leonJacketChanged(boolean on);
     /** The European discs are imported: the home page offers "Game language". */
@@ -1409,8 +1411,12 @@ final class CoreMenu extends Dialog {
     // just about with a controller"): on by default, at the comfort controls' end
     toggle(lastRow, R.string.ingame_gentle_qte,
         input.getBoolean(CoreActivity.GENTLE_QTE, CoreActivity.GENTLE_QTE_DEFAULT), on -> host.gentleQteChanged(on));
+    // "Rapid fire" beside it (1.1.6, wish of the project owner: every playable character's guns twice as fast), off
+    toggle(lastRow, R.string.ingame_rapid_fire, input.getBoolean(CoreActivity.RAPID_FIRE, false),
+        on -> host.rapidFireChanged(on));
     help(R.string.ingame_alternate_help); help(R.string.ingame_latch_help); help(R.string.ingame_auto_aim_help);
-    help(R.string.ingame_always_run_help); help(R.string.ingame_gentle_qte_help); help(R.string.ingame_aim_help);
+    help(R.string.ingame_always_run_help); help(R.string.ingame_gentle_qte_help); help(R.string.ingame_rapid_fire_help);
+    help(R.string.ingame_aim_help);
     help(R.string.ingame_body_turn_help);
     help(R.string.ingame_knife_swipe_help);
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section

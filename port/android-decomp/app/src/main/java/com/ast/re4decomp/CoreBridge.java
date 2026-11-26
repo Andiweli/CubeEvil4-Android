@@ -146,6 +146,9 @@ public final class CoreBridge {
   /** The cheat "Bloody mode" (1.1.3, Cheats & Mods): blood pools on the floor stay until the room changes (patch 0258,
    *  runtime/bloody.cpp). */
   public static native void setBloody(boolean on);
+  /** "Rapid fire" (1.1.6, Controls): the guns of every playable character fire twice as fast (patch 0263,
+   *  runtime/rapid_fire.cpp). */
+  public static native void setRapidFire(boolean on);
   /** The cheats "All weapons at the merchant" (bit 0) and "All tune-ups at the merchant" (bit 1) (1.1.3, Cheats & Mods;
    *  patch 0259): the merchant offers them from the next shop visit, never saved with the game. */
   public static native void setMerchantAll(int bits);

@@ -153,6 +153,8 @@
     <string name="ingame_body_turn_speed">Velocidade de giro</string>
     <string name="ingame_gentle_qte">QTEs mais suaves (Professional)</string>
     <string name="ingame_gentle_qte_help">QTEs mais suaves: no Professional, os eventos de botão dão tanto tempo e pedem tantos toques quanto no Normal; o dano e os inimigos continuam os do Professional. Um dedo na imagem aperta na hora os botões de um aviso, em qualquer dificuldade.</string>
+    <string name="ingame_rapid_fire">Tiro rápido</string>
+    <string name="ingame_rapid_fire_help">Tiro rápido: todas as armas de fogo disparam duas vezes mais rápido, para cada personagem jogável (pistolas, escopetas, rifles, metralhadoras, lançadores). Recarga, munição e dano continuam iguais; a faca e as granadas não mudam.</string>
     <string name="ingame_far_camera_help">Mantém a câmara de ombro um pouco mais atrás de Leon; ao mirar e em lugares apertados ela se aproxima como antes.</string>
     <string name="ingame_touch_aim">Mira por toque</string>
     <string name="ingame_aim_move_stick">Analógico de movimento</string>

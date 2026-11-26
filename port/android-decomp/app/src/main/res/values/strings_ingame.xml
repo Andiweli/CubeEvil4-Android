@@ -163,6 +163,8 @@
     <string name="ingame_body_turn_speed">Turn speed</string>
     <string name="ingame_gentle_qte">Gentler QTEs (Professional)</string>
     <string name="ingame_gentle_qte_help">Gentler QTEs: in Professional the quick-time events give as much time and need as many presses as in Normal; damage and enemies stay Professional\'s. A finger on the picture presses a prompt\'s buttons at once, in every difficulty.</string>
+    <string name="ingame_rapid_fire">Rapid fire</string>
+    <string name="ingame_rapid_fire_help">Rapid fire: every gun fires twice as fast, for every playable character (handguns, shotguns, rifles, machine guns, launchers). Reloading, ammo and damage stay as they are; the knife and grenades are unchanged.</string>
     <string name="ingame_far_camera_help">Keeps the shoulder camera a little further behind Leon; when aiming and in tight spots it comes close as before.</string>
     <string name="ingame_touch_aim">Touch Aiming</string>
     <string name="ingame_aim_move_stick">Move Stick</string>

@@ -152,6 +152,8 @@
     <string name="ingame_body_turn_speed">Скорость поворота</string>
     <string name="ingame_gentle_qte">Мягкие QTE (Professional)</string>
     <string name="ingame_gentle_qte_help">Мягкие QTE: в Professional события с кнопками дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional. Палец на изображении сразу нажимает кнопки подсказки, на любой сложности.</string>
+    <string name="ingame_rapid_fire">Быстрая стрельба</string>
+    <string name="ingame_rapid_fire_help">Быстрая стрельба: любое огнестрельное оружие стреляет вдвое быстрее, у каждого играбельного персонажа (пистолеты, дробовики, винтовки, пистолеты-пулемёты, гранатомёты). Перезарядка, патроны и урон не меняются; нож и гранаты остаются прежними.</string>
     <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона; при прицеливании и в тесных местах она приближается, как раньше.</string>
     <string name="ingame_touch_aim">Прицеливание касанием</string>
     <string name="ingame_aim_move_stick">Стик движения</string>

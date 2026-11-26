@@ -138,6 +138,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   static final String AUTO_AIM = "autoAim", ALWAYS_RUN = "alwaysRun", FAR_CAMERA = "farCamera";
   /** "Gentler QTEs" (0.99.15): Professional's quick-time events as Normal's; on by default. */
   static final String GENTLE_QTE = "gentleQte";
+  /** "Rapid fire" (1.1.6, INPUT_PREFS; CoreBridge.setRapidFire, patch 0263): the guns fire twice as fast; off. */
+  static final String RAPID_FIRE = "rapidFire";
   /** "Turn Leon with mouse / look area" (1.0): the movement sideways turns Leon himself (CoreInput.setBodyTurn); off. */
   static final String BODY_TURN = "bodyTurn";
   // "Reload without aiming" (1.1.0, keyboard; INPUT_PREFS): the reload key alone reloads (CoreBridge.quickReload)
@@ -600,6 +602,9 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.sendSoundVolume(g);
       CoreBridge.setAim(aimInvert, aimSpeed, autoAim, alwaysRun);
       CoreBridge.setGentleQte(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(GENTLE_QTE, GENTLE_QTE_DEFAULT));
+      boolean rapid = getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(RAPID_FIRE, false);
+      if (rapid) Log.i(TAG, "rapid fire on");
+      CoreBridge.setRapidFire(rapid);
       // the cheat switches kept from the last run (a test script's RE4_CHEATS wins)
       int cheats = getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(CHEATS, 0);
       if (!settings.contains("RE4_CHEATS=")) {
@@ -1387,6 +1392,12 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(GENTLE_QTE, on).apply();
       CoreBridge.setGentleQte(on);
       Log.i(TAG, "gentler QTEs " + (on ? "on: Professional's quick-time events as Normal's" : "off"));
+    }
+
+    @Override public void rapidFireChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(RAPID_FIRE, on).apply();
+      CoreBridge.setRapidFire(on);
+      Log.i(TAG, "rapid fire " + (on ? "on: the guns fire twice as fast" : "off"));
     }
 
     @Override public void stickShapeChanged(int deadZone, int range) {

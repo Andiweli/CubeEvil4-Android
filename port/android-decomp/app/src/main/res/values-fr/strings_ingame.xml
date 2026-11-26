@@ -154,6 +154,8 @@
     <string name="ingame_body_turn_speed">Vitesse de rotation</string>
     <string name="ingame_gentle_qte">QTE plus doux (Professional)</string>
     <string name="ingame_gentle_qte_help">QTE plus doux\u00A0: en Professional, les séquences de boutons laissent autant de temps et demandent autant d’appuis qu’en Normal\u00A0; les dégâts et les ennemis restent ceux de Professional. Un doigt sur l’image appuie aussitôt sur les boutons d’une invite, dans toutes les difficultés.</string>
+    <string name="ingame_rapid_fire">Tir rapide</string>
+    <string name="ingame_rapid_fire_help">Tir rapide : chaque arme à feu tire deux fois plus vite, pour chaque personnage jouable (pistolets, fusils à pompe, fusils, mitraillettes, lanceurs). Le rechargement, les munitions et les dégâts ne changent pas ; le couteau et les grenades restent identiques.</string>
     <string name="ingame_far_camera_help">Garde la caméra d’épaule un peu plus loin derrière Leon\u00A0; en visant et dans les endroits étroits, elle se rapproche comme avant.</string>
     <string name="ingame_touch_aim">Visée tactile</string>
     <string name="ingame_aim_move_stick">Stick de déplacement</string>

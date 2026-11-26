@@ -152,6 +152,8 @@
     <string name="ingame_body_turn_speed">Drehgeschwindigkeit</string>
     <string name="ingame_gentle_qte">Sanftere QTEs (Professional)</string>
     <string name="ingame_gentle_qte_help">Sanftere QTEs: In Professional lassen die Tastenaufforderungen so viel Zeit und brauchen so viele Drücke wie in Normal; Schaden und Gegner bleiben wie in Professional. Ein Finger auf dem Bild drückt die Tasten einer Aufforderung sofort, in jedem Schwierigkeitsgrad.</string>
+    <string name="ingame_rapid_fire">Schnellfeuer</string>
+    <string name="ingame_rapid_fire_help">Schnellfeuer: Jede Schusswaffe feuert doppelt so schnell, für jede spielbare Figur (Pistolen, Schrotflinten, Gewehre, Maschinenpistolen, Werfer). Nachladen, Munition und Schaden bleiben gleich; Messer und Granaten ändern sich nicht.</string>
     <string name="ingame_far_camera_help">Hält die Schulterkamera etwas weiter hinter Leon; beim Zielen und an engen Stellen kommt sie wie bisher nah heran.</string>
     <string name="ingame_touch_aim">Touch-Zielen</string>
     <string name="ingame_aim_move_stick">Bewegungsstick</string>

@@ -930,6 +930,34 @@ Release und Tag macht der Projektinhaber auf GitHub.
   der Log-Weg mit den Werten des Nutzers: Drehung x 1.51 wird links/rechts 1.51, hoch/runter −0.21). Alle 252
   App-Unit-Tests grün, Lint ohne Fehler. Auf dem RG477M nicht geprüft.
 
+### 2. „Schnellfeuer“ / „Rapid fire“ (Wunsch des Projektinhabers; Patch 0263, `runtime/rapid_fire.cpp`)
+
+**OK des Projektinhabers 26.11.2026** (Platz, Texte, Verhalten; bleibt auch im Schießstand an).
+
+- Schalter unter STEUERUNG → KOMFORTSTEUERUNG → Erleichterungen, rechts neben „Sanftere QTEs (Professional)“, aus
+  ab Werk (INPUT_PREFS `rapidFire`, Bit 30 der Ziel-Bits, `re4_rapid_fire_set`; PC: `RE4_TEST_AIM` Bit 30). Texte in
+  11 Sprachen.
+- Wie das Spiel einen Schuss zeitlich steuert: (a) Waffen mit Wartezeit: Pistolen und Magnums (`pl_handgun.cpp`, das
+  Rückstoß-Bild `PlShotFrameTbl − 2`, die Tabelle des Feuerrate-Tunings), Matilda und Red9 (`wep17.cpp`, Bild 3 zur
+  nächsten Salvenkugel, 11 zum Ende), Maschinenpistolen (`pl_machine.cpp`, 3 Bilder je Kugel), die Zähler der Gewehre
+  (`pl_rifle.cpp` `m_Work4`). Dort wird die Wartezeit halbiert, wie das Tuning sie verkürzt; die Rückstoß-Bewegung
+  läuft normal und beginnt beim nächsten Schuss früher neu. Die 3 Bilder der Maschinenpistolen lassen sich bei 30
+  Bildern/s nicht halbieren: jede zweite Kugel kommt im Bild, in dem ihre Wartezeit endet (`re4_rapid_fire_now`),
+  abwechselnd 1 und 2 Bilder. (b) Waffen, deren nächster Schuss auf eine Handbewegung wartet (Pumpe der Schrotflinte,
+  Kammerstängel, Raketenwerfer, Bogen, Minenwerfer): diese Bewegung (die des Spielers und die des Waffenmodells) läuft
+  im Feuer-Zustand doppelt so schnell (`re4_rapid_fire_begin/_end` um die Routine).
+- Unverändert: Messer, Granaten, leere Hand, Nachladen, Munition (eine Kugel je Schuss), Laser, Ton (ein Schussgeräusch
+  je Schuss), Spielstände (nur eine App-Einstellung).
+- **Geprüft am PC** (i686, Debug-Discs, Waffen Stufe 0, Bilder zwischen zwei Schüssen bei 30/s, aus → an; aus = genau
+  wie vorher): Handfeuerwaffe 14 → 7, Red9 16 → 8, Broken Butterfly 21 → 10, Handcannon 35 → 17, Matilda Salve 4 → 2 und
+  13 → 7, Schrotflinte 41 → 21, Striker 33 → 17, Riot Gun 41 → 21, Kammerstängel-Gewehr 82 → 43, Halbautomatik 55 → 28,
+  TMP 10,2 → 20,0 Kugeln/s, Raketenwerfer (unendlich) 73 → 37, Minenwerfer 41 → 21. Ada und HUNK (TMP) 10,2 → 20,0,
+  Krausers Bogen 39 → 20, Wesker (Handfeuerwaffe) 14 → 7. Messer und Handgranate: Bild für Bild gleich (an/aus).
+  Schießstand r22c (Spiel „Rapid-fire“, TMP aus dem Koffer): Spiel läuft, Ziele und ihre Zeiten an/aus gleich (der Timer
+  unberührt), 50 Kugeln in 148 → 75 Bildern, „Reload Time“ erscheint; Treffer und Punkte nicht geprüft (der Debug-Start
+  stellt Leon nicht an den Tresen, die Ziele liegen außer Schussweite). Kern 0 Fehler, Laufzeit- und Kerntests,
+  252 App-Unit-Tests, Lint. Nicht auf einem Gerät geprüft. Skripte im Notizordner `116-fire*.sh`, `116-gallery.sh`.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

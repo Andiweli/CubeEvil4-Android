@@ -153,6 +153,8 @@
     <string name="ingame_body_turn_speed">Kecepatan putar</string>
     <string name="ingame_gentle_qte">QTE Lebih Ringan (Professional)</string>
     <string name="ingame_gentle_qte_help">QTE Lebih Ringan: di Professional, event quick-time memberi waktu dan meminta jumlah tekanan sama seperti di Normal; kerusakan dan musuh tetap seperti Professional. Jari di gambar langsung menekan tombol perintah, di semua tingkat kesulitan.</string>
+    <string name="ingame_rapid_fire">Tembakan cepat</string>
+    <string name="ingame_rapid_fire_help">Tembakan cepat: setiap senjata api menembak dua kali lebih cepat, untuk setiap karakter yang bisa dimainkan (pistol, shotgun, senapan, senapan mesin, peluncur). Isi ulang, amunisi, dan kerusakan tetap sama; pisau dan granat tidak berubah.</string>
     <string name="ingame_far_camera_help">Menjaga kamera bahu sedikit lebih jauh di belakang Leon; saat membidik dan di tempat sempit kamera mendekat seperti sebelumnya.</string>
     <string name="ingame_touch_aim">Bidik Sentuh</string>
     <string name="ingame_aim_move_stick">Stik Gerak</string>
