@@ -905,6 +905,31 @@ Version 1.1.6 (versionCode 130), Branch `workthread-116` (Worktree `RE4-wt116`, 
 `port/android-decomp/docs/releases/v1.1.6.md`. 1.1.5 ist veröffentlicht (origin/master und Tag 1.1.5 = 219acfda);
 Release und Tag macht der Projektinhaber auf GitHub.
 
+### 1. Gyro-Zielen: Achsen vertauscht (Nutzerbericht, Anbernic RG477M, Android 14)
+
+**Wartet auf Bestätigung durch den Nutzer auf dem Gerät.**
+
+- Bericht `builds/workthread-1.1.6/user-report-20261126-090525-gyro-axes` (Bau mit den Logzeilen aus c7852afd): Gyro
+  des Geräts (`icm4n607_gyro`), Bildschirmdrehung 0, natürliche Ausrichtung Querformat 1280×960, der eingebaute
+  Controller `retrogame_joypad` hat **keinen** Gyro (also nicht der Controller-Weg). Schwerkraft beim normalen Halten
+  `x 9.8, y 0.0, z 1.2` = quer zum Bildschirm statt hoch/runter: der Sensor meldet seine Achsen eine Vierteldrehung
+  gegen die natürliche Ausrichtung (Fall a). Die ersten Drehungen liegen je fast ganz auf x oder y, die App nahm x als
+  hoch/runter: daher die Vertauschung.
+- Behebung, allgemein (nicht an das Gerät gebunden): beim Start des Zuhörens auf den Gyro des Geräts misst GyroAim
+  5 Schwerkraftwerte (Beschleunigungssensor) und `GyroAxes.sensorTurn` wählt die Vierteldrehung (0/90/180/270° um die
+  Achse durch den Bildschirm), die die Schwerkraft in der Bildschirmebene nach „oben“ bringt (wer zielt, hält das Bild
+  aufrecht). Nur wenn eine Achse mindestens doppelt so viel trägt wie die andere und die Ebene ≥ 4 m/s² hat; sonst
+  (flach liegend) bleibt die letzte Entscheidung (anfangs: nicht gedreht). Der Gyro wird damit gedreht, danach wie
+  bisher nach `Display.getRotation` (Drehungen um eine Achse sind vertauschbar). Bis zur Entscheidung (≤ 0,6 s) steht
+  das Zielen still. Gyro eines Controllers unverändert. Logzeilen `the sensor's axes lie 90 degrees from the natural
+  orientation's: turned back by gravity (1.1.6)` bzw. `... are the natural orientation's (not turned)`; die Zeile
+  `device turn` nennt `sensor turn N`.
+- Grenze: wer beim Einschalten auf der Seite liegt (Schwerkraft quer zum Bild), bekommt für diese Sitzung gedrehte
+  Achsen; Ein-/Ausschalten im aufrechten Halten stellt es neu ein.
+- Test `GyroAxesLogTest` (4 Tests: Drehung je Bildschirmdrehung, `sensorTurn` für alle 4 Einbaulagen × 4 Drehungen,
+  der Log-Weg mit den Werten des Nutzers: Drehung x 1.51 wird links/rechts 1.51, hoch/runter −0.21). Alle 252
+  App-Unit-Tests grün, Lint ohne Fehler. Auf dem RG477M nicht geprüft.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

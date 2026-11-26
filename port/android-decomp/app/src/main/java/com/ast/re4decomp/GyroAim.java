@@ -53,6 +53,16 @@ final class GyroAim implements SensorEventListener {
   private Sensor listenSensor;
   private boolean listenPad;
   private int padLines, padTurnLines;
+  // 1.1.6: this device's sensors' quarter turns from the natural orientation (GyroAxes.sensorTurn), from gravity when
+  // the listening starts; kept while gravity does not tell (lying flat). turnDecided false: the aim waits for it (at
+  // most TURN_WAIT_NS)
+  private int sensorTurn;
+  private boolean turnDecided = true;
+  private long listenSinceNs;
+  private SensorEventListener gravityListener;
+  private final float[] turned = new float[3];
+  private static final int GRAVITY_READINGS = 5;
+  private static final long TURN_WAIT_NS = 600_000_000L;
   /** The slider's range and steps (1: the first port's gain). */
   static final float MIN_SENSITIVITY = 0.5f, MAX_SENSITIVITY = 6f, SENSITIVITY_STEP = 0.25f;
   private boolean enabled, listening, resumed;
@@ -204,6 +214,9 @@ final class GyroAim implements SensorEventListener {
 
   private void unregister() {
     if (listenManager != null) listenManager.unregisterListener(this);
+    if (gravityListener != null && sensors != null) sensors.unregisterListener(gravityListener);
+    gravityListener = null;
+    turnDecided = true;
     listenManager = null;
     listenSensor = null;
     listenPad = false;
@@ -235,40 +248,60 @@ final class GyroAim implements SensorEventListener {
         + "; screen rotation " + (rotation * 90) + " degrees, " + size.x + "x" + size.y + " now; natural orientation "
         + (naturalW >= naturalH ? "landscape" : "portrait") + " (" + naturalW + "x" + naturalH + ")");
     final Sensor acc = sensors == null ? null : sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-    if (acc == null) return;
-    sensors.registerListener(new SensorEventListener() {
-      private boolean done;
+    if (acc == null) {
+      Log.i(CoreActivity.TAG, "gyro aiming: no accelerometer, the gyroscope's axes taken as they are"
+          + (sensorTurn != 0 ? " (turned " + (sensorTurn * 90) + " degrees as before)" : ""));
+      return;
+    }
+    // 1.1.6: the mean of the first readings of gravity decides whether this device's sensors lie a quarter turn from
+    // the natural orientation (GyroAxes.sensorTurn); the aim waits for it
+    turnDecided = false;
+    listenSinceNs = SystemClock.elapsedRealtimeNanos();
+    gravityListener = new SensorEventListener() {
+      private final float[] sum = new float[3];
+      private int n;
 
       @Override public void onSensorChanged(SensorEvent e) {
-        if (done || e.values.length < 3) return;
+        if (gravityListener != this || e.values.length < 3) return;
         if (e.sensor != null && e.sensor.getType() != Sensor.TYPE_ACCELEROMETER) return;
-        done = true;
+        for (int i = 0; i < 3; i++) sum[i] += e.values[i];
+        if (++n < GRAVITY_READINGS) return;
         sensors.unregisterListener(this);
-        float[] v = e.values;
+        gravityListener = null;
+        float[] v = {sum[0] / n, sum[1] / n, sum[2] / n};
         // gravity in the screen's terms, as GyroAxes turns the gyroscope: right and up of the screen as shown
         float right = GyroAxes.pitch(rotation, v), up = GyroAxes.yaw(rotation, v);
         Log.i(CoreActivity.TAG, String.format(java.util.Locale.ROOT,
             "gyro aiming: gravity x %.1f, y %.1f, z %.1f m/s2 (the device's axes); along the screen: %.1f across, "
                 + "%.1f up/down, %.1f out (held normally: mostly up/down or out; mostly across: the sensor's axes "
                 + "a quarter turn from the screen's)", v[0], v[1], v[2], right, up, v[2]));
+        int q = GyroAxes.sensorTurn(rotation, v);
+        if (q != GyroAxes.TURN_UNKNOWN) sensorTurn = q;
+        turnDecided = true;
+        Log.i(CoreActivity.TAG, q == GyroAxes.TURN_UNKNOWN
+            ? "gyro aiming: gravity does not tell the sensor's turn (lying flat?), kept: " + (sensorTurn * 90) + " degrees"
+            : q == 0 ? "gyro aiming: the sensor's axes are the natural orientation's (not turned)"
+            : "gyro aiming: the sensor's axes lie " + (q * 90) + " degrees from the natural orientation's: "
+                + "turned back by gravity (1.1.6)");
       }
 
       @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-    }, acc, SensorManager.SENSOR_DELAY_GAME, handler);
+    };
+    sensors.registerListener(gravityListener, acc, SensorManager.SENSOR_DELAY_GAME, handler);
   }
 
   /** This device's first clear turns into the log: the raw axes and what GyroAxes made of them. */
   private int deviceTurnLines;
-  private void noteDevice(float[] v, int rotation) {
+  private void noteDevice(float[] v, int rotation, float[] t) {
     if (v.length < 3 || deviceTurnLines >= 12) return;
     float ax = Math.abs(v[0]), ay = Math.abs(v[1]), az = Math.abs(v[2]);
     float big = Math.max(ax, Math.max(ay, az));
     if (big <= 1.5f) return;
     deviceTurnLines++;
     Log.i(CoreActivity.TAG, String.format(java.util.Locale.ROOT,
-        "gyro aiming: device turn: x %.2f, y %.2f, z %.2f rad/s, mostly %s; screen rotation %d: left/right %.2f, "
-            + "up/down %.2f", v[0], v[1], v[2], big == ax ? "x" : big == ay ? "y" : "z", rotation * 90,
-        GyroAxes.yaw(rotation, v), GyroAxes.pitch(rotation, v)));
+        "gyro aiming: device turn: x %.2f, y %.2f, z %.2f rad/s, mostly %s; sensor turn %d, screen rotation %d: "
+            + "left/right %.2f, up/down %.2f", v[0], v[1], v[2], big == ax ? "x" : big == ay ? "y" : "z",
+        sensorTurn * 90, rotation * 90, GyroAxes.yaw(rotation, t), GyroAxes.pitch(rotation, t)));
   }
 
   /** The controller's first readings and its first clear turns into the log (which axis moves for which turn). */
@@ -300,14 +333,30 @@ final class GyroAim implements SensorEventListener {
       still();
       return;
     }
-    // the gyroscope's axes are the device's natural orientation's, the aim's the screen's; a controller's are its
-    // own (the screen's rotation does not turn it)
+    // the gyroscope's axes are the device's natural orientation's (after the sensor's own turn, 1.1.6), the aim's the
+    // screen's; a controller's are its own (the screen's rotation does not turn it)
     boolean pad = listenPad;
-    if (pad) notePad(event.values);
+    if (event.values.length < 3) return;
+    float[] v = event.values;
+    if (pad) {
+      notePad(v);
+    } else {
+      if (!turnDecided) {
+        if (SystemClock.elapsedRealtimeNanos() - listenSinceNs < TURN_WAIT_NS) {
+          still();
+          return;
+        }
+        turnDecided = true;
+        Log.i(CoreActivity.TAG, "gyro aiming: no gravity reading in time, the sensor's turn kept: "
+            + (sensorTurn * 90) + " degrees");
+      }
+      GyroAxes.turn(sensorTurn, v, turned);
+      v = turned;
+    }
     int rotation = pad ? 0 : activity.getWindowManager().getDefaultDisplay().getRotation();
-    if (!pad) noteDevice(event.values, rotation);
-    float p = GyroAxes.pitch(rotation, event.values);
-    float y = GyroAxes.yaw(rotation, event.values);
+    if (!pad) noteDevice(event.values, rotation, v);
+    float p = GyroAxes.pitch(rotation, v);
+    float y = GyroAxes.yaw(rotation, v);
     if (SystemClock.elapsedRealtimeNanos() - event.timestamp > 150_000_000L || !finite(y) || !finite(p)) {
       still();
       return;
