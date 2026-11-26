@@ -94,6 +94,7 @@ enum MsgType : uint32_t {
     kPhotoMode = 52,       // a = op (1 on, 0 off, 2 mask), b = the mask (no reply; re4_core_photo_mode, 1.1.0)
     kSetMoreEnemies = 51,  // a = the seed of "More enemies", 0 off (no reply; re4_core_set_more_enemies, 1.1.0)
     kQuickReload = 50,     // one reload without the aim (no reply; re4_core_quick_reload, 1.1.0)
+    kMoveAim = 54,         // a, b = the left stick x (right), y (forward) as float bits (no reply; re4_core_move_aim, 1.1.5)
     kMouseMenu = 49,       // a, b = the pointer's u, v as float bits, c = a click (no reply; re4_core_mouse_menu, 1.1.0)
 };
 

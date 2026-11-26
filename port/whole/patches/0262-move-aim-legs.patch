@@ -1,0 +1,14 @@
+# Port patch, "Move and aim" with walking legs (wish of the project owner, 27.11.2026; runtime/move_aim_legs.cpp):
+# cPlayer::move calls re4_move_aim_legs once a frame after the player's routine (the aim's pose and the legs' IK are
+# done then) and before the frame's last matrices (partsWorldCalc): while move_aim.cpp moves the aiming player, his
+# legs walk under the aim. Nothing changes otherwise (the function returns at once without the aim and the stick).
+--- a/src/game/player.cpp
++++ b/src/game/player.cpp
+@@ -356,6 +356,7 @@
+         pList->ang.y *= 0.5f;
+     }
+     ang.y = LIMIT_ANGLE(ang.y);
++    { extern void re4_move_aim_legs(cPlayer* pl); re4_move_aim_legs(this); } /* port (patch 0262): the legs while he moves with the aim, runtime/move_aim_legs.cpp */
+     m_Flag = (u16) m_Flag;
+     shadowCtrl();
+     MotBase->move();

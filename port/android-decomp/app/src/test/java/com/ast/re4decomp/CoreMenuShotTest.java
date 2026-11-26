@@ -128,6 +128,28 @@ public class CoreMenuShotTest {
           }
         }
         graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
+        // the Controls page with "Move and aim" available (1.1.5): touch aiming by the touch area, a controller aiming with
+        // the right stick, the switch on (the pages above: the defaults, the switch greyed out)
+        android.content.SharedPreferences inputPrefs = activity.getSharedPreferences(CoreActivity.INPUT_PREFS,
+            android.content.Context.MODE_PRIVATE);
+        inputPrefs.edit().putInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_LOOK)
+            .putInt(CoreActivity.CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_RIGHT).putBoolean(CoreActivity.MOVE_AIM, true).apply();
+        show.invoke(menu, 3, false);
+        {
+          int width = 900;
+          body.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+              View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+          body.layout(0, 0, width, body.getMeasuredHeight());
+          Bitmap page = Bitmap.createBitmap(width, body.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+          Canvas canvas = new Canvas(page);
+          canvas.drawColor(0xff191f1c);
+          body.draw(canvas);
+          try (FileOutputStream out = new FileOutputStream(new File(folder, language + "-controls-move-aim.png"))) {
+            page.compress(Bitmap.CompressFormat.PNG, 100, out);
+          }
+        }
+        inputPrefs.edit().remove(CoreActivity.TOUCH_AIM).remove(CoreActivity.CONTROLLER_AIM).remove(CoreActivity.MOVE_AIM)
+            .apply();
         // the Cheats & Mods page (1.0.0, the project owner's new order): a phone upright (360 px) and a handheld on
         // its side (960 px)
         show.invoke(menu, 5, false);

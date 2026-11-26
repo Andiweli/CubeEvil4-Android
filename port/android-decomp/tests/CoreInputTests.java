@@ -690,7 +690,69 @@ public final class CoreInputTests {
       // a controller's stick stays as it is
       check(stick(0.2f, 0f)[1] == Math.round(0.2f * 101f));
     }
+    // 1.1.5: "Controller aim with: Right Stick" and "Move and aim"
+    {
+      CoreInput c = new CoreInput();
+      c.setControllerAim(CoreInput.CONTROLLER_AIM_RIGHT);
+      check(!c.moveAimActive());
+      // not aiming: the left stick is the main stick as before
+      c.motion(1, 0.5f, -0.6f, 0f, -0.8f, 0f, 0f, 0f, 0f);
+      int[] q = c.pad();
+      check(q[1] == Math.round(0.5f * 101f) && q[2] == Math.round(0.6f * 101f));
+      check(c.moveStick()[0] == 0 && c.moveStick()[1] == 0);
+      // R held: the right stick aims, the left stick's up and down is the C stick (zoom), nothing walks
+      c.motion(1, 0.5f, -0.6f, 0f, -0.8f, 0f, 1f, 0f, 0f);
+      q = c.pad();
+      check(q[1] == 0 && q[2] == Math.round(0.8f * 101f) && q[3] == 0 && q[4] > 0);
+      check(c.moveStick()[0] == 0 && c.moveStick()[1] == 0);
+      // "Move and aim" on: not available while touch aiming is the move stick (the menu greys it out)
+      c.setMoveAim(true);
+      check(c.moveAimOption() && !c.moveAimActive());
+      c.pad();
+      check(c.moveStick()[0] == 0 && c.moveStick()[1] == 0);
+      check(!CoreInput.moveAimAvailable(0, CoreInput.CONTROLLER_AIM_RIGHT));
+      check(!CoreInput.moveAimAvailable(1, CoreInput.CONTROLLER_AIM_LEFT));
+      check(CoreInput.moveAimAvailable(1, CoreInput.CONTROLLER_AIM_RIGHT));
+      check(CoreInput.moveAimAvailable(2, CoreInput.CONTROLLER_AIM_RIGHT));
+      // touch aiming by the touch area: available; R held, the left stick walks Leon (x right, y forward)
+      c.setTouchAim(1);
+      check(c.moveAimActive());
+      q = c.pad();
+      check(q[1] == 0 && q[2] == Math.round(0.8f * 101f));
+      check(c.moveStick()[0] == 0.5f && Math.abs(c.moveStick()[1] - 0.6f) < 1e-6f);
+      // R let go: the left stick is the main stick again, nothing walks
+      c.motion(1, 0.5f, -0.6f, 0f, -0.8f, 0f, 0f, 0f, 0f);
+      q = c.pad();
+      check(q[1] == Math.round(0.5f * 101f) && c.moveStick()[0] == 0 && c.moveStick()[1] == 0);
+      // the option off: aiming as without it
+      c.setMoveAim(false);
+      c.motion(1, 0.5f, -0.6f, 0f, -0.8f, 0f, 1f, 0f, 0f);
+      c.pad();
+      check(c.moveStick()[0] == 0 && c.moveStick()[1] == 0);
+      // the touch controls with the touch C stick aiming: R held, the move stick walks, the C stick alone aims
+      CoreInput t = new CoreInput();
+      t.setControllerAim(CoreInput.CONTROLLER_AIM_RIGHT);
+      t.setTouchAim(2);
+      t.setMoveAim(true);
+      t.touchButton(CoreInput.GC_R, true);
+      t.touchStick(false, 0f, -1f);
+      t.touchLook(0f, 0f, 0.5f, 0f);
+      q = t.pad();
+      check(q[1] == Math.round(0.5f * 101f) && q[2] == 0);
+      check(t.moveStick()[0] == 0 && t.moveStick()[1] == 1f);
+      // ... with the touch area aiming (by swipes): the main stick rests
+      t.setTouchAim(1);
+      q = t.pad();
+      check(q[1] == 0 && q[2] == 0 && t.moveStick()[1] == 1f);
+      t.touchButton(CoreInput.GC_R, false);
+      q = t.pad();
+      check(t.moveStick()[1] == 0);
+      // the left stick aims by default (as before 1.1.5)
+      CoreInput d = new CoreInput();
+      d.motion(1, 0.5f, 0f, 0f, -0.8f, 0f, 1f, 0f, 0f);
+      check(d.pad()[1] == Math.round(0.5f * 101f) && d.controllerAim() == CoreInput.CONTROLLER_AIM_LEFT);
+    }
     System.out.println("Core controller: layout, swap, alternate controls, free keys, sticks and triggers through "
-        + "PADClamp, devices, button mapping, keyboard, stick dead zone and range: " + checks + " checks PASS");
+        + "PADClamp, devices, button mapping, keyboard, stick dead zone and range, controller aim and move and aim: " + checks + " checks PASS");
   }
 }

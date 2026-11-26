@@ -35,7 +35,7 @@
     <string name="ingame_side_axes">Axes</string>
     <string name="ingame_side_control_type">Type de contrôle</string>
     <string name="ingame_side_assists">Aides</string>
-    <string name="ingame_side_aim_with">Viser avec</string>
+    <string name="ingame_side_aim_with">Visée tactile avec</string>
     <string name="ingame_side_view">Vue</string>
     <string name="ingame_side_stick">Options du stick</string>
     <string name="ingame_mapping_section">Attribuer boutons et touches</string>
@@ -160,11 +160,17 @@
     <string name="ingame_rapid_fire">Tir rapide</string>
     <string name="ingame_rapid_fire_help">Tir rapide : chaque arme à feu tire deux fois plus vite, pour chaque personnage jouable (pistolets, fusils à pompe, fusils, mitraillettes, lanceurs). Le rechargement, les munitions et les dégâts ne changent pas ; le couteau et les grenades restent identiques.</string>
     <string name="ingame_far_camera_help">Garde la caméra d’épaule un peu plus loin derrière Leon\u00A0; en visant et dans les endroits étroits, elle se rapproche comme avant.</string>
-    <string name="ingame_touch_aim">Visée tactile</string>
+    <string name="ingame_aiming_section">Visée</string>
     <string name="ingame_aim_move_stick">Stick de déplacement</string>
     <string name="ingame_aim_touch_area">Zone tactile</string>
     <string name="ingame_aim_c_stick">Stick C</string>
     <string name="ingame_touch_aim_help">Visée tactile\u00A0: tant que L ou R tient une arme, glissez sur la moitié droite pour viser, ou utilisez le stick C tactile (ajoutez-le avec l’engrenage en haut à droite). Stick de déplacement\u00A0: comme sur GameCube. Sticks AIM et KNIFE (engrenage)\u00A0: un doigt dessus maintient R ou L, leur inclinaison vise.</string>
+    <string name="ingame_side_controller_aim">Visée manette avec</string>
+    <string name="ingame_aim_left_stick">Stick gauche</string>
+    <string name="ingame_aim_right_stick">Stick droit</string>
+    <string name="ingame_controller_aim_help">Visée manette avec\u00A0: Stick gauche vise comme sur GameCube. Stick droit\u00A0: tant que L ou R tient une arme, le stick droit vise, et haut et bas sur le stick gauche zoome la lunette et les jumelles.</string>
+    <string name="ingame_move_aim">Bouger et viser</string>
+    <string name="ingame_move_aim_help">Bouger et viser\u00A0: pendant la visée, le stick gauche (ou le stick de déplacement tactile, ou les touches de déplacement) fait marcher Leon en avant, en arrière et sur les côtés, et vous visez en même temps avec le stick droit, la zone tactile, le stick C tactile ou la souris. Leon marche vraiment, le haut du corps reste en visée. Seulement si Visée tactile avec n’est pas Stick de déplacement et Visée manette avec est Stick droit. Pas avec la lunette ou les jumelles, ni pendant le rechargement.</string>
     <string name="ingame_touch_zoom_help">Zoomer dans la lunette ou les jumelles au tactile\u00A0: glissez vers le haut ou le bas sur la moitié droite ou sur le stick C tactile, ou ajoutez les boutons de zoom + et − avec l’engrenage en haut à droite.</string>
     <string name="ingame_gyro_sensitivity">Sensibilité du gyroscope</string>
     <string name="ingame_gyro_sensitivity_help">Sensibilité du gyroscope\u00A0: à 3×, la visée tourne à peu près autant que l\'appareil, à 6× deux fois plus.</string>

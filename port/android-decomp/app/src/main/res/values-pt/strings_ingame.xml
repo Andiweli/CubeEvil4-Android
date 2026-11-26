@@ -34,7 +34,7 @@
     <string name="ingame_side_axes">Eixos</string>
     <string name="ingame_side_control_type">Tipo de controle</string>
     <string name="ingame_side_assists">Assistências</string>
-    <string name="ingame_side_aim_with">Mirar com</string>
+    <string name="ingame_side_aim_with">Mira por toque com</string>
     <string name="ingame_side_view">Visão</string>
     <string name="ingame_side_stick">Opções do analógico</string>
     <string name="ingame_mapping_section">Mapear botões e teclas</string>
@@ -159,11 +159,17 @@
     <string name="ingame_rapid_fire">Tiro rápido</string>
     <string name="ingame_rapid_fire_help">Tiro rápido: todas as armas de fogo disparam duas vezes mais rápido, para cada personagem jogável (pistolas, escopetas, rifles, metralhadoras, lançadores). Recarga, munição e dano continuam iguais; a faca e as granadas não mudam.</string>
     <string name="ingame_far_camera_help">Mantém a câmara de ombro um pouco mais atrás de Leon; ao mirar e em lugares apertados ela se aproxima como antes.</string>
-    <string name="ingame_touch_aim">Mira por toque</string>
+    <string name="ingame_aiming_section">Mira</string>
     <string name="ingame_aim_move_stick">Analógico de movimento</string>
     <string name="ingame_aim_touch_area">Área de toque</string>
     <string name="ingame_aim_c_stick">Analógico C</string>
     <string name="ingame_touch_aim_help">Mira por toque: enquanto L ou R mantém uma arma, deslize na metade direita para mirar ou use o analógico C de toque (adicione-o com a engrenagem no canto superior direito). Analógico de movimento: como no GameCube. Analógicos AIM e KNIFE (engrenagem): um dedo sobre eles mantém R ou L, e a inclinação mira.</string>
+    <string name="ingame_side_controller_aim">Mira no controle com</string>
+    <string name="ingame_aim_left_stick">Analógico esquerdo</string>
+    <string name="ingame_aim_right_stick">Analógico direito</string>
+    <string name="ingame_controller_aim_help">Mira no controle com: Analógico esquerdo mira como no GameCube. Analógico direito: enquanto L ou R segura uma arma, o analógico direito mira, e cima e baixo no analógico esquerdo dá zoom na luneta e nos binóculos.</string>
+    <string name="ingame_move_aim">Mover e mirar</string>
+    <string name="ingame_move_aim_help">Mover e mirar: enquanto mira, o analógico esquerdo (ou o analógico de movimento de toque, ou as teclas de movimento) faz Leon andar para frente, para trás e para os lados, e você mira ao mesmo tempo com o analógico direito, a área de toque, o analógico C de toque ou o mouse. Leon anda de verdade enquanto o tronco continua mirando. Só quando Mira por toque com não é Analógico de movimento e Mira no controle com é Analógico direito. Não com a luneta ou os binóculos, nem ao recarregar.</string>
     <string name="ingame_touch_zoom_help">Zoom na luneta ou nos binóculos por toque: arraste para cima ou para baixo na metade direita ou no analógico C de toque, ou adicione os botões de zoom + e − com a engrenagem no canto superior direito.</string>
     <string name="ingame_gyro_sensitivity">Sensibilidade do giroscópio</string>
     <string name="ingame_gyro_sensitivity_help">Sensibilidade do giroscópio: em 3× a mira gira mais ou menos o mesmo que o aparelho, em 6× o dobro.</string>

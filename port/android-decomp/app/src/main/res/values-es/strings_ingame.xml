@@ -33,7 +33,7 @@
     <string name="ingame_side_axes">Ejes</string>
     <string name="ingame_side_control_type">Tipo de control</string>
     <string name="ingame_side_assists">Ayudas</string>
-    <string name="ingame_side_aim_with">Apuntar con</string>
+    <string name="ingame_side_aim_with">Apuntar táctil con</string>
     <string name="ingame_side_view">Vista</string>
     <string name="ingame_side_stick">Opciones del stick</string>
     <string name="ingame_mapping_section">Asignar botones y teclas</string>
@@ -158,11 +158,17 @@
     <string name="ingame_rapid_fire">Disparo rápido</string>
     <string name="ingame_rapid_fire_help">Disparo rápido: todas las armas de fuego disparan el doble de rápido, para cada personaje jugable (pistolas, escopetas, rifles, ametralladoras, lanzadores). La recarga, la munición y el daño no cambian; el cuchillo y las granadas siguen igual.</string>
     <string name="ingame_far_camera_help">Mantiene la cámara de hombro un poco más detrás de Leon; al apuntar y en sitios estrechos se acerca como antes.</string>
-    <string name="ingame_touch_aim">Apuntar táctil</string>
+    <string name="ingame_aiming_section">Apuntar</string>
     <string name="ingame_aim_move_stick">Stick de movimiento</string>
     <string name="ingame_aim_touch_area">Zona táctil</string>
     <string name="ingame_aim_c_stick">Stick C</string>
     <string name="ingame_touch_aim_help">Apuntar táctil: mientras L o R mantiene un arma, desliza en la mitad derecha para apuntar o usa el stick C táctil (añádelo con el engranaje de arriba a la derecha). Stick de movimiento: como en GameCube. Sticks AIM y KNIFE (engranaje): un dedo encima mantiene R o L y su inclinación apunta.</string>
+    <string name="ingame_side_controller_aim">Apuntar con mando con</string>
+    <string name="ingame_aim_left_stick">Stick izquierdo</string>
+    <string name="ingame_aim_right_stick">Stick derecho</string>
+    <string name="ingame_controller_aim_help">Apuntar con mando con: Stick izquierdo apunta como en GameCube. Stick derecho: mientras L o R sostiene un arma, apunta el stick derecho, y arriba y abajo en el stick izquierdo hace zoom en la mira y los prismáticos.</string>
+    <string name="ingame_move_aim">Moverse y apuntar</string>
+    <string name="ingame_move_aim_help">Moverse y apuntar: mientras apuntas, el stick izquierdo (o el stick de movimiento táctil, o las teclas de movimiento) mueve a Leon hacia delante, atrás y a los lados, y apuntas a la vez con el stick derecho, la zona táctil, el stick C táctil o el ratón. Leon camina de verdad mientras el torso sigue apuntando. Solo si Apuntar táctil con no es Stick de movimiento y Apuntar con mando con es Stick derecho. No con la mira o los prismáticos ni al recargar.</string>
     <string name="ingame_touch_zoom_help">Zoom en la mira o los prismáticos por táctil: arrastra hacia arriba o abajo en la mitad derecha o en el stick C táctil, o añade los botones de zoom + y − con el engranaje de arriba a la derecha.</string>
     <string name="ingame_gyro_sensitivity">Sensibilidad del giroscopio</string>
     <string name="ingame_gyro_sensitivity_help">Sensibilidad del giroscopio: con 3× la mira gira más o menos lo mismo que el dispositivo, con 6× el doble.</string>

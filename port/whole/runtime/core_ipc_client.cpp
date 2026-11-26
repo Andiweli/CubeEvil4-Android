@@ -1098,6 +1098,14 @@ void re4ipc_photo_input(int a, int b, int c)
     post(kPhotoInput, a, b, c);
 }
 
+void re4ipc_move_aim(float x, float y)
+{
+    int32_t a, b;
+    memcpy(&a, &x, 4);
+    memcpy(&b, &y, 4);
+    post(kMoveAim, a, b, 0);
+}
+
 void re4ipc_quick_reload(void)
 {
     post(kQuickReload, 0, 0, 0);

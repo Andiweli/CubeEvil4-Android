@@ -244,6 +244,48 @@ public final class CoreInput {
   public int touchAim() { return touchAim; }
 
   /**
+   * "Controller aim with" (1.1.5, wish of the project owner, 26.11.2026; the menu's AIMING): the stick a controller
+   * aims with while L or R holds a weapon ready. CONTROLLER_AIM_LEFT, the default: the left stick as on the GameCube;
+   * CONTROLLER_AIM_RIGHT: the right stick, as the alternate controls do (the left stick's up and down then zooms the
+   * scope and the binoculars, pad). The alternate controls aim with the right stick either way.
+   */
+  public static final int CONTROLLER_AIM_LEFT = 0, CONTROLLER_AIM_RIGHT = 1;
+  private int controllerAim = CONTROLLER_AIM_LEFT;
+
+  public void setControllerAim(int mode) {
+    controllerAim = mode == CONTROLLER_AIM_RIGHT ? CONTROLLER_AIM_RIGHT : CONTROLLER_AIM_LEFT;
+  }
+
+  public int controllerAim() { return controllerAim; }
+
+  /**
+   * "Move and aim" (1.1.5, wish of the project owner, 26.11.2026; the menu's "Stick options", off by default): while L
+   * or R holds a weapon ready, the left stick (a controller's, the touch move stick, the keyboard's move keys) walks
+   * Leon (CoreBridge.moveAim, the core's runtime/move_aim.cpp) and no longer aims; the aim is the other stick's alone
+   * (the right stick, the touch area or the touch C stick, the mouse). It works only where neither aims with the left
+   * stick: touch aiming not by the move stick and a controller aiming with the right stick (moveAimAvailable); the
+   * menu greys the switch out otherwise.
+   */
+  private boolean moveAim;
+  private float moveX, moveY;  // at the last pad(): the left stick for the core, x right, y forward (0, 0: none)
+
+  public void setMoveAim(boolean on) { moveAim = on; }
+
+  public boolean moveAimOption() { return moveAim; }
+
+  /** Whether "Move and aim" can work with these choices of touch aiming and controller aiming (the menu's switch). */
+  public static boolean moveAimAvailable(int touchAim, int controllerAim) {
+    return touchAim != AIM_MOVE_STICK && controllerAim == CONTROLLER_AIM_RIGHT;
+  }
+
+  /** "Move and aim" is on and works with the aiming chosen. */
+  public boolean moveAimActive() { return moveAim && moveAimAvailable(touchAim, controllerAim); }
+
+  /** The left stick for the core at the last pad() (CoreBridge.moveAim): x right, y forward; 0, 0 when it does not move
+   *  Leon (no weapon ready, the option off or not available). */
+  public float[] moveStick() { return new float[] {moveX, moveY}; }
+
+  /**
    * The look zone's finger moved by dx/dy (shares of the shorter side, y down): true when it aims by
    * the swipe (AIM_LOOK while L or R is held, as the last pad() found), then it does not look.
    */
@@ -695,6 +737,11 @@ public final class CoreInput {
     boolean weaponReady = touchDevice != null && (touchDevice.l2Key || touchDevice.r2Key)
         || Math.round(padL * 255f) >= TRIGGER_PRESSED || Math.round(padR * 255f) >= TRIGGER_PRESSED;
     this.touchAiming = touchAiming;
+    // "Move and aim": with a weapon ready the left sticks walk Leon (moveX, moveY) and keep off the main stick; a
+    // controller aims with its right stick ("Controller aim with: Right Stick", or the alternate controls)
+    final boolean moving = weaponReady && moveAimActive();
+    final boolean rightAim = weaponReady && controllerAim == CONTROLLER_AIM_RIGHT;
+    float mvX = 0, mvY = 0;
     int buttons = padB ? GC_B : 0;
     float lx = 0, ly = 0, rx = 0, ry = 0, lt = padL, rt = padR, fireR2 = 0;
     for (Map.Entry<Integer, Device> e : devices.entrySet()) {
@@ -717,6 +764,24 @@ public final class CoreInput {
             cX = c[0];
             cY = c[1];
           }
+          if (moving) {
+            // the move keys walk Leon, the mouse aims (CoreBridge.aimTurn)
+            if (mainX * mainX + mainY * mainY > mvX * mvX + mvY * mvY) {
+              mvX = mainX;
+              mvY = mainY;
+            }
+            mainX = mainY = 0;
+          }
+        } else if (rightAim) {
+          // a mapped controller aiming with its right stick: as the alternate controls below
+          if (moving && d.lx * d.lx + d.ly * d.ly > mvX * mvX + mvY * mvY) {
+            mvX = d.lx;
+            mvY = d.ly;
+          }
+          mainX = d.rx;
+          mainY = d.ry;
+          cX = 0;
+          cY = d.ly;
         }
         if (mainX * mainX + mainY * mainY > lx * lx + ly * ly) {
           lx = mainX;
@@ -736,7 +801,11 @@ public final class CoreInput {
         mainX = walk[0];
         mainY = walk[1];
       }
-      if (aiming && !touch) {
+      if ((aiming || rightAim) && !touch) {
+        if (moving && d.lx * d.lx + d.ly * d.ly > mvX * mvX + mvY * mvY) {
+          mvX = d.lx;  // "Move and aim": the left stick walks Leon
+          mvY = d.ly;
+        }
         mainX = d.rx;
         mainY = d.ry;
         // the left stick, free while Leon stands to aim, up and down is the C stick: it zooms the rifles' scope and
@@ -746,7 +815,23 @@ public final class CoreInput {
         cX = 0;
         cY = d.ly;
       }
-      if (touchAiming && touch && touchAim == AIM_LOOK) {
+      if (moving && touch) {
+        // "Move and aim": the move stick walks Leon; only the touch C stick aims as a stick (the touch area by swipes)
+        if (d.lx * d.lx + d.ly * d.ly > mvX * mvX + mvY * mvY) {
+          mvX = d.lx;
+          mvY = d.ly;
+        }
+        if (touchAim == AIM_LOOK) {
+          mainX = mainY = 0;
+          cX = d.cStickX;
+          cY = d.cStickY;
+        } else {
+          mainX = d.cStickX;
+          mainY = d.cStickY;
+          cX = d.lookX;
+          cY = d.lookY;
+        }
+      } else if (touchAiming && touch && touchAim == AIM_LOOK) {
         // the look zone aims by swipes (takeAimSwipe), not as a stick; the C stick stays the C stick
         cX = d.cStickX;
         cY = d.cStickY;
@@ -776,6 +861,8 @@ public final class CoreInput {
         fireR2 = Math.max(fireR2, r2);
       }
     }
+    moveX = moving ? mvX : 0;
+    moveY = moving ? -mvY : 0;  // (the sticks' y is down)
     fire = alternate && fireR2 >= (fire ? FIRE_RELEASE : FIRE_PRESS);
     if (fire) buttons |= GC_A;
     // the triggers' digital L/R: only at the end stop, the game reads the analog

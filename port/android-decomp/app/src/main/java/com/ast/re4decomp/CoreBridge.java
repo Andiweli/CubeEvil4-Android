@@ -398,6 +398,10 @@ public final class CoreBridge {
    * drops it while he aims, climbs, in an event and so on. Cores before 16.11.2026 ignore it.
    */
   public static native void bodyTurn(float yaw);
+
+  /** "Move and aim" (1.1.5): the left stick while L or R is held (x right, y forward, -1 .. 1); it walks Leon while
+   *  he aims (the core, runtime/move_aim.cpp). */
+  public static native void moveAim(float x, float y);
   /**
    * The mouse wheel (CoreActivity, 0.99.12): whole notches, up positive. While the scope or the binoculars are up
    * the core zooms by them (an eighth of the zoom a notch, up zooms in, as the C stick does); elsewhere it drops
