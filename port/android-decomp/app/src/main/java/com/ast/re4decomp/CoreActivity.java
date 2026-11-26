@@ -224,7 +224,11 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   /** "More enemies" (1.1.0, GAME_PREFS; CoreBridge.setMoreEnemies): its seed, 0 off. */
   static final String MORE_ENEMIES = "moreEnemiesSeed";
   private static final int REQUEST_EXPORT_ALL = 2, REQUEST_IMPORT = 3, REQUEST_REPORT = 4, REQUEST_TEXTURES = 5,
-      REQUEST_EXPORT_ZIP = 6;
+      REQUEST_EXPORT_ZIP = 6, REQUEST_LANGUAGE_FOLDER = 7, REQUEST_LANGUAGE_ZIP = 8;
+  // "Import language pack" (Cheats & Mods, LanguagePacks): who hears the import, its cancel switch; the pack in use now
+  private LanguagePacks.Listener languageListener;
+  private final java.util.concurrent.atomic.AtomicBoolean languageCancel = new java.util.concurrent.atomic.AtomicBoolean();
+  private boolean packNow;
   // "Import texture pack" (Cheats & Mods, TexturePacks): who hears the import, its cancel switch
   private TexturePacks.Listener textureListener;
   private final java.util.concurrent.atomic.AtomicBoolean textureCancel = new java.util.concurrent.atomic.AtomicBoolean();
@@ -408,10 +412,29 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         : com.ast.re4decomp.disc.DiscInstaller.release(new File(imports.root, "disc1"));
     retailEu = com.ast.re4decomp.disc.GameCubeDisc.EUROPEAN.equals(release);
     retail = release != null && !com.ast.re4decomp.disc.GameCubeDisc.DEBUG.equals(release);
+    // the player's language pack (port/docs/sprachpakete.md): its folder always (the menu can turn it on later), on
+    // when "Game language" is the pack's; a pack deleted meanwhile leaves the device's language
+    LanguagePacks.Info languagePack = retailEu ? LanguagePacks.info(this) : null;
+    packLanguage = languagePack == null ? 0 : languagePack.language;
+    SharedPreferences gamePrefs = getSharedPreferences(GAME_PREFS, MODE_PRIVATE);
+    if (gamePrefs.getInt(GAME_LANGUAGE, 0) == LanguagePacks.CHOICE && languagePack == null) {
+      gamePrefs.edit().putInt(GAME_LANGUAGE, 0).apply();
+    }
+    packNow = languagePack != null && gamePrefs.getInt(GAME_LANGUAGE, 0) == LanguagePacks.CHOICE;
     gameLanguageNow = gameLanguage(this);
     if (retailEu && !settings.contains("RE4_GAME_LANGUAGE=")) {
       coreSettings += ";RE4_GAME_LANGUAGE=" + gameLanguageNow;
       Log.i(TAG, "game language: " + gameLanguageNow);
+    }
+    if (retailEu && !settings.contains("RE4_LANGUAGE_PACK=")) {
+      coreSettings += ";RE4_LANGUAGE_PACK=" + LanguagePacks.folder(this).getAbsolutePath()
+          + ";RE4_LANGUAGE_PACK_ON=" + (packNow ? 1 : 0);
+    }
+    Log.i(TAG, LanguagePacks.reportLine(this) + (packNow ? " (in use)" : ""));
+    try {
+      CoreBridge.setLanguagePack(packNow ? LanguagePacks.folder(this).getAbsolutePath() : "");
+    } catch (UnsatisfiedLinkError e) {
+      Log.w(TAG, "language pack for the app's readers: " + e);
     }
     // "Skip intro" (1.1.0): the core goes from the memory card check straight to the title menu (runtime/title_skip,
     // patch 0242); a test script's setting wins
@@ -1429,18 +1452,29 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       applyOptions();
     }
 
-    @Override public int gameLanguageOf(int choice) { return CoreActivity.gameLanguageOf(choice); }
-
-    @Override public void gameLanguageChanged(int choice) {
-      getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(GAME_LANGUAGE, choice).apply();
-      int language = gameLanguageOf(choice);
-      Log.i(TAG, "game language: " + language + (choice == 0 ? " (the device's)" : "")
-          + (language != gameLanguageNow ? ", the game restarts" : ""));
-      if (language != gameLanguageNow) {
-        gameLanguageNow = language;
-        CoreBridge.restartGame(language);
-      }
+    // the pack's choice counts as a language of its own (0x100: the pack on), so the menu asks before the restart
+    @Override public int gameLanguageOf(int choice) {
+      return CoreActivity.gameLanguageOf(choice) | (choice == LanguagePacks.CHOICE ? 0x100 : 0);
     }
+
+    @Override public void gameLanguageChanged(int choice) { changeGameLanguage(choice); }
+
+    @Override public LanguagePacks.Info languagePack() { return LanguagePacks.info(CoreActivity.this); }
+
+    @Override public boolean languagePackInUse() { return packNow; }
+
+    @Override public void importLanguagePack(boolean folder, LanguagePacks.Listener listener) {
+      languageListener = listener;
+      Intent i = folder ? new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+          : new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
+      startForResult(i, folder ? REQUEST_LANGUAGE_FOLDER : REQUEST_LANGUAGE_ZIP);
+    }
+
+    @Override public void languageListener(LanguagePacks.Listener listener) { languageListener = listener; }
+
+    @Override public void cancelLanguagePackImport() { languageCancel.set(true); }
+
+    @Override public void leaveLanguagePack(Runnable then) { CoreActivity.this.leaveLanguagePack(then); }
 
     @Override public void cheatsChanged(int bits) {
       getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(CHEATS, bits).apply();
@@ -1705,6 +1739,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
         exportZipInto(data.getData());
       } else if (request == REQUEST_TEXTURES && data.getData() != null) {
         importTextures(data.getData());
+      } else if ((request == REQUEST_LANGUAGE_FOLDER || request == REQUEST_LANGUAGE_ZIP) && data.getData() != null) {
+        importLanguage(data.getData(), request == REQUEST_LANGUAGE_FOLDER);
       } else if (request == REQUEST_IMPORT) {
         pendingImports.clear();
         pendingTouch = pendingInstant = pendingSettings = pendingManifest = null;
@@ -1730,6 +1766,75 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       Log.w(TAG, "menu: " + e);
       message(getString(R.string.ingame_failed, e.getMessage()));
     }
+  }
+
+  /** The game language of the menu's choice (and the pack on or off): a restart when either changes. */
+  private void changeGameLanguage(int choice) {
+    getSharedPreferences(GAME_PREFS, MODE_PRIVATE).edit().putInt(GAME_LANGUAGE, choice).apply();
+    LanguagePacks.Info pack = choice == LanguagePacks.CHOICE ? LanguagePacks.info(this) : null;
+    if (pack != null) packLanguage = pack.language;
+    int language = gameLanguageOf(choice);
+    boolean packOn = pack != null;
+    boolean restart = language != gameLanguageNow || packOn != packNow;
+    Log.i(TAG, "game language: " + language + (choice == 0 ? " (the device's)" : "")
+        + (packOn ? " with the language pack \"" + pack.name + "\"" : "") + (restart ? ", the game restarts" : ""));
+    if (!restart) return;
+    gameLanguageNow = language;
+    packNow = packOn;
+    CoreBridge.setLanguagePack(packOn ? LanguagePacks.folder(this).getAbsolutePath() : "");
+    // 0x200: the pack's state from the restart on (0x100 on), port/docs/sprachpakete.md
+    CoreBridge.restartGame(language | 0x200 | (packOn ? 0x100 : 0));
+  }
+
+  /** Before the pack in use is replaced or deleted: the game goes back to the device's language (a restart without the
+   *  pack, the core reads the discs again), then `then` runs once the restart had time to happen. */
+  private void leaveLanguagePack(Runnable then) {
+    if (!packNow) {
+      then.run();
+      return;
+    }
+    Log.i(TAG, "language pack in use: the game restarts without it first");
+    changeGameLanguage(0);
+    main.postDelayed(then, 3000);
+  }
+
+  /** The chosen language pack (a folder or a ZIP) into the language folder (LanguagePacks.importFrom) on a thread of
+   *  its own; the menu hears its progress and its end. */
+  private void importLanguage(Uri uri, boolean folder) {
+    final ImportManager imports = ((Re4Application) getApplication()).imports;
+    if (LanguagePacks.importing || imports.root == null) return;
+    LanguagePacks.importing = true;
+    LanguagePacks.importDone = 0;
+    LanguagePacks.importTotal = 0;
+    languageCancel.set(false);
+    final android.content.Context app = getApplicationContext();
+    final File game = imports.root;
+    Thread t = new Thread(() -> {
+      LanguagePacks.Info info = null;
+      LanguagePacks.PackException failure = null;
+      try {
+        info = LanguagePacks.importFrom(app, game, uri, folder, languageCancel, new LanguagePacks.Listener() {
+          @Override public void progress(long done, long total) {
+            main.post(() -> { if (languageListener != null) languageListener.progress(done, total); });
+          }
+          @Override public void done(LanguagePacks.Info i, LanguagePacks.PackException f) {}
+        });
+      } catch (LanguagePacks.PackException e) {
+        failure = e;
+      } catch (IOException | RuntimeException | UnsatisfiedLinkError e) {
+        failure = new LanguagePacks.PackException(LanguagePacks.READ_FAILED, "", String.valueOf(e.getMessage()));
+      }
+      final LanguagePacks.Info result = info;
+      final LanguagePacks.PackException problem = failure;
+      main.post(() -> {
+        LanguagePacks.importing = false;
+        if (result != null) packLanguage = result.language;
+        Log.i(TAG, "language pack import: " + (problem == null ? "done" : problem.reason + " " + problem.file + " "
+            + problem.getMessage()));
+        if (languageListener != null) languageListener.done(result, problem);
+      });
+    }, "language-import");
+    t.start();
   }
 
   /** The chosen texture pack into the textures folder (TexturePacks.importFrom) on a thread of its own; the menu hears
@@ -4002,9 +4107,14 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     return gameLanguageOf(context.getSharedPreferences(GAME_PREFS, MODE_PRIVATE).getInt(GAME_LANGUAGE, 0));
   }
 
-  /** The game's language of a menu choice: 2..6 as they are, 0 the device's. */
+  /** The language the imported language pack replaces (2..6), 0 none (LanguagePacks). */
+  static int packLanguage;
+
+  /** The game's language of a menu choice: 2..6 as they are, 0 the device's, the pack's (LanguagePacks.CHOICE) the
+   *  language whose texts it replaces. */
   static int gameLanguageOf(int chosen) {
     if (chosen >= 2 && chosen <= 6) return chosen;
+    if (chosen == LanguagePacks.CHOICE && packLanguage >= 2) return packLanguage;
     switch (Locale.getDefault().getLanguage()) {
       case "de": return 3;
       case "fr": return 4;
