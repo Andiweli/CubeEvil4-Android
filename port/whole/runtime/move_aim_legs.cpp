@@ -71,6 +71,7 @@ struct Layer {
     float weight;   // its share of the legs now
     float target;
     float speed;    // sequence frames a game frame
+    float rootY;    // (1.1.7) the walk's root height in its last frame (the trace)
     Mtx pose[kLegs];
 };
 Layer gL[kLayers];
@@ -82,6 +83,8 @@ int gChecked;        // the skeleton: 0 not yet, 1 fits, -1 not (the legs stay t
 const void* gCheckedModel;
 Vec gLastPos;        // his place at this point of the last frame
 float gActual;       // the speed he really moved (units a frame, smoothed): slopes and walls slow him
+float gBob;          // (1.1.7) the whole body's up and down this frame: the walk's root height against the aim's
+bool gNoBob;         // RE4_LEGS_NO_BOB=1 (PC comparisons): the body at the aim's height as before 1.1.7
 unsigned gLastFrame;
 
 void trace(cPlayer* pl, const char* what)
@@ -92,10 +95,13 @@ void trace(cPlayer* pl, const char* what)
     gTraceLines++;
     const Vec& r = pl->getPartsPtr(0x14)->world;
     const Vec& l = pl->getPartsPtr(0x18)->world;
-    re4_log("legs: frame %u pos %.1f %.1f %.1f feet %.1f %.1f %.1f | %.1f %.1f %.1f w %.2f %.2f %.2f %.2f yaw %.2f %s",
+    // (1.1.7) the root's height in the model and the bob put on it (the whole body's up and down with the steps)
+    re4_log("legs: frame %u pos %.1f %.1f %.1f feet %.1f %.1f %.1f | %.1f %.1f %.1f w %.2f %.2f %.2f %.2f yaw %.2f %s "
+            "root %.1f bob %.1f cam %.1f",
             (unsigned) pG->Frame_cnt, (double) pl->pos.x, (double) pl->pos.y, (double) pl->pos.z, (double) r.x,
             (double) r.y, (double) r.z, (double) l.x, (double) l.y, (double) l.z, (double) gL[0].weight,
-            (double) gL[1].weight, 0.0, 0.0, (double) gYaw, what);
+            (double) gL[1].weight, 0.0, 0.0, (double) gYaw, what, (double) pl->getPartsPtr(0)->l_mat[1][3],
+            (double) gBob, (double) (pG->Camera.param.Campos.y - pl->pos.y));
 }
 
 // The skeleton above: the pelvis on the root, two chains of four under it
@@ -186,6 +192,13 @@ void modelSpace(cPlayer* pl, int i, Mtx out)
 void evalLayer(cPlayer* pl, Layer& L, float yaw)
 {
     const int n = pl->nParts < kMaxParts ? pl->nParts : kMaxParts;
+    // (1.1.7, the project owner: in his own walk Leon's whole body goes up and down with the steps) the root too: the
+    // walk's root carries that up and down; its height alone is taken, the aim's turn and place stay
+    // (the motion writes a bone's pos / ang, matCalc makes its l_mat from them)
+    cParts* root = pl->getPartsPtr(0);
+    Mtx rootAim;
+    PSMTXCopy(root->l_mat, rootAim);
+    const Vec rootPos = root->pos, rootAng = root->ang;
     u32 had[kMaxParts];
     for (int i = 0; i < n; i++) {
         cParts* p = pl->getPartsPtr(i);
@@ -193,11 +206,19 @@ void evalLayer(cPlayer* pl, Layer& L, float yaw)
             continue;
         }
         had[i] = p->motParts.flags & (kSkip | kNoHist);
-        p->motParts.flags |= isLeg(i) ? kNoHist : kSkip;
+        p->motParts.flags |= isLeg(i) || (i == 0 && !gNoBob) ? kNoHist : kSkip;
     }
     L.w.Seq_speed = L.speed;
     MotionMoveCore(pl, &L.w, 0);
     MotionSequenceCtrl(&L.w);
+    const f32 walkY = root->pos.y;
+    root->pos = rootPos;
+    root->ang = rootAng;
+    if (!gNoBob) {
+        root->pos.y = walkY;
+    }
+    root->matCalc();
+    L.rootY = walkY;
     for (int i = 0; i < n; i++) {
         cParts* p = pl->getPartsPtr(i);
         if (!p) {
@@ -228,6 +249,11 @@ void evalLayer(cPlayer* pl, Layer& L, float yaw)
     for (int i = kPelvis; i <= kLegLast; i++) {
         modelSpace(pl, i, L.pose[i - kPelvis]);
     }
+    // the root back as the aim has it (the body's height is set once for all layers, re4_move_aim_legs)
+    root->pos = rootPos;
+    root->ang = rootAng;
+    PSMTXCopy(rootAim, root->l_mat);
+    pl->partsWorldCalc();
     if (yaw != 0.0f) {
         // about the upright through the pelvis
         Mtx t0, r, t1, m;
@@ -282,6 +308,7 @@ void resetLayers()
         L.weight = L.target = L.speed = 0.0f;
     }
     gYaw = 0.0f;
+    gBob = 0.0f;
 }
 
 struct Init {
@@ -289,6 +316,8 @@ struct Init {
     {
         const char* tr = getenv("RE4_TRACE_LEGS");
         gTrace = tr && *tr == '1';
+        const char* nb = getenv("RE4_LEGS_NO_BOB");
+        gNoBob = nb && *nb == '1';
         const char* k = getenv("RE4_LEGS_SPEED");
         if (k && *k) {
             gSpeedK = strtof(k, 0);
@@ -402,6 +431,7 @@ void re4_move_aim_legs(cPlayer* pl)
     for (int i = kPelvis; i <= kLegLast; i++) {
         modelSpace(pl, i, out[i - kPelvis]);
     }
+    const f32 aimPelvisY = out[0][1][3];
     float acc = sum < 1.0f ? 1.0f - sum : 0.0f;
     for (int k = 0; k < kLayers; k++) {
         Layer& L = gL[k];
@@ -415,6 +445,15 @@ void re4_move_aim_legs(cPlayer* pl)
             blend(out[j], L.pose[j], t, out[j]);
         }
     }
+    // (1.1.7) the whole body up and down with the walk: the blended pelvis' height against the aim's goes onto the root
+    // (the spine, the arms, the head and the gun with it; a shift only, the aim's direction stays), the legs as blended
+    // (lowered by the same here, raised with the root); the fades are in the blend
+    gBob = gNoBob ? 0.0f : out[0][1][3] - aimPelvisY;
+    if (gBob != 0.0f) {
+        for (int j = 0; j < kLegs; j++) {
+            out[j][1][3] -= gBob;
+        }
+    }
     // back onto the bones (parents first: the pelvis, then each chain downwards)
     for (int i = kPelvis; i <= kLegLast; i++) {
         cParts* p = pl->getPartsPtr(i);
@@ -425,6 +464,12 @@ void re4_move_aim_legs(cPlayer* pl)
         p->world.x = p->mat[0][3];
         p->world.y = p->mat[1][3];
         p->world.z = p->mat[2][3];
+    }
+    if (gBob != 0.0f) {
+        // the root raised in its parent's (the model's) space: the frame's partsWorldCalc (after this) carries it down
+        // the body; the legs were written against its place before, so they end where the blend put them
+        pl->getPartsPtr(0)->l_mat[1][3] += gBob;
+        pl->getPartsPtr(0)->pos.y += gBob;  // (the same in its pos, should anything make its l_mat anew)
     }
     trace(pl, "aim");
 }

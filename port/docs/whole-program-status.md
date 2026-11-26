@@ -1099,6 +1099,26 @@ Items, darunter Fotomodus breit).
   in der Hilfe in 11 Sprachen, Zeile in v1.1.6.md. Bilder `builds/workthread-1.1.6/case-xl`. Skripte `116-casexl.sh`,
   `116-casesheet.sh`.
 
+### 8. Bewegen und Zielen: der Körper geht mit den Schritten auf und ab (Wunsch des Projektinhabers)
+
+**OK des Projektinhabers (27.11.2026, wie im Höhenbild gezeigt, mit der etwa 4 cm höheren Hüfte beim Gehen).** Statt
+einer 1.1.7 noch in 1.1.6 (Entscheidung des Projektinhabers).
+
+- `runtime/move_aim_legs.cpp`: jede Beinschicht (Gehen, Rückwärtsschritt) wertet jetzt auch die Wurzel (Teil 0) aus,
+  nimmt davon nur die Höhe (`pos.y`); Drehung und Ort der Wurzel bleiben die des Zielens, die Bein-IK läuft unter der
+  Wurzel in Gehhöhe. Nach dem Mischen in Modellraum: `gBob` = gemischte Beckenhöhe minus Beckenhöhe des Zielens; die
+  Beine werden um `gBob` gesenkt zurückgeschrieben, die Wurzel um `gBob` gehoben (`l_mat` und `pos`): der ganze Körper
+  (Rücken, Arme, Kopf, Waffe, Laser) verschiebt sich nur senkrecht, die Zielrichtung bleibt. Folgt dem
+  Abspieltempo der Beine und den vorhandenen Überblendungen (8 Bilder).
+- Neuer PC-Schalter `RE4_LEGS_NO_BOB=1` (Vergleich: Körper auf Zielhöhe wie vorher); die `legs:`-Zeile
+  (`RE4_TRACE_LEGS`) zeigt `root`, `bob` und `cam` (Kamerahöhe über Leon).
+- **Geprüft am PC** (r100, Debug-Disc, Hüfthöhe in Spieleinheiten): eigenes Gehen 1050–1100 (Ausschlag 49,8, ein
+  Schritt alle 14 Bilder); Bewegen und Zielen vorher konstant 1027 (1,8); nachher vorwärts 1050–1100 (50,0, alle
+  26 Bilder), diagonal 50,0, seitwärts 45° 50,0 (alle 36 Bilder), rückwärts mit der eigenen Kurve des
+  Rückwärtsschritts 1024–1062 (37,3). Die Kamera folgt Leons Ort, nicht den Knochen: vorher und nachher gleich (vorwärts
+  Mittel 1748,6, Ausschlag 51,1). Bild `builds/workthread-1.1.6/body-bob/height-graph.png`; Skripte `116-bob-all.sh`,
+  `116-bob.py`, `116-bobgraph.py`.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
