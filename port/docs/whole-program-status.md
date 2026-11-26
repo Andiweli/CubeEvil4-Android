@@ -968,6 +968,30 @@ Kräuter müssen mischbar bleiben und dürfen beim Stapeln nie verloren gehen.
   ebenso ein Platz „2“; rot vom Stapel auf grünen Stapel: G+R auf den vorhandenen G+R-Stapel (2), grün 2, rot 1 in der
   Hand. Bilder: `builds/workthread-1.1.3/stack-mixes`.
 
+### 3. Gyro: oben/unten und links/rechts vertauscht (Nutzerbericht, Anbernic RG477M, MediaTek, Android 14, 1.1.4)
+
+**Ursache offen, Protokollzeilen für den nächsten Bericht** (26.11.2026).
+
+- Bericht `builds/workthread-1.1.3/user-report-20261125-200735-gyro-axes` (Zip abgeschnitten, nur `logs/previous`):
+  keine Zeile zum Gyro, keine zur Drehung des Bildschirms; der Lauf darin hatte das Gyro-Zielen nicht an.
+- Die App dreht die Achsen des Gyroskops des Geräts schon nach der Drehung des Bildschirms (`GyroAxes`,
+  `Display.getRotation`, Androids Regel: Achsen der natürlichen Ausrichtung des Geräts). Vertauscht ist es also nur,
+  wenn (a) der Sensor seine Achsen eine Vierteldrehung neben der natürlichen Ausrichtung meldet (ein hochkant
+  eingebautes Panel, dessen Drehung im System steht, der Sensor nicht mitgedreht), oder (b) das Gyroskop über den
+  eingebauten Controller kommt („Gyro von: Auto“; der Weg des Controllers dreht nicht). Bei (b) stünde
+  `controller "retrogame_joypad" has a gyroscope` im Log; der Bericht zeigt keines von beiden.
+- Neu (`GyroAim`): beim Start des Gyro-Zielens mit dem Gerät eine Zeile `gyro aiming: device gyroscope "…" by …;
+  screen rotation … degrees, …; natural orientation portrait|landscape (…)`, eine Messung der Schwerkraft
+  `gyro aiming: gravity x …, y …, z … m/s2 (the device's axes); along the screen: … across, … up/down, … out` (normal
+  gehalten: vor allem up/down oder out; vor allem across: Sensor eine Vierteldrehung daneben) und die ersten 12
+  deutlichen Drehungen `gyro aiming: device turn: x …, y …, z … rad/s, mostly …; screen rotation …: left/right …,
+  up/down …`. Dazu nimmt jeder Zuhörer nur Messungen seines Sensortyps. Spielverhalten unverändert.
+- Test `GyroAxesLogTest` (Robolectric): Achsen bei Drehung 0/90/270 (hochkant gebautes Gerät quer gehalten),
+  Zeilen im Log mit Schwerkraft und einer Drehung nach oben (nur oben/unten, nicht seitlich).
+- Bitte an den Nutzer: Gyro-Zielen an, Gerät normal halten, einmal deutlich nach links/rechts und einmal nach
+  oben/unten drehen, dann gleich „Send report“. Damit ist (a) oder (b) entschieden; eine allgemeine Lösung (bei (a) die
+  Achsen nach der Schwerkraft, bei (b) den eingebauten Controller wie das Gerät drehen) folgt dann.
+
 ## 1.1.4 (ab 26.11.2026, auf 1.1.3 = 6b95af43)
 
 Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

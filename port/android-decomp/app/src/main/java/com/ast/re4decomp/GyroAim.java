@@ -192,6 +192,7 @@ final class GyroAim implements SensorEventListener {
       listenPad = usePad;
       m.registerListener(this, g, SensorManager.SENSOR_DELAY_GAME, handler);
       Log.i(CoreActivity.TAG, "gyro aiming: listening to " + (usePad ? "the controller \"" + padName + "\"" : "this device"));
+      if (!usePad) logDeviceAxes(g);
     } else {
       unregister();
       still();
@@ -214,6 +215,61 @@ final class GyroAim implements SensorEventListener {
   }
 
   @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+
+  /**
+   * 1.1.5 (a user's report, Anbernic RG477M: up/down turns the aim sideways and left/right up and down): the device's
+   * gyroscope, the screen's rotation, the device's natural orientation and one reading of gravity, into the log when
+   * the gyro aiming starts listening to this device. GyroAxes takes the gyroscope's axes as the device's natural
+   * orientation's (Android's rule); a sensor that reports them a quarter turn apart (a panel built in turned, its
+   * rotation set in the system, the sensor left as it was) shows here: held normally, gravity lies along the screen's
+   * left/right instead of its up/down.
+   */
+  private void logDeviceAxes(Sensor g) {
+    android.view.Display d = activity.getWindowManager().getDefaultDisplay();
+    int rotation = d.getRotation();
+    android.graphics.Point size = new android.graphics.Point();
+    d.getRealSize(size);
+    boolean turned = (rotation & 1) == 1;
+    int naturalW = turned ? size.y : size.x, naturalH = turned ? size.x : size.y;
+    Log.i(CoreActivity.TAG, "gyro aiming: device gyroscope \"" + g.getName() + "\" by " + g.getVendor()
+        + "; screen rotation " + (rotation * 90) + " degrees, " + size.x + "x" + size.y + " now; natural orientation "
+        + (naturalW >= naturalH ? "landscape" : "portrait") + " (" + naturalW + "x" + naturalH + ")");
+    final Sensor acc = sensors == null ? null : sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    if (acc == null) return;
+    sensors.registerListener(new SensorEventListener() {
+      private boolean done;
+
+      @Override public void onSensorChanged(SensorEvent e) {
+        if (done || e.values.length < 3) return;
+        if (e.sensor != null && e.sensor.getType() != Sensor.TYPE_ACCELEROMETER) return;
+        done = true;
+        sensors.unregisterListener(this);
+        float[] v = e.values;
+        // gravity in the screen's terms, as GyroAxes turns the gyroscope: right and up of the screen as shown
+        float right = GyroAxes.pitch(rotation, v), up = GyroAxes.yaw(rotation, v);
+        Log.i(CoreActivity.TAG, String.format(java.util.Locale.ROOT,
+            "gyro aiming: gravity x %.1f, y %.1f, z %.1f m/s2 (the device's axes); along the screen: %.1f across, "
+                + "%.1f up/down, %.1f out (held normally: mostly up/down or out; mostly across: the sensor's axes "
+                + "a quarter turn from the screen's)", v[0], v[1], v[2], right, up, v[2]));
+      }
+
+      @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    }, acc, SensorManager.SENSOR_DELAY_GAME, handler);
+  }
+
+  /** This device's first clear turns into the log: the raw axes and what GyroAxes made of them. */
+  private int deviceTurnLines;
+  private void noteDevice(float[] v, int rotation) {
+    if (v.length < 3 || deviceTurnLines >= 12) return;
+    float ax = Math.abs(v[0]), ay = Math.abs(v[1]), az = Math.abs(v[2]);
+    float big = Math.max(ax, Math.max(ay, az));
+    if (big <= 1.5f) return;
+    deviceTurnLines++;
+    Log.i(CoreActivity.TAG, String.format(java.util.Locale.ROOT,
+        "gyro aiming: device turn: x %.2f, y %.2f, z %.2f rad/s, mostly %s; screen rotation %d: left/right %.2f, "
+            + "up/down %.2f", v[0], v[1], v[2], big == ax ? "x" : big == ay ? "y" : "z", rotation * 90,
+        GyroAxes.yaw(rotation, v), GyroAxes.pitch(rotation, v)));
+  }
 
   /** The controller's first readings and its first clear turns into the log (which axis moves for which turn). */
   private void notePad(float[] v) {
@@ -239,6 +295,7 @@ final class GyroAim implements SensorEventListener {
   private static boolean finite(float v) { return !Float.isNaN(v) && !Float.isInfinite(v); }
 
   @Override public void onSensorChanged(SensorEvent event) {
+    if (event.sensor != null && event.sensor.getType() != Sensor.TYPE_GYROSCOPE) return;  // (only the gyroscope's)
     if (!activity.hasWindowFocus()) {
       still();
       return;
@@ -248,6 +305,7 @@ final class GyroAim implements SensorEventListener {
     boolean pad = listenPad;
     if (pad) notePad(event.values);
     int rotation = pad ? 0 : activity.getWindowManager().getDefaultDisplay().getRotation();
+    if (!pad) noteDevice(event.values, rotation);
     float p = GyroAxes.pitch(rotation, event.values);
     float y = GyroAxes.yaw(rotation, event.values);
     if (SystemClock.elapsedRealtimeNanos() - event.timestamp > 150_000_000L || !finite(y) || !finite(p)) {
