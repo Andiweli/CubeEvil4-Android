@@ -163,7 +163,7 @@
     <string name="ingame_aim_right_stick">Stick destro</string>
     <string name="ingame_controller_aim_help">Mira controller con: Stick sinistro mira come su GameCube. Stick destro: finché L o R tiene un’arma, mira lo stick destro, e su e giù sullo stick sinistro zooma il mirino e il binocolo.</string>
     <string name="ingame_move_aim">Muoviti e mira</string>
-    <string name="ingame_move_aim_help">Muoviti e mira: mentre miri, lo stick sinistro (o lo stick di movimento touch, o i tasti di movimento) fa camminare Leon avanti, indietro e di lato, e intanto miri con lo stick destro, l’area touch, lo stick C touch o il mouse. Leon mantiene la posa di mira mentre si muove. Solo se Mira touch con non è Stick di movimento e Mira controller con è Stick destro. Non con il mirino o il binocolo, né durante la ricarica.</string>
+    <string name="ingame_move_aim_help">Muoviti e mira: mentre miri, lo stick sinistro (o lo stick di movimento touch, o i tasti di movimento) fa camminare Leon avanti, indietro e di lato, e intanto miri con lo stick destro, l’area touch, lo stick C touch o il mouse. Leon cammina davvero mentre il busto resta in mira. Solo se Mira touch con non è Stick di movimento e Mira controller con è Stick destro. Non con il mirino o il binocolo, né durante la ricarica.</string>
     <string name="ingame_touch_zoom_help">Zoom nel mirino o nel binocolo col touch: trascina su o giù sulla metà destra o sullo stick C touch, oppure aggiungi i pulsanti zoom + e − con l’ingranaggio in alto a destra.</string>
     <string name="ingame_gyro_sensitivity">Sensibilità del giroscopio</string>
     <string name="ingame_gyro_sensitivity_help">Sensibilità del giroscopio: a 3× la mira ruota più o meno quanto il dispositivo, a 6× il doppio.</string>

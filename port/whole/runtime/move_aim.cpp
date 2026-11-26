@@ -15,7 +15,7 @@
 //  - not with the scope or the binoculars up (the left stick zooms there, as before), not crouching, not in the boat.
 //
 // Leon moves at kSpeed (60 % of his walk, by the stick's tilt) along his own facing; nothing else of the game changes.
-// He keeps the aim's pose (the game has no walking aim motions: he glides), the game's own collision then pushes him
+// The game has no walking aim motions: move_aim_legs.cpp plays his walk on the legs below the aim (1.1.x). The game's own collision then pushes him
 // off walls, objects and enemies as when he walks (cPlayer::move: EmAtCheck, SatMgr.check, every frame in every
 // routine) and keeps him on the floor. Damage, a grab, an event or the end of the aim change his routine, and the
 // movement stops by itself. The app sends the stick when it changes (and 0, 0 when L and R are let go, the option goes
@@ -48,6 +48,10 @@ volatile u32 gXBits, gYBits;
 bool gHooked;
 unsigned gMoved;      // frames it moved him (the log)
 bool gToldWhyNot;     // (the log: once why a stick did not move him)
+// this frame's move for the legs (move_aim_legs.cpp, after his routine): x right, y forward (the stick's direction),
+// the speed in units a frame; gMovedNow false when the hook did not move him
+bool gMovedNow;
+float gMoveX, gMoveY, gMoveSpeed;
 
 // RE4_TEST_MOVE_AIM="x,y,from,to" (frames after the player is free): the app's stick at each game frame from .. to;
 // RE4_TRACE_MOVE=1: one "move:" line a frame (his routine, his position) from the player being free
@@ -155,6 +159,10 @@ void moveHook(unsigned frame)
     const float s = sinf(pl->ang.y), c = cosf(pl->ang.y);
     pl->pos.x += (s * y - c * x) * k;
     pl->pos.z += (c * y + s * x) * k;
+    gMovedNow = true;
+    gMoveX = x;
+    gMoveY = y;
+    gMoveSpeed = k * len;
     if (gMoved++ % 900 == 0) {
         re4_log("move and aim: Leon moved while aiming (%u frames so far; routine %u/%u/%u, weapon 0x%02x)", gMoved,
                 (unsigned) pl->r_no_0, (unsigned) pl->r_no_1, (unsigned) pl->r_no_2, (unsigned) PlGetWeaponNo());
@@ -206,4 +214,24 @@ extern "C" void re4_core_move_aim(float x, float y)
     hook();
     __atomic_store_n(&gXBits, bits(x), __ATOMIC_RELAXED);
     __atomic_store_n(&gYBits, bits(y), __ATOMIC_RELAXED);
+}
+
+// For the legs (move_aim_legs.cpp), once a frame after his routine: 1 and the move of this frame (x right, y forward,
+// the stick's direction; speed in units a frame) when the hook moved him; 0 when not (then *x, *y, *speed untouched)
+extern "C" int re4_move_aim_moved(float* x, float* y, float* speed)
+{
+    if (!gMovedNow) {
+        return 0;
+    }
+    gMovedNow = false;
+    *x = gMoveX;
+    *y = gMoveY;
+    *speed = gMoveSpeed;
+    return 1;
+}
+
+// 1 while he may move with the aim (the routines of why(): a gun set or firing, the knife held or slashing, no scope)
+extern "C" int re4_move_aim_aiming(void)
+{
+    return why(pPL) == 0 ? 1 : 0;
 }

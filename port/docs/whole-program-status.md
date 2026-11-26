@@ -899,6 +899,42 @@ Entwurf `builds/workthread-1.1.0/design/menu-arrows-sliders-mockup.png`.
   `=2` (ohne Kopien, wie vorher). **4d45022d zurückgenommen** (Menüs ohne Anisotropie/erzeugte Mipmaps traf nicht die
   Ursache und bringt in den Menüs nichts); `RE4_GX_ANISO` im Nachzeichner bleibt. Packer unverändert, kein Neu-Packen nötig.
 
+## Branch `move-aim`: „Bewegen und Zielen“ mit gehenden Beinen (Version offen; Projektinhaber 27.11.2026: „Ja, richtig bauen, für alle fünf Figuren“)
+
+Stand: am PC gebaut und geprüft, **OK des Projektinhabers (27.11.2026)** für Bewegen und Zielen mit gehenden Beinen
+wie gezeigt (vorwärts, rückwärts, schräg, Ein-/Ausblenden, alle fünf Figuren, Steuerungsseite mit „Bewegen und
+Zielen“ links und „Vibration“ rechts); seitwärts **Variante 1** gewählt. Branch `move-aim` (Worktree `RE4-moveaim`)
+auf master 5c93d27c neu aufgesetzt (034797c4: Menü, Steuerung, Bewegung, vorher 77bebdf1); nichts in master, die
+Version entscheidet der Projektinhaber später.
+
+- Bewegung wie bisher (`runtime/move_aim.cpp`, 60 % des Gehens, nur beim Zielen, nicht mit Zielfernrohr/Fernglas,
+  nicht beim Nachladen). Neu `runtime/move_aim_legs.cpp` mit **Patch 0262** (`player.cpp`, `cPlayer::move`: ruft
+  `re4_move_aim_legs` nach der Routine des Spielers, vor den letzten Matrizen des Bildes).
+- Skelett (gleich bei Leon, Ada, HUNK, Krauser, Wesker; zur Laufzeit geprüft, sonst bleiben die Beine des Spiels):
+  0 Wurzel, 1..5 Rücken bis Kopf, 0x11 Becken (an der Wurzel), 0x12/0x16 Oberschenkel, 0x13/0x17 Knie, 0x14/0x18 Füße,
+  0x15/0x19 Zehen. Die Gehbewegungen führen die Beine als IK-Ketten (Fußziel im Raum des Modells, Knie von `ik.cpp`,
+  Fuß auf den Boden).
+- Schichten aus der eigenen Bewegungstabelle der Figur (der Waffe: jede Waffe und Figur geht auf ihre Art): vorwärts
+  das Gehen (`m_MotTbl` 2/3), rückwärts der Rückschritt (8/9), schräg das Becken bis 45° gedreht, seitwärts das
+  Gehen (über 90° hinaus der Rückschritt) mit dem Becken bis 90° gedreht (Wahl des Projektinhabers unter drei gezeigten
+  Varianten; die Schritte des Drehens auf der Stelle und ein höchstens 45° gedrehtes Gehen sind wieder draußen). Jede Schicht auf eigener `MOTION_INFO` (`MotionSetCore` mit Mot_flag
+  0x70000000: pMotionB, IK-Einrichtung und Modellmatrix bleiben), nur Becken und Beine (sonst motParts 0x20000000,
+  Beine ohne gemeinsamen Schlüsselverlauf 0x04000000), dann ihre IK-Ketten wie in `MotionMove` (Bits der Bewegung
+  aus `IKInit`, die des Zielens danach zurück). Ein- und Ausblenden über 8 Bilder, Mischung mit den Beinen des
+  Zielens im Raum des Modells (Quaternionen).
+- Tempo: eigene Schrittlänge der Bewegung (`Pos_dist` über einen Zyklus) gegen das tatsächliche Tempo (Ort zum
+  letzten Bild, geglättet; Hänge und Wände bremsen). Leons Gehen: 1625 Einheiten in 28 Bildern, Rückschritt 1378 in 21.
+- Fußrutschen (r100, Hang, `RE4_TRACE_LEGS=1`, `slip.py`: der langsamere Fuß je Bild): Zielgehen Körper 24
+  Einheiten/Bild, stehender Fuß Median 10,5 (90 %: 16); Leons eigenes Gehen ohne Zielen Körper 51, Fuß Median 14
+  (90 %: 41). Faktor 0,7/0,85/1,15/1,3 auf das Tempo: Median 13,0/11,7/10,7/11,2, also stimmt die Zuordnung; der Rest
+  kommt vom gleichmäßigen Körper gegen den ungleichmäßigen Schritt. Mit Variante 1 allein: rückwärts Körper 13,7,
+  Fuß Median 4,4; seitwärts Körper 31, Fuß 4,8; schräg zurück links Körper 31, Fuß 3,7.
+- Geprüft am PC (Debug-Disc, r100): Handfeuerwaffe, Schrotflinte (7), TMP (0xB), Messer: Beine gehen, 0 Fehler im Log;
+  Gewehr (9): zielt durchs Zielfernrohr, dort bewegt sich nichts (wie vorgesehen). Ada, HUNK, Krauser, Wesker
+  (`RE4_TEST_PLAYER`): gleiches Skelett erkannt, Beine gehen, 0 Fehler. Bilder (Fotomodus, Kamera seitlich/hinten):
+  `builds/workthread-1.1.3/move-aim/anim` (vorwärts, rückwärts, schräg, drei Seitwärts-Varianten, Ein-/Ausblenden,
+  Ada, Krauser, HUNK, Wesker). Nicht auf einem Gerät geprüft.
+
 ## 1.1.6 (ab 26.11.2026, auf 1.1.5 = 219acfda)
 
 Version 1.1.6 (versionCode 130), Branch `workthread-116` (Worktree `RE4-wt116`, WSL `~/re4-wt116`), Releasetext
