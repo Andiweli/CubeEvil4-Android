@@ -908,8 +908,8 @@ liegt vor dem Versionscommit.
 
 ### 1. Vulkan: Wände mit Echtzeitschatten durchsichtig, zweiter Versuch (Adreno 735, Poco F6; Punkt 9 von 1.1.4)
 
-**Dritter Versuch, wartet auf Bestätigung durch den Nutzer auf dem Gerät** (26.11.2026, nach den drei Testberichten;
-vorher geparkt). Der Testbau 1.1.5 mit dem Zurückschreiben und der Prüfung (e6e5a968) half nicht, die Prüfung schließt
+**Behoben mit dem dritten Versuch (3eb97fc5), vom Nutzer auf dem Poco F6 bestätigt** (26.11.2026: Vulkan mit
+Echtzeitschatten, Wände fest; vorher geparkt). Der Testbau 1.1.5 mit dem Zurückschreiben und der Prüfung (e6e5a968) half nicht, die Prüfung schließt
 den Tiefenverlust aus; Zurückschreiben und Prüfung sind wieder draußen (d6f74192), der Fehler der Kopier-Pipeline
 bleibt behoben.
 
@@ -965,6 +965,9 @@ bleibt behoben.
 - Prüfung am PC: Bilder bitgleich (Folge außen am Haus), Validierung und Synchronisations-Validierung 0 Fehler, auch
   MSAA 4 und mit Zwischenbildern; Log-Zeile erscheint. Auf dem Adreno-Gerät nicht geprüft: der nächste Bericht des
   Nutzers (Vulkan, Schatten an, dieselbe Stelle) entscheidet. Zeile für v1.1.5.md erst nach seiner Bestätigung.
+- Bestätigt (26.11.2026, über den Koordinator): der Nutzer sieht mit 3eb97fc5 die Wände mit Vulkan und
+  Echtzeitschatten fest. Zeile in v1.1.5.md unter „Fixed“. Damit ist die Annahme zur Tiefenabbildung des Viewports
+  auf dem Adreno 735 bestätigt; Punkt 9 von 1.1.4 ist erledigt.
 
 ### 2. Cheat „Gegenstände stapeln“: gemischte Kräuter stapeln (Projektinhaber 26.11.2026, Patch 0260)
 
