@@ -169,7 +169,7 @@
     <string name="ingame_aim_right_stick">右摇杆</string>
     <string name="ingame_controller_aim_help">手柄瞄准方式：左摇杆与 GameCube 相同。右摇杆：按住 L 或 R 举起武器时用右摇杆瞄准，左摇杆上下缩放瞄准镜和望远镜。</string>
     <string name="ingame_move_aim">边走边瞄准</string>
-    <string name="ingame_move_aim_help">边走边瞄准：瞄准时，左摇杆（或触控移动摇杆、移动键）让 Leon 前进、后退和侧移，同时用右摇杆、触控区域、触控 C 摇杆或鼠标瞄准。Leon 会真正迈步行走，上身保持瞄准。仅当触控瞄准方式不是移动摇杆且手柄瞄准方式为右摇杆时可用。使用瞄准镜或望远镜时以及换弹时无效。</string>
+    <string name="ingame_move_aim_help">边走边瞄准：瞄准时，左摇杆（或触控移动摇杆、移动键）让 Leon 前进、后退和侧移，同时用右摇杆、触控区域、触控 C 摇杆或鼠标瞄准。Leon 会真正迈步行走，上身保持瞄准。开启后瞄准改为触控区域和右摇杆，并在开启期间锁定两项“瞄准方式”选择；关闭后恢复之前的选择。使用瞄准镜或望远镜时以及换弹时无效。</string>
     <string name="ingame_touch_zoom_help">触控缩放瞄准镜或望远镜：在右半屏或触控 C 摇杆上上下拖动，或通过右上角的齿轮添加缩放按钮 + 和 −。</string>
     <string name="ingame_gyro_sensitivity">陀螺仪灵敏度</string>
     <string name="ingame_gyro_sensitivity_help">陀螺仪灵敏度：3× 时准星的转动大约与设备转动相同，6× 时为两倍。</string>

@@ -425,7 +425,10 @@ public class CoreMenuLayoutTest {
       assertTrue("the mapping after player view", assign > view);
       Button moveAim = findButton(body, activity.getString(R.string.ingame_move_aim));
       assertEquals("move and aim in the sticks' group", devices + 1, rowIndex(moveAim, body));
-      assertFalse("greyed out while the move stick and the left stick aim", moveAim.isEnabled());
+      // (1.1.6, the project owner) the switch can always be switched; off (the default), both "aim with" choices are free
+      assertTrue("move and aim can always be switched", moveAim.isEnabled());
+      assertTrue("touch aiming free while move and aim is off", touchAim.isEnabled());
+      assertTrue("controller aiming free while move and aim is off", controllerAim.isEnabled());
       assertEquals("far camera under player view", view + 1, rowIndex(farCamera, body));
       // (the fourth menu round, 21.11.2026) the laser sight's section gone: its side label under the view's group
       Button red = findButton(body, activity.getString(R.string.ingame_laser_red));

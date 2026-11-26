@@ -119,6 +119,35 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // aim" (1.1.5, the menu's "Stick options", off: CoreInput.setMoveAim)
   static final String CONTROLLER_AIM = "controllerAim";
   static final String MOVE_AIM = "moveAim";
+  // 1.1.6: the two "aim with" choices from before "Move and aim" went on (moveAimSources), given back when it goes off
+  static final String TOUCH_AIM_BEFORE_MOVE = "touchAimBeforeMoveAim", CONTROLLER_AIM_BEFORE_MOVE = "controllerAimBeforeMoveAim";
+
+  /**
+   * "Move and aim" switched (1.1.6, the project owner: the switch always works, the aiming follows it): on keeps the
+   * touch and controller aiming of before and puts them where no left stick aims (the touch area for the move stick,
+   * the right stick for the left; CoreInput.moveAimTouch); off gives the ones of before back. Also at the start, for a
+   * switch that is on with a left stick still aiming. Into `p`; the aiming in force: {touch, controller}.
+   */
+  static int[] moveAimSources(SharedPreferences p, boolean on) {
+    int touch = p.getInt(TOUCH_AIM, CoreInput.AIM_MOVE_STICK);
+    int controller = p.getInt(CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_LEFT);
+    SharedPreferences.Editor e = p.edit().putBoolean(MOVE_AIM, on);
+    if (on) {
+      if (!CoreInput.moveAimAvailable(touch, controller)) {
+        if (!p.contains(TOUCH_AIM_BEFORE_MOVE)) {
+          e.putInt(TOUCH_AIM_BEFORE_MOVE, touch).putInt(CONTROLLER_AIM_BEFORE_MOVE, controller);
+        }
+        touch = CoreInput.moveAimTouch(touch);
+        controller = CoreInput.CONTROLLER_AIM_RIGHT;
+      }
+    } else if (p.contains(TOUCH_AIM_BEFORE_MOVE)) {
+      touch = p.getInt(TOUCH_AIM_BEFORE_MOVE, touch);
+      controller = p.getInt(CONTROLLER_AIM_BEFORE_MOVE, controller);
+      e.remove(TOUCH_AIM_BEFORE_MOVE).remove(CONTROLLER_AIM_BEFORE_MOVE);
+    }
+    e.putInt(TOUCH_AIM, touch).putInt(CONTROLLER_AIM, controller).apply();
+    return new int[] {touch, controller};
+  }
   // the laser sight's colour (CoreMenu, CONTROLS, LASER SIGHT; wish of the project owner, 04.11.2026): 0 the game's red
   static final String LASER_COLOUR = "laserColour";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
@@ -473,6 +502,8 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       inputPrefs.edit().remove("bindings").remove("extraKeys").apply();
     }
     input.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false), inputPrefs.getBoolean(TOUCH_LATCH_B, false));
+    // (1.1.6) "Move and aim" on: the aiming where no left stick aims (a switch from a test build before this rule)
+    if (inputPrefs.getBoolean(MOVE_AIM, false)) moveAimSources(inputPrefs, true);
     input.setTouchAim(inputPrefs.getInt(TOUCH_AIM, CoreInput.AIM_MOVE_STICK));
     input.setControllerAim(inputPrefs.getInt(CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_LEFT));
     input.setMoveAim(inputPrefs.getBoolean(MOVE_AIM, false));
@@ -1374,7 +1405,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
 
     @Override public void moveAimChanged(boolean on) {
-      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(MOVE_AIM, on).apply();
+      // (1.1.6) the aiming follows the switch: where no left stick aims while on, the choices of before when off
+      int[] aim = moveAimSources(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE), on);
+      input.setTouchAim(aim[0]);
+      input.setControllerAim(aim[1]);
       input.setMoveAim(on);
       send();
       Log.i(TAG, "move and aim: " + (input.moveAimActive() ? "on (the left stick walks Leon while he aims)"

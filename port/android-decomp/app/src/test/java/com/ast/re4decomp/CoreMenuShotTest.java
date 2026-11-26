@@ -128,8 +128,8 @@ public class CoreMenuShotTest {
           }
         }
         graphics.edit().remove(CoreBridge.VIEW_DISTANCE).apply();
-        // the Controls page with "Move and aim" available (1.1.5): touch aiming by the touch area, a controller aiming with
-        // the right stick, the switch on (the pages above: the defaults, the switch greyed out)
+        // the Controls page with "Move and aim" on (1.1.5; 1.1.6: the switch puts the aiming on the touch area and the
+        // right stick and locks both "aim with" choices; the pages above: the defaults, the switch off)
         android.content.SharedPreferences inputPrefs = activity.getSharedPreferences(CoreActivity.INPUT_PREFS,
             android.content.Context.MODE_PRIVATE);
         inputPrefs.edit().putInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_LOOK)

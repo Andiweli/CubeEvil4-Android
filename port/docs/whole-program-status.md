@@ -1058,6 +1058,19 @@ Items, darunter Fotomodus breit).
   Render-Threads neben der Wandzeit, der GPU-Zeit (wenn gemessen) und dem Takt seines Kerns jetzt/erlaubt (die ersten 40,
   dann jeder 25.). Skripte `116-perftrees.sh`, `116-perf.sh`, `116-perfcheck.sh`, `116-gxstats.py` im Notizordner.
 
+### 5. „Bewegen und Zielen“: Schalter immer schaltbar, „Zielen mit“ gesperrt (Wunsch des Projektinhabers)
+
+**OK des Projektinhabers (27.11.2026, „Ja, passt so“).**
+
+- Vorher war „Bewegen und Zielen“ ausgegraut, solange ein linker Stick zielte. Jetzt immer schaltbar; an merkt es sich
+  „Touch-Zielen mit“ / „Controller-Zielen mit“ (`touchAimBeforeMoveAim`, `controllerAimBeforeMoveAim`), stellt
+  Bewegungsstick → Touchfläche (Touch-C-Stick bleibt) und Linker Stick → Rechter Stick und sperrt beide Auswahlen; aus
+  gibt die vorherigen zurück (`CoreActivity.moveAimSources`, `CoreInput.moveAimTouch`, `CoreMenu.aimLocked`). Beim Start
+  dasselbe, falls der Schalter an ist und noch ein linker Stick zielt (Testbau). Hilfetext in 11 Sprachen, Zeile in
+  v1.1.6.md.
+- Test `MoveAimSourcesTest` (3), `CoreMenuLayoutTest` auf die neue Regel; 256 App-Unit-Tests, Lint. Bilder
+  `builds/workthread-1.1.6/move-aim-lock`. Nur App.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

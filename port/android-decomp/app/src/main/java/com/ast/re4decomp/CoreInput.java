@@ -263,8 +263,10 @@ public final class CoreInput {
    * or R holds a weapon ready, the left stick (a controller's, the touch move stick, the keyboard's move keys) walks
    * Leon (CoreBridge.moveAim, the core's runtime/move_aim.cpp) and no longer aims; the aim is the other stick's alone
    * (the right stick, the touch area or the touch C stick, the mouse). It works only where neither aims with the left
-   * stick: touch aiming not by the move stick and a controller aiming with the right stick (moveAimAvailable); the
-   * menu greys the switch out otherwise.
+   * stick: touch aiming not by the move stick and a controller aiming with the right stick (moveAimAvailable). 1.1.6
+   * (the project owner): the switch can always be turned on; it then puts the aiming there itself (moveAimTouch,
+   * CONTROLLER_AIM_RIGHT; CoreActivity keeps the choices before and gives them back when it goes off) and the menu
+   * locks both "aim with" choices while it is on.
    */
   private boolean moveAim;
   private float moveX, moveY;  // at the last pad(): the left stick for the core, x right, y forward (0, 0: none)
@@ -276,6 +278,11 @@ public final class CoreInput {
   /** Whether "Move and aim" can work with these choices of touch aiming and controller aiming (the menu's switch). */
   public static boolean moveAimAvailable(int touchAim, int controllerAim) {
     return touchAim != AIM_MOVE_STICK && controllerAim == CONTROLLER_AIM_RIGHT;
+  }
+
+  /** 1.1.6: the touch aiming while "Move and aim" is on: the touch area for the move stick, else as chosen. */
+  public static int moveAimTouch(int touchAim) {
+    return touchAim == AIM_MOVE_STICK ? AIM_LOOK : touchAim;
   }
 
   /** "Move and aim" is on and works with the aiming chosen. */

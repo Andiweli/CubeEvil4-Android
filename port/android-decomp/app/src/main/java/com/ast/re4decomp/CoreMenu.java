@@ -1490,16 +1490,16 @@ final class CoreMenu extends Dialog {
     final int[] aimWith = {input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK),
         input.getInt(CoreActivity.CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_LEFT)};
     into = buttonsRow(labelledOptions(R.string.ingame_side_aim_with));  // (the fourth menu round: "Aim with")
-    rowChoices(new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
+    touchAimSelector = rowChoices(new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
         aimWith[0], 3, mode -> {
-          aimWith[0] = mode; host.touchAimChanged(mode); moveAimEnabled(aimWith);
-        });
+          aimWith[0] = mode; host.touchAimChanged(mode);
+        })[0];
     final int[] controllerAims = {CoreInput.CONTROLLER_AIM_LEFT, CoreInput.CONTROLLER_AIM_RIGHT};
-    selector(buttonsRow(labelledOptions(R.string.ingame_side_controller_aim)), 0,
+    controllerAimSelector = selector(buttonsRow(labelledOptions(R.string.ingame_side_controller_aim)), 0,
         new String[] {s(R.string.ingame_aim_left_stick), s(R.string.ingame_aim_right_stick)},
         stepOf(controllerAims, aimWith[1]), 0, i -> {
-          aimWith[1] = controllerAims[i]; host.controllerAimChanged(controllerAims[i]); moveAimEnabled(aimWith);
+          aimWith[1] = controllerAims[i]; host.controllerAimChanged(controllerAims[i]);
         });
     help(R.string.ingame_touch_aim_help);
     help(R.string.ingame_controller_aim_help);
@@ -1522,12 +1522,18 @@ final class CoreMenu extends Dialog {
     percentSlider(sticks, R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
       shape[1] = value; host.stickShapeChanged(shape[0], shape[1]);
     });
-    // "Move and aim" (1.1.5, wish of the project owner, 26.11.2026): off; only where no left stick aims (moveAimEnabled);
-    // in one row with the vibration, Move and aim on the left (the project owner, 26.11.2026)
+    // "Move and aim" (1.1.5, wish of the project owner, 26.11.2026): off by default; in one row with the vibration, Move
+    // and aim on the left (the project owner, 26.11.2026)
     MenuLayout.Buttons moveRow = buttonsRow(stickGroup);
-    moveAimButton = toggle(moveRow, R.string.ingame_move_aim,
-        input.getBoolean(CoreActivity.MOVE_AIM, false), on -> host.moveAimChanged(on));
-    moveAimEnabled(aimWith);
+    // (1.1.6, the project owner) always to switch; on, it puts the aiming where no left stick aims and locks both
+    // "aim with" choices, off gives them back (CoreActivity.moveAimSources)
+    toggle(moveRow, R.string.ingame_move_aim, input.getBoolean(CoreActivity.MOVE_AIM, false), on -> {
+      host.moveAimChanged(on);
+      aimWith[0] = input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK);
+      aimWith[1] = input.getInt(CoreActivity.CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_LEFT);
+      aimLocked(on, aimWith);
+    });
+    aimLocked(input.getBoolean(CoreActivity.MOVE_AIM, false), aimWith);
     into = moveRow;
     choices(R.string.ingame_vibration, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_vibration_device),
         s(R.string.ingame_vibration_controller), s(R.string.ingame_off)}, new int[] {RumbleTarget.AUTO,
@@ -1570,13 +1576,23 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_ashley_hold_help);
   }
 
-  /** "Move and aim" (Controls, "Stick options"), to grey it out (moveAimEnabled). */
-  private Button moveAimButton;
+  /** The two "aim with" choices of AIMING (1.1.6: locked while "Move and aim" is on, aimLocked). */
+  private View touchAimSelector;
+  private ArrowSelector controllerAimSelector;
 
-  /** "Move and aim" works only where no left stick aims: touch aiming not by the move stick and a controller aiming with
-   *  the right stick (CoreInput.moveAimAvailable); greyed out otherwise, its choice kept. aimWith: {touch, controller}. */
-  private void moveAimEnabled(int[] aimWith) {
-    if (moveAimButton != null) moveAimButton.setEnabled(CoreInput.moveAimAvailable(aimWith[0], aimWith[1]));
+  /** "Move and aim" on: both "aim with" choices show the aiming in force and cannot be changed; off: free again.
+   *  aimWith: {touch, controller}. */
+  private void aimLocked(boolean on, int[] aimWith) {
+    final int[] touchModes = {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK};
+    final int[] controllerAims = {CoreInput.CONTROLLER_AIM_LEFT, CoreInput.CONTROLLER_AIM_RIGHT};
+    if (touchAimSelector instanceof ArrowSelector) {
+      ((ArrowSelector) touchAimSelector).setIndex(stepOf(touchModes, aimWith[0]));
+      touchAimSelector.setEnabled(!on);
+    }
+    if (controllerAimSelector != null) {
+      controllerAimSelector.setIndex(stepOf(controllerAims, aimWith[1]));
+      controllerAimSelector.setEnabled(!on);
+    }
   }
 
   /**
