@@ -935,6 +935,23 @@ Version entscheidet der Projektinhaber später.
   `builds/workthread-1.1.3/move-aim/anim` (vorwärts, rückwärts, schräg, drei Seitwärts-Varianten, Ein-/Ausblenden,
   Ada, Krauser, HUNK, Wesker). Nicht auf einem Gerät geprüft.
 
+## Sprachpakete (ab 26.11.2026, Branch `languages`, Wunsch des Projektinhabers)
+
+Fan-Übersetzungen der EU-Discs laden (Plan und Regeln: `port/docs/sprachpakete.md`). Kein Patch, keine Änderung an
+`src/`: Laufzeit `runtime/dvd.cpp` (`applyPack`: Längen im FST, `entryPath` auf die Paketdatei; nur EU, nur in der
+Sprache des Pakets; `RE4_LANGUAGE_PACK`, `RE4_LANGUAGE_PACK_ON`), Umschalten beim Neustart
+(`re4_core_restart_game` Bits 0x200/0x100, `re4_language_pack_switch` im Neustart-Haken von `game_language.cpp`),
+neuer Testschalter `RE4_TEST_SSCRN_OPEN="free+N:T"` (`state_trace.cpp`). Import mit Prüfungen in
+`app/src/main/cpp/language_pack*.cpp` (App-Bibliothek `re4langpack`, PC-Werkzeug `tools/langpack_tool.cpp`).
+
+PC-Prüfung 26.11.2026 mit dem PT-BR-Paket eines Nutzers über EU-Discs (i686): Import aus Ordner und ZIP gleich
+(315 Disc-Dateien, 265 Dateien, 602 MB, Sprache 5, 88 s / 75 s); Händler (r10f, Disc 1; r31c, Disc 2),
+Filmsequenz r104s00 (gewachsene Datei), Dokumentenliste, Kapitelende 2-3 (`chap02.dat` +41 KB), Titelmenü nach dem
+Umschalten an/aus, alles auf Portugiesisch ohne Lesefehler. Abgelehnt wie gewollt: Raum mit geänderter Kollision /
+Gegenständen / Gegnerbereichen (Selbsttest an r100, r20b), beschädigter Raum, geänderte `main.dol` (in `sys/` und
+lose), `Rel/`-Modul, `etc/SizeTbl.dat`, Filmsequenz mit geändertem Bild, US-Discs. Nicht geprüft: Gerät,
+geöffnete Dokumentseite, Speicherkarten-Texte nach dem Umschalten (erst beim nächsten App-Start).
+
 ## 1.1.6 (ab 26.11.2026, auf 1.1.5 = 219acfda)
 
 Version 1.1.6 (versionCode 130), Branch `workthread-116` (Worktree `RE4-wt116`, WSL `~/re4-wt116`), Releasetext

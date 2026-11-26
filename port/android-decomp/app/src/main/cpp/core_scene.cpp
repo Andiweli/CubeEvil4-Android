@@ -6,6 +6,7 @@
 #include "archive.h"
 #include "environment.h"
 #include "event_playback.h"
+#include "language_pack_files.h"
 #include "generic_event_actor.h"
 #include "room_blocks.h"
 #include "room_lighting.h"
@@ -127,6 +128,9 @@ std::string ResolveCoreDiscPath(const std::string &gameRoot, int disc,
                                 const std::string &file) {
   if (disc < 0 || file.empty()) return {};
   std::string path = gameRoot + "/disc" + std::to_string(disc + 1) + "/files";
+  // the language pack in use replaces some of the disc's files (port/docs/sprachpakete.md)
+  const std::string packed = re4lang::DiscFile(path, file);
+  if (packed != path + "/" + file) return packed;
   std::stringstream parts(file);
   std::string part;
   while (std::getline(parts, part, '/')) {

@@ -38,7 +38,7 @@ final class DataFolder {
    * The app's files in its data folder: the discs and the core's files (memory card, instant save, settings: ImportManager's
    * "game"), the texture packs (TexturePacks), the error logs (CoreLog), graphics captures (CoreActivity.capture).
    */
-  static final String[] ENTRIES = {"game", "textures", "logs", "gx-dumps"};
+  static final String[] ENTRIES = {"game", "textures", "language", "logs", "gx-dumps"};
   /** check: not on the device's storage, an SD card or a USB drive (a cloud folder, another app's documents). */
   static final String NOT_LOCAL = "not local";
   /** check: Android, Android/data or Android/obb (any app's). */

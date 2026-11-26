@@ -31,6 +31,7 @@ extern "C" void re4_add_frame_hook(void (*hook)(unsigned));  // runtime/pad.cpp
 extern "C" int re4_game_language_value(void);
 extern "C" void re4_core_restart_game(int language);  // runtime/core_api.cpp
 extern "C" void re4_aim_after_card(void);              // runtime/aim_options.cpp
+extern "C" void re4_language_pack_switch(void);        // runtime/dvd.cpp
 
 namespace {
 
@@ -55,6 +56,8 @@ void restartHook(unsigned frame)
     if (__atomic_exchange_n(&gRestartAsked, 0, __ATOMIC_ACQ_REL)) {
         re4_log("language: the game restarts (soft reset at frame %u, language %s asked)", frame,
                 name(re4_game_language_value()));
+        // the language pack on or off (runtime/dvd.cpp): the discs read again before the reset reads the core again
+        re4_language_pack_switch();
         SysFlagOn(pG, SYS_SOFT_RESET);
     }
 }

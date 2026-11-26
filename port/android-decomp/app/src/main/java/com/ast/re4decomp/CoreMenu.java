@@ -139,8 +139,22 @@ final class CoreMenu extends Dialog {
     boolean gameLanguages();
     /** The debug build's discs are imported: SELECT held opens the game's debug menu (the button mapping says so). */
     boolean debugMenu();
-    /** The game's language of a "Game language" choice (2..6; 0 the device's). */
+    /** The game's language of a "Game language" choice (2..6; 0 the device's; the language pack's choice
+     *  LanguagePacks.CHOICE its language with 0x100). */
     int gameLanguageOf(int choice);
+    /** The player's language pack (LanguagePacks, port/docs/sprachpakete.md), null when none is imported. */
+    default LanguagePacks.Info languagePack() { return null; }
+    /** The game plays with the language pack now. */
+    default boolean languagePackInUse() { return false; }
+    /** "Import language pack" (Cheats & Mods): the folder picker (folder) or the file picker (a ZIP), then the import on
+     *  a thread of its own; `listener` hears its progress and its end on the main thread. */
+    default void importLanguagePack(boolean folder, LanguagePacks.Listener listener) { }
+    /** The menu shown again while an import runs: `listener` hears the rest of it. */
+    default void languageListener(LanguagePacks.Listener listener) { }
+    /** Stops a running import (nothing of it stays, the pack before stays). */
+    default void cancelLanguagePackImport() { }
+    /** Before the pack in use is replaced or deleted: the game restarts in the device's language, then `then` runs. */
+    default void leaveLanguagePack(Runnable then) { then.run(); }
     /** The benchmark (Display -> GRAPHICS, below "Dynamic"): the menu closes and the game measures. */
     void startBenchmark();
     /** The choice "Game language": 0 the device's, 2..6 (CoreActivity.GAME_LANGUAGE holds it); the
@@ -251,6 +265,9 @@ final class CoreMenu extends Dialog {
   // Cheats & Mods, HD textures (mods()): the pack's line, the import button (Cancel while it runs)
   private TextView hdStatus;
   private Button hdImport;
+  // the language pack's line and its Import button on the Cheats & Mods page (languagePack)
+  private TextView langStatus;
+  private Button langImport;
   private boolean updateAsked;  // the question after an update (PerfProfile.FIRST_ASK) shown in this menu
   private TextView versionLabel;  // "v0.99.18-rc" left of the update button (0.99.18); null without a versionName
   private int cheatBits;  // the cheat switches as the page sent them last (CoreActivity.CHEATS)
@@ -1054,8 +1071,12 @@ final class CoreMenu extends Dialog {
    *  project owner, 27.10.2026). */
   private void gameLanguage() {
     heading(R.string.ingame_game_language);
-    final String[] labels = {s(R.string.ingame_language_device), "English", "Deutsch", "Français", "Español", "Italiano"};
-    final int[] values = {0, 2, 3, 4, 5, 6};
+    // the player's language pack (port/docs/sprachpakete.md) as a choice of its own, under the name it got at its import
+    final LanguagePacks.Info pack = host.languagePack();
+    final String[] labels = pack == null
+        ? new String[] {s(R.string.ingame_language_device), "English", "Deutsch", "Français", "Español", "Italiano"}
+        : new String[] {s(R.string.ingame_language_device), "English", "Deutsch", "Français", "Español", "Italiano", pack.name};
+    final int[] values = pack == null ? new int[] {0, 2, 3, 4, 5, 6} : new int[] {0, 2, 3, 4, 5, 6, LanguagePacks.CHOICE};
     final int[] current = {getContext().getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
         .getInt(CoreActivity.GAME_LANGUAGE, 0)};
     final Button[][] buttons = new Button[1][];
@@ -1080,6 +1101,30 @@ final class CoreMenu extends Dialog {
     });
     if (buttons[0].length == 1 && buttons[0][0] instanceof ArrowSelector) ((ArrowSelector) buttons[0][0]).setConfirm(true);
     help(R.string.ingame_language_help);
+    if (pack != null) helpText(getContext().getString(R.string.ingame_lang_choice_help, pack.name, languageName(pack.language)));
+  }
+
+  /** A help line of text made at run time (help takes a resource). */
+  private void helpText(String text) {
+    if (sideLabels()) {
+      indentedHelp(text);
+      return;
+    }
+    TextView t = text(text, 15, false);
+    t.setPadding(dp(MenuLayout.GAP), dp(4), dp(MenuLayout.GAP), dp(8));
+    body.addView(t);
+  }
+
+  /** A game language (2..6) in its own language, as the "Game language" row names it. */
+  static String languageName(int language) {
+    switch (language) {
+      case 2: return "English";
+      case 3: return "Deutsch";
+      case 4: return "Français";
+      case 5: return "Español";
+      case 6: return "Italiano";
+      default: return "?";
+    }
   }
   private Button nav(MenuLayout.Buttons parent, int title, int summary, int target) {
     SpannableStringBuilder label = new SpannableStringBuilder(s(title) + "   ›\n");
@@ -2352,6 +2397,158 @@ final class CoreMenu extends Dialog {
     if (TexturePacks.importing && host != null) host.textureListener(textureListener);
     help(R.string.ingame_hd_help);
     help(R.string.ingame_hd_groups_help);
+    if (host != null && host.gameLanguages()) languagePack();
+  }
+
+  /** "Language pack" on the Cheats & Mods page (wish of the project owner, 26.11.2026; port/docs/sprachpakete.md):
+   *  a fan translation of the European discs, imported from a folder or a ZIP (LanguagePacks); a line with the pack
+   *  (or the import's progress, or why it was refused), then Import (Cancel while it runs) and Delete. It is chosen
+   *  under "Game language". Only with the European discs. */
+  private void languagePack() {
+    heading(R.string.ingame_lang_pack);
+    final LanguagePacks.Info info = host.languagePack();
+    langStatus = text(langLine(info), 15, false);
+    langStatus.setPadding(dp(MenuLayout.GAP), dp(6), dp(MenuLayout.GAP), dp(6));
+    langStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+    indentedView(langStatus);
+    MenuLayout.Buttons row = cheatRow(labelledOptions(R.string.ingame_side_manage));
+    langImport = cellAction(row, s(LanguagePacks.importing ? R.string.ingame_hd_cancel : R.string.ingame_lang_import), v -> {
+      if (LanguagePacks.importing) host.cancelLanguagePackImport();
+      else askLanguageSource(info);
+    });
+    Button delete = quietRed(cellAction(row, s(R.string.ingame_lang_delete), v -> askDeleteLanguagePack(info)));
+    delete.setEnabled(info != null && !LanguagePacks.importing);
+    if (LanguagePacks.importing) host.languageListener(languageListener);
+    help(R.string.ingame_lang_help);
+  }
+
+  /** The language pack's line: the import's progress, the pack, or none. */
+  private String langLine(LanguagePacks.Info info) {
+    if (LanguagePacks.importing)
+      return getContext().getString(R.string.ingame_lang_importing, size(LanguagePacks.importDone), size(LanguagePacks.importTotal));
+    if (info == null) return s(R.string.ingame_lang_none);
+    String line = getContext().getString(R.string.ingame_lang_info, info.name, languageName(info.language),
+        java.text.NumberFormat.getIntegerInstance().format(info.replaced), size(info.bytes), info.imported);
+    if (host != null && host.languagePackInUse()) line += "\n" + s(R.string.ingame_lang_in_use);
+    return line;
+  }
+
+  // the import's progress and end (CoreActivity.importLanguage, main thread)
+  private final LanguagePacks.Listener languageListener = new LanguagePacks.Listener() {
+    @Override public void progress(long done, long total) {
+      if (langStatus != null && isShowing() && page == CHEATS)
+        langStatus.setText(getContext().getString(R.string.ingame_lang_importing, size(done), size(total)));
+      if (langImport != null) langImport.setText(s(R.string.ingame_hd_cancel));
+    }
+    @Override public void done(LanguagePacks.Info info, LanguagePacks.PackException failure) {
+      if (isShowing() && page == CHEATS) showPage(CHEATS, false);
+      if (failure != null) {
+        if (langStatus != null) langStatus.setText(languageProblem(getContext(), failure));
+        return;
+      }
+      if (info != null) askLanguageName(info);
+    }
+  };
+
+  /** Where the pack is: a folder (as unpacked) or a ZIP file. With a pack there, the new one replaces it. */
+  private void askLanguageSource(LanguagePacks.Info before) {
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_lang_import)
+        .setMessage(before == null ? s(R.string.ingame_lang_from)
+            : s(R.string.ingame_lang_from) + "\n\n" + getContext().getString(R.string.ingame_lang_replace_text, before.name)
+              + (host.languagePackInUse() ? "\n" + s(R.string.ingame_lang_leave_text) : ""))
+        .setNeutralButton(R.string.ingame_cancel, null)
+        .setNegativeButton(R.string.ingame_lang_zip, (d, w) -> host.leaveLanguagePack(() -> host.importLanguagePack(false, languageListener)))
+        .setPositiveButton(R.string.ingame_lang_folder, (d, w) -> host.leaveLanguagePack(() -> host.importLanguagePack(true, languageListener)))
+        .create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).requestFocus());
+    Immersive.show(dialog);
+  }
+
+  /** After the import: its name under "Game language" (the folder's or the ZIP's at first); "Play now" chooses it. */
+  private void askLanguageName(LanguagePacks.Info info) {
+    final android.widget.EditText name = new android.widget.EditText(getContext());
+    name.setSingleLine(true);
+    name.setText(info.name);
+    name.setSelectAllOnFocus(true);
+    android.widget.FrameLayout box = new android.widget.FrameLayout(getContext());
+    box.setPadding(dp(20), dp(4), dp(20), 0);
+    box.addView(name);
+    Runnable keep = () -> {
+      String n = name.getText().toString().trim();
+      if (n.isEmpty()) return;
+      try {
+        LanguagePacks.rename(getContext(), n);
+      } catch (java.io.IOException e) {
+        android.util.Log.w("RE4Language", "rename: " + e);
+      }
+    };
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_lang_imported_title)
+        .setMessage(getContext().getString(R.string.ingame_lang_imported_text,
+            java.text.NumberFormat.getIntegerInstance().format(info.replaced), languageName(info.language)))
+        .setView(box)
+        .setNegativeButton(R.string.ingame_lang_later, (d, w) -> { keep.run(); refreshLanguage(); })
+        .setPositiveButton(R.string.ingame_lang_play, (d, w) -> {
+          keep.run();
+          host.gameLanguageChanged(LanguagePacks.CHOICE);
+          close();
+        }).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).requestFocus());
+    Immersive.show(dialog);
+  }
+
+  private void refreshLanguage() {
+    if (isShowing() && page == CHEATS) showPage(CHEATS, false);
+  }
+
+  /** "Delete language pack" (the menu asks first): only the language folder; discs, saves and cards stay. A pack in
+   *  use: the game goes back to the device's language first. */
+  private void askDeleteLanguagePack(LanguagePacks.Info info) {
+    if (info == null) return;
+    AlertDialog dialog = new AlertDialog.Builder(getContext())
+        .setTitle(R.string.ingame_lang_delete)
+        .setMessage(getContext().getString(R.string.ingame_lang_delete_text, info.name)
+            + (host.languagePackInUse() ? "\n" + s(R.string.ingame_lang_leave_text) : ""))
+        .setNegativeButton(R.string.ingame_cancel, null)
+        .setPositiveButton(R.string.ingame_hd_delete_yes, (d, w) -> {
+          final Context app = getContext().getApplicationContext();
+          host.leaveLanguagePack(() -> new Thread(() -> {
+            LanguagePacks.delete(app);
+            main.post(() -> {
+              if (app.getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE)
+                  .getInt(CoreActivity.GAME_LANGUAGE, 0) == LanguagePacks.CHOICE)
+                app.getSharedPreferences(CoreActivity.GAME_PREFS, Context.MODE_PRIVATE).edit()
+                    .putInt(CoreActivity.GAME_LANGUAGE, 0).apply();
+              refreshLanguage();
+              if (langStatus != null) langStatus.setText(R.string.ingame_lang_deleted);
+            });
+          }, "language-delete").start());
+        }).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus());
+    Immersive.show(dialog);
+  }
+
+  /** Why an import was refused, for the player. */
+  static String languageProblem(Context c, LanguagePacks.PackException e) {
+    String file = e.file.isEmpty() ? "" : e.file.substring(e.file.lastIndexOf('/') + 1);
+    switch (e.reason) {
+      case LanguagePacks.NO_DISCS: return c.getString(R.string.ingame_lang_no_discs);
+      case LanguagePacks.NOT_EUROPEAN: return c.getString(R.string.ingame_lang_not_european);
+      case LanguagePacks.PROGRAM_FILE: return c.getString(R.string.ingame_lang_program_file, file);
+      case LanguagePacks.NOT_TEXT: return c.getString(R.string.ingame_lang_not_text, file);
+      case LanguagePacks.MORE_THAN_TEXT: return c.getString(R.string.ingame_lang_more_than_text, file);
+      case LanguagePacks.NOT_ON_DISC: return c.getString(R.string.ingame_lang_not_on_disc, file);
+      case LanguagePacks.DAMAGED: return c.getString(R.string.ingame_lang_damaged, file);
+      case LanguagePacks.NO_CHANGES: return c.getString(R.string.ingame_lang_no_changes);
+      case LanguagePacks.NO_SPACE: return c.getString(R.string.ingame_lang_no_space);
+      case LanguagePacks.NOT_PACK: return c.getString(R.string.ingame_lang_not_pack);
+      case LanguagePacks.CANCELLED: return c.getString(R.string.ingame_lang_cancelled);
+      case LanguagePacks.TWO_COPIES: return c.getString(R.string.ingame_lang_two_copies, file);
+      case LanguagePacks.NO_LANGUAGE: return c.getString(R.string.ingame_lang_no_language);
+      case LanguagePacks.BAD_ZIP: return c.getString(R.string.ingame_lang_bad_zip);
+      default: return c.getString(R.string.ingame_lang_read_failed, String.valueOf(e.getMessage()));
+    }
   }
 
   /** "Costumes" / "Weapons" on the Mods page: "Texture pack" (true, the default) or "Original", sent at once. */

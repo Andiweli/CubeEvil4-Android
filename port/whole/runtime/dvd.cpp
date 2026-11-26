@@ -111,10 +111,21 @@ struct Disc {
     u32 fstSize;
     u32 count;                // FST entries
     u32* parent;              // per entry: parent directory index
+    char** pack;              // per entry: the language pack's file read instead (applyPack), else 0
 };
 
 Disc gDiscs[2];
 int gCurrent = -1;
+
+// The player's language pack (port/docs/sprachpakete.md; the app's language_pack.cpp imports it): files of a fan
+// translation read instead of the disc's, with their own sizes in the FST, while the game language is the one whose
+// slot the pack replaces. RE4_LANGUAGE_PACK names the pack's folder, RE4_LANGUAGE_PACK_ON=1 turns it on at the start;
+// the app's restart turns it on or off (re4_core_restart_game, bit 0x100 of the language).
+char gPackDir[1024];
+int gPackRead;               // the variables were read
+volatile int gPackOn;        // the pack in use (what loadDisc applies)
+volatile int gPackWanted = -1;  // the restart's choice, -1 none
+volatile int gPackLanguage = -1;  // the game language (2..6) the restart or RE4_GAME_LANGUAGE asks for, -1 English
 
 // The first disc file the game could not read, for the app's message (re4_core_disc_problem):
 // "<disc>\t<path on the disc>\t<why>"; written once on the game thread, read by any thread.
@@ -256,6 +267,148 @@ bool koreanOf(const char* root)
     return ok && be32(w[0]) == 0x3BC00001u && be32(w[1]) == 0x3BE00001u;
 }
 
+void packSetUp()
+{
+    if (gPackRead) {
+        return;
+    }
+    gPackRead = 1;
+    const char* dir = getenv("RE4_LANGUAGE_PACK");
+    const char* on = getenv("RE4_LANGUAGE_PACK_ON");
+    snprintf(gPackDir, sizeof(gPackDir), "%s", dir ? dir : "");
+    gPackOn = gPackDir[0] && on && atoi(on) == 1;
+    // as core_api.cpp parseLanguage reads it (the game library is not linked to this one)
+    const char* language = getenv("RE4_GAME_LANGUAGE");
+    static const char* const names[] = {"eng", "ger", "fra", "esp", "ita"};
+    gPackLanguage = language ? atoi(language) : -1;
+    for (int i = 0; language && i < 5; i++) {
+        if (strcasecmp(language, names[i]) == 0) {
+            gPackLanguage = i + 2;
+        }
+    }
+}
+
+long hostFileSize(const char* path)
+{
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        return -1;
+    }
+    long n = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
+    fclose(f);
+    return n;
+}
+
+s32 lookup(const Disc& d, const char* path);
+
+// The language pack's files of disc `no` (its overlay.tsv: "V\t1", "L\t<language>", then "F\t<disc>\t<path on the
+// disc>\t<size>\t<file in the pack>"): their lengths go into the FST, entryPath reads them instead. Only with the
+// European discs and while the game language is the one the pack replaces; a file whose size is not the list's
+// (a pack changed since its import) stays the disc's.
+void applyPack(Disc& d, int no)
+{
+    packSetUp();
+    if (!gPackOn || !gPackDir[0]) {
+        return;
+    }
+    if (d.release != RE4_DISC_RETAIL_EU) {
+        re4_log("DVD: language pack %s: not used, it is for the European discs (these are the %s)", gPackDir,
+                releaseName(d.release));
+        return;
+    }
+    char path[1200];
+    snprintf(path, sizeof(path), "%s/overlay.tsv", gPackDir);
+    FILE* f = fopen(path, "r");
+    if (!f) {
+        re4_log("DVD: language pack %s: no overlay.tsv, not used", gPackDir);
+        return;
+    }
+    char line[2048];
+    int version = 0, language = 0;
+    unsigned files = 0, skipped = 0;
+    unsigned long bytes = 0;
+    bool use = false;
+    while (fgets(line, sizeof(line), f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (line[0] == 'V' && line[1] == '\t') {
+            version = atoi(line + 2);
+            continue;
+        }
+        if (line[0] == 'L' && line[1] == '\t') {
+            language = atoi(line + 2);
+            int wanted = gPackLanguage;
+            if (version != 1) {
+                re4_log("DVD: language pack %s: overlay version %d, not used", gPackDir, version);
+                break;
+            }
+            if (language != wanted) {
+                re4_log("DVD: language pack %s: replaces language %d, the game plays %d: not used", gPackDir,
+                        language, wanted);
+                break;
+            }
+            use = true;
+            continue;
+        }
+        if (!use || line[0] != 'F' || line[1] != '\t') {
+            continue;
+        }
+        char* field[5];
+        int n = 0;
+        for (char* p = line; n < 5 && p;) {
+            field[n++] = p;
+            p = strchr(p, '\t');
+            if (p) {
+                *p++ = 0;
+            }
+        }
+        if (n < 5 || atoi(field[1]) != no + 1) {
+            continue;
+        }
+        const char* file = field[4];
+        unsigned long size = strtoul(field[3], 0, 10);
+        s32 e = strstr(file, "..") ? -1 : lookup(d, field[2]);
+        char host[1400];
+        snprintf(host, sizeof(host), "%s/%s", gPackDir, file);
+        if (e <= 0 || isDir(d, (u32) e) || hostFileSize(host) != (long) size) {
+            if (skipped++ < 4) {
+                re4_log("DVD: language pack: %s of disc %d not used (%s)", field[2], no + 1,
+                        e <= 0 ? "not on the disc" : "its file is missing or of another size");
+            }
+            continue;
+        }
+        if (!d.pack) {
+            d.pack = (char**) calloc(d.count, sizeof(char*));
+        }
+        free(d.pack[e]);
+        d.pack[e] = strdup(host);
+        unsigned char* len = d.fst + (u32) e * 12 + 8;
+        len[0] = (unsigned char) (size >> 24);
+        len[1] = (unsigned char) (size >> 16);
+        len[2] = (unsigned char) (size >> 8);
+        len[3] = (unsigned char) size;
+        files++;
+        bytes += size;
+    }
+    fclose(f);
+    if (use) {
+        re4_log("DVD: language pack %s (language %d): disc %d reads %u files from it (%lu KB)%s", gPackDir, language,
+                no + 1, files, bytes >> 10, skipped ? ", some not used" : "");
+    }
+}
+
+void unloadDisc(Disc& d)
+{
+    if (d.pack) {
+        for (u32 i = 0; i < d.count; i++) {
+            free(d.pack[i]);
+        }
+    }
+    free(d.pack);
+    free(d.fst);
+    free(d.parent);
+    memset(&d, 0, sizeof(d));
+}
+
 bool loadDisc(int no)
 {
     Disc& d = gDiscs[no];
@@ -300,6 +453,7 @@ bool loadDisc(int no)
     }
     free(boot);
     d.korean = d.release == RE4_DISC_RETAIL_JP && koreanOf(d.root);
+    applyPack(d, no);
     d.loaded = true;
     re4_log("DVD: disc %d: %s, %u FST entries, %s%s", no, d.root, d.count, releaseName(d.release),
             d.korean ? " (Korean translation)" : "");
@@ -360,6 +514,10 @@ Disc* current()
 // Full path of entry i below files/.
 void entryPath(const Disc& d, u32 i, char* out, size_t outSize)
 {
+    if (d.pack && i < d.count && d.pack[i]) {
+        snprintf(out, outSize, "%s", d.pack[i]);  // the language pack's file (applyPack)
+        return;
+    }
     u32 chain[64];
     int n = 0;
     for (u32 e = i; e != 0 && n < 64; e = d.parent[e]) {
@@ -604,11 +762,50 @@ void re4_set_data_dir(const char* dir)
 {
     snprintf(gDataDir, sizeof(gDataDir), "%s", dir);
     for (Disc& d : gDiscs) {
-        free(d.fst);
-        free(d.parent);
-        memset(&d, 0, sizeof(d));
+        unloadDisc(d);
     }
     gCurrent = -1;
+}
+
+// The app's restart (re4_core_restart_game): the language pack on or off from the next restart on, and the game
+// language of that restart (2..6; 0 when it stays).
+void re4_language_pack_want(int on, int language)
+{
+    packSetUp();
+    if (language >= 2 && language <= 6) {
+        gPackLanguage = language;
+    }
+    gPackWanted = on ? 1 : 0;
+}
+
+// At the restart, on the game thread before the soft reset (runtime/game_language.cpp): both discs read again with
+// or without the pack (its files and their lengths, the FST in MEM1), so the game, which reads etc/core.das again at
+// the reset, gets the pack's texts or the disc's. The language may have changed with the restart, which decides
+// whether the pack applies (applyPack).
+void re4_language_pack_switch(void)
+{
+    packSetUp();
+    int wanted = gPackWanted;
+    if (wanted < 0 || !gPackDir[0]) {
+        return;
+    }
+    gPackWanted = -1;
+    gPackOn = wanted;
+    int inserted = gCurrent;
+    for (Disc& d : gDiscs) {
+        unloadDisc(d);
+    }
+    gCurrent = -1;
+    re4_log("DVD: language pack %s at the restart: %s", gPackDir, wanted ? "on" : "off");
+    if (inserted >= 0) {
+        insertDisc(inserted);
+    }
+}
+
+int re4_language_pack_on(void)
+{
+    packSetUp();
+    return gPackOn && gPackDir[0];
 }
 
 const char* re4_data_dir(void)
