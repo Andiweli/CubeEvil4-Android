@@ -908,7 +908,9 @@ liegt vor dem Versionscommit.
 
 ### 1. Vulkan: Wände mit Echtzeitschatten durchsichtig, zweiter Versuch (Adreno 735, Poco F6; Punkt 9 von 1.1.4)
 
-**Wartet auf Bestätigung durch den Nutzer auf dem Gerät** (Prüfzeilen im Log, siehe unten).
+**Geparkt** (26.11.2026; der Projektinhaber: mit einer tragfähigen neuen Idee weitermachen, sonst parken). Der
+Testbau 1.1.5 mit dem Zurückschreiben und der Prüfung (e6e5a968) half nicht, die Prüfung schließt den Tiefenverlust
+aus; Zurückschreiben und Prüfung sind wieder draußen (eigener Commit), der Fehler der Kopier-Pipeline bleibt behoben.
 
 - Zweiter Bericht (`builds/workthread-1.1.3/user-report-20261126-045839-shadows2`, Testbau 1.1.4 mit dem ersten
   Versuch, ohne MSAA, FXAA an): Wände weiter durchsichtig. Das Log zeigt keine eigene Zeile des Wegs, aber ~30 MB mehr
@@ -928,6 +930,18 @@ liegt vor dem Versionscommit.
   die Wand wie beim Nutzer, Prüfung 1 „1000 farther (lost) … the depth was lost“, mit Zurückschreiben Wand wieder da
   (≤ 214 Pixel um ≤ 6/255 anders), Prüfung 2 „0 farther … held“. Validierung und Synchronisations-Validierung 0 Fehler,
   MSAA 4 0 Fehler. Bilder: `builds/workthread-1.1.3/shadow-walls2`. Auf einem Adreno-Gerät nicht geprüft.
+- Dritter Bericht (`builds/workthread-1.1.3/user-report-20261126-061430-shadows3`, Testbau 1.1.5-sideload): „nicht
+  besser“. Im Log: `put back … (1 sample, 1.1.5)`, Prüfung 1 (ohne Zurückschreiben) 0 ferner, 395 näher, 1653 gleich,
+  977 in der Kopie fern, „the depth held“; Prüfung 2 ebenso „held“. Die Tiefe des EFB geht auf diesem Gerät also
+  nicht verloren; auch die erste Annahme (30d8463b) war nicht die Ursache. Die 977 fernen Punkte sind kein Befund:
+  am PC an anderer Stelle genauso viele (der Teil des EFB außerhalb des Spielbilds und der Himmel).
+- Weiter geprüft, ohne Befund: 60-FPS-Zwischenbilder mit Schatten (der Nutzer spielt mit „60 FPS“; PC-Folge von 8
+  aufeinanderfolgenden Bildern am Haus, `RE4_GX_DUMP_SERIES=8`, `RE4_GX_INTERP=1`, Vulkan und GLES, Schatten aus/an:
+  Wand in echten und Zwischenbildern ganz, Schatten an = aus). Keine Fehlermeldung des Treibers im Log.
+- Nächste Schritte, wenn der Nutzer mag (drei Schalter, je ein Bericht an derselben Stelle): OpenGL ES statt Vulkan;
+  Echtzeitschatten „nur Figuren“; „60 FPS“ aus. Das trennt Vulkan/beide, Objekte/Figuren und Zwischenbilder.
+- Herausgenommen (eigener Commit): das Zurückschreiben (ein Zeichnen über das ganze EFB je Bild mit Schatten, ohne
+  Nutzen) und die Prüfung. Am PC: Bilder bitgleich mit 1.1.4, Validierung 0 Fehler.
 
 ### 2. Cheat „Gegenstände stapeln“: gemischte Kräuter stapeln (Projektinhaber 26.11.2026, Patch 0260)
 
