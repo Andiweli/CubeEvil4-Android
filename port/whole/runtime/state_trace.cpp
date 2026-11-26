@@ -320,6 +320,7 @@
 #include "re4_instant.h"
 extern "C" unsigned re4_instant_game_why(void);  // instant_game.cpp, for these checks
 extern "C" int re4_core_room_outline(float* out, int maxEdges, unsigned* info);  // minimap.cpp
+extern "C" int re4_core_room_pickups(float* out, int max, unsigned* info);        // minimap.cpp (1.1.6)
 #include "pl_sub.h"
 #include "sce_sys.h"
 #include "flag_rsf.h"
@@ -2527,8 +2528,10 @@ void frame(unsigned n)
     if (g_freeAt >= 0 && (long) n == g_freeAt + g_instantSave) {
         instantSave(n);
     }
-    if (g_minimapAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + 1)
+    if (g_minimapAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + 1) {
         re4_core_room_outline(nullptr, 0, nullptr);  // the first call starts the building
+        re4_core_room_pickups(nullptr, 0, nullptr);  // 1.1.6: and the pickups' list
+    }
     if (g_minimapAfter >= 0 && g_freeAt >= 0 && (long) n == g_freeAt + g_minimapAfter && live(pPL)) {
         // (malloc: no C++ container in the game-flagged code, see minimap.cpp)
         static float* outline = (float*) malloc(12000 * 5 * sizeof(float));
@@ -2541,6 +2544,12 @@ void frame(unsigned n)
             for (int i = 0; i < count; i++)
                 fprintf(f, "%.1f %.1f %.1f %.1f %.1f\n", edges[i * 5], edges[i * 5 + 1], edges[i * 5 + 2], edges[i * 5 + 3],
                         edges[i * 5 + 4]);
+            // 1.1.6: the pickups as "pick x z height kind" lines (minimap_check draws them)
+            static float picks[160 * 4];
+            unsigned pinfo[2] = {0, 0};
+            const int np = re4_core_room_pickups(picks, 160, pinfo);
+            for (int i = 0; i < np; i++)
+                fprintf(f, "pick %.1f %.1f %.1f %d\n", picks[i * 4], picks[i * 4 + 1], picks[i * 4 + 2], (int) picks[i * 4 + 3]);
             fclose(f);
         }
         re4_log("run: minimap of r%03x (outline %u): %d edges, player at (%.0f %.0f %.0f) -> %s", info[1], info[0],

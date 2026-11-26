@@ -53,6 +53,9 @@
     <string name="ingame_side_texture_options">Opsi tekstur</string>
     <string name="ingame_perf_section">Performa</string>
     <string name="ingame_minimap">Peta mini</string>
+    <string name="ingame_minimap_pickups">Harta dan item</string>
+    <string name="ingame_minimap_pickups_hidden">Dengan tersembunyi</string>
+    <string name="ingame_minimap_pickups_help">Harta dan item: minimap menampilkan harta ruangan sebagai titik emas, item lain (amunisi, herba, uang, kunci) sebagai titik biru, dan medali biru sebagai cincin biru; titik hilang begitu kamu mengambilnya. Dengan tersembunyi: juga yang masih ada di peti tertutup, kotak dan tong yang belum pecah, atau dibawa musuh, sebagai cincin. Hanya saat minimap aktif.</string>
     <string name="ingame_flares">Pantulan lensa (lens flare)</string>
     <string name="ingame_flares_lens">Lens flare</string>
     <string name="ingame_flares_both">Halo + lens flare</string>

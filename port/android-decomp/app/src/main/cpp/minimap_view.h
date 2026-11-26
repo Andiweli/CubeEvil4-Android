@@ -76,6 +76,69 @@ inline void Project(const float *edges, int n, const Pose &p, float radius, std:
   }
 }
 
+// 1.1.6 (the project owner: treasures and items on the minimap): the room's pickups (re4_core_room_pickups: x, z,
+// height, kind; kind & 7: 1 an item, 2 a treasure, 3 a blue medallion; | 8 hidden in a closed chest, a crate or an
+// enemy) as dots in the map's square, placed as Project places the outline. `mode` 1: what lies, hangs or waits in
+// the open; 2: the hidden ones too, as rings. Treasures gold, items blue, a medallion a blue ring round a white dot.
+// Out of the map or more than 5 m above or below (not a medallion: they hang high): left out. Another storey fades as the outline does. Triangles into `tris`, lines into `lines`
+// (x y r g b a each).
+inline void PickupDots(const float *picks, int n, const Pose &p, float radius, int mode, std::vector<float> &tris,
+                       std::vector<float> &lines) {
+  if (mode <= 0)
+    return;
+  const float rx = -p.fz, rz = p.fx;
+  const float inv = 1.0f / radius;
+  const int kSides = 10;
+  auto put = [](std::vector<float> &v, float x, float y, const float *c, float a) {
+    v.insert(v.end(), {x, y, c[0], c[1], c[2], a});
+  };
+  static const float gold[3] = {1.0f, 0.80f, 0.18f}, blue[3] = {0.36f, 0.66f, 1.0f}, white[3] = {0.95f, 0.97f, 1.0f},
+                     dark[3] = {0.0f, 0.0f, 0.0f};
+  for (int i = 0; i < n; i++) {
+    const float *e = picks + i * 4;
+    const int kind = static_cast<int>(e[3]);
+    const bool hidden = (kind & 8) != 0;
+    if (hidden && mode < 2)
+      continue;
+    const float x = ((e[0] - p.x) * rx + (e[1] - p.z) * rz) * inv, y = ((e[0] - p.x) * p.fx + (e[1] - p.z) * p.fz) * inv;
+    const float r = (kind & 7) == 2 ? 0.055f : 0.045f;
+    if (x * x + y * y > (0.97f - r) * (0.97f - r))
+      continue;
+    // more than 5 m above or below him: not on his storey or the next (the village's start has 9 items 7 m under
+    // the ground, a leftover of the prototype); a storey up or down fades as the outline does
+    // (a blue medallion hangs high on purpose, in a tree or on a tower, and is shot from below: always full)
+    const bool medallion = (kind & 7) == 3;
+    const float dh = std::fabs(e[2] - p.y);
+    if (dh > 5000.0f && !medallion)
+      continue;
+    const float alpha = dh <= 600.0f || medallion ? 1.0f : std::fmax(0.3f, 1.0f - (dh - 600.0f) / 3200.0f);
+    const float *c = (kind & 7) == 2 ? gold : blue;
+    if (hidden || (kind & 7) == 3) {
+      // a ring (a hidden one; a medallion's round a white dot)
+      for (int k = 0; k < kSides; k++) {
+        const float a0 = 6.2831853f * k / kSides, a1 = 6.2831853f * (k + 1) / kSides;
+        put(lines, x + std::cos(a0) * r, y + std::sin(a0) * r, c, (hidden ? 0.8f : 1.0f) * alpha);
+        put(lines, x + std::cos(a1) * r, y + std::sin(a1) * r, c, (hidden ? 0.8f : 1.0f) * alpha);
+      }
+      if ((kind & 7) != 3)
+        continue;
+      c = white;
+    }
+    // a filled dot with a dark rim, so it stands out on the outline
+    const float rr = (kind & 7) == 3 ? r * 0.45f : r;
+    for (int k = 0; k < kSides; k++) {
+      const float a0 = 6.2831853f * k / kSides, a1 = 6.2831853f * (k + 1) / kSides;
+      const float rim = rr * 1.35f;
+      put(tris, x, y, dark, 0.55f * alpha);
+      put(tris, x + std::cos(a0) * rim, y + std::sin(a0) * rim, dark, 0.0f);
+      put(tris, x + std::cos(a1) * rim, y + std::sin(a1) * rim, dark, 0.0f);
+      put(tris, x, y, c, alpha);
+      put(tris, x + std::cos(a0) * rr, y + std::sin(a0) * rr, c, alpha);
+      put(tris, x + std::cos(a1) * rr, y + std::sin(a1) * rr, c, alpha);
+    }
+  }
+}
+
 // How far the map reaches (world units to its edge) for a room: 30 % of its longer side, at least 10 m (a
 // corridor, a hut), at most 24 m (the village, the halls of the castle: 12 m showed one wall there).
 inline float RoomRadius(const float *edges, int n) {

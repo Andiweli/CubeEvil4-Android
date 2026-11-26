@@ -52,6 +52,9 @@
     <string name="ingame_side_texture_options">Параметры текстур</string>
     <string name="ingame_perf_section">Производительность</string>
     <string name="ingame_minimap">Мини-карта</string>
+    <string name="ingame_minimap_pickups">Сокровища и предметы</string>
+    <string name="ingame_minimap_pickups_hidden">Со скрытыми</string>
+    <string name="ingame_minimap_pickups_help">Сокровища и предметы: мини-карта показывает сокровища комнаты золотыми точками, остальные предметы (патроны, травы, деньги, ключи) синими точками, а синие медальоны синими кольцами; точка исчезает, когда ты подбираешь предмет. Со скрытыми: также то, что ещё лежит в закрытых сундуках, целых ящиках и бочках или у врагов, в виде колец. Только при включённой мини-карте.</string>
     <string name="ingame_flares">Блики объектива</string>
     <string name="ingame_flares_lens">Блики объектива</string>
     <string name="ingame_flares_both">Ореолы + блики</string>

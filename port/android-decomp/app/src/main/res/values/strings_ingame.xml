@@ -61,6 +61,9 @@
     <string name="ingame_side_texture_options">Texture options</string>
     <string name="ingame_perf_section">Performance</string>
     <string name="ingame_minimap">Minimap</string>
+    <string name="ingame_minimap_pickups">Treasures and items</string>
+    <string name="ingame_minimap_pickups_hidden">With hidden</string>
+    <string name="ingame_minimap_pickups_help">Treasures and items: the minimap shows the room\'s treasures as gold dots, other items (ammo, herbs, money, keys) as blue dots and the blue medallions as blue rings; a dot goes once you pick it up. With hidden: also what still waits in closed chests, unbroken crates and barrels or is carried by enemies, as rings. Only with the minimap on.</string>
     <string name="ingame_flares">Lens flares</string>
     <string name="ingame_flares_lens">Lens flares</string>
     <string name="ingame_flares_both">Halos + lens flares</string>

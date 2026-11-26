@@ -335,6 +335,11 @@ int re4_core_cheat_action(int what);
  * `out` (x0, z0, x1, z1, height); info[0] rises with every new outline, info[1] is its room. Returns the
  * edges (0 before the first). The first call makes the game build it (anew when the room changes). */
 int re4_core_room_outline(float* out, int maxEdges, unsigned* info);
+/* The minimap's pickups (cores since 1.1.6, runtime/minimap.cpp): the current room's items, treasures and blue
+ * medallions, up to `max` of 4 floats into `out` (x, z, height, kind: kind & 7 1 item, 2 treasure, 3 medallion;
+ * | 8 hidden in a closed chest, a crate or (| 16) an enemy); info[0] rises with every new list (every 5th frame),
+ * info[1] is its room. Returns the count. The first call makes the game list them. */
+int re4_core_room_pickups(float* out, int max, unsigned* info);
 /* The laser sight's colour (cores since 04.11.2026, patch 0198, runtime/laser_colour.cpp): 0 the game's red,
  * 1 blue, 2 green, 3 yellow; the beam and the dot. Any thread. */
 void re4_core_set_laser_colour(int colour);

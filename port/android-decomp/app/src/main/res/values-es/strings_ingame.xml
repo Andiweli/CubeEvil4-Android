@@ -52,6 +52,9 @@
     <string name="ingame_side_texture_options">Opciones de textura</string>
     <string name="ingame_perf_section">Rendimiento</string>
     <string name="ingame_minimap">Minimapa</string>
+    <string name="ingame_minimap_pickups">Tesoros y objetos</string>
+    <string name="ingame_minimap_pickups_hidden">Con ocultos</string>
+    <string name="ingame_minimap_pickups_help">Tesoros y objetos: el minimapa muestra los tesoros de la sala como puntos dorados, los demás objetos (munición, hierbas, dinero, llaves) como puntos azules y los medallones azules como anillos azules; un punto desaparece al recogerlo. Con ocultos: también lo que aún espera en cofres cerrados, cajas y barriles sin romper o llevan los enemigos, como anillos. Solo con el minimapa activado.</string>
     <string name="ingame_flares">Destellos de lente</string>
     <string name="ingame_flares_lens">Destellos de lente</string>
     <string name="ingame_flares_both">Halos + destellos</string>

@@ -958,6 +958,30 @@ Release und Tag macht der Projektinhaber auf GitHub.
   stellt Leon nicht an den Tresen, die Ziele liegen außer Schussweite). Kern 0 Fehler, Laufzeit- und Kerntests,
   252 App-Unit-Tests, Lint. Nicht auf einem Gerät geprüft. Skripte im Notizordner `116-fire*.sh`, `116-gallery.sh`.
 
+### 3. Minikarte: „Schätze und Items“ / „Treasures and items“ (Wunsch des Projektinhabers)
+
+**OK des Projektinhabers 26.11.2026** (drei Werte Aus / An / Mit versteckten; Anordnung: Minikarte | Schätze und
+Items, darunter Fotomodus breit).
+
+- Daten: jede Aufnahme eines Raums ist ein Szenario-Bereich vom Typ 3 (`sce_at.cpp`, Liste `sceAtSetOtStart` /
+  `sceAtGetOtAddr`): Gegenstands-Nummer, Ort, genommen (`sceAtItemFlgCk`); auch Kisten- und Fassinhalt (wartet auf das
+  Etc-Modell, `waiting_type` 2), Truheninhalt (aus bis zum Öffnen), hängende Schätze (Modell `cEmItem`), was Gegner
+  tragen (`waiting_type` 1). Blaue Medaillons: `cEmItem` 0x4C Typ 1 bis zum Abschuss (Status 2). Schatz = Typ 5 oder 12
+  (`itemType`), sonst Item.
+- Kern (`runtime/minimap.cpp`): jede 5. Bild eine Liste (x, z, Höhe, Art; Art & 7: 1 Item, 2 Schatz, 3 Medaillon,
+  | 8 versteckt, | 16 bei einem Gegner), `re4_core_room_pickups`, IPC `kRoomPickups` 55 (54 gehört der pausierten
+  Arbeit „Bewegen und Zielen“). Ohne bekannten Ort (Ereignis gibt es erst) ausgelassen. PC: `RE4_TEST_MINIMAP` schreibt
+  „pick“-Zeilen, `RE4_MINIMAP_PICKS=1` jede Aufnahme und die Zeit.
+- App (`minimap_view.h` `re4mm::PickupDots`): Schatz goldener Punkt, Item blauer Punkt, Medaillon blauer Ring mit
+  weißem Punkt, versteckte als Ringe; mehr als 5 m über/unter Leon ausgelassen (r100 hat 9 Items 7 m unter dem Start,
+  ein Rest des Prototyps), ein Stockwerk blasser; Medaillons immer (hängen 5–18 m hoch). Fünfmal je Sekunde abgefragt;
+  GLES und Vulkan zeichnen alle Teile der Überlagerung in Reihenfolge. Auswahl GRAFIK → OPTIONAL rechts neben
+  „Minikarte“ (grau, solange sie aus ist), `core_graphics` `minimapPickups`, 11 Sprachen.
+- **Geprüft am PC** (i686, Debug-Discs): 16 Räume (Dorf, Burg) je mit Schätzen, Items, versteckten; Medaillons genau 15
+  (r103 7, r108 8); Aufheben nimmt den Punkt (r100 22 → 21 Items); Liste 5,9 µs (jede 5. Bild); Bilder
+  `builds/workthread-1.1.6/minimap-pickups`. Kern 0 Fehler, Tests; 252 App-Unit-Tests, Lint. Nicht auf einem Gerät
+  geprüft. Skripte `116-minimap.sh`, `116-spot.py`, `116-pickscan.sh`, `116-sheet.sh` im Notizordner.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

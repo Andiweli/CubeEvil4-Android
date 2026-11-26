@@ -590,6 +590,7 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       CoreBridge.setFlares(CoreBridge.flareMode(g));
       CoreBridge.setViewDistance(CoreBridge.VIEW_PERCENT[CoreBridge.viewDistance(g)]);
       CoreBridge.setMinimap(g.getBoolean("minimap", false));
+      CoreBridge.setMinimapPickups(g.getInt(CoreMenu.MINIMAP_PICKUPS, 0));
       CoreBridge.setLaserColour(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getInt(LASER_COLOUR, 0));
       CoreBridge.setMerge(g.getBoolean("mergeDraws", false));
       CoreBridge.setFarCamera(getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).getBoolean(FAR_CAMERA, false));

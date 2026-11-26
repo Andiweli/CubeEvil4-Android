@@ -49,6 +49,9 @@ public class CoreMenuShotTest {
         config.setLocale(Locale.forLanguageTag(language));
         activity.getResources().updateConfiguration(config, activity.getResources().getDisplayMetrics());
         CoreMenuLayoutTest.setVersion(activity, "0.99.18-rc-core");
+        // RE4_MENU_SHOTS_MINIMAP=1 (1.1.6): the minimap on, so its "Treasures and items" shows lit
+        activity.getSharedPreferences(CoreActivity.GRAPHICS_PREFS, android.content.Context.MODE_PRIVATE).edit()
+            .putBoolean("minimap", "1".equals(System.getenv("RE4_MENU_SHOTS_MINIMAP"))).commit();
         CoreMenu menu = new CoreMenu(activity, host, false, 1920, 1080);
         Field rootField = CoreMenu.class.getDeclaredField("root"); rootField.setAccessible(true);
         Field bodyField = CoreMenu.class.getDeclaredField("body"); bodyField.setAccessible(true);

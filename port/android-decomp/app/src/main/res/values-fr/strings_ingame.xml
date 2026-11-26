@@ -54,6 +54,9 @@
     <string name="ingame_side_texture_options">Options de texture</string>
     <string name="ingame_perf_section">Performances</string>
     <string name="ingame_minimap">Mini-carte</string>
+    <string name="ingame_minimap_pickups">Trésors et objets</string>
+    <string name="ingame_minimap_pickups_hidden">Avec cachés</string>
+    <string name="ingame_minimap_pickups_help">Trésors et objets : la mini-carte montre les trésors de la salle en points dorés, les autres objets (munitions, herbes, argent, clés) en points bleus et les médaillons bleus en anneaux bleus ; un point disparaît dès que tu le ramasses. Avec cachés : aussi ce qui attend encore dans les coffres fermés, les caisses et tonneaux intacts ou sur les ennemis, en anneaux. Seulement avec la mini-carte activée.</string>
     <string name="ingame_flares">Halos lumineux</string>
     <string name="ingame_flares_lens">Reflets d\'objectif</string>
     <string name="ingame_flares_both">Halos + reflets</string>

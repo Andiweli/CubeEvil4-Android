@@ -52,6 +52,9 @@
     <string name="ingame_side_texture_options">Opzioni texture</string>
     <string name="ingame_perf_section">Prestazioni</string>
     <string name="ingame_minimap">Minimappa</string>
+    <string name="ingame_minimap_pickups">Tesori e oggetti</string>
+    <string name="ingame_minimap_pickups_hidden">Con nascosti</string>
+    <string name="ingame_minimap_pickups_help">Tesori e oggetti: la minimappa mostra i tesori della stanza come punti dorati, gli altri oggetti (munizioni, erbe, denaro, chiavi) come punti blu e i medaglioni blu come anelli blu; un punto sparisce appena lo raccogli. Con nascosti: anche ciò che aspetta ancora in forzieri chiusi, casse e barili intatti o che portano i nemici, come anelli. Solo con la minimappa attiva.</string>
     <string name="ingame_flares">Riflessi lente</string>
     <string name="ingame_flares_lens">Riflessi lente</string>
     <string name="ingame_flares_both">Aloni + riflessi</string>

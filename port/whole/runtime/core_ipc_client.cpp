@@ -1017,6 +1017,17 @@ int re4ipc_room_outline(float* out, int maxEdges, unsigned* info)
     return n;
 }
 
+int re4ipc_room_pickups(float* out, int max, unsigned* info)
+{
+    Reply r;
+    if (!call(kRoomPickups, max, 0, 0, nullptr, 0, 2000, &r)) return 0;
+    const int n = r.header.a;
+    if (n < 0 || n > max || r.dataBytes() != 8 + (size_t) n * 16) return 0;
+    if (info) memcpy(info, r.data(), 8);
+    if (out && n > 0) memcpy(out, (const char*) r.data() + 8, (size_t) n * 16);
+    return n;
+}
+
 void re4ipc_swipe(int dir)
 {
     post(kSwipe, dir, 0, 0);

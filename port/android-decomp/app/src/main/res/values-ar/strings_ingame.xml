@@ -56,6 +56,9 @@
     <string name="ingame_side_texture_options">خيارات الخامات</string>
     <string name="ingame_perf_section">الأداء</string>
     <string name="ingame_minimap">خريطة مصغرة</string>
+    <string name="ingame_minimap_pickups">الكنوز والعناصر</string>
+    <string name="ingame_minimap_pickups_hidden">مع المخفية</string>
+    <string name="ingame_minimap_pickups_help">الكنوز والعناصر: تعرض الخريطة المصغرة كنوز الغرفة كنقاط ذهبية، والعناصر الأخرى (الذخيرة، الأعشاب، المال، المفاتيح) كنقاط زرقاء، والميداليات الزرقاء كحلقات زرقاء؛ تختفي النقطة عند التقاطها. مع المخفية: يظهر أيضًا ما لا يزال في الصناديق المغلقة والصناديق والبراميل غير المكسورة أو مع الأعداء، كحلقات. فقط عند تشغيل الخريطة المصغرة.</string>
     <string name="ingame_flares">وهج العدسة</string>
     <string name="ingame_flares_lens">وهج العدسة</string>
     <string name="ingame_flares_both">هالات + وهج العدسة</string>

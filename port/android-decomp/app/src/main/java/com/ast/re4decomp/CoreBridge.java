@@ -303,6 +303,9 @@ public final class CoreBridge {
   public static native void setViewDistance(int percent);
   /** The minimap: the current room's outline at the bottom left, turning with the player (off by default). */
   public static native void setMinimap(boolean on);
+  /** The minimap's "Treasures and items" (1.1.6, Display): 0 off, 1 the room's treasures (gold), items (blue) and blue
+   *  medallions, 2 also those hidden in closed chests, crates and enemies (rings; runtime/minimap.cpp). */
+  public static native void setMinimapPickups(int mode);
   /** The laser sight's colour (CONTROLS, LASER SIGHT): 0 the game's red, 1 blue, 2 green, 3 yellow. */
   public static native void setLaserColour(int colour);
   /** Vertex ring (experimental, for Mali): a new renderer takes it. */

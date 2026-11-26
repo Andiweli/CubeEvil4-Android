@@ -53,6 +53,9 @@
     <string name="ingame_side_texture_options">纹理选项</string>
     <string name="ingame_perf_section">性能</string>
     <string name="ingame_minimap">小地图</string>
+    <string name="ingame_minimap_pickups">宝物和物品</string>
+    <string name="ingame_minimap_pickups_hidden">含隐藏</string>
+    <string name="ingame_minimap_pickups_help">宝物和物品：小地图以金色圆点显示房间内的宝物，以蓝色圆点显示其他物品（弹药、草药、金钱、钥匙），以蓝色圆环显示蓝色徽章；拾取后圆点消失。含隐藏：也以圆环显示仍在关闭的宝箱、未打破的木箱和木桶中或敌人携带的物品。仅在小地图开启时有效。</string>
     <string name="ingame_flares">镜头光晕</string>
     <string name="ingame_flares_lens">镜头光晕</string>
     <string name="ingame_flares_both">光环 + 镜头光晕</string>

@@ -52,6 +52,9 @@
     <string name="ingame_side_texture_options">टेक्सचर विकल्प</string>
     <string name="ingame_perf_section">परफ़ॉर्मेंस</string>
     <string name="ingame_minimap">मिनी-मैप</string>
+    <string name="ingame_minimap_pickups">ख़ज़ाने और आइटम</string>
+    <string name="ingame_minimap_pickups_hidden">छिपे हुए भी</string>
+    <string name="ingame_minimap_pickups_help">ख़ज़ाने और आइटम: मिनीमैप कमरे के ख़ज़ानों को सुनहरे बिंदुओं, बाकी आइटम (गोला-बारूद, जड़ी-बूटियाँ, पैसे, चाबियाँ) को नीले बिंदुओं और नीले पदकों को नीले छल्लों के रूप में दिखाता है; उठाते ही बिंदु गायब हो जाता है। छिपे हुए भी: बंद संदूकों, बिना टूटे बक्सों और ड्रमों में या दुश्मनों के पास जो अभी बाकी है, वह भी छल्लों के रूप में। सिर्फ़ मिनीमैप चालू होने पर।</string>
     <string name="ingame_flares">लेंस फ़्लेयर</string>
     <string name="ingame_flares_lens">लेंस फ़्लेयर</string>
     <string name="ingame_flares_both">हेलो + लेंस फ़्लेयर</string>

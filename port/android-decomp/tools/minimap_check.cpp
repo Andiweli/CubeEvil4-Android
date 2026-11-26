@@ -3,7 +3,10 @@
 // PPM, as core_mode.cpp draws it: the dark disc, the outline (other storeys fainter), the ring, the arrow.
 //
 //   g++ -O2 -std=c++17 -I app/src/main/cpp tools/minimap_check.cpp -o minimap_check
-//   minimap_check DUMP OUT.ppm [radius]
+//   minimap_check DUMP OUT.ppm [radius] [pickups mode 0..2]
+//
+// 1.1.6: the dump's "pick x z height kind" lines are the room's treasures and items (re4mm::PickupDots), drawn with
+// mode 1 (shown) unless the fifth argument says otherwise.
 //
 // Prints the edges, the segments inside the map and how many end within 2 % of the ring (clipped there).
 #include "minimap_view.h"
@@ -57,13 +60,20 @@ int main(int argc, char **argv) {
   float e[5];
   while (std::fscanf(f, "%f %f %f %f %f", &e[0], &e[1], &e[2], &e[3], &e[4]) == 5)
     edges.insert(edges.end(), e, e + 5);
+  std::vector<float> picks;
+  int kind = 0;
+  while (std::fscanf(f, " pick %f %f %f %d", &e[0], &e[1], &e[2], &kind) == 4) {
+    picks.insert(picks.end(), e, e + 3);
+    picks.push_back(static_cast<float>(kind));
+  }
   std::fclose(f);
   re4mm::Pose pose;
   if (!re4mm::PoseFromMatrix(m, &pose))
     return 1;
   std::vector<float> lines;
-  const float radius = argc > 3 ? static_cast<float>(std::atof(argv[3]))
-                                 : re4mm::RoomRadius(edges.data(), static_cast<int>(edges.size() / 5));
+  // (an empty or 0 radius: the room's own, as the app takes it)
+  const float radius = argc > 3 && std::atof(argv[3]) > 0 ? static_cast<float>(std::atof(argv[3]))
+                                                          : re4mm::RoomRadius(edges.data(), static_cast<int>(edges.size() / 5));
   re4mm::Project(edges.data(), static_cast<int>(edges.size() / 5), pose, radius, lines);
   const int S = 400;
   std::vector<float> img(S * S * 3, 0.15f);
@@ -94,6 +104,43 @@ int main(int argc, char **argv) {
   }
   for (int k = 0; k < 720; k++)
     plot(std::cos(k * 0.00872665f) * 0.99f, std::sin(k * 0.00872665f) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
+  // 1.1.6: the treasures and items, as the app draws them (filled triangles, then the rings)
+  const int pickMode = argc > 4 ? std::atoi(argv[4]) : 1;
+  std::vector<float> dotTris, dotLines;
+  re4mm::PickupDots(picks.data(), static_cast<int>(picks.size() / 4), pose, radius, pickMode, dotTris, dotLines);
+  for (size_t t = 0; t + 17 < dotTris.size(); t += 18) {
+    const float *a = &dotTris[t], *b = &dotTris[t + 6], *c = &dotTris[t + 12];
+    const float minx = std::fmin(a[0], std::fmin(b[0], c[0])), maxx = std::fmax(a[0], std::fmax(b[0], c[0]));
+    const float miny = std::fmin(a[1], std::fmin(b[1], c[1])), maxy = std::fmax(a[1], std::fmax(b[1], c[1]));
+    const float area = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+    if (std::fabs(area) < 1e-9f)
+      continue;
+    for (int y = static_cast<int>((0.5f - maxy * 0.5f) * (S - 1)) - 1; y <= static_cast<int>((0.5f - miny * 0.5f) * (S - 1)) + 1; y++)
+      for (int x = static_cast<int>((minx * 0.5f + 0.5f) * (S - 1)) - 1; x <= static_cast<int>((maxx * 0.5f + 0.5f) * (S - 1)) + 1; x++) {
+        const float u = (x + 0.5f) / (S - 1) * 2 - 1, v = 1 - (y + 0.5f) / (S - 1) * 2;
+        const float w0 = ((b[0] - u) * (c[1] - v) - (c[0] - u) * (b[1] - v)) / area;
+        const float w1 = ((c[0] - u) * (a[1] - v) - (a[0] - u) * (c[1] - v)) / area;
+        const float w2 = 1 - w0 - w1;
+        if (w0 < 0 || w1 < 0 || w2 < 0)
+          continue;
+        plot(u, v, a[2] * w0 + b[2] * w1 + c[2] * w2, a[3] * w0 + b[3] * w1 + c[3] * w2, a[4] * w0 + b[4] * w1 + c[4] * w2,
+             a[5] * w0 + b[5] * w1 + c[5] * w2);
+      }
+  }
+  for (size_t l = 0; l + 11 < dotLines.size(); l += 12) {
+    const float *a = &dotLines[l], *b = &dotLines[l + 6];
+    for (int k = 0; k <= 30; k++) {
+      const float t = k / 30.0f;
+      plot(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2], a[3], a[4], a[5]);
+    }
+  }
+  int counts[4] = {}, hiddenCount = 0;
+  for (size_t i = 3; i < picks.size(); i += 4) {
+    counts[(static_cast<int>(picks[i]) & 7) % 4]++;
+    hiddenCount += (static_cast<int>(picks[i]) & 8) != 0;
+  }
+  std::printf("pickups: %d items, %d treasures, %d medallions, %d of them hidden; drawn with mode %d\n", counts[1],
+              counts[2], counts[3], hiddenCount, pickMode);
   for (int k = 0; k <= 40; k++) {  // the arrow's outline
     const float t = k / 40.0f;
     plot(-0.08f + 0.08f * t, -0.09f + 0.22f * t, 1, 0.78f, 0.25f, 1);

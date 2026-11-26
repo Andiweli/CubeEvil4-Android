@@ -113,6 +113,7 @@ struct CoreApi {
   void (*setCheats)(int){};      // optional (cores since 27.10.2026): the cheat menu's switches
   int (*cheatAction)(int){};     // optional (cores since 27.10.2026): a cheat menu button
   int (*roomOutline)(float *, int, unsigned *){};  // optional (cores since 04.11.2026): the minimap's room outline
+  int (*roomPickups)(float *, int, unsigned *){};  // optional (cores since 1.1.6): the minimap's items and treasures
   void (*setLaserColour)(int){};  // optional (cores since 04.11.2026, patch 0198): the laser sight's colour
   void (*setViewDistance)(int){};  // optional (cores since 09.11.2026, patch 0223): the view distance in percent
   void (*setCpuSkip)(int){};       // optional (cores since 10.11.2026, patch 0227): "Aggressive frame skip"
@@ -474,6 +475,7 @@ void loadCore(JNIEnv *env) {
   api.setCheats = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cheats"));
   api.cheatAction = reinterpret_cast<int (*)(int)>(dlsym(api.main, "re4_core_cheat_action"));
   api.roomOutline = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_outline"));
+  api.roomPickups = reinterpret_cast<int (*)(float *, int, unsigned *)>(dlsym(api.main, "re4_core_room_pickups"));
   api.setLaserColour = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_laser_colour"));
   api.setViewDistance = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_view_distance"));
   api.setCpuSkip = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_cpu_skip"));
@@ -736,6 +738,8 @@ std::atomic<int> optUpscaler{0};  // the menu's upscaler (CoreBridge.setUpscaler
 std::atomic<int> optSharperText{1};  // "Sharper menu text" (CoreBridge.setSharperText; on by default)
 std::atomic<int> optLaserColour{0};  // the menu's laser sight colour (CoreBridge.setLaserColour), sent at the start
 std::atomic<int> optMinimap{0};   // the menu's minimap (CoreBridge.setMinimap)
+// 1.1.6: the minimap's "Treasures and items" (CoreBridge.setMinimapPickups): 0 off, 1 shown, 2 hidden ones too
+std::atomic<int> optMinimapPickups{0};
 std::atomic<int> optFlares{0};    // the menu's lens flares: 0 off, 1 lens flares, 2 halos + lens flares (CoreBridge.setFlares; or RE4_GX_FLARES=1)
 std::atomic<int> optCrt{0};       // the menu's CRT (CoreBridge.setCrt: 0 off, 1 light, 2 strong; or RE4_GX_CRT)
 std::atomic<int> optShadows{0};  // real-time shadows (CoreBridge.setShadows, RealtimeShadows.java)
@@ -1801,6 +1805,10 @@ struct MinimapState {
   unsigned serial = ~0u, room = 0xFFFF, askedRoom = 0xFFFF;
   float radius = 10000.0f;  // world units to the map's edge (re4mm::RoomRadius)
   std::chrono::steady_clock::time_point asked;
+  // 1.1.6: the room's pickups (x z height kind), asked five times a second while "Treasures and items" is on
+  std::vector<float> picks;
+  unsigned pickRoom = 0xFFFF;
+  std::chrono::steady_clock::time_point pickAsked;
   bool logged = false;
   long long placeLogged = -1;  // the place last logged (minimapDraw)
 } minimap;
@@ -1915,6 +1923,24 @@ bool minimapBuild(int format, unsigned xh, bool wide, re4gx::GxOverlay *out) {
   put(0.0f, -0.04f, 1.0f, 0.78f, 0.25f, 0.95f);
   put(0.08f, -0.09f, 1.0f, 0.78f, 0.25f, 0.95f);
   const int triVerts = static_cast<int>(v.size() / 6);
+  // 1.1.6: the treasures and items (re4mm::PickupDots), asked again five times a second (they fall, are taken)
+  const int pickMode = optMinimapPickups.load();
+  static std::vector<float> dotTris, dotLines;
+  dotTris.clear();
+  dotLines.clear();
+  if (pickMode > 0 && api.roomPickups) {
+    if (now - minimap.pickAsked > std::chrono::milliseconds(200) || minimap.pickRoom != frame.room) {
+      minimap.pickAsked = now;
+      static std::vector<float> got(160 * 4);
+      unsigned info[2] = {0, 0xFFFF};
+      const int n = api.roomPickups(got.data(), 160, info);
+      minimap.picks.assign(got.begin(), got.begin() + std::max(0, n) * 4);
+      minimap.pickRoom = info[1];
+    }
+    if (minimap.pickRoom == frame.room)
+      re4mm::PickupDots(minimap.picks.data(), static_cast<int>(minimap.picks.size() / 4), pose, minimap.radius,
+                        pickMode, dotTris, dotLines);
+  }
   for (size_t i = 0; i + 4 < minimap.lines.size(); i += 5) {
     const float a = 0.85f * minimap.lines[i + 4];
     put(minimap.lines[i], minimap.lines[i + 1], 0.86f, 0.92f, 0.86f, a);
@@ -1926,13 +1952,22 @@ bool minimapBuild(int format, unsigned xh, bool wide, re4gx::GxOverlay *out) {
     put(std::cos(a1) * 0.99f, std::sin(a1) * 0.99f, 0.86f, 0.92f, 0.86f, 0.5f);
   }
   const int lineVerts = static_cast<int>(v.size() / 6) - triVerts;
+  const int dotFirst = static_cast<int>(v.size() / 6);
+  v.insert(v.end(), dotTris.begin(), dotTris.end());
+  const int dotLineFirst = static_cast<int>(v.size() / 6);
+  v.insert(v.end(), dotLines.begin(), dotLines.end());
+  const int dotTriVerts = dotLineFirst - dotFirst, dotLineVerts = static_cast<int>(v.size() / 6) - dotLineFirst;
   // its square at the bottom left of the game's HUD, mirroring the gauge at the bottom right in every format
   re4mm::Rect hud, pic;
   re4mm::PictureRects(format, width, height, static_cast<int>(xh), &hud, &pic, wide);
   const re4mm::Rect at = re4mm::Place(hud, re4mm::Shown(format, hud, pic));
   const int size = at.w;
   out->verts = v;
-  out->parts = {{false, 0, discVerts}, {true, triVerts, lineVerts}, {false, discVerts, triVerts - discVerts}};
+  // the disc, the outline and the ring, the dots and their rings (1.1.6), the arrow on top
+  out->parts = {{false, 0, discVerts}, {true, triVerts, lineVerts}};
+  if (dotTriVerts > 0) out->parts.push_back({false, dotFirst, dotTriVerts});
+  if (dotLineVerts > 0) out->parts.push_back({true, dotLineFirst, dotLineVerts});
+  out->parts.push_back({false, discVerts, triVerts - discVerts});
   out->x = at.x;
   out->y = at.y;
   out->size = size;
@@ -1959,7 +1994,6 @@ void minimapDraw(int format, unsigned xh, bool wide) {
     return;
   }
   const std::vector<float> &v = o.verts;
-  const int discVerts = o.parts[0].count, triVerts = o.parts[1].first, lineVerts = o.parts[1].count;
   const int size = o.size;
   const re4mm::Rect at{o.x, o.y, o.size, o.size};
   glViewport(at.x, at.y, size, size);
@@ -1971,10 +2005,10 @@ void minimapDraw(int format, unsigned xh, bool wide) {
   glBindVertexArray(minimap.vao);
   glBindBuffer(GL_ARRAY_BUFFER, minimap.vbo);
   glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(v.size() * sizeof(float)), v.data(), GL_STREAM_DRAW);
-  glDrawArrays(GL_TRIANGLES, 0, discVerts);
+  // the parts in their order (minimapBuild: disc, outline, dots, the dots' rings, arrow)
   glLineWidth(std::max(1.0f, static_cast<float>(size) / 160.0f));
-  glDrawArrays(GL_LINES, triVerts, lineVerts);
-  glDrawArrays(GL_TRIANGLES, discVerts, triVerts - discVerts);
+  for (const re4gx::GxOverlay::Part &part : o.parts)
+    glDrawArrays(part.lines ? GL_LINES : GL_TRIANGLES, part.first, part.count);
   glLineWidth(1.0f);
   glBindVertexArray(0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -3437,6 +3471,7 @@ void useCoreProcess(const std::string &why) {
   api.setCheats = re4ipc_set_cheats;
   api.cheatAction = re4ipc_cheat_action;
   api.roomOutline = re4ipc_room_outline;
+  api.roomPickups = re4ipc_room_pickups;
   api.setLaserColour = re4ipc_set_laser_colour;
   api.setViewDistance = re4ipc_set_view_distance;
   api.setCpuSkip = re4ipc_set_cpu_skip;
@@ -4026,6 +4061,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMerchantA
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setBloody(JNIEnv *, jclass, jboolean on) {
   const int want = on == JNI_TRUE ? 1 : 0;
   if (optBloody.exchange(want) != want) LOG("bloody mode: %s (the menu)", want ? "on" : "off");
+}
+
+// The minimap's "Treasures and items" (1.1.6, Display): 0 off, 1 shown, 2 the hidden ones too (re4mm::PickupDots).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_setMinimapPickups(JNIEnv *, jclass, jint mode) {
+  const int want = mode < 0 || mode > 2 ? 0 : static_cast<int>(mode);
+  if (optMinimapPickups.exchange(want) != want)
+    LOG("minimap: treasures and items %s (the menu)", want == 0 ? "off" : want == 1 ? "shown" : "shown, hidden ones too");
 }
 
 // "Rapid fire" (1.1.6, Controls): drawGx tells the core (bit 30 of the aim bits, patch 0263).

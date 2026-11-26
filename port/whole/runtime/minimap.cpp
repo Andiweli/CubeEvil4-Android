@@ -13,6 +13,12 @@
 // anew when the room changes or its pieces do (checked every 30 frames). The app reads it with
 // re4_core_room_outline and places the player from its own snapshot (the player model's matrix).
 //
+// 1.1.6 (the project owner: treasures and items on the minimap): the room's pickups too, for the app's dots
+// (re4_core_room_pickups, every 5th frame once the app asked): the scenario item areas (sce_at.cpp, area type 3: what
+// lies on the floor, hangs, drops from a crate or an enemy, or waits in a chest; the item id, its place, taken or
+// not) and the blue medallions (cEmItem 0x4C type 1, until shot). Hidden ones (in a closed chest, a crate not broken,
+// an enemy) carry their own mark; the app shows them only when asked to.
+//
 // No C++ containers here: libre4_main has the game's operator new (its heap), and a template the library
 // instantiates would also serve the port's other code (ELF interposition: the runtime tests crashed in
 // OSAllocFromHeap with a std::vector here). Plain malloc'd arrays instead.
@@ -20,9 +26,16 @@
 #include "global.h"
 #include "atari.h"
 #include "at_sub.h"
+#include "sce_at.h"
+#include "item.h"
+#include "em.h"
+#include "em_set.h"
+#include "emitem.h"
+#include "etc_model.h"
 
 #include <math.h>
 #include <pthread.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -224,10 +237,164 @@ int build(float* out)
     return n;
 }
 
+// --- the pickups (1.1.6) ---
+const int kMaxPickups = 160;
+bool gPickWanted;
+float* gPicks;      // x z y kind per pickup (kMaxPickups), the published list
+float* gPickBuild;  // the one being built
+int gPickCount;
+unsigned gPickSerial, gPickRoom = 0xFFFF;
+unsigned gPickSeen = ~0u;  // the last list's sum, for the log line
+int gPickDetail = -1;      // RE4_MINIMAP_PICKS=1 (PC): one line per item area when the list changes
+bool gPickDetailNow;
+
+// A pickup's place in the world: its model's (it hangs on something or falls) while it has one, else the area's.
+void place(const SCE_AT_UNIT* w, const SCE_AT_DATA_ITEM* it, float* xyz)
+{
+    const cModel* m = it->pModel;
+    if (live(m) && (w->pParent || (it->ctrl_flag & 0x50))) {
+        xyz[0] = m->mat[0][3];
+        xyz[1] = m->mat[1][3];
+        xyz[2] = m->mat[2][3];
+        return;
+    }
+    xyz[0] = it->item_pos.x;
+    xyz[1] = it->item_pos.y;
+    xyz[2] = it->item_pos.z;
+}
+
+int buildPickups(float* out)
+{
+    GLOBAL_WK* g = pG;
+    const int mask = g->pl_type == 0 ? 1 : 2;  // the game modes of an item (sceAtSetItem)
+    int n = 0;
+    SCE_AT_DATA* d = sceAtSetOtStart();
+    int guard = 0;
+    while (n < kMaxPickups && (d = sceAtGetOtAddr(d)) != 0 && ++guard < 4096) {
+        if (!live(d))
+            break;
+        const SCE_AT_UNIT* w = (const SCE_AT_UNIT*) d;
+        if (w->id != SCEAT_ID_ITEM)
+            continue;
+        SCE_AT_DATA_ITEM* it = &((SCE_AT_ITEM*) d)->item;
+        const unsigned id = it->item_id;
+        if (gPickDetailNow)
+            re4_log("minimap: area 0x%02x be 0x%02x ctrl 0x%02x item 0x%04x x%u flg %u/%u waiting %u/%u modes %u taken %d at "
+                    "(%.0f %.0f %.0f) model %p (be 0x%x, at %.0f %.0f %.0f) parent %p", (unsigned) w->no, (unsigned) w->be_flg, (unsigned) it->ctrl_flag, id,
+                    (unsigned) it->item_num, (unsigned) it->item_flg, (unsigned) it->auto_item_flg, (unsigned) w->waiting_type,
+                    (unsigned) w->waiting_no, (unsigned) it->player_type, sceAtItemFlgCk(it), it->item_pos.x, it->item_pos.y,
+                    it->item_pos.z, (void*) it->pModel, live(it->pModel) ? (unsigned) it->pModel->be_flag : 0u,
+                    live(it->pModel) ? it->pModel->mat[0][3] : 0.0f, live(it->pModel) ? it->pModel->mat[1][3] : 0.0f,
+                    live(it->pModel) ? it->pModel->mat[2][3] : 0.0f, (void*) w->pParent);
+        if (id == 0x1000 || id == 0xFFFF)  // an enemy instead of an item (SceAtCheckSystemItemSet), none
+            continue;
+        int hidden = 0;
+        if (!(w->be_flg & 1)) {
+            // not out yet: in a crate (waiting 2, its etc model not broken), an enemy (waiting 1) or a closed chest
+            // (waiting 0, opened by the room's own event); taken ones and those of other game modes are not counted
+            if (sceAtItemFlgCk(it) || (it->player_type != 0 && !(it->player_type & mask)))
+                continue;
+            hidden = 8;
+        }
+        float xyz[3];
+        place(w, it, xyz);
+        if (xyz[0] == 0.0f && xyz[1] == 0.0f && xyz[2] == 0.0f && w->waiting_type != 2)
+            continue;  // no place yet (an event of the room gives it, e.g. a chest's): left out
+        if (hidden && w->waiting_type == 2) {
+            cEm* box = 0;
+            if (getRoomEtcBreak(w->waiting_no, &box, 0) && live(box)) {
+                xyz[0] = box->pos.x;
+                xyz[1] = box->pos.y;
+                xyz[2] = box->pos.z;
+            }
+        } else if (hidden && w->waiting_type == 1) {
+            cEm* carrier = GetEmPtrFromList(w->waiting_no);
+            if (!live(carrier))
+                continue;  // its enemy is not in the room (yet)
+            xyz[0] = carrier->pos.x;
+            xyz[1] = carrier->pos.y;
+            xyz[2] = carrier->pos.z;
+        }
+        const u8 type = id < 0x1000 ? itemType((ITEM_ID) id) : 2;  // the random ones (0x1001..) are ammo or recovery
+        const int kind = (type == 5 || type == 12 ? 2 : 1) | (hidden ? 8 : 0) | (hidden && w->waiting_type == 1 ? 16 : 0);
+        float* e = out + n * 4;
+        e[0] = xyz[0];
+        e[1] = xyz[2];
+        e[2] = xyz[1];
+        e[3] = (float) kind;
+        n++;
+    }
+    // the blue medallions: cEmItem 0x4C type 1 (a shootable medal), until it is broken (Status 2)
+    for (u32 i = 0; i < EmMgr.getArrayNum() && n < kMaxPickups; i++) {
+        cEm* e = EmMgr.fastAt(i);
+        if (!live(e) || !e->isAlive() || e->id != 0x4C || e->type != 1 || EMITEM_WK(e)->Status == 2 || e->hp <= 0)
+            continue;
+        float* o = out + n * 4;
+        o[0] = e->pos.x;
+        o[1] = e->pos.z;
+        o[2] = e->pos.y;
+        o[3] = 3.0f;
+        n++;
+    }
+    return n;
+}
+
+void pickups(unsigned frame)
+{
+    if (frame % 5 != 0)
+        return;
+    if (!gPickBuild && !(gPickBuild = (float*) malloc(kMaxPickups * 4 * sizeof(float))))
+        return;
+    if (gPickDetail < 0)
+        gPickDetail = getenv("RE4_MINIMAP_PICKS") && atoi(getenv("RE4_MINIMAP_PICKS")) > 0;
+    gPickDetailNow = gPickDetail && pG->room_id != gPickRoom;
+    // (RE4_MINIMAP_PICKS: the time of the list, the mean of 100 lists, once)
+    static double spent;
+    static int timed;
+    struct timespec t0, t1;
+    if (gPickDetail && timed < 100)
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+    const int n = buildPickups(gPickBuild);
+    if (gPickDetail && timed < 100) {
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        spent += (t1.tv_sec - t0.tv_sec) * 1e6 + (t1.tv_nsec - t0.tv_nsec) / 1e3;
+        if (++timed == 100)
+            re4_log("minimap: pickups list %.1f us on average (100 lists, every 5th frame)", spent / 100.0);
+    }
+    unsigned sum = (unsigned) n;
+    for (int i = 0; i < n; i++)
+        sum = sum * 31u + (unsigned) gPickBuild[i * 4 + 3];
+    pthread_mutex_lock(&gLock);
+    float* done = gPickBuild;
+    gPickBuild = gPicks;
+    gPicks = done;
+    gPickCount = n;
+    gPickRoom = pG->room_id;
+    gPickSerial++;
+    pthread_mutex_unlock(&gLock);
+    if (sum != gPickSeen) {
+        gPickSeen = sum;
+        int treasures = 0, items = 0, medals = 0, hidden = 0;
+        for (int i = 0; i < n; i++) {
+            const int k = (int) gPicks[i * 4 + 3];
+            hidden += (k & 8) != 0;
+            if ((k & 7) == 2) treasures++;
+            else if ((k & 7) == 3) medals++;
+            else items++;
+        }
+        re4_log("minimap: r%03x pickups: %d treasures, %d items, %d medallions (%d of them hidden)", (unsigned) pG->room_id,
+                treasures, items, medals, hidden);
+    }
+}
+
 void hook(unsigned frame)
 {
     GLOBAL_WK* g = pG;
-    if (!gWanted || !live(g) || g->Rno0 != 3)
+    if (!live(g) || g->Rno0 != 3)
+        return;
+    if (gPickWanted)
+        pickups(frame);
+    if (!gWanted)
         return;
     const unsigned room = g->room_id;
     if (room == gRoom && frame % 30 != 0)
@@ -260,9 +427,9 @@ extern "C" {
 int re4_core_room_outline(float* out, int maxEdges, unsigned* info)
 {
     pthread_mutex_lock(&gLock);
+    gWanted = true;
     if (!gHooked) {
         gHooked = true;
-        gWanted = true;
         re4_add_frame_hook(hook);
     }
     const int n = gEdges && gCount < maxEdges ? gCount : gEdges ? maxEdges : 0;
@@ -271,6 +438,31 @@ int re4_core_room_outline(float* out, int maxEdges, unsigned* info)
     if (info) {
         info[0] = gSerial;
         info[1] = gRoom;
+    }
+    pthread_mutex_unlock(&gLock);
+    return n;
+}
+
+// 1.1.6: the current room's pickups for the minimap's dots: up to `max` into `out` (x, z, y, kind each, world units;
+// kind & 7: 1 an item, 2 a treasure, 3 a blue medallion; | 8 hidden: in a closed chest, a crate or (| 16) an enemy),
+// info[0] = its number, info[1] = the room; returns the count. The first call starts it (game thread, every 5th
+// frame). Any thread.
+int re4_core_room_pickups(float* out, int max, unsigned* info)
+{
+    pthread_mutex_lock(&gLock);
+    if (!gPickWanted) {
+        gPickWanted = true;
+        if (!gHooked) {
+            gHooked = true;
+            re4_add_frame_hook(hook);
+        }
+    }
+    const int n = gPicks ? (gPickCount < max ? gPickCount : max) : 0;
+    if (out && n > 0)
+        memcpy(out, gPicks, (size_t) n * 4 * sizeof(float));
+    if (info) {
+        info[0] = gPickSerial;
+        info[1] = gPickRoom;
     }
     pthread_mutex_unlock(&gLock);
     return n;

@@ -52,6 +52,9 @@
     <string name="ingame_side_texture_options">Texturoptionen</string>
     <string name="ingame_perf_section">Leistung</string>
     <string name="ingame_minimap">Minikarte</string>
+    <string name="ingame_minimap_pickups">Schätze und Items</string>
+    <string name="ingame_minimap_pickups_hidden">Mit versteckten</string>
+    <string name="ingame_minimap_pickups_help">Schätze und Items: Die Minikarte zeigt die Schätze des Raums als goldene Punkte, andere Items (Munition, Kräuter, Geld, Schlüssel) als blaue Punkte und die blauen Medaillons als blaue Ringe; ein Punkt verschwindet, sobald du ihn aufhebst. Mit versteckten: auch, was noch in geschlossenen Truhen, heilen Kisten und Fässern liegt oder Gegner bei sich tragen, als Ringe. Nur mit eingeschalteter Minikarte.</string>
     <string name="ingame_flares">Lichthöfe (Lens Flares)</string>
     <string name="ingame_flares_lens">Lens Flares</string>
     <string name="ingame_flares_both">Lichthöfe + Lens Flares</string>

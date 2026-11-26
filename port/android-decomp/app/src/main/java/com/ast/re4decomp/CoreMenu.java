@@ -41,6 +41,8 @@ import java.util.Locale;
  * The original game captures/restores the separate instant slot on its own thread, via a worker.
  */
 final class CoreMenu extends Dialog {
+  /** The minimap's "Treasures and items" (1.1.6, graphics settings): 0 off, 1 on, 2 with the hidden ones. */
+  static final String MINIMAP_PICKUPS = "minimapPickups";
   interface Host {
     /** Picture options changed (the preferences hold them). */
     void graphicsChanged();
@@ -1233,12 +1235,23 @@ final class CoreMenu extends Dialog {
     // (the fourth menu round) the side label "Features", the heading "Optional"
     LinearLayout features = labelledOptions(R.string.ingame_side_features);
     MenuLayout.Buttons topRow = buttonsRow(features);
+    final ArrowSelector[] pickups = new ArrowSelector[1];
     toggle(topRow, R.string.ingame_minimap, graphics.getBoolean("minimap", false), on -> {
       graphics.edit().putBoolean("minimap", on).apply(); CoreBridge.setMinimap(on);
+      if (pickups[0] != null) pickups[0].setEnabled(on);
     });
+    // the minimap's "Treasures and items" beside it (1.1.6, wish of the project owner: treasures gold, items blue; the
+    // project owner's layout: minimap | treasures and items, photo mode wide under them): Off, On, With hidden (closed
+    // chests, crates, enemies); only with the minimap on
+    int pickNow = Math.max(0, Math.min(2, graphics.getInt(MINIMAP_PICKUPS, 0)));
+    pickups[0] = selector(topRow, R.string.ingame_minimap_pickups, new String[] {s(R.string.ingame_off),
+        s(R.string.ingame_on), s(R.string.ingame_minimap_pickups_hidden)}, pickNow, 0, mode -> {
+          graphics.edit().putInt(MINIMAP_PICKUPS, mode).apply(); CoreBridge.setMinimapPickups(mode);
+        });
+    pickups[0].setEnabled(graphics.getBoolean("minimap", false));
     // "Photo mode" (1.1.0, wish of the project owner, 19.11.2026): L3, the keyboard's P or this menu's button freeze the
-    // game and free the camera (PhotoMode)
-    toggle(topRow, R.string.ingame_photo_mode,
+    // game and free the camera (PhotoMode); since 1.1.6 the wide button under the minimap's row
+    toggle(buttonsRow(features), R.string.ingame_photo_mode,
         graphics.getBoolean(CoreActivity.PHOTO_MODE, false), on -> graphics.edit().putBoolean(CoreActivity.PHOTO_MODE, on).apply());
     // the Information HUD (0.99.11, wish of the project owner, 12.11.2026; before the FPS display, here since
     // 04.11.2026): each press moves it on (wish of the project owner, 05.11.2026: it covered the minimap): off, bottom
@@ -1270,6 +1283,7 @@ final class CoreMenu extends Dialog {
     hud.addView(hudHelp);
     parts.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
     hudHelp.setVisibility(fpsNow != 0 ? View.VISIBLE : View.GONE);
+    help(R.string.ingame_minimap_pickups_help);
     help(R.string.ingame_skip_intro_help);
     help(R.string.ingame_photo_mode_help);
   }
