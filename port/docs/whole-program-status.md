@@ -1071,6 +1071,20 @@ Items, darunter Fotomodus breit).
 - Test `MoveAimSourcesTest` (3), `CoreMenuLayoutTest` auf die neue Regel; 256 App-Unit-Tests, Lint. Bilder
   `builds/workthread-1.1.6/move-aim-lock`. Nur App.
 
+### 6. „Bewegen und Zielen“ seitwärts: Variante 3, Beine höchstens 45° gedreht (Wahl des Projektinhabers)
+
+**OK des Projektinhabers (27.11.2026, mit dem Fußrutschen).** Die 90°-Drehung des Beckens wirkte ihm sehr unnatürlich.
+
+- `runtime/move_aim_legs.cpp` (`kMaxTurn`): die Drehung der Beine gegen Leons Blickrichtung höchstens ±45° (vorher
+  ±90°), für Gehen und Rückschritt; rein seitwärts werden schräge Schritte, die Füße rutschen seitlich. Das Tempo der
+  Schritte folgt wie bisher dem Teil der Bewegung längs des gedrehten Gehens. Vorwärts, rückwärts, schräg, schräg zurück
+  und das Ein-/Ausblenden unverändert (Drehung dort schon ≤ 45°). Patch 0262 unverändert.
+- Fußrutschen am PC (r100, `RE4_TRACE_LEGS`, `slip.py` der move-aim-Sitzung, je 321 Bilder): seitwärts rechts vorher
+  (90°) Körper 31,2 Einheiten/Bild, stehender Fuß Median 4,8; jetzt (45°) Fuß 21,6 (links 23,7, Körper 26,2) — der Teil
+  quer zum Gehen (sin 45°) wird nicht geschritten. Vorwärts 26,2/7,6, schräg 27,9/7,9, rückwärts 10,7/4,9, schräg zurück
+  19,1/4,7. Bildstreifen `builds/workthread-1.1.6/move-aim-lock/sideways-variant3-strip.png`. Skripte `116-legs.sh`,
+  `116-legs-all.sh`, `116-legphoto.sh` im Notizordner.
+
 ## 1.1.5 (ab 26.11.2026, auf 1.1.4 = 32f7816e)
 
 Version 1.1.5 (versionCode 129), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext

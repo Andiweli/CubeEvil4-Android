@@ -14,9 +14,10 @@
 // way; the damaged ones when the game picks them, dmMotCk):
 //  - forward: the walk (m_MotTbl 2/3), the pelvis turned towards a diagonal by up to 45 degrees;
 //  - backward: the back step (8/9), the same turn;
-//  - sideways: the walk (or the back step past a right angle) with the pelvis turned up to 90 degrees (the owner's
-//    choice of three variants shown, 27.11.2026; the turn on the spot's steps and a walk turned 45 degrees at most were
-//    the others).
+//  - sideways: the walk (or the back step past a right angle) with the pelvis turned 45 degrees at most, so pure
+//    sideways walks diagonal steps and the feet slide sideways a little (1.1.6, the project owner's choice "variant 3"
+//    of the three shown; the 90 degree turn of 27.11.2026 looked unnatural to him, the turn on the spot's steps was the
+//    third). The steps' speed follows the part of the move along the turned walk.
 // Each layer runs on its own MOTION_INFO (MotionSetCore with Mot_flag 0x20000000: the player's pMotionB stays,
 // 0x10000000: IKInit not on the model, 0x40000000: the model's matrix left alone), on the pelvis and the legs only (the
 // other bones skipped by motParts 0x20000000, the legs without the shared key history by 0x04000000 meanwhile), then its
@@ -52,6 +53,7 @@ const u32 kIkBits = 0x4u | 0x10u | 0x300u | 0xE000u;  // IKInit's bits of a chai
 const u32 kSkip = 0x20000000u, kNoHist = 0x04000000u;
 const float kStep = 1.0f / 8.0f;  // the fade: 8 frames in and out
 const float kPi = 3.14159265f;
+const float kMaxTurn = kPi / 4.0f;  // the legs' turn against his facing: at most 45 degrees (1.1.6, variant 3)
 
 inline bool isLeg(int i)
 {
@@ -340,7 +342,9 @@ void re4_move_aim_legs(cPlayer* pl)
             v = gActual;
         }
         const float a = atan2f(x, y), aa = fabsf(a), sgn = a < 0.0f ? -1.0f : 1.0f;
-        // up to a right angle the walk, beyond it the back step; the pelvis turned into the direction (up to 90 degrees)
+        // up to a right angle the walk, beyond it the back step; the pelvis turned towards the direction, at most 45
+        // degrees (1.1.6, the project owner's choice "variant 3": pure sideways becomes diagonal steps, the feet slide
+        // sideways a little; before, up to 90 degrees)
         if (aa <= kPi / 2.0f) {
             want[kWalk] = 1.0f;
             yaw = a;
@@ -348,6 +352,7 @@ void re4_move_aim_legs(cPlayer* pl)
             want[kBack] = 1.0f;
             yaw = a - sgn * kPi;
         }
+        yaw = yaw > kMaxTurn ? kMaxTurn : yaw < -kMaxTurn ? -kMaxTurn : yaw;
         // each layer's speed: the part of his move along its legs, against its stride
         for (int k = 0; k < kLayers; k++) {
             Layer& L = gL[k];
