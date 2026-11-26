@@ -1,0 +1,20 @@
+# Port patch, a bug of the prototype (1.1.5, a user's crash in pzlBoard::rmPiece from BuyConfirm::move, fault 0x14:
+# a null piece): the buy confirm's "no room in the case" question (after the placing of a bought item ended with the
+# piece off the case, BuyPuzzleEnd) puts the piece back into the hand on No or B, from the space board, without asking
+# whether the screen still has it. A piece the screen gave up (pzlPlayer::giveupExtraPiece, after a combine took it)
+# leaves the pointer 0. The game's own shop never got there (its placing has no command menu, and nothing it sells
+# combines with a piece in the case); the cheat "Stack items" of 1.1.5 did (patch 0260, a first aid spray put onto a
+# stack of sprays; fixed in runtime/cheats.cpp re4_stack_merge). With no piece left, No and B now go back to the list
+# as Yes (discard) does, so no other way can crash there.
+--- a/src/Sscrn/ss_shop.cpp
++++ b/src/Sscrn/ss_shop.cpp
+@@ -1841,6 +1841,9 @@
+             cMes.Delete(1);
+         }
+     }
++    if (act == 3 && wk->puzzlePlayer->pieceExtra() == 0) { /* port (patch 0261): no bought piece left to place again: back to the list as on discard */
++        act = 1;
++    }
+     switch (act) {
+     case 1:
+         if (sw->_puzzle) {

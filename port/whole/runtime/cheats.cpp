@@ -1584,9 +1584,25 @@ pzlPiece* re4_stack_case_placed(void)
 // with each other (a mixed herb, the red or the yellow herb, the spray, the eggs, the fish): `b` goes onto `a` up to the
 // slot's limit, as the ammo does; the rest stays in `b` (combine erases `b` when it is empty). 0: no room (the cheat
 // off: the limit is 1), or not such a pair; then nothing happens, as in the game.
+// Both must be slots of the inventory: the piece being bought at the merchant holds a slot of its own (the shop's
+// _new_item) that the game only gets into the inventory when the purchase ends (buyItem, after the placing). Put onto a
+// stack of its kind while being placed, the merge emptied it unpaid, the screen then forgot the piece
+// (giveupExtraPiece), the end of the placing asked "no room" without one, and No or B crashed in
+// pzlBoard::rmPiece (null piece; 1.1.5 test builds, 26.11.2026). Now it does not stack there (the game swaps the two
+// pieces, as without the cheat); once bought it stacks in the case.
+static bool re4InInventory(const cItem* p)
+{
+    return ItemMgr.m_pItem && p >= ItemMgr.m_pItem && p < ItemMgr.m_pItem + ItemMgr.m_array_num;
+}
+
 int re4_stack_merge(cItem* a, cItem* b)
 {
     if (!a || !b || a == b || a->id != b->id || itemType(a->id) != 6 || b->num == 0) {
+        return 0;
+    }
+    if (!re4InInventory(a) || !re4InInventory(b)) {
+        re4_log("cheat: stack items: 0x%02x not stacked, one of the two is not in the inventory yet (the merchant's "
+                "piece being bought)", (unsigned) a->id);
         return 0;
     }
     const int room = itemMaxNum(a->id) - (int) a->num;

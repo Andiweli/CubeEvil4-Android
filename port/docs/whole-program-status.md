@@ -1018,6 +1018,30 @@ Kräuter müssen mischbar bleiben und dürfen beim Stapeln nie verloren gehen.
   oben/unten drehen, dann gleich „Send report“. Damit ist (a) oder (b) entschieden; eine allgemeine Lösung (bei (a) die
   Achsen nach der Schwerkraft, bei (b) den eingebauten Controller wie das Gerät drehen) folgt dann.
 
+### 4. Absturz beim Händler: `pzlBoard::rmPiece` aus `BuyConfirm::move` (Nutzerbericht, 32 bit, 26.11.2026, Patch 0261)
+
+**Behoben** (am PC nachgestellt und geprüft). Nur der Absturztext, kein Zip, Version unbekannt; der Projektinhaber
+zitiert „beim Installieren der beiden Discs“.
+
+- Ursache: Ein gekauftes Stück hält beim Einräumen einen eigenen Platz (`_new_item` des Ladens), der erst am Ende des
+  Kaufs in die Ausrüstung kommt (`buyItem`). Mit Patch 0260 (nur 1.1.5) legte `re4_stack_merge` ein gekauftes
+  Erste-Hilfe-Spray, auf einen Spray-Stapel gelegt, unbezahlt auf den Stapel; der Koffer gab das Stück auf
+  (`giveupExtraPiece`, Zeiger 0). Beim Verlassen fand `BuyPuzzleEnd` kein Stück im Koffer und fragte „Cancel?“ (kein
+  Platz); Nein oder B legt das Stück zurück in die Hand: `rmPiece(0)`, Lesen an 0x14 (ARM32) bzw. 0x4 (i686). Ja
+  hätte das Spray verschenkt (Geld und Vorrat unverändert). Im Spiel selbst nie erreichbar: das Einräumen beim Händler
+  hat kein Befehlsmenü, und nichts, was er verkauft, lässt sich mit einem Stück im Koffer zusammenlegen. Vor 1.1.5
+  kein Weg gefunden (0257 legt zwei Sprays nicht zusammen, Granaten nimmt `cmbPiece` nicht, Munition verkauft er nicht).
+- Lösung: `re4_stack_merge` legt nur zwei Plätze der Ausrüstung zusammen; das Stück im Kauf nicht (Log `cheat: stack
+  items: 0x05 not stacked, one of the two is not in the inventory yet`), das Spiel tauscht die beiden Stücke wie ohne
+  Cheat. Gekauft stapelt es im Koffer wie gewohnt. Dazu Patch 0261 (`BuyConfirm::move`): ohne Stück wirken Nein und B
+  wie Ja (zurück zur Liste), damit kein anderer Weg dort abstürzen kann.
+- Prüfung am PC (r10f, Debug-Disc, `115-buy.sh` im Notizordner): mit 6ad83385 nachgestellt (Spray auf den Stapel
+  „2“, verlassen, B: Absturz in `pzlBoard::rmPiece`); nur 0261: kein Absturz, zurück zur Liste. Mit beiden: Spray
+  auf den Stapel: nicht gestapelt, getauscht, Stapel woanders hin, Kauf bezahlt (990000), Stapel 2 + neues Spray 1;
+  normaler Kauf ohne Cheats bezahlt; „Alle Waffen beim Händler“: Red9 gekauft (986000) und im Koffer; voller Koffer:
+  „Cancel?“, Nein zurück zum Einräumen, dann Ja zurück zur Liste, Geld und Vorrat unverändert; „Buy?“ mit Nein und B
+  abgebrochen. Kernbau i686 0 Fehler, runtime-test (mit `stack-combine`) 0 Fehler. ARM32 auf dem Gerät nicht geprüft.
+
 ## 1.1.4 (ab 26.11.2026, auf 1.1.3 = 6b95af43)
 
 Version 1.1.4 (versionCode 128), weiter auf Branch `workthread-113` (Worktree `RE4-wt113`, WSL `~/re4-wt113`), Releasetext
