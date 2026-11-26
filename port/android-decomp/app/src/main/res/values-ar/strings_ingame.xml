@@ -37,7 +37,7 @@
     <string name="ingame_side_axes">المحاور</string>
     <string name="ingame_side_control_type">نوع التحكم</string>
     <string name="ingame_side_assists">المساعدات</string>
-    <string name="ingame_side_aim_with">التصويب بـ</string>
+    <string name="ingame_side_aim_with">التصويب اللمسي بـ</string>
     <string name="ingame_side_view">العرض</string>
     <string name="ingame_side_stick">خيارات العصا</string>
     <string name="ingame_mapping_section">تعيين الأزرار والمفاتيح</string>
@@ -157,11 +157,17 @@
     <string name="ingame_gentle_qte">أحداث QTE أسهل (Professional)</string>
     <string name="ingame_gentle_qte_help">أحداث QTE أسهل: في Professional تمنح أحداث الأزرار السريعة الوقت نفسه وتطلب عدد الضغطات نفسه كما في Normal؛ ويبقى الضرر والأعداء كما في Professional. الإصبع على الصورة يضغط أزرار التنبيه فورًا، في كل مستويات الصعوبة.</string>
     <string name="ingame_far_camera_help">تُبقي كاميرا الكتف أبعد قليلًا خلف ليون؛ وعند التصويب وفي الأماكن الضيقة تقترب كما من قبل.</string>
-    <string name="ingame_touch_aim">التصويب باللمس</string>
+    <string name="ingame_aiming_section">التصويب</string>
     <string name="ingame_aim_move_stick">عصا الحركة</string>
     <string name="ingame_aim_touch_area">منطقة اللمس</string>
     <string name="ingame_aim_c_stick">عصا C</string>
     <string name="ingame_touch_aim_help">التصويب باللمس: ما دام L أو R يُبقي السلاح، اسحب على النصف الأيمن للتصويب أو استخدم عصا C اللمسية (أضفها من الترس أعلى اليمين). عصا الحركة: كما في GameCube. عصا AIM وعصا KNIFE (الترس): ما دام الإصبع عليهما يبقى R أو L مضغوطًا، وإمالتهما تصوّب.</string>
+    <string name="ingame_side_controller_aim">تصويب وحدة التحكم بـ</string>
+    <string name="ingame_aim_left_stick">العصا اليسرى</string>
+    <string name="ingame_aim_right_stick">العصا اليمنى</string>
+    <string name="ingame_controller_aim_help">تصويب وحدة التحكم بـ: العصا اليسرى تصوّب كما في GameCube. العصا اليمنى: ما دام L أو R يرفع سلاحًا تصوّب العصا اليمنى، وأعلى وأسفل على العصا اليسرى يكبّر المنظار والمنظار المزدوج.</string>
+    <string name="ingame_move_aim">التحرك والتصويب</string>
+    <string name="ingame_move_aim_help">التحرك والتصويب: أثناء التصويب تحرّك العصا اليسرى (أو عصا الحركة اللمسية أو مفاتيح الحركة) ليون إلى الأمام والخلف والجانبين، وتصوّب في الوقت نفسه بالعصا اليمنى أو منطقة اللمس أو عصا C اللمسية أو الفأرة. يبقى ليون في وضعية التصويب أثناء الحركة. فقط عندما لا يكون التصويب اللمسي بعصا الحركة ويكون تصويب وحدة التحكم بالعصا اليمنى. لا يعمل مع المنظار أو المنظار المزدوج ولا أثناء إعادة التعبئة.</string>
     <string name="ingame_touch_zoom_help">التكبير في المنظار أو المنظار المزدوج باللمس: اسحب لأعلى أو لأسفل على النصف الأيمن أو على عصا C اللمسية، أو أضف زرَّي التكبير + و − من الترس أعلى اليمين.</string>
     <string name="ingame_gyro_sensitivity">حساسية الجيروسكوب</string>
     <string name="ingame_gyro_sensitivity_help">حساسية الجيروسكوب: عند &#x200E;3×&#x200E; يدور التصويب تقريبًا بقدر ما تدير الجهاز، وعند &#x200E;6×&#x200E; ضعف ذلك.</string>

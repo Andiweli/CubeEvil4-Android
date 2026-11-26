@@ -98,6 +98,10 @@ final class CoreMenu extends Dialog {
     void latchBChanged(boolean on);
     /** The choice "Touch Aiming": CoreInput.AIM_MOVE_STICK, AIM_LOOK or AIM_C_STICK (the preferences hold it). */
     void touchAimChanged(int mode);
+    /** "Controller aim with" (1.1.5): CoreInput.CONTROLLER_AIM_LEFT or CONTROLLER_AIM_RIGHT (the preferences hold it). */
+    void controllerAimChanged(int mode);
+    /** "Move and aim" (1.1.5): the left stick walks Leon while he aims (the preferences hold it). */
+    void moveAimChanged(boolean on);
     /** The slider of gyro aiming: the turn rates times `value` (the preferences hold it). */
     void gyroSensitivityChanged(float value);
     /** The switches "Invert vertical" (`vertical`) and "Invert horizontal" of gyro aiming (the preferences hold them). */
@@ -1415,13 +1419,59 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_knife_swipe_help);
     // touch aiming (wish of the project owner, 28.10.2026): what aims while L or R is held; since 05.11.2026 a section
     // of its own, a third of the row each
-    heading(R.string.ingame_touch_aim);
+    // 1.1.5 (wish of the project owner, 26.11.2026): the section "Aiming" (it was "Touch Aiming"), the touch row's side
+    // label "Touch aim with", under it "Controller aim with": the left stick (as before) or the right stick
+    heading(R.string.ingame_aiming_section);
+    final int[] aimWith = {input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK),
+        input.getInt(CoreActivity.CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_LEFT)};
     into = buttonsRow(labelledOptions(R.string.ingame_side_aim_with));  // (the fourth menu round: "Aim with")
     rowChoices(new String[] {s(R.string.ingame_aim_move_stick), s(R.string.ingame_aim_touch_area),
         s(R.string.ingame_aim_c_stick)}, new int[] {CoreInput.AIM_MOVE_STICK, CoreInput.AIM_LOOK, CoreInput.AIM_C_STICK},
-        input.getInt(CoreActivity.TOUCH_AIM, CoreInput.AIM_MOVE_STICK), 3, mode -> host.touchAimChanged(mode));
+        aimWith[0], 3, mode -> {
+          aimWith[0] = mode; host.touchAimChanged(mode); moveAimEnabled(aimWith);
+        });
+    final int[] controllerAims = {CoreInput.CONTROLLER_AIM_LEFT, CoreInput.CONTROLLER_AIM_RIGHT};
+    selector(buttonsRow(labelledOptions(R.string.ingame_side_controller_aim)), 0,
+        new String[] {s(R.string.ingame_aim_left_stick), s(R.string.ingame_aim_right_stick)},
+        stepOf(controllerAims, aimWith[1]), 0, i -> {
+          aimWith[1] = controllerAims[i]; host.controllerAimChanged(controllerAims[i]); moveAimEnabled(aimWith);
+        });
     help(R.string.ingame_touch_aim_help);
+    help(R.string.ingame_controller_aim_help);
     help(R.string.ingame_touch_zoom_help);  // (0.99.15, GitHub #247)
+    // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
+    // since 30.10.2026 under a heading of its own; since 1.1.5 right after AIMING, PLAYER VIEW below it (the project owner)
+    heading(R.string.ingame_controller_section);
+    // the controller sticks' dead zone and range (wish of the project owner, 07.11.2026, GitHub issue #168: a left stick
+    // that stuttered while walking) and where the game's vibration goes (07.11.2026: a Bluetooth controller's
+    // motors instead of the phone's)
+    final int[] shape = {CoreInput.clampDeadZone(input.getInt(CoreActivity.STICK_DEAD_ZONE, 0)),
+        CoreInput.clampRange(input.getInt(CoreActivity.STICK_RANGE, 100))};
+    // the dead zone and the range side by side (the project owner, 21.11.2026)
+    // (the fourth menu round, 21.11.2026) "Stick options": dead zone | range, the vibration under them
+    LinearLayout stickGroup = labelledOptions(R.string.ingame_side_stick);
+    MenuLayout.Buttons sticks = buttonsRow(stickGroup);
+    percentSlider(sticks, R.string.ingame_stick_dead_zone, 0, CoreInput.DEAD_ZONE_MAX, shape[0], value -> {
+      shape[0] = value; host.stickShapeChanged(shape[0], shape[1]);
+    });
+    percentSlider(sticks, R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
+      shape[1] = value; host.stickShapeChanged(shape[0], shape[1]);
+    });
+    // "Move and aim" (1.1.5, wish of the project owner, 26.11.2026): off; only where no left stick aims (moveAimEnabled);
+    // in one row with the vibration, Move and aim on the left (the project owner, 26.11.2026)
+    MenuLayout.Buttons moveRow = buttonsRow(stickGroup);
+    moveAimButton = toggle(moveRow, R.string.ingame_move_aim,
+        input.getBoolean(CoreActivity.MOVE_AIM, false), on -> host.moveAimChanged(on));
+    moveAimEnabled(aimWith);
+    into = moveRow;
+    choices(R.string.ingame_vibration, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_vibration_device),
+        s(R.string.ingame_vibration_controller), s(R.string.ingame_off)}, new int[] {RumbleTarget.AUTO,
+        RumbleTarget.DEVICE, RumbleTarget.CONTROLLER, RumbleTarget.OFF},
+        RumbleTarget.clampMode(input.getInt(CoreActivity.VIBRATION, RumbleTarget.AUTO)), Integer.MAX_VALUE, 4,
+        mode -> host.vibrationChanged(mode));
+    help(R.string.ingame_stick_help);
+    help(R.string.ingame_vibration_help);
+    help(R.string.ingame_move_aim_help);
     // PLAYER VIEW above the laser sight (wish of the project owner, 05.11.2026): the far camera (a user's wish,
     // 01.11.2026; patch 0171) in the left half, the field of view (patch 0205) as a slider in the right half
     heading(R.string.ingame_player_view);
@@ -1444,32 +1494,6 @@ final class CoreMenu extends Dialog {
           CoreBridge.setLaserColour(colour);
         });
     help(R.string.ingame_far_camera_help); help(R.string.ingame_fov_help);
-    // the controller configuration (wish of the project owner, 27.10.2026): at the bottom, only with a controller;
-    // since 30.10.2026 under a heading of its own
-    heading(R.string.ingame_controller_section);
-    // the controller sticks' dead zone and range (wish of the project owner, 07.11.2026, GitHub issue #168: a left stick
-    // that stuttered while walking) and where the game's vibration goes (07.11.2026: a Bluetooth controller's
-    // motors instead of the phone's)
-    final int[] shape = {CoreInput.clampDeadZone(input.getInt(CoreActivity.STICK_DEAD_ZONE, 0)),
-        CoreInput.clampRange(input.getInt(CoreActivity.STICK_RANGE, 100))};
-    // the dead zone and the range side by side (the project owner, 21.11.2026)
-    // (the fourth menu round, 21.11.2026) "Stick options": dead zone | range, the vibration under them
-    LinearLayout stickGroup = labelledOptions(R.string.ingame_side_stick);
-    MenuLayout.Buttons sticks = buttonsRow(stickGroup);
-    percentSlider(sticks, R.string.ingame_stick_dead_zone, 0, CoreInput.DEAD_ZONE_MAX, shape[0], value -> {
-      shape[0] = value; host.stickShapeChanged(shape[0], shape[1]);
-    });
-    percentSlider(sticks, R.string.ingame_stick_range, CoreInput.RANGE_MIN, 100, shape[1], value -> {
-      shape[1] = value; host.stickShapeChanged(shape[0], shape[1]);
-    });
-    into = buttonsRow(stickGroup);
-    choices(R.string.ingame_vibration, new String[] {s(R.string.ingame_touch_auto), s(R.string.ingame_vibration_device),
-        s(R.string.ingame_vibration_controller), s(R.string.ingame_off)}, new int[] {RumbleTarget.AUTO,
-        RumbleTarget.DEVICE, RumbleTarget.CONTROLLER, RumbleTarget.OFF},
-        RumbleTarget.clampMode(input.getInt(CoreActivity.VIBRATION, RumbleTarget.AUTO)), Integer.MAX_VALUE, 4,
-        mode -> host.vibrationChanged(mode));
-    help(R.string.ingame_stick_help);
-    help(R.string.ingame_vibration_help);
     // the button mapping in a section of its own (the fourth menu round): "Map buttons and keys", the side label "Assign"
     heading(R.string.ingame_mapping_section);
     controllerButton = cellAction(buttonsRow(labelledOptions(R.string.ingame_side_assign)),
@@ -1479,6 +1503,15 @@ final class CoreMenu extends Dialog {
     help(R.string.ingame_controller_config_help);
     // 1.1.0: holding Ashley's key for 2 seconds puts her behind Leon (runtime/ashley_catchup.cpp)
     help(R.string.ingame_ashley_hold_help);
+  }
+
+  /** "Move and aim" (Controls, "Stick options"), to grey it out (moveAimEnabled). */
+  private Button moveAimButton;
+
+  /** "Move and aim" works only where no left stick aims: touch aiming not by the move stick and a controller aiming with
+   *  the right stick (CoreInput.moveAimAvailable); greyed out otherwise, its choice kept. aimWith: {touch, controller}. */
+  private void moveAimEnabled(int[] aimWith) {
+    if (moveAimButton != null) moveAimButton.setEnabled(CoreInput.moveAimAvailable(aimWith[0], aimWith[1]));
   }
 
   /**

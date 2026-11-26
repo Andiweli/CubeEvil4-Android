@@ -34,7 +34,7 @@
     <string name="ingame_side_axes">Sumbu</string>
     <string name="ingame_side_control_type">Jenis kontrol</string>
     <string name="ingame_side_assists">Bantuan</string>
-    <string name="ingame_side_aim_with">Bidik dengan</string>
+    <string name="ingame_side_aim_with">Bidik sentuh dengan</string>
     <string name="ingame_side_view">Tampilan</string>
     <string name="ingame_side_stick">Opsi stik</string>
     <string name="ingame_mapping_section">Atur tombol dan tuts</string>
@@ -154,11 +154,17 @@
     <string name="ingame_gentle_qte">QTE Lebih Ringan (Professional)</string>
     <string name="ingame_gentle_qte_help">QTE Lebih Ringan: di Professional, event quick-time memberi waktu dan meminta jumlah tekanan sama seperti di Normal; kerusakan dan musuh tetap seperti Professional. Jari di gambar langsung menekan tombol perintah, di semua tingkat kesulitan.</string>
     <string name="ingame_far_camera_help">Menjaga kamera bahu sedikit lebih jauh di belakang Leon; saat membidik dan di tempat sempit kamera mendekat seperti sebelumnya.</string>
-    <string name="ingame_touch_aim">Bidik Sentuh</string>
+    <string name="ingame_aiming_section">Membidik</string>
     <string name="ingame_aim_move_stick">Stik Gerak</string>
     <string name="ingame_aim_touch_area">Area Sentuh</string>
     <string name="ingame_aim_c_stick">Stik C</string>
     <string name="ingame_touch_aim_help">Bidik Sentuh: selama L atau R menyiagakan senjata, usap di separuh kanan untuk membidik, atau gunakan stik C sentuh (tambahkan lewat roda gigi di kanan atas). Stik Gerak: seperti di GameCube. Stik AIM dan KNIFE (roda gigi): jari di atasnya menahan R atau L, kemiringannya membidik.</string>
+    <string name="ingame_side_controller_aim">Bidik controller dengan</string>
+    <string name="ingame_aim_left_stick">Stik Kiri</string>
+    <string name="ingame_aim_right_stick">Stik Kanan</string>
+    <string name="ingame_controller_aim_help">Bidik controller dengan: Stik Kiri membidik seperti di GameCube. Stik Kanan: selama L atau R memegang senjata, stik kanan membidik, dan atas-bawah pada stik kiri memperbesar teropong senjata dan teropong.</string>
+    <string name="ingame_move_aim">Bergerak dan membidik</string>
+    <string name="ingame_move_aim_help">Bergerak dan membidik: saat membidik, stik kiri (atau stik gerak sentuh, atau tombol gerak) menggerakkan Leon maju, mundur, dan ke samping, dan kamu membidik sekaligus dengan stik kanan, area sentuh, stik C sentuh, atau mouse. Leon tetap dalam pose membidik saat bergerak. Hanya jika Bidik sentuh dengan bukan Stik Gerak dan Bidik controller dengan adalah Stik Kanan. Tidak dengan teropong senjata atau teropong, dan tidak saat mengisi ulang.</string>
     <string name="ingame_touch_zoom_help">Zoom di teropong senjata atau teropong dengan sentuhan: geser ke atas atau bawah di separuh kanan atau pada stik C sentuh, atau tambahkan tombol zoom + dan − lewat roda gigi di kanan atas.</string>
     <string name="ingame_gyro_sensitivity">Sensitivitas giroskop</string>
     <string name="ingame_gyro_sensitivity_help">Sensitivitas giroskop: pada 3× bidikan berputar kira-kira sejauh perangkat diputar, pada 6× dua kali lipat.</string>

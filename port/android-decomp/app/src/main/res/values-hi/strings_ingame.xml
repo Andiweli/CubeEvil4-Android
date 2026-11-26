@@ -33,7 +33,7 @@
     <string name="ingame_side_axes">अक्ष</string>
     <string name="ingame_side_control_type">नियंत्रण प्रकार</string>
     <string name="ingame_side_assists">सहायता</string>
-    <string name="ingame_side_aim_with">निशाना</string>
+    <string name="ingame_side_aim_with">टच निशाना</string>
     <string name="ingame_side_view">दृश्य</string>
     <string name="ingame_side_stick">स्टिक विकल्प</string>
     <string name="ingame_mapping_section">बटन और कुंजियाँ सेट करें</string>
@@ -153,11 +153,17 @@
     <string name="ingame_gentle_qte">आसान QTE (Professional)</string>
     <string name="ingame_gentle_qte_help">आसान QTE: Professional में क्विक-टाइम इवेंट उतना ही समय देते हैं और उतने ही दबाव माँगते हैं जितने Normal में; नुकसान और दुश्मन Professional जैसे ही रहते हैं। तस्वीर पर उंगली संकेत के बटन तुरंत दबा देती है, हर कठिनाई में।</string>
     <string name="ingame_far_camera_help">कंधे वाले कैमरे को लियोन के थोड़ा और पीछे रखता है; निशाना लगाते समय और तंग जगहों पर यह पहले की तरह पास आ जाता है।</string>
-    <string name="ingame_touch_aim">टच से निशाना</string>
+    <string name="ingame_aiming_section">निशाना</string>
     <string name="ingame_aim_move_stick">मूव स्टिक</string>
     <string name="ingame_aim_touch_area">टच क्षेत्र</string>
     <string name="ingame_aim_c_stick">C स्टिक</string>
     <string name="ingame_touch_aim_help">टच से निशाना: जब तक L या R हथियार तैयार रखता है, निशाना लगाने के लिए दाएँ आधे भाग पर स्वाइप करें, या टच C स्टिक इस्तेमाल करें (ऊपर दाईं ओर के गियर से जोड़ें)। मूव स्टिक: GameCube जैसा। AIM और KNIFE स्टिक (गियर): उन पर उंगली रहने तक R या L दबा रहता है, उनका झुकाव निशाना लगाता है।</string>
+    <string name="ingame_side_controller_aim">कंट्रोलर निशाना</string>
+    <string name="ingame_aim_left_stick">बायाँ स्टिक</string>
+    <string name="ingame_aim_right_stick">दायाँ स्टिक</string>
+    <string name="ingame_controller_aim_help">कंट्रोलर निशाना: बायाँ स्टिक GameCube की तरह निशाना लगाता है। दायाँ स्टिक: जब तक L या R हथियार उठाए रखता है, दायाँ स्टिक निशाना लगाता है, और बाएँ स्टिक का ऊपर-नीचे स्कोप और दूरबीन को ज़ूम करता है।</string>
+    <string name="ingame_move_aim">चलते हुए निशाना</string>
+    <string name="ingame_move_aim_help">चलते हुए निशाना: निशाना लगाते समय बायाँ स्टिक (या टच मूव स्टिक, या मूव कुंजियाँ) Leon को आगे, पीछे और बगल में चलाता है, और आप साथ ही दाएँ स्टिक, टच क्षेत्र, टच C स्टिक या माउस से निशाना लगाते हैं। चलते समय Leon निशाने की मुद्रा में रहता है। केवल तब जब टच निशाना मूव स्टिक न हो और कंट्रोलर निशाना दायाँ स्टिक हो। स्कोप या दूरबीन में और रीलोड करते समय नहीं।</string>
     <string name="ingame_touch_zoom_help">टच से स्कोप या दूरबीन में ज़ूम: दाएँ आधे हिस्से पर या टच C स्टिक पर ऊपर या नीचे खींचें, या ऊपर दाएँ गियर से ज़ूम बटन + और − जोड़ें।</string>
     <string name="ingame_gyro_sensitivity">जाइरो संवेदनशीलता</string>
     <string name="ingame_gyro_sensitivity_help">जायरो संवेदनशीलता: 3× पर निशाना लगभग उतना ही घूमता है जितना आप डिवाइस घुमाते हैं, 6× पर दोगुना।</string>

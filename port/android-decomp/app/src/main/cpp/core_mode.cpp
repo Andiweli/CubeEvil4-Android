@@ -120,6 +120,7 @@ struct CoreApi {
   void (*setHudLayout)(int, int, int){};  // optional (cores since 07.11.2026, patch 0215): the life gauge's corner
   void (*touch)(float, float){};  // optional (cores since 22.10.2026): a tap on the picture
   void (*aimTurn)(float, float){};  // optional (cores since 29.10.2026): swipe aiming
+  void (*moveAim)(float, float){};  // optional (cores since 1.1.5): "Move and aim"
   void (*bodyTurn)(float){};  // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
   void (*zoom)(int){};            // optional (cores since 12.11.2026, 0.99.12): the mouse wheel zooms
   void (*setEnemyRandom)(int){};  // optional (cores since 12.11.2026, 0.99.12): the cheat "Random enemies"
@@ -482,6 +483,7 @@ void loadCore(JNIEnv *env) {
   api.touch = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_touch"));
   api.aimTurn = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_aim_turn"));
   api.bodyTurn = reinterpret_cast<void (*)(float)>(dlsym(api.main, "re4_core_body_turn"));
+  api.moveAim = reinterpret_cast<void (*)(float, float)>(dlsym(api.main, "re4_core_move_aim"));
   api.zoom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_zoom"));
   api.setEnemyRandom = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_enemy_random"));
   api.setMoreEnemies = reinterpret_cast<void (*)(int)>(dlsym(api.main, "re4_core_set_more_enemies"));
@@ -3442,6 +3444,7 @@ void useCoreProcess(const std::string &why) {
   api.touch = re4ipc_touch;
   api.aimTurn = re4ipc_aim_turn;
   api.bodyTurn = re4ipc_body_turn;
+  api.moveAim = re4ipc_move_aim;
   api.zoom = re4ipc_zoom;
   api.setEnemyRandom = re4ipc_set_enemy_random;
   api.setMoreEnemies = re4ipc_set_more_enemies;
@@ -4346,6 +4349,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_aimTurn(JNIE
 
 // "Turn Leon with mouse / look area" (CoreActivity, 1.0): the movement sideways as Leon's turn in radians, positive
 // left (cores since 16.11.2026; older ones: nothing).
+extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_moveAim(JNIEnv *, jclass, jfloat x, jfloat y) {
+  if (api.moveAim) api.moveAim(x, y);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_com_ast_re4decomp_CoreBridge_bodyTurn(JNIEnv *, jclass, jfloat yaw) {
   if (api.bodyTurn) api.bodyTurn(yaw);
 }

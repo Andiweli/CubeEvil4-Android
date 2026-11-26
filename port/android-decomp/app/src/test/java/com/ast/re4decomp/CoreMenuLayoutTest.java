@@ -387,7 +387,7 @@ public class CoreMenuLayoutTest {
       assertNotNull(gyro); assertNotNull(gyroInvert); assertNotNull(mapping);
       int motion = heading(body, activity, R.string.ingame_motion), comfort = heading(body, activity, R.string.ingame_comfort);
       int devices = heading(body, activity, R.string.ingame_controller_section);
-      int touch = heading(body, activity, R.string.ingame_touch_controls), aiming = heading(body, activity, R.string.ingame_touch_aim);
+      int touch = heading(body, activity, R.string.ingame_touch_controls), aiming = heading(body, activity, R.string.ingame_aiming_section);
       int view = heading(body, activity, R.string.ingame_player_view);
       int assign = heading(body, activity, R.string.ingame_mapping_section);
       // 05.11.2026: TOUCH CONTROLS first, a third of the row each; TOUCH AIMING after the comfort controls, PLAYER VIEW
@@ -414,13 +414,25 @@ public class CoreMenuLayoutTest {
       assertTrue("touch aiming after the comfort controls", aiming > comfort);
       assertEquals("touch aiming's choices under their heading", aiming + 1, rowIndex(touchAim, body));
       assertTrue("player view after touch aiming", view > aiming);
+      // 1.1.5 (the project owner, 26.11.2026): AIMING with "Controller aim with" (left stick | right stick) under the touch
+      // row, then CONTROLLER, KEYBOARD AND MOUSE, then PLAYER VIEW, the mapping last
+      ArrowSelector controllerAim = (ArrowSelector) findButton(body, activity.getString(R.string.ingame_aim_left_stick));
+      assertEquals("controller aiming under touch aiming", aiming + 2, rowIndex(controllerAim, body));
+      assertEquals(activity.getString(R.string.ingame_side_controller_aim), sideLabel(controllerAim));
+      assertEquals(2, controllerAim.count());
+      assertTrue("the controller section after aiming", devices > aiming);
+      assertTrue("player view after the controller section", view > devices);
+      assertTrue("the mapping after player view", assign > view);
+      Button moveAim = findButton(body, activity.getString(R.string.ingame_move_aim));
+      assertEquals("move and aim in the sticks' group", devices + 1, rowIndex(moveAim, body));
+      assertFalse("greyed out while the move stick and the left stick aim", moveAim.isEnabled());
       assertEquals("far camera under player view", view + 1, rowIndex(farCamera, body));
       // (the fourth menu round, 21.11.2026) the laser sight's section gone: its side label under the view's group
       Button red = findButton(body, activity.getString(R.string.ingame_laser_red));
       assertEquals("the laser right under the view", view + 2, rowIndex(red, body));
       assertEquals("the four colours in one arrow selector", 4, ((ArrowSelector) red).count());
       assertEquals(activity.getString(R.string.ingame_laser_section), sideLabel(red));
-      assertTrue("the laser before the controller section", devices > rowIndex(red, body));
+      assertTrue("the laser after the controller section", rowIndex(red, body) > devices);
       // motion controls first (wish of the project owner, 30.10.2026): "Gyroscope" (the gyro switch with its slider,
       // "Gyro from" under them), then "Axes" (its directions)
       assertTrue("the motion heading", motion >= 0);
@@ -476,6 +488,9 @@ public class CoreMenuLayoutTest {
       assertTrue("under them", top(device, body) > top(range, body));
       assertTrue("the mapping's section after the controller's", assign > devices);
       assertEquals("the button mapping under its heading", assign + 1, rowIndex(mapping, body));
+      assertEquals("move and aim beside the vibration", moveAim.getParent(), device.getParent());
+      assertEquals("side by side", top(moveAim, body), top(device, body));
+      assertTrue("move and aim on the left", moveAim.getLeft() < device.getLeft());
       assertEquals(activity.getString(R.string.ingame_side_assign), sideLabel(mapping));
       // one gap between all rows of buttons, the rows with a slider too (wish of the project owner, 30.10.2026)
       int gap = top(latch, body) - top(alternate, body) - alternate.getHeight();

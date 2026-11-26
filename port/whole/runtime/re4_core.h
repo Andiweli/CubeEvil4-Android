@@ -380,6 +380,10 @@ void re4_core_aim_turn(float yaw, float pitch);
  * frame and added to Leon's yaw there while he stands, walks or runs (not while he aims, nor on a ladder, in an
  * event ...). Any thread. */
 void re4_core_body_turn(float yaw);
+
+// "Move and aim" (1.1.5, runtime/move_aim.cpp): the left stick while L or R is held with the option on, x right and
+// y forward (-1 .. 1), when it changes (0, 0 when it rests); it walks Leon while he aims. Any thread.
+void re4_core_move_aim(float x, float y);
 /* The cheat "Leon's jacket" (1.0, runtime/cheats.cpp, patch 0235): 1 Leon keeps the brown jacket of chapter 1 for
  * the whole story (the cheat page's "Costumes"; the special costume is the cheats' bit 256). Any thread. */
 void re4_core_set_leon_jacket(int on);

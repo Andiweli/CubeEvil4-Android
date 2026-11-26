@@ -115,6 +115,10 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
   // the menu's comfort control "Latch B" (the same; on: Leon keeps running)
   static final String TOUCH_LATCH_B = "touchLatchB";
   static final String TOUCH_AIM = "touchAim";
+  // "Controller aim with" (1.1.5, the menu's AIMING; CoreInput.CONTROLLER_AIM_LEFT, the default, or _RIGHT) and "Move and
+  // aim" (1.1.5, the menu's "Stick options", off: CoreInput.setMoveAim)
+  static final String CONTROLLER_AIM = "controllerAim";
+  static final String MOVE_AIM = "moveAim";
   // the laser sight's colour (CoreMenu, CONTROLS, LASER SIGHT; wish of the project owner, 04.11.2026): 0 the game's red
   static final String LASER_COLOUR = "laserColour";
   // the menu's slider of gyro aiming (GyroAim.setSensitivity, a float, 1 = as before)
@@ -445,6 +449,13 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     }
     input.setLatch(inputPrefs.getBoolean(TOUCH_LATCH, false), inputPrefs.getBoolean(TOUCH_LATCH_B, false));
     input.setTouchAim(inputPrefs.getInt(TOUCH_AIM, CoreInput.AIM_MOVE_STICK));
+    input.setControllerAim(inputPrefs.getInt(CONTROLLER_AIM, CoreInput.CONTROLLER_AIM_LEFT));
+    input.setMoveAim(inputPrefs.getBoolean(MOVE_AIM, false));
+    if (input.controllerAim() == CoreInput.CONTROLLER_AIM_RIGHT || input.moveAimOption()) {
+      Log.i(TAG, "aiming: a controller aims with the " + (input.controllerAim() == CoreInput.CONTROLLER_AIM_RIGHT
+          ? "right" : "left") + " stick; move and aim " + (input.moveAimActive() ? "on"
+          : input.moveAimOption() ? "on but not available (a left stick aims)" : "off"));
+    }
     knifeSwipe = inputPrefs.getBoolean(KNIFE_SWIPE, true);
     // R3 saves graphics data with the test scripts (RE4_APP_TOOLS=1) or when the menu switched it on
     tools = settings.contains("RE4_APP_TOOLS=1") || inputPrefs.getBoolean(R3_CAPTURE, false);
@@ -1323,6 +1334,22 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
       send();
       Log.i(TAG, "touch aiming: " + (mode == CoreInput.AIM_LOOK ? "the touch area" : mode == CoreInput.AIM_C_STICK
           ? "the touch C stick" : "the move stick") + " aims while L or R is held");
+    }
+
+    @Override public void controllerAimChanged(int mode) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putInt(CONTROLLER_AIM, mode).apply();
+      input.setControllerAim(mode);
+      send();
+      Log.i(TAG, "controller aiming: the " + (input.controllerAim() == CoreInput.CONTROLLER_AIM_RIGHT ? "right"
+          : "left") + " stick aims while L or R is held; move and aim " + (input.moveAimActive() ? "on" : "off"));
+    }
+
+    @Override public void moveAimChanged(boolean on) {
+      getSharedPreferences(INPUT_PREFS, MODE_PRIVATE).edit().putBoolean(MOVE_AIM, on).apply();
+      input.setMoveAim(on);
+      send();
+      Log.i(TAG, "move and aim: " + (input.moveAimActive() ? "on (the left stick walks Leon while he aims)"
+          : on ? "on but not available (a left stick aims)" : "off"));
     }
 
     @Override public void gyroSensitivityChanged(float value) {
@@ -2420,7 +2447,22 @@ public final class CoreActivity extends Activity implements InputManager.InputDe
     // "Turn Leon with mouse / look area": the look zone's movement sideways, with the menu's "Aim speed"
     float body = input.takeBodyTurn();
     if (body != 0) CoreBridge.bodyTurn(body * aimSpeed * bodyTurnSpeed);
+    // "Move and aim" (1.1.5): the left stick while a weapon is ready, when it changed (0, 0 once when it stops)
+    float[] move = input.moveStick();
+    if (move[0] != sentMove[0] || move[1] != sentMove[1]) {
+      CoreBridge.moveAim(move[0], move[1]);
+      if (!movedLogged && (move[0] != 0 || move[1] != 0)) {
+        movedLogged = true;
+        Log.i(TAG, "move and aim: the left stick walks Leon while a weapon is ready (first time this run)");
+      }
+      sentMove[0] = move[0];
+      sentMove[1] = move[1];
+    }
   }
+
+  /** The left stick the core had last for "Move and aim" (CoreBridge.moveAim), and whether the log told it once. */
+  private final float[] sentMove = new float[2];
+  private boolean movedLogged;
 
   /** The keys the game maps or the app uses: which of them a device reports. */
   private static final int[] WATCHED_KEYS = {

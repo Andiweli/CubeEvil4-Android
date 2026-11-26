@@ -295,7 +295,7 @@ string(APPEND RE4_LINK_OBJECTS "runtime=$<TARGET_OBJECTS:re4_formats_obj>\n")
 # cheat "Random enemies" (runtime/enemy_random.cpp, patch 0231), the real-time shadows (runtime/rt_shadow.cpp, patch 0240)
 # Ashley's catch-up by holding her key (runtime/ashley_catchup.cpp, 1.1.0) and the enemy health bars
 # (runtime/health_bars.cpp, patch 0238, 1.1.0) and the mouse in the title and options menus (runtime/mouse_menu.cpp,
-# patch 0239, 1.1.0).
+# patch 0239, 1.1.0) and "Move and aim" (runtime/move_aim.cpp, 1.1.5).
 add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge.cpp runtime/movie_status.cpp
     runtime/dof.cpp runtime/gyro.cpp runtime/menu_touch.cpp runtime/picture.cpp runtime/knife_swipe.cpp
     runtime/qte_touch.cpp runtime/instant_game.cpp runtime/game_language.cpp runtime/cheats.cpp
@@ -304,7 +304,7 @@ add_library(re4_gamehooks_obj OBJECT runtime/state_trace.cpp runtime/core_bridge
     runtime/glow_check.cpp runtime/view_distance.cpp runtime/cpu_skip.cpp runtime/wheel_zoom.cpp
     runtime/enemy_random.cpp runtime/rt_shadow.cpp runtime/ashley_catchup.cpp runtime/health_bars.cpp runtime/mouse_menu.cpp
     runtime/title_skip.cpp runtime/berserker.cpp runtime/bloody.cpp
-    runtime/photo_mode.cpp)
+    runtime/photo_mode.cpp runtime/move_aim.cpp)
 target_link_libraries(re4_gamehooks_obj PRIVATE re4_game_flags)
 target_include_directories(re4_gamehooks_obj PRIVATE runtime)
 string(APPEND RE4_LINK_OBJECTS "main=$<TARGET_OBJECTS:re4_gamehooks_obj>\n")

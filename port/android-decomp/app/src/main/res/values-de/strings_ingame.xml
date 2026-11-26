@@ -33,7 +33,7 @@
     <string name="ingame_side_axes">Achsen</string>
     <string name="ingame_side_control_type">Steuerungsart</string>
     <string name="ingame_side_assists">Erleichterungen</string>
-    <string name="ingame_side_aim_with">Zielen mit</string>
+    <string name="ingame_side_aim_with">Touch-Zielen mit</string>
     <string name="ingame_side_view">Ansicht</string>
     <string name="ingame_side_stick">Stick-Optionen</string>
     <string name="ingame_mapping_section">Buttons und Tasten belegen</string>
@@ -153,11 +153,17 @@
     <string name="ingame_gentle_qte">Sanftere QTEs (Professional)</string>
     <string name="ingame_gentle_qte_help">Sanftere QTEs: In Professional lassen die Tastenaufforderungen so viel Zeit und brauchen so viele Drücke wie in Normal; Schaden und Gegner bleiben wie in Professional. Ein Finger auf dem Bild drückt die Tasten einer Aufforderung sofort, in jedem Schwierigkeitsgrad.</string>
     <string name="ingame_far_camera_help">Hält die Schulterkamera etwas weiter hinter Leon; beim Zielen und an engen Stellen kommt sie wie bisher nah heran.</string>
-    <string name="ingame_touch_aim">Touch-Zielen</string>
+    <string name="ingame_aiming_section">Zielen</string>
     <string name="ingame_aim_move_stick">Bewegungsstick</string>
     <string name="ingame_aim_touch_area">Touchfläche</string>
     <string name="ingame_aim_c_stick">C-Stick</string>
     <string name="ingame_touch_aim_help">Touch-Zielen: Solange L oder R eine Waffe hält, auf der rechten Hälfte wischen oder den Touch-C-Stick nutzen (über das Zahnrad oben rechts hinzufügen). Bewegungsstick: wie am GameCube. Sticks AIM und KNIFE (Zahnrad): Ein Finger darauf hält R bzw. L, ihre Neigung zielt.</string>
+    <string name="ingame_side_controller_aim">Controller-Zielen mit</string>
+    <string name="ingame_aim_left_stick">Linker Stick</string>
+    <string name="ingame_aim_right_stick">Rechter Stick</string>
+    <string name="ingame_controller_aim_help">Controller-Zielen mit: Linker Stick zielt wie am GameCube. Rechter Stick: Solange L oder R eine Waffe hält, zielt der rechte Stick, und der linke Stick zoomt mit oben und unten Zielfernrohr und Fernglas.</string>
+    <string name="ingame_move_aim">Bewegen und Zielen</string>
+    <string name="ingame_move_aim_help">Bewegen und Zielen: Beim Zielen bewegt der linke Stick (oder der Touch-Bewegungsstick oder die Bewegungstasten) Leon vor, zurück und zur Seite, und du zielst gleichzeitig mit dem rechten Stick, der Touchfläche, dem Touch-C-Stick oder der Maus. Leon behält beim Gehen seine Zielhaltung. Nur wenn Touch-Zielen mit nicht auf Bewegungsstick und Controller-Zielen mit auf Rechter Stick steht. Nicht mit Zielfernrohr oder Fernglas und nicht beim Nachladen.</string>
     <string name="ingame_touch_zoom_help">Zoomen in Zielfernrohr oder Fernglas per Touch: auf der rechten Hälfte oder am Touch-C-Stick nach oben oder unten ziehen, oder mit dem Zahnrad oben rechts die Zoom-Knöpfe + und − hinzufügen.</string>
     <string name="ingame_gyro_sensitivity">Gyro-Empfindlichkeit</string>
     <string name="ingame_gyro_sensitivity_help">Gyro-Empfindlichkeit: Bei 3× dreht sich das Zielen etwa so weit wie das Gerät, bei 6× doppelt so weit.</string>

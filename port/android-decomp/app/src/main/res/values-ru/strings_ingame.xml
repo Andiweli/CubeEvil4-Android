@@ -33,7 +33,7 @@
     <string name="ingame_side_axes">Оси</string>
     <string name="ingame_side_control_type">Тип управления</string>
     <string name="ingame_side_assists">Помощь</string>
-    <string name="ingame_side_aim_with">Прицел</string>
+    <string name="ingame_side_aim_with">Сенсорный прицел</string>
     <string name="ingame_side_view">Вид</string>
     <string name="ingame_side_stick">Настройки стика</string>
     <string name="ingame_mapping_section">Назначение кнопок и клавиш</string>
@@ -153,11 +153,17 @@
     <string name="ingame_gentle_qte">Мягкие QTE (Professional)</string>
     <string name="ingame_gentle_qte_help">Мягкие QTE: в Professional события с кнопками дают столько же времени и требуют столько же нажатий, как в Normal; урон и враги остаются как в Professional. Палец на изображении сразу нажимает кнопки подсказки, на любой сложности.</string>
     <string name="ingame_far_camera_help">Держит камеру из-за плеча чуть дальше позади Леона; при прицеливании и в тесных местах она приближается, как раньше.</string>
-    <string name="ingame_touch_aim">Прицеливание касанием</string>
+    <string name="ingame_aiming_section">Прицеливание</string>
     <string name="ingame_aim_move_stick">Стик движения</string>
     <string name="ingame_aim_touch_area">Сенсорная зона</string>
     <string name="ingame_aim_c_stick">C-стик</string>
     <string name="ingame_touch_aim_help">Прицеливание касанием: пока L или R держит оружие, проведите пальцем по правой половине, чтобы целиться, или используйте сенсорный C-стик (добавьте его шестерёнкой справа вверху). Стик движения: как на GameCube. Стики AIM и KNIFE (шестерёнка): пока на них палец, R или L удерживается, а наклон наводит прицел.</string>
+    <string name="ingame_side_controller_aim">Прицел контроллера</string>
+    <string name="ingame_aim_left_stick">Левый стик</string>
+    <string name="ingame_aim_right_stick">Правый стик</string>
+    <string name="ingame_controller_aim_help">Прицел контроллера: Левый стик целится как на GameCube. Правый стик: пока L или R держит оружие, целится правый стик, а вверх и вниз на левом стике меняет зум прицела и бинокля.</string>
+    <string name="ingame_move_aim">Ходьба с прицелом</string>
+    <string name="ingame_move_aim_help">Ходьба с прицелом: во время прицеливания левый стик (или сенсорный стик движения, или клавиши движения) ведёт Леона вперёд, назад и вбок, а целитесь вы одновременно правым стиком, сенсорной зоной, сенсорным C-стиком или мышью. При движении Леон остаётся в позе прицеливания. Только если «Сенсорный прицел» не «Стик движения», а «Прицел контроллера» — «Правый стик». Не в прицеле или бинокле и не при перезарядке.</string>
     <string name="ingame_touch_zoom_help">Зум в прицеле или бинокле касанием: проведите вверх или вниз по правой половине или по сенсорному C-стику, либо добавьте кнопки зума + и − через шестерёнку справа вверху.</string>
     <string name="ingame_gyro_sensitivity">Чувствительность гироскопа</string>
     <string name="ingame_gyro_sensitivity_help">Чувствительность гироскопа: при 3× прицел поворачивается примерно так же, как устройство, при 6× — вдвое больше.</string>

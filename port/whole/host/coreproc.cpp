@@ -123,6 +123,7 @@ struct Core {
     void (*setHudLayout)(int, int, int);
     void (*touch)(float, float);
     void (*aimTurn)(float, float);
+    void (*moveAim)(float, float);  // optional (cores since 1.1.5): "Move and aim"
     void (*bodyTurn)(float);      // optional (cores since 16.11.2026, 1.0): "Turn Leon with mouse / look area"
     void (*zoom)(int);  // optional (cores since 12.11.2026): the mouse wheel
     void (*setEnemyRandom)(int);  // optional (cores since 12.11.2026): "Random enemies"
@@ -809,6 +810,7 @@ bool loadCore(std::string& problem)
     bind(core.aimTurn, "re4_core_aim_turn");
     bind(core.zoom, "re4_core_zoom", false);
     bind(core.bodyTurn, "re4_core_body_turn", false);
+    bind(core.moveAim, "re4_core_move_aim", false);
     bind(core.setEnemyRandom, "re4_core_set_enemy_random", false);
     bind(core.setMoreEnemies, "re4_core_set_more_enemies", false);
     bind(core.setGentleQte, "re4_core_set_gentle_qte", false);
@@ -1018,6 +1020,13 @@ void serve()
         case kPhotoInput:
             if (core.photoInput) core.photoInput(h.a, h.b, h.c);
             break;
+        case kMoveAim: {
+            float x, y;
+            memcpy(&x, &h.a, 4);
+            memcpy(&y, &h.b, 4);
+            if (core.moveAim) core.moveAim(x, y);
+            break;
+        }
         case kQuickReload:
             if (core.quickReload) core.quickReload();
             break;
